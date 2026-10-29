@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="读取电生理文件、核对信息并生成质控方案。">
+  <title>质控台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232563eb'/%3E%3Cpath d='M5 17h5l3-9 5 17 3-8h6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./i18n.js" defer></script>
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到工作台</a>
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h6l4-10 5 19 4-12 3 3h4"/></svg></span><div><strong>质控台</strong></div></div>
+    <nav aria-label="工作台导航"><a href="#upload-panel">读取文件</a><a href="#pipeline-section">质控流程</a><a href="#run-history-panel">检查记录</a><a href="#toolkit-section">方法工具箱</a><a href="/standards">质控标准</a></nav>
+    <div class="language-switch" role="group" aria-label="界面语言"><button type="button" data-language="zh-CN" aria-pressed="true">中文</button><button type="button" data-language="en" aria-pressed="false">EN</button></div>
+    <div class="connection" id="connection-status" role="status"><span class="status-dot"></span><span>连接本地服务…</span></div>
+  </header>
+  <main id="main" class="page-shell upload-first">
+    <section class="intro"><h1>数据质控</h1><p>读取文件，了解信号质量。</p></section>
+    <div id="catalog-error" class="notice error" role="alert" hidden></div>
+    <div id="draft-recovery" class="draft-recovery" hidden><span>有尚未运行的配置</span><button id="restore-draft-button" class="button secondary small-button">恢复草稿</button><button id="discard-draft-button" class="button ghost small-button">丢弃草稿</button></div>
+    <div class="studio-layout">
+    <section id="upload-panel" class="panel upload-panel" aria-label="读取本机数据文件">
+      <div class="upload-heading"><span class="step-index">01</span><h2>上传文件</h2></div>
+      <label class="field-label" for="intake-file">本机文件</label>
+      <div class="file-upload-row"><input id="intake-file" type="file" accept=".edf,.bdf,.vhdr,.set,.fif,.zip"><button id="intake-upload-button" class="button primary" disabled>读取文件</button></div>
+      <div class="upload-meta"><p class="small muted">仅在本机处理 · 最大 512 MiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
+      <p id="intake-status" class="small muted" role="status"></p>
+      <button id="pending-intakes-button" class="text-button">恢复已读取文件</button><div id="pending-intakes" class="pending-intakes" hidden></div>
+      <p class="upload-formats">EDF · BDF · BrainVision · EEGLAB · FIF</p>
+      <p class="small muted package-hint">多文件记录请一起打包 ZIP。</p>
+    </section>
+    <aside id="pipeline-section" class="panel pipeline-board" aria-labelledby="pipeline-title">
+      <div class="board-heading"><h2 id="pipeline-title">数据工作台</h2><span id="pipeline-state" class="tag subtle" role="status">框架预览</span></div>
+      <p id="pipeline-caption" class="board-caption">上传文件后，先提取基本信息。</p>
+      <div id="intake-error" class="notice error" role="alert" hidden></div>
+      <section id="record-summary" class="record-summary" aria-label="自动提取的信息" hidden></section>
+      <div id="intake-confirmation" class="intake-confirmation" hidden></div>
+      <details id="workflow-panel" class="workflow-panel" open><summary>质控模块</summary>
+      <div id="pipeline" class="pipeline" aria-label="质控模块流程图"></div>
+      </details>
+      <div class="board-footer"><span>点击模块查看详情</span><a href="/standards">技术规范 ↗</a></div>
+      <p id="pipeline-legend" class="pipeline-legend" hidden>模块执行状态</p>
+      <details id="plan-disclosure" class="plan-disclosure" hidden><summary>配置与适用条件</summary><div id="plan-details" class="plan-details" aria-live="polite"></div></details>
+    </aside>
+    <div class="studio-controls">
+    <details id="registered-records" class="panel supporting-panel landing-secondary"><summary>已读取记录</summary><div class="disclosure-content">
+      <div id="example-presets" class="example-presets" hidden></div>
+      <label class="field-label" for="input-select">记录</label>
+      <select id="input-select" disabled><option value="">选择已登记记录</option></select>
+    </div></details>
+    <div id="analysis-workspace" class="workbench-grid" hidden>
+      <aside id="configuration" class="configuration-stack" aria-label="数据与可选设置">
+        <section id="input-metadata" class="panel input-panel" hidden>
+          <h2 id="selected-file-name" data-i18n-skip class="selected-file-name">已读取文件</h2>
+          <div class="record-actions"><button id="revise-input-button" class="text-button">更正记录信息</button><button id="preview-input-button" class="text-button">预览波形</button></div>
+          <div id="input-facts" class="facts-row" aria-live="polite"></div>
+          <p id="config-error" class="field-error" role="alert" hidden></p>
+          <details class="data-disclosure" id="data-description-details"><summary>数据来源与标签</summary><div class="disclosure-content">
+            <p id="input-description" class="muted small"></p>
+            <section id="input-usage" class="input-usage" aria-label="数据来源、用途与标注边界" hidden></section>
+            <div id="profile-info" class="profile-info" hidden></div>
+          <section class="data-tags-section" aria-labelledby="data-tags-title"><div class="subheading"><h3 id="data-tags-title">数据标签</h3><span id="data-tags-source" class="tag subtle">来源信息</span></div><div id="input-data-tags" class="data-tags"><p class="small muted">选择记录后显示来源标签。</p></div><p id="data-tags-note" class="small muted"></p></section>
+          </div></details>
+          <details class="data-disclosure" id="data-settings"><summary>分析时段与背景</summary><div class="disclosure-content">
+          <div class="subheading"><h3>分析时段</h3><span class="tag subtle">单次 ≤ 120 秒</span></div>
+          <div class="window-fields">
+            <div><label class="field-label" for="start-seconds">起点 <span>秒</span></label><input id="start-seconds" type="number" min="0" step="any" disabled></div>
+            <div><label class="field-label" for="duration-seconds">时长 <span>秒</span></label><input id="duration-seconds" type="number" min="0.001" max="120" step="any" disabled></div>
+          </div>
+          <p id="window-preview" class="small muted">时段按原始记录的时间轴计算。</p>
+          <section class="context-details"><h3>分析背景（可选）</h3><p class="small muted">不清楚时保留“未知”。技术标签由文件和配置生成，不在这里修改。</p><div class="context-fields"><div><label class="field-label" for="context-disease">疾病背景</label><select id="context-disease" disabled><option value="unknown">未知</option></select></div><div><label class="field-label" for="context-age_group">年龄组</label><select id="context-age_group" disabled><option value="unknown">未知</option></select></div><div><label class="field-label" for="context-task">记录任务</label><select id="context-task" disabled><option value="unknown">未知</option></select></div></div><p class="small muted">背景用于解释与后续分层，本版不据此修改质量阈值或打分，也不构成诊断或来源真值。</p></section>
+          </div></details>
+          <details class="configuration-details"><summary>通道、参考与配置 <span id="channel-count"></span></summary><div id="channel-config" class="channel-config"><p class="muted">选择记录后显示明确配置。</p></div></details>
+        </section>
+        <details id="advanced-settings" class="panel modules-panel advanced-panel"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
+          <p class="small muted advanced-intro">修改后会保留你的配置；重新预览计划即可继续。</p>
+          <div id="module-options" class="module-options"><div class="loading-state"><span class="spinner"></span>正在读取模块目录</div></div>
+          <p class="dependency-note"><span aria-hidden="true">↳</span> M06 依赖 M03；规划时会自动补齐依赖，并说明原因。</p>
+          <div id="extension-options" class="extension-options" hidden></div><p id="extension-selection-note" class="small muted" role="status" hidden></p>
+          <details class="parameter-editor"><summary>修改扩展参数</summary><p class="small muted">JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法默认值。应用后须重新预览计划，服务会核验参数。</p><label class="field-label" for="extension-parameters">扩展参数 JSON</label><textarea id="extension-parameters" rows="7" spellcheck="false">{}</textarea><button id="apply-parameters-button" class="button secondary small-button" disabled>应用参数修改</button><p id="parameter-status" class="small muted" role="status"></p><p id="parameter-error" class="field-error" role="alert" hidden></p></details>
+          <div class="manual-planning"><h3>手动推荐与预览</h3><p class="small muted">需要回到推荐配置时，可恢复推荐方案。</p><div class="recommendation-actions"><button id="recommend-button" class="button secondary small-button" disabled>恢复推荐方案</button><button id="apply-recommendation-button" class="button secondary small-button" disabled>采用推荐</button><button id="plan-button" class="button secondary small-button" disabled>预览执行计划</button></div></div>
+        </div></details>
+      </aside>
+      <div class="analysis-stack">
+        <section class="panel check-panel">
+          <section id="recommendation-section" class="recommendation-panel" aria-labelledby="recommendation-title">
+            <div class="section-heading"><div><h2 id="recommendation-title">检查方案</h2></div><span id="plan-state" class="tag subtle">准备中</span></div>
+            <div id="recommendation-error" class="notice error" role="alert" hidden></div>
+            <div id="recommendation-content" aria-live="polite"><p class="small muted">确认文件后，自动准备检查方案。</p></div>
+          </section>
+          <fieldset class="scope-picker"><legend>检查范围</legend><label><input type="radio" name="qc-scope" id="scope-window" value="window" checked> 快速预检</label><label><input type="radio" name="qc-scope" id="scope-recording" value="recording"> 整份检查</label><p id="scope-description" class="small muted">快速预检仅检查所选时段，不代表整份记录。</p></fieldset>
+          <div id="plan-error" class="notice error" role="alert" hidden></div>
+          <div class="action-row primary-action-row"><button id="run-button" class="button primary" disabled><span aria-hidden="true">▶</span> 开始检查</button><p id="action-hint" class="action-hint">方案准备好后即可开始。</p></div>
+
+        </section>
+      </div>
+    </div>
+    <details id="run-history-panel" class="panel supporting-panel landing-secondary"><summary>检查记录</summary><div class="disclosure-content">
+    <section id="runs-section" class="runs-grid">
+      <section class="panel current-run-panel" aria-labelledby="current-run-title">
+        <div class="panel-title-row"><div><p class="eyebrow">EXECUTION</p><h2 id="current-run-title">当前运行</h2></div><span id="job-status" class="tag subtle">等待开始</span></div>
+        <div id="job-empty" class="empty-state"><div class="empty-icon" aria-hidden="true">↗</div><h3>检查结果会显示在这里</h3><p>开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。</p></div>
+        <div id="job-content" hidden>
+          <div class="job-title-row"><h3 id="job-label" data-i18n-skip></h3><span id="job-created" class="small muted"></span></div>
+          <p id="job-message" class="job-message" aria-live="polite"></p>
+          <p id="job-progress-label" class="progress-label small muted"></p>
+          <div id="job-progress" class="progress-track" role="progressbar" aria-label="已选模块的执行进度，非质量分数" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+          <div id="job-modules" class="job-modules"></div>
+          <section id="recording-progress" class="recording-progress" hidden aria-label="整份执行覆盖"></section>
+          <div id="job-error" class="notice error" role="alert" hidden></div>
+          <div class="job-actions"><button id="cancel-button" class="button secondary small-button" hidden>取消运行</button><a id="report-link" class="button primary small-button" target="_blank" rel="noopener" hidden>打开实际报告 <span aria-hidden="true">↗</span></a><button id="refresh-job-button" class="button ghost small-button">刷新状态</button></div>
+          <div class="job-actions"><button id="clone-job-button" class="button secondary small-button">基于本次配置再运行</button><a id="job-permalink" class="text-button">本次运行链接</a><button id="open-review-button" class="button secondary small-button" hidden>复核候选</button></div>
+          <div id="result-content" class="result-content" hidden></div>
+        </div>
+        <div id="job-load-error" class="notice error" role="alert" hidden></div>
+      </section>
+      <section class="panel history-panel" aria-labelledby="history-title">
+        <div class="panel-title-row"><div><p class="eyebrow">HISTORY</p><h2 id="history-title">运行记录</h2></div><button id="refresh-history-button" class="icon-button" aria-label="刷新运行记录" title="刷新运行记录">↻</button></div>
+        <div id="history-error" class="notice error" role="alert" hidden></div>
+        <div id="history-list" class="history-list"><div class="loading-state"><span class="spinner"></span>正在读取运行记录</div></div>
+      </section>
+    </section>
+    </div></details>
+    <details id="toolkit-section" class="panel toolkit-panel supporting-panel landing-secondary"><summary><span id="toolkit-title">方法工具箱</span><span id="toolkit-count" class="tag subtle" hidden>读取目录中</span></summary><div class="disclosure-content"><p class="small muted">按需浏览方法，查看原理、适用条件和来源。</p>
+<div class="toolkit-filters"><label>方法类别 <select id="toolkit-category"><option value="all">全部类别</option><option value="basic">通用</option><option value="conditional">条件</option><option value="optional">可选</option></select></label><label>接入状态 <select id="toolkit-implementation"><option value="all">全部状态</option><option value="available">已接入</option><option value="planned">待接入</option></select></label></div><div id="toolkit-methods" class="toolkit-methods"><p class="small muted">连接本地服务后显示方法目录。</p></div>    </div></details>
+    </div>
+    </div>
+    <section id="review-workspace" class="panel review-workspace" hidden aria-labelledby="review-title">
+      <div class="panel-title-row"><div><h2 id="review-title">波形与候选复核</h2><p id="review-source" class="small muted" data-i18n-skip></p></div><button id="close-review-button" class="button ghost small-button">收起复核</button></div>
+      <p id="coverage-summary" class="coverage-summary"></p>
+      <div id="review-error" class="notice error" role="alert" hidden></div>
+      <div class="review-layout">
+        <aside id="candidate-sidebar" class="candidate-sidebar"><div class="subheading"><h3>待复核候选</h3><span id="candidate-count" class="tag subtle"></span></div><label class="field-label" for="candidate-module">模块</label><select id="candidate-module"><option value="all">全部模块</option></select><label class="field-label" for="candidate-filter">复核状态</label><select id="candidate-filter"><option value="all">全部候选</option><option value="pending">待复核</option><option value="accepted">接受候选</option><option value="rejected">驳回候选</option><option value="uncertain">待定</option></select><div id="candidate-list" class="candidate-list"></div></aside>
+        <div class="waveform-panel">
+          <div class="waveform-controls"><label>起点（秒）<input id="waveform-start" type="number" min="0" step="any" value="0"></label><label>显示时长<select id="waveform-duration"><option value="2">2 s</option><option value="5" selected>5 s</option><option value="10">10 s</option></select></label><button id="waveform-load-button" class="button secondary small-button">查看波形</button><button id="waveform-prev-button" class="button ghost small-button" aria-label="上一段">←</button><button id="waveform-next-button" class="button ghost small-button" aria-label="下一段">→</button><label>显示增益<select id="waveform-gain"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
+          <details class="waveform-channel-details"><summary>选择显示通道（最多 16 道）</summary><div id="waveform-channels" class="waveform-channels"></div></details>
+          <p id="waveform-status" class="small muted" role="status"></p>
+          <div id="waveform-plot" class="waveform-plot" aria-label="原始信号波形"></div>
+          <p class="small muted">波形采用有界极值包络显示，不改变分析数据。同单位共用标尺并保留零基线；超范围显示会标记。候选不等于已确认伪迹。</p>
+          <section id="candidate-detail" class="candidate-detail" hidden><div id="candidate-evidence"></div><div class="review-form"><label>复核结论<select id="review-decision"><option value="uncertain">待定</option><option value="accepted">接受候选</option><option value="rejected">驳回候选</option></select></label><label>审核人<input id="review-reviewer" type="text" maxlength="120" autocomplete="off" data-i18n-skip></label><label class="review-note">备注<textarea id="review-note" rows="3" maxlength="2000" data-i18n-skip></textarea></label></div><button id="save-review-button" class="button primary small-button">保存复核</button><p id="review-save-status" class="small muted" role="status"></p></section>
+        </div>
+      </div>
+    </section>
+    <footer><span>质控台 · 本地处理</span><span id="service-version" hidden>API v1</span><span id="catalog-scope" hidden></span></footer>
+  </main>
+  <dialog id="module-dialog" aria-labelledby="module-dialog-title"><div class="dialog-header"><div><p id="module-dialog-id" class="eyebrow"></p><h2 id="module-dialog-title"></h2><a id="module-details-link" class="module-details-link" target="_blank" rel="noopener noreferrer" hidden>详细介绍 ↗<span class="small muted">（新标签页）</span></a></div><button id="close-dialog-button" class="icon-button" aria-label="关闭模块详情">×</button></div><div id="module-dialog-content"></div></dialog>
+</body>
+</html>

@@ -1,0 +1,123 @@
+{
+  "schema_version": "dataset-registry/0.2",
+  "checked_at": "2026-10-29",
+  "datasets": [
+    {
+      "dataset_id": "eegmmidb-baseline-demo",
+      "source_url": "https://physionet.org/content/eegmmidb/1.0.0/",
+      "version": "1.0.0",
+      "license": "Open Data Commons Attribution License v1.0",
+      "modality": "scalp_eeg",
+      "local_availability": "six_baseline_edf_plus_S001R03_motor_execution",
+      "subjects_in_local_subset": 3,
+      "records_in_local_subset": 7,
+      "experiment": "S001 R01 eyes-open, R02 eyes-closed, R03 real left/right fist motor execution; R03 is not imagery",
+      "reference_quality_labels": "not_provided_in_demo",
+      "purpose": [
+        "reader_validation",
+        "multichannel_workflow",
+        "applicability_and_report_checks"
+      ],
+      "registered_workbench_records": 3
+    },
+    {
+      "dataset_id": "hmc-sn062-demo",
+      "source_url": "https://physionet.org/content/hmc-sleep-staging/1.1/",
+      "version": "1.1",
+      "license": "CC-BY-4.0",
+      "modality": "scalp_eeg_with_psg_auxiliary",
+      "local_availability": "original_waveform_available_sleep_scoring_sidecars_downloaded_separately_20261028",
+      "records_in_local_subset": 1,
+      "record_duration_seconds": 14104,
+      "demo_analysis_start_seconds": 100,
+      "demo_analysis_duration_seconds": 100,
+      "reference_quality_labels": "sleep_stages_are_not_quality_labels",
+      "purpose": [
+        "sparse_channels",
+        "mixed_references",
+        "auxiliary_leads",
+        "partial_assessment"
+      ],
+      "sleep_annotation_coverage_seconds": [
+        0,
+        14100
+      ],
+      "unannotated_tail_seconds": 4
+    },
+    {
+      "dataset_id": "openneuro-ds002034",
+      "source_url": "https://openneuro.org/datasets/ds002034/versions/1.0.3",
+      "documentation_url": "https://github.com/OpenNeuroDatasets/ds002034",
+      "version": "1.0.3",
+      "license": "CC0",
+      "modality": "scalp_eeg",
+      "local_availability": "two_full_edf_records_and_16_sidecars_downloaded_20261028",
+      "reference_quality_labels": "source_provided_record_level_good_bad_channel_labels; not independently adjudicated by this project",
+      "purpose": [
+        "bad_channel_evaluation",
+        "edf_bids_metadata"
+      ],
+      "cautions": [
+        "preserve_duplicate_reference_channel_identity",
+        "keep_quality_labels_out_of_predictor_inputs",
+        "no_time_resolved_artifact_ground_truth",
+        "edf_82_signals_vs_tsv_81_rows",
+        "source_record_level_labels_do_not_describe_each_window"
+      ],
+      "records_in_local_subset": 2,
+      "subjects_in_local_subset": 2,
+      "pinned_commit": "6abfa95617407c878b18b276eafa773ada07a03a"
+    },
+    {
+      "dataset_id": "tuar-3.0.1",
+      "source_url": "https://isip.piconepress.com/projects/nedc/data/tuh_eeg/tuh_eeg_artifact/v3.0.1/AAREADME.txt",
+      "version": "3.0.1",
+      "license": "provider_access_agreement_required",
+      "modality": "clinical_scalp_eeg",
+      "local_availability": "not_requested_or_downloaded_in_this_audit",
+      "reference_quality_labels": "human_artifact_annotations_on_tcp_montage_and_time_intervals",
+      "purpose": [
+        "artifact_localization",
+        "artifact_type_evaluation",
+        "pathology_review"
+      ],
+      "cautions": [
+        "bipolar_lead_label_is_not_single_electrode_badness",
+        "seizure_and_artifact_can_overlap",
+        "do_not_redistribute_data"
+      ]
+    },
+    {
+      "dataset_id": "sleep-edfx-1.0.0",
+      "source_url": "https://physionet.org/content/sleep-edfx/1.0.0/",
+      "version": "1.0.0",
+      "license": "Open Data Commons Attribution License v1.0",
+      "modality": "scalp_eeg",
+      "experiment": "Sleep-cassette SC4001 first-night PSG with R&K 1968 hypnogram",
+      "purpose": [
+        "sparse_bipolar_eeg",
+        "native_mixed_sample_rates",
+        "sleep_annotation_alignment"
+      ],
+      "records_in_local_subset": 1,
+      "reference_quality_labels": "not_available; state and clinical events are not artifact ground truth",
+      "local_availability": "original waveform and source labels verified against official SHA256"
+    },
+    {
+      "dataset_id": "chbmit-1.0.0",
+      "source_url": "https://physionet.org/content/chbmit/1.0.0/",
+      "version": "1.0.0",
+      "license": "Open Data Commons Attribution License v1.0",
+      "modality": "scalp_eeg",
+      "experiment": "Pediatric epilepsy scalp EEG; chb01_03 source seizure at 2996–3036 seconds",
+      "purpose": [
+        "bipolar_derivations",
+        "duplicate_channel_labels",
+        "clinical_events_separate_from_artifacts"
+      ],
+      "records_in_local_subset": 1,
+      "reference_quality_labels": "not_available; state and clinical events are not artifact ground truth",
+      "local_availability": "original waveform and source labels verified against official SHA256"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ephys-qc-workbench"
+dynamic = ["version"]
+description = "Local modular electrophysiology intake and quality-control workbench"
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "ephys_qc.version.__version__"}
+
+# Execution uses an explicitly configured Python environment containing the
+# separately obtained BrainElecQC package. Third-party source is not vendored.

@@ -1,0 +1,111 @@
+{
+  "schema_version": "qc-profile-design/0.1",
+  "status": "three_profiles_have_local_runtime_pilots_clinical_profile_is_future_design",
+  "scope": "scalp_eeg",
+  "profiles": [
+    {
+      "id": "adult_multichannel_rest",
+      "purpose": "多通道静息记录的接入、基础检查与坏道候选",
+      "initial_dataset_ids": [
+        "eegmmidb-baseline-demo"
+      ],
+      "module_ids": [
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09"
+      ],
+      "gates": [
+        "verified_units",
+        "confirmed_reference_groups",
+        "method_specific_channel_requirements",
+        "auxiliary_leads_if_required"
+      ],
+      "global_score_status": "not_calibrated",
+      "runtime_pilot_available": true
+    },
+    {
+      "id": "adult_multichannel_attention_task",
+      "purpose": "注意任务的多通道检查、事件核对和来源坏道标签对照",
+      "initial_dataset_ids": [
+        "openneuro-ds002034"
+      ],
+      "module_ids": [
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09"
+      ],
+      "gates": [
+        "explicit_channel_index_mapping",
+        "confirmed_reference_groups",
+        "events_on_raw_time_axis",
+        "quality_labels_excluded_from_predictor_inputs",
+        "method_specific_channel_requirements"
+      ],
+      "global_score_status": "not_calibrated",
+      "runtime_pilot_available": true
+    },
+    {
+      "id": "sparse_psg_with_auxiliary",
+      "purpose": "少导联和混合参考下的条件执行与辅助导联分析",
+      "initial_dataset_ids": [
+        "hmc-sn062-demo"
+      ],
+      "module_ids": [
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09"
+      ],
+      "gates": [
+        "verified_units",
+        "separate_reference_groups",
+        "method_specific_channel_requirements",
+        "sleep_labels_for_state_specific_analysis"
+      ],
+      "global_score_status": "not_calibrated",
+      "runtime_pilot_available": true
+    },
+    {
+      "id": "clinical_pathology_review",
+      "purpose": "验证临床病理活动被误判为伪迹的边界",
+      "initial_dataset_ids": [],
+      "module_ids": [
+        "M01",
+        "M02",
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07",
+        "M08",
+        "M09"
+      ],
+      "gates": [
+        "documented_clinical_context",
+        "independent_expert_review",
+        "verified_units",
+        "method_specific_channel_requirements"
+      ],
+      "automatic_exclusion": false,
+      "global_score_status": "not_calibrated",
+      "runtime_pilot_available": false
+    }
+  ]
+}

@@ -1,0 +1,348 @@
+{
+  "schema_version": "eeg-format-samples/1",
+  "purpose": "Pinned public reader fixtures for local integration checks; no signal files included in this repository.",
+  "files": [
+    {
+      "repository": "mne-tools/mne-python",
+      "commit": "ec30cd2f15938228a93783295118ad44ec68b047",
+      "repository_path": "mne/io/edf/tests/data/test.bdf",
+      "relative_path": "01_BDF/test.bdf",
+      "expected_bytes": 467456,
+      "git_blob_sha1": "d19d12803b9ba708273ed18e6aebd62977056b57",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-python/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/edf/tests/data/test.bdf",
+      "source_page": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/edf/tests/data/test.bdf",
+      "bytes": 467456,
+      "sha256": "d97eb2809b8314bf097493b8e2b04140b86722e0de749a563fa6bab2bc63554a",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-python",
+      "commit": "ec30cd2f15938228a93783295118ad44ec68b047",
+      "repository_path": "mne/io/brainvision/tests/data/test.vhdr",
+      "relative_path": "02_BrainVision/test.vhdr",
+      "expected_bytes": 5809,
+      "git_blob_sha1": "30e177a160d85fbb7589344933d436a013e2bb06",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-python/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.vhdr",
+      "source_page": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.vhdr",
+      "bytes": 5809,
+      "sha256": "5ab4716f7a5894c789c627338dd2f01ed1e81a43d847eda3511438b4e2f02345",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-python",
+      "commit": "ec30cd2f15938228a93783295118ad44ec68b047",
+      "repository_path": "mne/io/brainvision/tests/data/test.vmrk",
+      "relative_path": "02_BrainVision/test.vmrk",
+      "expected_bytes": 795,
+      "git_blob_sha1": "11f707aef3dea87b506e851ba326cd5e145a0e1c",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-python/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.vmrk",
+      "source_page": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.vmrk",
+      "bytes": 795,
+      "sha256": "009d3c61d422f1c69677b7eca0d2856f2b9ee096a4e2c4fdabbfeb50571902c2",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-python",
+      "commit": "ec30cd2f15938228a93783295118ad44ec68b047",
+      "repository_path": "mne/io/brainvision/tests/data/test.eeg",
+      "relative_path": "02_BrainVision/test.eeg",
+      "expected_bytes": 505600,
+      "git_blob_sha1": "b531faf55cd0f8b7f1f1c3dd23a4a170b1bd4bda",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-python/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.eeg",
+      "source_page": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/mne/io/brainvision/tests/data/test.eeg",
+      "bytes": 505600,
+      "sha256": "0023a682b3291e095acb593472eb06d00e630c7abcfabad5ebc3ef46faafe850",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "EEGLAB/test_raw.set",
+      "relative_path": "03_EEGLAB/test_raw.set",
+      "expected_bytes": 349568,
+      "git_blob_sha1": "0cfbd250b86c278041cc20a8a58072cdfa4d0aca",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/test_raw.set",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/test_raw.set",
+      "bytes": 349568,
+      "sha256": "95593d49974d3ce8b0bd37e086536b9cedcf0abf38f2453092fd88de0bbde18e",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "EEGLAB/test_raw.fdt",
+      "relative_path": "03_EEGLAB/test_raw.fdt",
+      "expected_bytes": 3904512,
+      "git_blob_sha1": "fc24ce5eb6addd2a272a05e474615b1e693d91f3",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/test_raw.fdt",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/test_raw.fdt",
+      "bytes": 3904512,
+      "sha256": "3ec388b9a080c723c00cd380403d64cc754929d828375bbd53bd83b468136759",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "MEG/sample/sample_audvis_trunc_raw.fif",
+      "relative_path": "04_FIF/sample_audvis_trunc_raw.fif",
+      "expected_bytes": 12036840,
+      "git_blob_sha1": "d9954f0371ea04d103bbdfd4c00643122be04088",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/MEG/sample/sample_audvis_trunc_raw.fif",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/MEG/sample/sample_audvis_trunc_raw.fif",
+      "bytes": 12036840,
+      "sha256": "d1ecdebf1ae23d9e7a5b56be63f45191778440cce6c8dfb0c270e75484b2aa50",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-python",
+      "commit": "ec30cd2f15938228a93783295118ad44ec68b047",
+      "repository_path": "LICENSE.txt",
+      "relative_path": "source-notices/LICENSE.txt",
+      "expected_bytes": 1467,
+      "git_blob_sha1": "8e4a81bec1eb1d1c38bef305216fae3323a3ffbf",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-python/ec30cd2f15938228a93783295118ad44ec68b047/LICENSE.txt",
+      "source_page": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/LICENSE.txt",
+      "bytes": 1467,
+      "sha256": "adf6b228c93126d67e84c40ed7c1b1dbf1ec44f26d9fe224261e1d8592646b52",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "README.md",
+      "relative_path": "source-notices/README.md",
+      "expected_bytes": 1803,
+      "git_blob_sha1": "033bc5f5cea516839cf5f18c8020b8555ceec482",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/README.md",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/README.md",
+      "bytes": 1803,
+      "sha256": "bc854f0feffd609d52d8b059fce85bbb7e89393ef178e1fd27a02ca0b98330f7",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "EEGLAB/README",
+      "relative_path": "source-notices/README",
+      "expected_bytes": 76,
+      "git_blob_sha1": "a86e18b2b29b7c8e762c3b02929fe1d0bfc31dab",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/README",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/EEGLAB/README",
+      "bytes": 76,
+      "sha256": "7cb26e3b37f8ed2f410ff274f2f218b516d8eb12b76015250cd6598a1f3796ad",
+      "upstream_blob_verified": true
+    },
+    {
+      "repository": "mne-tools/mne-testing-data",
+      "commit": "33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92",
+      "repository_path": "version.txt",
+      "relative_path": "source-notices/version.txt",
+      "expected_bytes": 6,
+      "git_blob_sha1": "7dc42d21f60ae99bc8206ed5653ff945a2d1d6e3",
+      "source_url": "https://raw.githubusercontent.com/mne-tools/mne-testing-data/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/version.txt",
+      "source_page": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/version.txt",
+      "bytes": 6,
+      "sha256": "33a49fe74d1e49dffad35cb58152a22cf51635cfd2ff79276fbe3693ee55c9d7",
+      "upstream_blob_verified": true
+    }
+  ],
+  "archives": [
+    {
+      "relative_path": "02_BrainVision.zip",
+      "bytes": 199348,
+      "sha256": "dab7d1c860fcb9bfaf3bcbdd7278be0bf582c38e85b9addb42e3c79194fd8301",
+      "members": [
+        "test.vhdr",
+        "test.vmrk",
+        "test.eeg"
+      ],
+      "derivation": "ZIP packaging only; member bytes identical to upstream"
+    },
+    {
+      "relative_path": "03_EEGLAB.zip",
+      "bytes": 3574725,
+      "sha256": "a9bfa916ed793f620583c4ea4c30ca0f28a535c65e1108939b8ffff150f46340",
+      "members": [
+        "test_raw.set",
+        "test_raw.fdt"
+      ],
+      "derivation": "ZIP packaging only; member bytes identical to upstream"
+    }
+  ],
+  "downloaded_bytes": 17273932,
+  "zip_bytes": 3774073,
+  "samples": [
+    {
+      "id": "mne_bdf_fixture",
+      "format": "bdf",
+      "entrypoint": "01_BDF/test.bdf",
+      "upload": "01_BDF/test.bdf",
+      "nature": "engineering_fixture_origin_not_fully_documented",
+      "nature_zh": "MNE-Python BioSemi读取工程夹具；原始实验来源未充分说明，不推定为独立自然质量样本",
+      "license": {
+        "status": "repository_license_present",
+        "spdx": "BSD-3-Clause",
+        "scope": "MNE-Python repository license; no separate per-file data license located",
+        "notice": "source-notices/LICENSE.txt"
+      },
+      "quality_label_scope": "无独立技术质量真值；1秒仅支持有限读取与检查场景",
+      "notes": [
+        "MNE默认将72道标为eeg，不能据此把全部通道自动确认为头皮EEG。",
+        "持续1秒，多个方法会因时长不足而未评。"
+      ],
+      "technical_metadata": {
+        "format": "bdf",
+        "entrypoint": "01_BDF/test.bdf",
+        "sampling_rate_hz": 2048.0,
+        "channel_count": 73,
+        "channel_type_counts": {
+          "eeg": 72,
+          "stim": 1
+        },
+        "sample_count": 2048,
+        "duration_seconds": 1.0,
+        "first_sample": 0,
+        "first_time_seconds": 0.0,
+        "annotation_count": 0,
+        "declared_highpass_hz": 0.0,
+        "declared_lowpass_hz": 417.0,
+        "warning_count": 0,
+        "read_by": "MNE 1.13.2"
+      },
+      "independent_quality_ground_truth": false
+    },
+    {
+      "id": "mne_brainvision_fixture",
+      "format": "brainvision",
+      "entrypoint": "02_BrainVision/test.vhdr",
+      "upload": "02_BrainVision.zip",
+      "nature": "engineering_fixture_with_modified_metadata",
+      "nature_zh": "MNE-Python BrainVision读取工程夹具，含特意设置的非电压单位；原始实验来源未充分说明",
+      "license": {
+        "status": "repository_license_present",
+        "spdx": "BSD-3-Clause",
+        "scope": "MNE-Python repository license; no separate per-file data license located",
+        "notice": "source-notices/LICENSE.txt"
+      },
+      "quality_label_scope": "13个文件事件不等于伪迹真值；非电压通道用于类型检查",
+      "notes": [
+        "26道由MNE识别为eeg，6道为misc；不得把S/µS/C/BS/ARU等非电压量当EEG电压。",
+        "持续7.9秒，多项10秒门槛方法不适用。",
+        "ZIP成员保持源文件名与相互引用，未改写内容。"
+      ],
+      "technical_metadata": {
+        "format": "brainvision",
+        "entrypoint": "02_BrainVision/test.vhdr",
+        "sampling_rate_hz": 1000.0,
+        "channel_count": 32,
+        "channel_type_counts": {
+          "eeg": 26,
+          "misc": 6
+        },
+        "sample_count": 7900,
+        "duration_seconds": 7.9,
+        "first_sample": 0,
+        "first_time_seconds": 0.0,
+        "annotation_count": 13,
+        "declared_highpass_hz": 0.0,
+        "declared_lowpass_hz": 250.0,
+        "warning_count": 0,
+        "read_by": "MNE 1.13.2"
+      },
+      "independent_quality_ground_truth": false
+    },
+    {
+      "id": "mne_eeglab_tutorial_fixture",
+      "format": "eeglab",
+      "entrypoint": "03_EEGLAB/test_raw.set",
+      "upload": "03_EEGLAB.zip",
+      "nature": "derived_real_tutorial_recording",
+      "nature_zh": "文件comments自述EEGLAB教程选择性视觉注意实验，引用Makeig等1999；作为MNE测试夹具保存",
+      "license": {
+        "status": "not_confirmed_for_sample",
+        "spdx": null,
+        "scope": "No license.txt in EEGLAB directory or repository root at pinned commit; README preference for CC0 is not a license grant for this file",
+        "notice": "source-notices/README.md"
+      },
+      "quality_label_scope": "154个任务事件，不是技术伪迹真值",
+      "notes": [
+        "SET内data引用test_raw.fdt，二者必须一起上传。",
+        "trials=1；属于连续数据，不能泛化为支持epoched SET。",
+        "文件声明ref=common，采集参考仍应由使用者确认。"
+      ],
+      "technical_metadata": {
+        "format": "eeglab",
+        "entrypoint": "03_EEGLAB/test_raw.set",
+        "sampling_rate_hz": 128.0,
+        "channel_count": 32,
+        "channel_type_counts": {
+          "eeg": 32
+        },
+        "sample_count": 30504,
+        "duration_seconds": 238.3125,
+        "first_sample": 0,
+        "first_time_seconds": 0.0,
+        "annotation_count": 154,
+        "declared_highpass_hz": 0.0,
+        "declared_lowpass_hz": 64.0,
+        "warning_count": 0,
+        "read_by": "MNE 1.13.2"
+      },
+      "independent_quality_ground_truth": false
+    },
+    {
+      "id": "mne_sample_truncated_fif",
+      "format": "fif",
+      "entrypoint": "04_FIF/sample_audvis_trunc_raw.fif",
+      "upload": "04_FIF/sample_audvis_trunc_raw.fif",
+      "nature": "derived_real_meg_eeg_sample",
+      "nature_zh": "MNE sample真实视觉/听觉实验的截短派生夹具，包含MEG、EEG、EOG和刺激通道",
+      "license": {
+        "status": "usage_note_present_no_file_license",
+        "spdx": null,
+        "scope": "MNE sample documentation states familiarization use and excludes evaluation of recording-system performance; no standalone file license found",
+        "source": "https://mne.tools/stable/documentation/datasets.html#sample"
+      },
+      "quality_label_scope": "上游bads字段仅是来源标记，未提供本地独立专家伪迹真值",
+      "notes": [
+        "只能选确认的EEG/辅助通道执行头皮EEG检查，MEG通道不能改称EEG。",
+        "保留first_samp=12900与源时间偏移，不能将样本起点改称0。",
+        "文件低通声明80Hz，不能作为110–140Hz肌电检查的带宽证据。"
+      ],
+      "technical_metadata": {
+        "format": "fif",
+        "entrypoint": "04_FIF/sample_audvis_trunc_raw.fif",
+        "sampling_rate_hz": 300.3074951171875,
+        "channel_count": 376,
+        "channel_type_counts": {
+          "grad": 204,
+          "mag": 102,
+          "stim": 9,
+          "eeg": 60,
+          "eog": 1
+        },
+        "sample_count": 6007,
+        "duration_seconds": 20.002830757373932,
+        "first_sample": 12900,
+        "first_time_seconds": 42.95597082905339,
+        "annotation_count": 0,
+        "declared_highpass_hz": 0.10000000149011612,
+        "declared_lowpass_hz": 80.0,
+        "warning_count": 0,
+        "read_by": "MNE 1.13.2"
+      },
+      "independent_quality_ground_truth": false,
+      "source_bad_channel_labels": [
+        "MEG 2443",
+        "EEG 053"
+      ]
+    }
+  ],
+  "source_classification_basis": {
+    "mne_python_repository_license": "https://github.com/mne-tools/mne-python/blob/ec30cd2f15938228a93783295118ad44ec68b047/LICENSE.txt",
+    "testing_repository_readme": "https://github.com/mne-tools/mne-testing-data/blob/33ef2a6f6345a1adf8764f8f63725f0ed9e4bb92/README.md",
+    "eeglab_experiment_description": "comments field in the checksum-verified test_raw.set; do not infer diagnosis or age",
+    "fif_original_experiment": "https://mne.tools/stable/documentation/datasets.html#sample"
+  },
+  "redistribution": "Files remain local. No sample with unconfirmed individual license has been published."
+}

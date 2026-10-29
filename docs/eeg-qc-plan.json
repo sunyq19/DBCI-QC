@@ -1,0 +1,950 @@
+{
+  "schema_version": "eeg-qc-design/0.1",
+  "status": "design_only_not_implemented",
+  "date": "2026-10-28",
+  "timezone": "Asia/Tokyo",
+  "scope": "scalp_eeg",
+  "description": "方案目录；不作为当前工作台可执行插件或已验证标准。",
+  "modules": [
+    {
+      "id": "M01",
+      "name": "数据接入与结构核验",
+      "depends_on": [],
+      "inputs": [
+        "文件与配套文件",
+        "提供方说明"
+      ],
+      "outputs": [
+        "统一信号访问对象",
+        "时间轴与标定",
+        "接入问题"
+      ],
+      "submodules": [
+        "format_detection",
+        "header_validation",
+        "calibration_validation",
+        "time_axis_validation"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M02",
+      "name": "数据画像与检查计划",
+      "depends_on": [
+        "M01"
+      ],
+      "inputs": [
+        "记录元信息",
+        "任务与状态",
+        "提供方确认"
+      ],
+      "outputs": [
+        "冻结的场景配置",
+        "适用模块清单",
+        "未评原因"
+      ],
+      "submodules": [
+        "metadata_reconciliation",
+        "profile_selection",
+        "method_applicability"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M03",
+      "name": "信号完整性",
+      "depends_on": [
+        "M02"
+      ],
+      "inputs": [
+        "信号与时间轴",
+        "量程及单位"
+      ],
+      "outputs": [
+        "缺失与平台指标",
+        "逐通道时间段候选"
+      ],
+      "submodules": [
+        "nonfinite",
+        "flatline",
+        "clipping_candidate",
+        "repeated_block",
+        "discontinuity"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M04",
+      "name": "频谱与干扰",
+      "depends_on": [
+        "M02"
+      ],
+      "inputs": [
+        "信号",
+        "采样率与有效带宽",
+        "滤波史"
+      ],
+      "outputs": [
+        "分窗PSD",
+        "工频指标",
+        "漂移和高频线索"
+      ],
+      "submodules": [
+        "psd",
+        "line_noise",
+        "drift",
+        "high_frequency_noise"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M05",
+      "name": "坏通道候选",
+      "depends_on": [
+        "M03",
+        "M04"
+      ],
+      "inputs": [
+        "基础指标",
+        "参考比较组",
+        "位置及有效空间覆盖"
+      ],
+      "outputs": [
+        "逐通道及局部时段候选",
+        "分方法原因"
+      ],
+      "submodules": [
+        "robust_deviation",
+        "correlation",
+        "spatial_prediction",
+        "bridging_candidate",
+        "channel_evidence_merge"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M06",
+      "name": "生理伪迹线索",
+      "depends_on": [
+        "M03",
+        "M04"
+      ],
+      "inputs": [
+        "EEG",
+        "可用辅助导联",
+        "时间对齐信息"
+      ],
+      "outputs": [
+        "ECG/EOG/EMG候选",
+        "证据强度"
+      ],
+      "submodules": [
+        "ecg_association",
+        "eog_association",
+        "emg_association"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M07",
+      "name": "状态和事件检查",
+      "depends_on": [
+        "M02"
+      ],
+      "inputs": [
+        "事件与状态标注",
+        "任务日志及同步依据"
+      ],
+      "outputs": [
+        "事件结构问题",
+        "按状态分析的区间",
+        "同步可验证性"
+      ],
+      "submodules": [
+        "event_structure",
+        "state_partition",
+        "synchronization_evidence"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M08",
+      "name": "分项评价与可比性",
+      "depends_on": [
+        "M03",
+        "M04",
+        "M05",
+        "M06",
+        "M07"
+      ],
+      "inputs": [
+        "各模块结果或未评状态",
+        "冻结的规则"
+      ],
+      "outputs": [
+        "分项指标",
+        "覆盖与关键失败",
+        "比较组",
+        "可选总分"
+      ],
+      "submodules": [
+        "metric_aggregation",
+        "coverage",
+        "critical_failure",
+        "comparability",
+        "profile_score"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    },
+    {
+      "id": "M09",
+      "name": "报告与人工复核",
+      "depends_on": [
+        "M08"
+      ],
+      "inputs": [
+        "自动结果",
+        "人工意见"
+      ],
+      "outputs": [
+        "报告",
+        "结构化结果",
+        "复核及导出记录"
+      ],
+      "submodules": [
+        "evidence_view",
+        "review_decisions",
+        "report_export",
+        "provenance"
+      ],
+      "algorithm_thresholds": "versioned_profile_calibration_required",
+      "raw_signal_mutation": false
+    }
+  ],
+  "dependency_semantics": "依赖项完成或明确记录未评后可继续；部分子方法未评不阻止独立子方法。M07区间可在执行计划阶段提供给M03至M06，不要求先完成全部计算。",
+  "tag_definitions": [
+    {
+      "key": "modality",
+      "type": "enum",
+      "scope": "recording",
+      "effect": "选择支持范围",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "scalp_eeg",
+        "ecog",
+        "seeg",
+        "neuropixels",
+        "other",
+        "unknown"
+      ]
+    },
+    {
+      "key": "source_format",
+      "type": "string",
+      "scope": "recording",
+      "effect": "按实际格式及厂商识别读取器，不仅依扩展名",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "recording_type",
+      "type": "enum",
+      "scope": "recording",
+      "effect": "时间轴和分段处理",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "continuous",
+        "discontinuous",
+        "epoched",
+        "unknown"
+      ]
+    },
+    {
+      "key": "data_stage",
+      "type": "enum",
+      "scope": "recording",
+      "effect": "原始质量或处理后残余质量",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "acquired",
+        "processed",
+        "unknown"
+      ]
+    },
+    {
+      "key": "processing_history",
+      "type": "array",
+      "scope": "recording",
+      "effect": "按顺序记录滤波、重参考、重采样、插值、ICA、ASR等及版本参数",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "channel_identity",
+      "type": "map",
+      "scope": "channel",
+      "effect": "稳定ID、显示名、源文件索引和正负电极映射",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "rank_and_calibration_history",
+      "type": "object",
+      "scope": "recording_run",
+      "effect": "后续ICA/ASR所需有效秩、校准来源/区间、插值通道标识",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "evaluation_split",
+      "type": "object",
+      "scope": "dataset",
+      "effect": "受试者/记录/站点来源及开发验收划分；不借最终评测诊断选择清洗参数",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "channel_types",
+      "type": "map",
+      "scope": "channel",
+      "effect": "EEG、EOG、ECG、EMG、TRIG、其他及未知类型分开",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "channel_counts",
+      "type": "map_integer",
+      "scope": "recording",
+      "effect": "分别统计全部、各类、实际纳入分析的通道；由通道表推导",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "sampling_rate_hz",
+      "type": "map_number",
+      "scope": "channel",
+      "effect": "记录各通道采样率及重采样历史",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "physical_units",
+      "type": "map_string",
+      "scope": "channel",
+      "effect": "幅度与跨记录比较",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "calibration",
+      "type": "map",
+      "scope": "channel",
+      "effect": "保存gain/offset/digital_range/physical_range及可信状态",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "effective_bandwidth_hz",
+      "type": "map",
+      "scope": "channel",
+      "effect": "限定实际可测频段",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "power_line_frequency_hz",
+      "type": "number",
+      "scope": "recording",
+      "effect": "环境值与数据估计值分开保存，不凭峰值推断地点",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "acquisition_filters",
+      "type": "array",
+      "scope": "recording",
+      "effect": "采集硬件及在线数字滤波",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "analysis_filters",
+      "type": "array",
+      "scope": "run",
+      "effect": "本次计算副本所用滤波，保留参数",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "display_filters",
+      "type": "array",
+      "scope": "view",
+      "effect": "显示设置不冒充原始采集条件",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "acquisition_reference",
+      "type": "map",
+      "scope": "channel",
+      "effect": "原采集参考",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "current_reference",
+      "type": "map",
+      "scope": "channel",
+      "effect": "当前参考与重参考参与通道",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "reference_groups",
+      "type": "map",
+      "scope": "channel",
+      "effect": "确认后才能进行所需的组内比较",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "placement_scheme",
+      "type": "string",
+      "scope": "recording",
+      "effect": "10-20、10-10、自定义或未知，保存实际覆盖",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "position_source",
+      "type": "enum",
+      "scope": "channel",
+      "effect": "空间预测所用位置必须可追溯",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "measured",
+        "template",
+        "unknown"
+      ]
+    },
+    {
+      "key": "electrode_positions",
+      "type": "map",
+      "scope": "electrode",
+      "effect": "坐标、单位、坐标系及通道映射",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "electrode_type",
+      "type": "enum",
+      "scope": "recording",
+      "effect": "选择已验证采集场景，不凭类型扣分",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "wet",
+        "dry",
+        "semi_dry",
+        "other",
+        "unknown"
+      ]
+    },
+    {
+      "key": "impedance_measurements",
+      "type": "array",
+      "scope": "electrode_time",
+      "effect": "记录测量值、单位、时间及设备条件；缺失不填0",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "age_years",
+      "type": "number",
+      "scope": "subject",
+      "effect": "保留年龄数值并选择已验证年龄范围",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "developmental_age",
+      "type": "object",
+      "scope": "subject",
+      "effect": "新生儿另记适当发育年龄；此场景首版仅技术QC",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "recording_context",
+      "type": "enum",
+      "scope": "recording",
+      "effect": "配置流程与验收范围",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "research_rest",
+        "research_task",
+        "routine_clinical",
+        "video_eeg",
+        "psg",
+        "icu_continuous",
+        "ambulatory",
+        "mobile",
+        "other",
+        "unknown"
+      ]
+    },
+    {
+      "key": "task_kind",
+      "type": "string",
+      "scope": "recording",
+      "effect": "rest、ERP、motor_imagery、SSVEP等具体任务",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "state_intervals",
+      "type": "array",
+      "scope": "time_interval",
+      "effect": "清醒、困倦、睡眠、镇静、昏迷及未知；注明来源",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "eye_state_intervals",
+      "type": "array",
+      "scope": "time_interval",
+      "effect": "睁眼/闭眼/未知及其时段",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "clinical_background",
+      "type": "multiselect",
+      "scope": "subject_recording",
+      "effect": "仅由提供方确认；用于解释和验证分层，不直接决定阈值",
+      "missing_value": null,
+      "provenance_required": true,
+      "allowed_values": [
+        "healthy_control",
+        "epilepsy_related",
+        "sleep_disorder",
+        "encephalopathy_or_consciousness_disorder",
+        "stroke_or_brain_injury",
+        "cognitive_or_neurodegenerative",
+        "psychiatric_or_neurodevelopmental",
+        "other",
+        "unknown"
+      ]
+    },
+    {
+      "key": "clinical_annotations",
+      "type": "array",
+      "scope": "time_interval",
+      "effect": "提供方确认的发作、睡眠阶段等；不自动生成诊断",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "medication_sedation_context",
+      "type": "object",
+      "scope": "recording_time",
+      "effect": "提供方信息，影响解释与验证场景",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "stimulation_context",
+      "type": "object",
+      "scope": "recording_time",
+      "effect": "刺激器或刺激事件及来源，保留信号不自动清除",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "event_metadata",
+      "type": "object",
+      "scope": "event",
+      "effect": "事件类型、起点、时长、单位、时钟来源、同步证据",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "acquisition_device",
+      "type": "object",
+      "scope": "recording",
+      "effect": "厂商、型号、软件与ADC信息",
+      "missing_value": null,
+      "provenance_required": true
+    },
+    {
+      "key": "analysis_scope",
+      "type": "object",
+      "scope": "run",
+      "effect": "完整扫描或抽样、实际区间与分母",
+      "missing_value": null,
+      "provenance_required": true
+    }
+  ],
+  "tag_provenance": {
+    "fields": [
+      "value",
+      "source_kind",
+      "source_reference",
+      "confirmation_status",
+      "conflict_note"
+    ],
+    "source_kind": [
+      "file_header",
+      "sidecar",
+      "provider",
+      "reviewer",
+      "derived"
+    ],
+    "confirmation_status": [
+      "confirmed",
+      "unconfirmed",
+      "conflicting"
+    ],
+    "unknown_policy": "null并保存缺失原因；不得用常见默认值补造成实测信息。"
+  },
+  "gates": [
+    {
+      "id": "G01",
+      "uses_tags": [
+        "modality"
+      ],
+      "affects": [
+        "M01",
+        "M02"
+      ],
+      "condition": "非头皮EEG",
+      "action": "仅记录接入信息并转交其他模态流程，不套用本评分",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G02",
+      "uses_tags": [
+        "source_format",
+        "recording_type"
+      ],
+      "affects": [
+        "M01"
+      ],
+      "condition": "格式、配套文件或时间轴不可可靠读取",
+      "action": "阻止依赖信号的分析，保留结构错误报告",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G03",
+      "uses_tags": [
+        "physical_units",
+        "calibration"
+      ],
+      "affects": [
+        "M03",
+        "M05"
+      ],
+      "condition": "单位或标定未核实",
+      "action": "暂停绝对电压判断，允许无需物理量的结构检查",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G04",
+      "uses_tags": [
+        "position_source",
+        "electrode_positions"
+      ],
+      "affects": [
+        "M05"
+      ],
+      "condition": "缺少该空间方法所需坐标",
+      "action": "该子方法未评；不影响无需位置的检查",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G05",
+      "uses_tags": [
+        "channel_counts",
+        "placement_scheme"
+      ],
+      "affects": [
+        "M05"
+      ],
+      "condition": "通道数量或有效覆盖不满足已冻结方法前提",
+      "action": "只关闭依赖此前提的子方法；最少通道数由具体实现和验证确定",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G06",
+      "uses_tags": [
+        "current_reference",
+        "reference_groups"
+      ],
+      "affects": [
+        "M05"
+      ],
+      "condition": "未知参考或混合参考组未经确认",
+      "action": "限制跨通道统计及空间解释",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G07",
+      "uses_tags": [
+        "channel_types",
+        "sampling_rate_hz",
+        "event_metadata"
+      ],
+      "affects": [
+        "M06"
+      ],
+      "condition": "对应辅助导联缺失或未正确对齐",
+      "action": "辅助导联确认性检查未评；其他候选须说明证据强度",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G08",
+      "uses_tags": [
+        "sampling_rate_hz",
+        "effective_bandwidth_hz"
+      ],
+      "affects": [
+        "M04",
+        "M06"
+      ],
+      "condition": "目标频段超出实际可用带宽",
+      "action": "目标指标未评；不得通过升采样虚构可测带宽",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G09",
+      "uses_tags": [
+        "acquisition_filters",
+        "processing_history",
+        "data_stage"
+      ],
+      "affects": [
+        "M04",
+        "M08"
+      ],
+      "condition": "已陷波/插值/去伪迹",
+      "action": "保留滤波或修复发生阶段；采集滤波不自动等于派生。只解释当前残余，与处理历史不同的数据分组比较",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G10",
+      "uses_tags": [
+        "clinical_background",
+        "clinical_annotations"
+      ],
+      "affects": [
+        "M05",
+        "M07",
+        "M09"
+      ],
+      "condition": "存在病理活动或相关临床背景",
+      "action": "幅度/相关候选进入人工复核；保持原始信号",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G11",
+      "uses_tags": [
+        "state_intervals",
+        "eye_state_intervals",
+        "medication_sedation_context"
+      ],
+      "affects": [
+        "M04",
+        "M07",
+        "M08"
+      ],
+      "condition": "睡眠/镇静/睁眼或状态未知",
+      "action": "限制清醒闭眼生理指标解释；无α峰不直接扣技术质量分",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G12",
+      "uses_tags": [
+        "event_metadata",
+        "task_kind"
+      ],
+      "affects": [
+        "M07"
+      ],
+      "condition": "事件缺失或无法定位到EEG时间轴",
+      "action": "仅将依赖这些事件定位的分析列为未评，基础信号QC继续",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G13",
+      "uses_tags": [
+        "age_years",
+        "recording_context",
+        "electrode_type"
+      ],
+      "affects": [
+        "M02",
+        "M08"
+      ],
+      "condition": "超出已验证年龄/场景/设备条件",
+      "action": "标为technical_only，暂不提供经过验证的场景总分",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G14",
+      "uses_tags": [
+        "analysis_scope"
+      ],
+      "affects": [
+        "M08",
+        "M09"
+      ],
+      "condition": "只抽样检查部分区间",
+      "action": "报告实际覆盖；不外推未扫描部分无异常",
+      "evidence_level": "project_design_to_validate"
+    },
+    {
+      "id": "G15",
+      "uses_tags": [
+        "event_metadata"
+      ],
+      "affects": [
+        "M07"
+      ],
+      "condition": "有采集触发但无物理同步校准",
+      "action": "可检查事件数量/次序/间隔和事件锁定片段；真实刺激到达时间或时延不可验证",
+      "evidence_level": "project_design_to_validate"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "adult_multichannel_research",
+      "name": "成年多通道研究EEG",
+      "priority": "v1_primary",
+      "scope": "静息或简单任务；参考/布局与空间子方法的适用范围需按数据确认",
+      "required_evidence": [
+        "完整采集与通道元信息",
+        "典型公开数据回归",
+        "已知故障注入",
+        "真实候选人工复核"
+      ],
+      "score_status": "not_calibrated"
+    },
+    {
+      "id": "few_channel_sleep_eeg",
+      "name": "少导睡眠或PSG中的EEG",
+      "priority": "v1_partial",
+      "scope": "技术QC、辅助导联与未评机制；不提供睡眠分期诊断",
+      "required_evidence": [
+        "多类型通道正确分类",
+        "混合参考正确处理",
+        "缺失辅助信息的降级验证"
+      ],
+      "score_status": "not_calibrated"
+    },
+    {
+      "id": "clinical_epilepsy_scalp",
+      "name": "临床癫痫相关头皮EEG",
+      "priority": "v1_pending_data_review",
+      "scope": "技术QC与病理活动保护的人工复核；不能只凭疾病标签设置更严阈值",
+      "required_evidence": [
+        "提供方数据及采集说明",
+        "专家时间段和通道标注",
+        "病理活动误标检查"
+      ],
+      "score_status": "not_calibrated"
+    },
+    {
+      "id": "special_contexts",
+      "name": "新生儿 ICU 移动或其他专门场景",
+      "priority": "later",
+      "scope": "先接入与技术检查；专用解释和总分另行验证",
+      "required_evidence": [
+        "对应场景来源规范",
+        "独立代表性数据和标注"
+      ],
+      "score_status": "not_supported"
+    }
+  ],
+  "result_contract": {
+    "execution_status": [
+      "completed",
+      "failed",
+      "skipped"
+    ],
+    "assessment_status": [
+      "assessed",
+      "not_assessed",
+      "not_applicable"
+    ],
+    "finding_status": [
+      "not_flagged",
+      "candidate",
+      "confirmed_artifact",
+      "confirmed_usable",
+      "uncertain"
+    ],
+    "review_status": [
+      "pending",
+      "reviewed",
+      "disputed"
+    ],
+    "required_per_metric": [
+      "module_id",
+      "method_version",
+      "parameter_hash",
+      "metric_name",
+      "value",
+      "unit",
+      "channel_ids",
+      "time_intervals",
+      "analyzed_scope",
+      "denominator",
+      "threshold_source",
+      "assessment_status",
+      "reason",
+      "evidence_artifacts"
+    ],
+    "aggregate_fields": [
+      "profile_id",
+      "rule_version",
+      "critical_failures",
+      "assessed_dimensions",
+      "unassessed_dimensions",
+      "coverage",
+      "score_value",
+      "score_status",
+      "comparability_key"
+    ],
+    "score_policy": "预留百分制；规则未校准、关键输入失败或必需项目未评时score_value=null。部分结果可展示但不得重标为完整可比总分。",
+    "comparability_key_fields": [
+      "profile_id",
+      "rule_version",
+      "method_versions",
+      "reference_conditions",
+      "sampling_and_bandwidth",
+      "processing_history",
+      "analysis_strategy",
+      "dimension_coverage"
+    ],
+    "bids_export_policy": "内部多状态不得直接塞入BIDS good/bad列；自动候选与人工确认分开，未知保留为n/a并附原因，映射另行验收。"
+  },
+  "delivery_boundary": {
+    "algorithms": "独立计算与统一结果",
+    "linxi_adapter": "映射到LinxiContext并验证字段",
+    "web_adapter": "统一任务API及报告展示",
+    "current_implementation": "现有BrainElecQC整体流程保留；本设计未改变运行行为。"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "python_version": "3.11.15",
+  "packages": {
+    "brainelecqc": "0.1.0",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "mne": "1.13.2",
+    "matplotlib": "3.11.0",
+    "fooof": "1.1.1",
+    "autoreject": "0.5.1",
+    "scikit-learn": "1.9.0",
+    "h5io": "0.2.5",
+    "pymatreader": "1.3.2",
+    "xmltodict": "1.0.4"
+  },
+  "upstream_checkout_commit": "f007d829712d1b824cda79409d181a3313d6a78f",
+  "observed_date": "2026-10-29",
+  "note": "Observed local execution environment; not a complete dependency lock or redistribution license."
+}

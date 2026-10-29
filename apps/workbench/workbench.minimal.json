@@ -1,0 +1,7 @@
+{
+  "port": 8769,
+  "python": "/absolute/path/to/DBCI-QC/.venv/bin/python",
+  "data_dir": "/absolute/path/to/DBCI-QC-data/runtime",
+  "inputs": [],
+  "profiles": []
+}
