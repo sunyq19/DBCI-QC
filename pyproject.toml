@@ -5,10 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ephys-qc-workbench"
 dynamic = ["version"]
-description = "Local modular electrophysiology intake and quality-control workbench"
+description = "Modular electrophysiology quality-control toolkit with an optional local workbench"
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = []
+
+[project.scripts]
+dbci-qc = "ephys_qc.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

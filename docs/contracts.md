@@ -1,8 +1,8 @@
 # 数据与模块接口约定
 
-状态：以下是完整目标接口；首版实际 HTTP 合同为 `modular-qc-api/0.1`，见 [工作台 API](../apps/workbench/README.md)。旧工作台的 `qc-api/1.0` 与 `qc-result/1.0` 保持独立，没有把旧任务重新解释为新结果。
+状态：本页描述通用数据与模块约定；当前可调用的 Python/CLI 合同见[模块工具包](toolkit.md)，HTTP 合同为 `modular-qc-api/1.0`，见[工作台 API](../apps/workbench/README.md)。旧工作台的 `qc-api/1.0` 与 `qc-result/1.0` 保持独立，没有把旧任务重新解释为新结果。
 
-首版将适用性先写入计划节点的 `ready/partial/skipped + reason`；执行结果使用 `completed/partial/skipped/failed`，并保留子方法状态与未评原因。`partial` 表示模块部分检查可评，不能等同于质量不合格。人工复核回写与统一评分尚未实现；`score.value=null`，`review_status=pending`。
+适用性先写入计划节点的 `ready/partial/skipped + reason`；执行结果使用 `completed/partial/skipped/failed`，并保留子方法状态与未评原因。`partial` 表示模块部分检查可评，不能等同于质量不合格。工作台已支持独立版本化人工复核；算法结果保持 `review_status=pending`，不被人工决定覆写。统一评分尚未校准，`score.value=null`。
 
 ## 数据说明
 
@@ -10,7 +10,7 @@
 
 标签应单独说明：任务事件、睡眠阶段、发作区间、坏道、伪迹区间或人工质量评级；每种标签记录标注者/方法、覆盖范围、复核状态和时间单位。任务或疾病标签不自动等于质量标签。来源无法核实的资料保留待确认状态。
 
-原始文件路径仅由本机数据登记表解析。面向界面的任务请求使用登记 ID，不能把任意路径或可执行命令直接当输入。
+Python/CLI 工具包接受本机文件路径，显式确认后冻结来源与配置。面向网页的 HTTP 任务请求仍使用登记 ID，不能把任意服务器路径或可执行命令直接当输入。两类入口共用读取器、规划器与计算模块。
 
 ## 模块声明
 

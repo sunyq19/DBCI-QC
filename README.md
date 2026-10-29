@@ -1,10 +1,10 @@
 # DBCI-QC
 
-**电生理数据质量控制工具集与本地工作台。**
+**模块化电生理数据质量控制工具集，附本地工作台。**
 
 DBCI-QC 以数据为入口，将文件读取、信息确认、方法选择、模块执行和人工复核组织为可追溯的质控流程。项目面向多模态电生理数据扩展，当前可执行的质量检查聚焦**头皮 EEG**。
 
-当前版本：**1.0.0rc1（候选版）**。提供中英文工作台、五类文件读取、九个顶层模块及结构化报告。版本变化见 [CHANGELOG](CHANGELOG.md)，实现与验收范围见[运行验收记录](docs/runtime-validation.md)。
+当前版本：**1.0.0rc2（候选版）**。核心交付为可独立安装和调用的 Python 工具包；九个模块按文件独立实现，提供 Python 与命令行入口，网页是可选应用。交接与调用见[模块工具包](docs/toolkit.md)，版本变化见 [CHANGELOG](CHANGELOG.md)，实现与验收范围见[运行验收记录](docs/runtime-validation.md)。
 
 ## 工作流程
 
@@ -51,7 +51,7 @@ DBCI-QC 以数据为入口，将文件读取、信息确认、方法选择、模
 
 ## 安装与启动
 
-已验证环境为 **Linux、Python 3.11**。工作台无前端构建步骤；Node.js 仅用于开发检查。当前按源码目录运行，`pip install -e .` 只安装编排包，不会自动安装计算后端。
+已验证环境为 **Linux、Python 3.11**。工作台无前端构建步骤；Node.js 仅用于开发检查。`pip install -e .` 安装工具包与 `dbci-qc` 命令，不会自动安装外部计算后端。
 
 ### 1. 获取项目与依赖
 
@@ -68,7 +68,19 @@ python -m pip install "mne==1.13.2" "autoreject==0.5.1" "h5io==0.2.5" "pymatread
 
 BrainElecQC 为单独安装的外部依赖，不随本仓库分发。已测包版本见[环境记录](profiles/tested-environment.json)；该记录不是完整依赖锁。第三方使用与再分发边界见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
-### 2. 配置本机目录
+### 2. 独立使用模块
+
+无需启动网站即可查看模块、检查文件或运行示例：
+
+```bash
+dbci-qc catalog
+dbci-qc inspect /path/to/record.edf
+python examples/headless_qc.py --output /path/to/new-demo
+```
+
+示例现场生成合成信号并执行 M03 及必要依赖。实际数据的选道配置、Python 调用、命令行执行和 wheel 交接见[模块工具包](docs/toolkit.md)。
+
+### 3. 可选：配置本地工作台
 
 ```bash
 mkdir -p .local
@@ -82,7 +94,7 @@ cp -n apps/workbench/workbench.minimal.json .local/workbench.json
 
 最小配置不含预登记数据，可直接在工作台提交本机文件。需要固定示例时，再参考[完整登记模板](apps/workbench/workbench.example.json)；其中的路径须自行配置，原始数据不随代码提供。已有 `.local/workbench.json` 时保留原配置。
 
-### 3. 启动工作台
+### 4. 启动工作台
 
 ```bash
 python apps/workbench/server.py --config .local/workbench.json
@@ -116,6 +128,7 @@ python scripts/check_release.py
 
 | 内容 | 入口 |
 | --- | --- |
+| 模块交接与独立调用 | [Python API、命令行、示例与安装包](docs/toolkit.md) |
 | 项目技术规范 | [头皮脑电数据质量控制技术规范](docs/qc-standards.md) · [English](docs/en/qc-standards.md) |
 | 流程与接口 | [架构](docs/architecture.md) · [接口约定](docs/contracts.md) · [推荐规则](docs/recommendations.md) |
 | 方法及依据 | [方法与标签](docs/eeg-methods-tags.md) · [来源核对](docs/toolkit-sources.md) |
@@ -125,8 +138,11 @@ python scripts/check_release.py
 工作台中的“质控标准”读取同一份文档源，模块详情可进入对应说明页。维护方法、参数或技术要求时，同步更新实现、模块文档和相关验证记录。
 
 ```text
+src/ephys_qc/modules/  M01–M09 独立实现、注册表与模块上下文
+src/ephys_qc/toolkit.py  面向接收方的 Python 接口
 src/ephys_qc/      读取器、适用性、计划、方法适配与报告
 apps/workbench/   本地界面、HTTP API、任务与复核管理
+examples/         脱离网页的合成数据与模块调用示例
 docs/             技术规范、模块说明、依据与验证记录
 datasets/         来源登记、格式样例清单与数据卡模板
 profiles/         场景设计、实现覆盖与已测环境
