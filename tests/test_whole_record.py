@@ -159,7 +159,7 @@ class WholePlanTests(unittest.TestCase):
         self.assertEqual(plan['plan_id'], result['plan_id'])
 
     def test_scope_cannot_bypass_modality_units_or_mixed_clocks(self):
-        for source in [dict(record(), modality='seeg'), record(), record()]:
+        for source in [dict(record(), modality='other'), record(), record()]:
             if source is not None and source['modality'] == 'scalp_eeg':
                 source['metadata']['channels'][0]['unit'] = 'unknown'
             with self.assertRaises(ValueError): build_plan(source, ['M03'], config())

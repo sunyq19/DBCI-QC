@@ -1,6 +1,6 @@
 # 模块交接与独立调用
 
-适用版本：1.0.0rc2。核心交付物为 Python 工具包 `ephys_qc`；本地网站是使用该工具包的一个应用。模块执行不要求 HTTP 服务、浏览器、`.local/workbench.json` 或预登记数据目录。
+适用版本：1.0.0rc3.dev5；原头皮EEG调用保持兼容。核心交付物为 Python 工具包 `ephys_qc`；本地网站是使用该工具包的一个应用。模块执行不要求 HTTP 服务、浏览器、`.local/workbench.json` 或预登记数据目录。
 
 ## 1. 交付结构
 
@@ -16,6 +16,22 @@
 | 可选工作台 | `apps/workbench/` | 上传、交互、任务管理、波形查看与版本化人工复核 |
 
 九个模块独立成文件，作为同一工具包统一发布和版本管理。模块可以组合使用，依赖关系由计划表达；当前不将九个模块分别发布为九个安装包。BrainElecQC 等计算依赖仍需单独安装，见[安装说明](../README.md#安装与启动)和[第三方说明](../THIRD_PARTY_NOTICES.md)。
+
+## 1.1 流程、模块与方法
+
+工作台与工具包采用同一层级：**流程阶段 → 职责模块 → 具体方法**。格式由读取器处理，模态由已确认记录决定，不需要建立四套网站流程。
+
+| 阶段 | 模块 | 产出 |
+| --- | --- | --- |
+| 读取与确认 | M01 接入、M02 计划 | 已核验的数据、选道与冻结配置 |
+| 质量检查 | M03 完整性、M04 频谱、M05 通道、M06 伪迹、M07 事件 | 分项观察量、候选位置与未评原因 |
+| 结果与报告 | M08 汇总、M09 报告 | 可追溯的分项报告与复核入口 |
+
+模块内的方法按启用方式分为基础方法、按条件启用、可选增强。基础方法随选中的模块运行，仍须通过输入校验；条件方法检查其采样率、时长、参考组或辅助信号；可选增强须在配置中启用。分组不是执行顺序或质量等级，实际执行依赖和未评原因以 `build_plan()` 为准。
+
+`from ephys_qc.toolkit import workflow` 可获取上述阶段、方法分组与模态默认模块列表；`catalog(modality)` 返回模块的输入、输出、依赖和方法来源。两者都不读取信号或修改分析配置。工作台调用同一份 `workflow`，工具箱浏览不改变当前任务。默认展示已接入方法，待开发项通过接入状态筛选查阅。
+
+ECoG、sEEG、Neuropixels 的 M03–M05 共用 `modules/continuous/` 中的完整性、Welch 频谱和逐通道统计内核，各模态入口仍独立核验身份与参数。合并只复用相同计算，不迁移阈值或合并解释。头皮 EEG 的 PREP、伪迹线索及可选增强保留各自方法与条件。读取器和 M01/M02/M07/M08/M09 继续共享。
 
 ## 2. Python 调用
 
@@ -53,7 +69,7 @@ print(result["status"], result["selected_modules"])
 
 | 接口 | 输入 | 输出 |
 | --- | --- | --- |
-| `catalog()` / `list_readers()` | 无 | 模块方法或读取器目录 |
+| `catalog(modality="scalp_eeg")` / `list_readers()` | 可选模态，支持`scalp_eeg`、`ecog`、`seeg`或`extracellular` | 模块方法或读取器目录 |
 | `inspect_recording(path)` | 本机主文件路径 | 技术元数据，不确认模态和质量 |
 | `prepare_recording(path, ..., qc_config=...)` | 显式模态、记录 ID、选道与配置 | 可保存为 JSON 的记录及来源指纹 |
 | `recommend(record, qc_config=None)` | 已确认记录及可选配置 | 推荐理由、适用性、可采用的方法与配置 |
@@ -121,3 +137,26 @@ wheel 包含 `ephys_qc` 模块与命令行入口，不包含网站、原始数�
 网站、后续 Linxi 插件或其他平台均应调用同一工具包，负责把宿主输入转换为已确认记录和配置，将进度事件、结果及产物引用映射回宿主。不得在宿主内复制另一套检测逻辑。
 
 当前模块包交付检测、证据与报告。网站中的上传隔离、输入修订、交互式波形和版本化人工复核仍属于 `apps/workbench`，不随 wheel 提供；接收方若需要这些交互，应另行接入应用层。当前没有完成 Linxi 宿主安装验收。
+
+## ECoG 路线
+
+使用`catalog("ecog")`或`dbci-qc catalog --modality ecog`查看独立方法。`prepare_recording(..., modality="ecog", qc_config=...)`使用相同原生索引接口；`selection.eeg_indices`在此表示ECoG分析触点，不意味着头皮EEG。方法参数放在`method_config.ecog`，不接收头皮专属检测参数。独立入口位于`src/ephys_qc/modules/ecog/`，M03–M05调用`modules/continuous/`共享计算内核；M01/M02/M07/M08/M09共享数据与报告接口。M06保持未接入。
+
+```json
+{"selection":{"eeg_indices":[0,1],"reference_indices":{},"start_seconds":0,"duration_seconds":120},"method_config":{"ecog":{"psd_window_seconds":4,"line_frequencies_hz":[50,60]},"comparison_groups":null}}
+```
+
+示例索引必须由实际文件与来源说明确认，不能直接复制到别的记录。详见[ECoG技术约定](ecog/qc-standards.md)。
+
+## sEEG 与 Neuropixels 电压
+
+`sEEG`使用`modality="seeg"`和`method_config.seeg`；已支持的SpikeGLX AP/LF或有明确Neuropixels设备证据的NWB连续电压使用`modality="extracellular"`和`method_config.neuropixels`。模块分别位于`modules/seeg/`和`modules/neuropixels/`，共用`modules/continuous/`内的描述量计算函数。读取器独立于模块，SpikeGLX的命令行入口是已有同名META配套的`.ap.bin`或`.lf.bin`；网页入口为二者打包的ZIP。
+
+AP默认Welch窗口0.1秒、LF为1秒；这是频谱描述配置，不是判坏阈值。参数名称及基本结构与ECoG相同，但不接受其他模态的配置键或头皮算法参数。`selection.eeg_indices`是保留兼容的分析通道字段，在此指深部触点或探针神经通道；同步字不能加入。模块M01/M02再次读取源声明，不能仅凭改登记信息将AP变成LF或将sEEG改为ECoG。
+
+三个基础模块给出原值和未评范围，不自动分类坏道，不计算已校准总分。NP2只有合成解码测试；spike sorting、unit quality、漂移、相位校正及跨流同步尚未接入。完整约定见[sEEG](seeg/qc-standards.md)、[Neuropixels](neuropixels/qc-standards.md)和[接入设计](multimodal-extension.md)。
+
+NWB 2/HDF5由独立读取器接入。多ElectricalSeries文件须选定一个流，选择随记录版本、计划和运行冻结；改变流须重新确认并生成计划，不能沿用旧流通道索引。其他NWB电压依来源确认EEG/ECoG/sEEG，普通LFP或Units不能直接进入Neuropixels路线。当前Neuropixels电压配置版本为`neuropixels-voltage/2`；旧`neuropixels-raw/1`只解释已有历史任务，不追溯修改旧结果。具体字段以工具包与读取器接口为准，样例见[NWB来源与核对](nwb-testing.md)。
+
+
+NWB可先调用`inspect_recording(path)`查看`available_streams`，再以`inspect_recording(path, stream_id="/acquisition/ElectricalSeries")`读取被选流的元数据。准备记录时向`prepare_recording(..., stream_id=...)`传递同一对象路径。命令行对应`dbci-qc inspect record.nwb --stream /acquisition/ElectricalSeries`和`prepare`命令的`--stream`参数；具体路径必须来自该文件的实际读取结果，不能根据示例猜测。

@@ -15,6 +15,20 @@ HEADING = re.compile(r'^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$')
 LIST_ITEM = re.compile(r'^( *)([-+*]|[0-9]{1,9}[.)])[ \t]+(.*)$')
 FENCE = re.compile(r'^ {0,3}(`{3,}|~{3,})([^`]*)$')
 SEPARATOR = re.compile(r'^:?-{3,}:?$')
+from ephys_qc.modalities import ROUTES, DESCRIPTIVE, route
+
+# Fixed document catalog shared by routing and presentation. Never accept paths
+# from request parameters or Markdown content.
+DOCUMENT_PAGES = {
+    'overview': ('workflow-standards.md', '总则', 'General requirements'),
+    'fields': ('metadata-fields.md', '字段字典', 'Field dictionary'),
+    'applicability': ('method-applicability.md', '方法适用规则', 'Method applicability'),
+    'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
+}
+DOCUMENT_PATHS = {'/standards', '/standards/ecog', '/standards/seeg', '/standards/neuropixels',
+                  *('/standards/' + slug for slug in DOCUMENT_PAGES)}
+LOCAL_DOCUMENT_PATHS = DOCUMENT_PATHS | {'/en' + path for path in DOCUMENT_PATHS}
+
 MODULE_TITLES = {
     'M01': '数据接入与结构核验', 'M02': '数据画像与检查计划',
     'M03': '信号完整性', 'M04': '频谱与窄带干扰', 'M05': '通道质量候选',
@@ -32,6 +46,19 @@ EN_MODULE_TITLES = {
     'M08': 'Evidence summary and aggregation',
     'M09': 'Reporting and review',
 }
+
+
+ECOG_MODULE_TITLES = {**MODULE_TITLES, 'M03': '基础信号完整性', 'M04': '频谱与工频观察', 'M05': '逐触点统计', 'M06': '伪迹方法边界', 'M07': '来源事件核对'}
+EN_ECOG_MODULE_TITLES = {**EN_MODULE_TITLES, 'M03': 'Basic signal integrity', 'M04': 'Spectrum and line-frequency observations', 'M05': 'Per-contact statistics', 'M06': 'Artifact method scope', 'M07': 'Source event checks'}
+
+
+def module_titles(modality, english=False):
+    if modality == 'extracellular':
+        return ({**EN_ECOG_MODULE_TITLES, 'M04': 'Within-stream spectrum observations', 'M05': 'Per-channel statistics'} if english else
+                {**ECOG_MODULE_TITLES, 'M04': '流内频谱观察', 'M05': '逐通道统计'})
+    if modality in DESCRIPTIVE:
+        return EN_ECOG_MODULE_TITLES if english else ECOG_MODULE_TITLES
+    return EN_MODULE_TITLES if english else MODULE_TITLES
 
 
 def numbered_label(text, prefix='section', formatted=True):
@@ -59,8 +86,8 @@ def safe_url(value):
         if value.startswith('#') and valid_fragment:
             return value
         if value.startswith('/') and not parsed.scheme and not parsed.netloc and not parsed.query and '?' not in value.split('#')[0]:
-            if valid_fragment and (parsed.path in {'/standards', '/en/standards'} or
-                                   re.fullmatch(r'/(?:en/)?standards/modules/M0[1-9]', parsed.path)):
+            if valid_fragment and (parsed.path in LOCAL_DOCUMENT_PATHS or
+                                   re.fullmatch(r'/(?:en/)?standards/(?:(?:ecog|seeg|neuropixels)/)?modules/M0[1-9]', parsed.path)):
                 return value
             if parsed.path == '/' and re.fullmatch(r'module-M0[1-9]', parsed.fragment):
                 return value
@@ -189,7 +216,7 @@ class Markdown:
     def __init__(self, source):
         self.lines = source.expandtabs(4).splitlines()
         self.headings = []
-        self.identifiers = {'document', 'print-document', 'return-workbench', 'document-toc', 'module-navigation'}
+        self.identifiers = {'document', 'print-document', 'return-workbench', 'document-toc', 'module-navigation', 'specification-navigation'}
 
     def heading(self, level, text):
         # HTMLParser would also consume literal source HTML. Use rendered text
@@ -409,7 +436,7 @@ NAVIGATION_SCRIPT = r""""use strict";
     if (fromWorkbench && location.href === entryHref && history.length === entryLength) history.back();
     else {
       const fallback = back.getAttribute?.("href");
-      location.assign(fallback === "/?lang=en" ? fallback : "/");
+      location.assign(["/", "/?lang=en", "/?modality=ecog", "/?modality=ecog&lang=en", "/?modality=seeg", "/?modality=seeg&lang=en", "/?modality=extracellular", "/?modality=extracellular&lang=en"].includes(fallback) ? fallback : "/");
     }
   }
   back.addEventListener("click", event => {
@@ -490,18 +517,18 @@ NAVIGATION_SCRIPT = r""""use strict";
 PRINT_SCRIPT = NAVIGATION_SCRIPT
 
 
-def _module_clause_id(identifier, lang='zh-CN'):
-    titles = EN_MODULE_TITLES if lang == 'en' else MODULE_TITLES
+def _module_clause_id(identifier, lang='zh-CN', modality='scalp_eeg'):
+    titles = module_titles(modality, lang == 'en')
     markdown = Markdown('')
     markdown.heading(3, f'5.{int(identifier[1:])} {identifier} {titles[identifier]}')
     return markdown.headings[0]['id']
 
 
-def _localized_document_links(body, lang):
+def _localized_document_links(body, lang, modality='scalp_eeg'):
     """Rewrite only renderer-approved internal documentation links, never prose/code."""
     if lang != 'en':
         return body
-    clause_ids = {_module_clause_id(identifier): _module_clause_id(identifier, 'en')
+    clause_ids = {_module_clause_id(identifier, modality=modality): _module_clause_id(identifier, 'en', modality)
                   for identifier in MODULE_TITLES}
 
     def localize(match):
@@ -509,7 +536,7 @@ def _localized_document_links(body, lang):
         parsed = urlsplit(value)
         if parsed.scheme or parsed.netloc or parsed.query:
             return match.group(0)
-        if parsed.path != '/standards' and not re.fullmatch(r'/standards/modules/M0[1-9]', parsed.path):
+        if parsed.path not in DOCUMENT_PATHS and not re.fullmatch(r'/standards/(?:(?:ecog|seeg|neuropixels)/)?modules/M0[1-9]', parsed.path):
             return match.group(0)
         fragment = unquote(parsed.fragment)
         suffix = '#' + clause_ids.get(fragment, fragment) if fragment else ''
@@ -518,19 +545,23 @@ def _localized_document_links(body, lang):
     return re.sub(r'href="([^"]+)"', localize, body)
 
 
-def render_standards(source, module_id=None, lang='zh-CN'):
+def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg'):
     if module_id is not None and module_id not in MODULE_TITLES:
         raise ValueError('Unknown module document')
     if lang not in {'en', 'zh', 'zh-CN'}:
         raise ValueError('Unsupported document language')
+    common = modality in DOCUMENT_PAGES
+    if modality not in {*ROUTES, *DOCUMENT_PAGES} or (common and module_id is not None):
+        raise ValueError('Unsupported document modality')
     english = lang == 'en'
     lang = 'en' if english else 'zh-CN'
-    titles = EN_MODULE_TITLES if english else MODULE_TITLES
-    base = '/en/standards' if english else '/standards'
-    workbench_href = '/?lang=en' if english else '/'
+    titles = module_titles(modality, english)
+    modality_suffix = '/' + modality if common else ('/' + route(modality)['slug'] if route(modality)['slug'] else '')
+    base = ('/en/standards' if english else '/standards') + modality_suffix
+    workbench_href = ('/?modality=' + modality + ('&lang=en' if english else '')) if modality in DESCRIPTIVE else ('/?lang=en' if english else '/')
     text = lambda chinese, english_text: english_text if english else chinese
     markdown = Markdown(source)
-    body = _localized_document_links(markdown.render(), lang)
+    body = _localized_document_links(markdown.render(), lang, modality)
     if english:
         body = body.replace('aria-label="表格，可横向滚动"', 'aria-label="Table; scroll horizontally"')
     # Style an explicitly labelled source metadata line; keep its exact content.
@@ -542,14 +573,29 @@ def render_standards(source, module_id=None, lang='zh-CN'):
         f'<li><a class="module-nav-item" href="{base}/modules/{identifier}"'
         + (' aria-current="page"' if identifier == module_id else '')
         + f'><code>{identifier}</code>{escape(name)}</a></li>' for identifier, name in titles.items())
+    if common:
+        prefix = '/en' if english else ''
+        module_links = (f'<li><a href="{prefix}/standards">{text("头皮EEG适用规则", "Scalp EEG requirements")}</a></li>'
+                        f'<li><a href="{prefix}/standards/ecog">{text("ECoG适用规则", "ECoG requirements")}</a></li>'
+                        f'<li><a href="{prefix}/standards/seeg">{text("sEEG适用规则", "sEEG requirements")}</a></li>'
+                        f'<li><a href="{prefix}/standards/neuropixels">{text("Neuropixels连续电压规则", "Neuropixels continuous-voltage requirements")}</a></li>')
     download_path = f'{base}/modules/{module_id}.md' if module_id else base + '.md'
-    download_name = f'{module_id}.md' if module_id else 'qc-standards.md'
+    download_name = f'{module_id}.md' if module_id else (DOCUMENT_PAGES[modality][0] if common else 'qc-standards.md')
+    prefix = '/en' if english else ''
+    document_links = ''.join(
+        f'<li><a href="{prefix}/standards/{slug}"'
+        + (' aria-current="page"' if slug == modality else '')
+        + f'>{escape(labels[2] if english else labels[1])}</a></li>'
+        for slug, labels in DOCUMENT_PAGES.items())
+    kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality == 'implementation' else
+            text('模块说明 · 当前实现', 'Module guide · Current implementation') if module_id else
+            text('项目技术规范 · 征求意见稿', 'Project technical specification · Consultation draft'))
     breadcrumb = (f'<nav class="breadcrumbs" aria-label="{text("面包屑", "Breadcrumbs")}"><a href="{base}">{text("质控技术规范", "QC technical specification")}</a>'
                   f'<span aria-hidden="true">/</span><span aria-current="page">{module_id}</span></nav>'
                   if module_id else '')
     module_action, pagination = '', ''
     if module_id:
-        clause = base + '#' + _module_clause_id(module_id, lang)
+        clause = base + '#' + _module_clause_id(module_id, lang, modality)
         module_action = f'<div class="module-actions"><a href="{workbench_href}#module-{module_id}">{text("在质控台查看本模块", "View this module in QC Workbench")}</a><a href="{escape(clause)}">{text("对应标准条款", "Related specification clause")}</a></div>'
         identifiers = list(MODULE_TITLES)
         index = identifiers.index(module_id)
@@ -560,8 +606,8 @@ def render_standards(source, module_id=None, lang='zh-CN'):
         pagination = f'<nav class="module-pagination" aria-label="{text("相邻模块", "Adjacent modules")}">{previous_html}{next_html}</nav>'
     suffix = f'/modules/{module_id}' if module_id else ''
     language_links = (f'<span class="document-languages" aria-label="{text("文档语言", "Document language")}">'
-                      f'<a href="/standards{suffix}" hreflang="zh-CN" lang="zh-CN"' + (' aria-current="true"' if not english else '') + '>中文</a>'
-                      f'<a href="/en/standards{suffix}" hreflang="en" lang="en"' + (' aria-current="true"' if english else '') + '>EN</a></span>')
+                      f'<a href="/standards{modality_suffix}{suffix}" hreflang="zh-CN" lang="zh-CN"' + (' aria-current="true"' if not english else '') + '>中文</a>'
+                      f'<a href="/en/standards{modality_suffix}{suffix}" hreflang="en" lang="en"' + (' aria-current="true"' if english else '') + '>EN</a></span>')
     return f'''<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><title>{escape(title)} · {text("质控台", "QC Workbench")}</title>
@@ -569,11 +615,12 @@ def render_standards(source, module_id=None, lang='zh-CN'):
 <a class="skip-link" href="#document">{text("跳到正文", "Skip to document")}</a>
 <header class="document-header"><nav class="document-toolbar" aria-label="{text("文档操作", "Document actions")}">
 <a id="return-workbench" class="workbench-return" href="{workbench_href}" aria-keyshortcuts="Alt+Q" title="{text("返回质控台（Alt+Q）", "Return to QC Workbench (Alt+Q)")}">← {text("返回质控台", "QC Workbench")} <kbd>Alt+Q</kbd></a>
-<span class="document-kind">{text('模块说明 · 当前实现', 'Module guide · Current implementation') if module_id else text('项目技术规范 · 征求意见稿', 'Project technical specification · Consultation draft')}</span>
+<span class="document-kind">{kind}</span>
 {language_links}<a href="{download_path}" download="{download_name}">{text("下载原文", "Download source")}</a><button id="print-document" type="button">{text("打印", "Print")}</button></nav></header>
 <main class="document-layout"><aside class="document-sidebar" aria-label="{text("规范导航", "Specification navigation")}">
+<details id="specification-navigation" class="module-navigation" open><summary>{text("文档体系", "Document structure")}</summary><nav aria-label="{text("公共规范", "Shared specifications")}"><ol>{document_links}</ol></nav></details>
 <details id="document-toc" class="document-toc" open><summary>{text("目录", "Contents")}</summary><nav aria-label="{text("条款目录", "Clause contents")}"><ol class="toc-tree">{toc}</ol></nav></details>
-<details id="module-navigation" class="module-navigation"><summary>{text("模块索引", "Module index")}</summary><nav aria-label="{text("模块详情", "Module details")}"><ol>{module_links}</ol></nav></details></aside>
+<details id="module-navigation" class="module-navigation"><summary>{text("各模态规范", "Modality requirements") if common else text("模块索引", "Module index")}</summary><nav aria-label="{text("模块详情", "Module details")}"><ol>{module_links}</ol></nav></details></aside>
 <article id="document" class="document-body">{breadcrumb}{module_action}{body}{pagination}</article></main>
 <footer class="document-footer"><a href="#document">{text("返回顶部", "Back to top")} ↑</a></footer>
 </body></html>'''

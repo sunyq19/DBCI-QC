@@ -6,7 +6,7 @@ import zipfile
 
 MAX_BYTES = 512 * 1024 * 1024
 MAX_MEMBERS = 64
-ENTRY_SUFFIXES = {'.edf', '.bdf', '.vhdr', '.set', '.fif'}
+ENTRY_SUFFIXES = {'.edf', '.bdf', '.vhdr', '.set', '.fif', '.meta', '.nwb'}
 
 
 def sha256(path):
@@ -66,9 +66,14 @@ def prepare_source(upload, filename, directory):
             entries = [target for _, target in planned if target.suffix.lower() in ENTRY_SUFFIXES
                        and not any(part.startswith('.') or part == '__MACOSX' for part in target.relative_to(payload).parts)]
             if len(entries) != 1:
-                raise ValueError('ZIP须包含唯一的EDF、BDF、VHDR、SET或FIF主文件及其配套文件。')
+                raise ValueError('ZIP须包含唯一的EDF、BDF、VHDR、SET、FIF、NWB或SpikeGLX META主文件及其配套文件。')
         upload.replace(directory / 'original.zip')
-        return entries[0]
+        entry = entries[0]
+        if entry.suffix.lower() == '.meta':
+            entry = entry.with_suffix('.bin')
+            if not entry.is_file() or not entry.name.lower().endswith(('.ap.bin', '.lf.bin')):
+                raise ValueError('SpikeGLX配套缺失：META须对应同名AP或LF BIN。')
+        return entry
     with upload.open('rb') as handle:
         signature = handle.read(8)
     suffix = Path(filename).suffix.lower()
@@ -77,7 +82,9 @@ def prepare_source(upload, filename, directory):
     elif signature == b'\xffBIOSEMI':
         suffix = '.bdf'
     if suffix not in ENTRY_SUFFIXES:
-        raise ValueError('请选择EDF、BDF、BrainVision、EEGLAB或FIF；配套文件请一起打包ZIP。')
+        raise ValueError('请选择已支持格式；SpikeGLX的单流BIN和META必须一起打包ZIP。')
+    if suffix == '.meta':
+        raise ValueError('SpikeGLX须将同名.ap.bin/.ap.meta或.lf.bin/.lf.meta一起打包ZIP，不能单独提交META。')
     target = directory / ('source' + suffix)
     upload.replace(target)
     return target

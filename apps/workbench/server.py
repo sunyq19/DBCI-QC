@@ -20,12 +20,16 @@ ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 sys.path.insert(0, str(REPO / 'src'))
 from ephys_qc.core import catalog, build_plan
+from ephys_qc.method_registry import tool_domains
+from ephys_qc.workflow import workflow
 from ephys_qc.tagging import describe_data, context_defaults, context_options
 from ephys_qc.readers import inspect_recording, list_readers
+from ephys_qc.source_selection import reader_kwargs
 from ephys_qc.version import __version__, API_VERSION
+from ephys_qc.modalities import ROUTES, DESCRIPTIVE, route
 from intake import IntakeStore, MAX_UPLOAD_BYTES
 from record_revisions import RecordRevisions, RevisionConflict
-from standards_page import render_standards, NAVIGATION_SCRIPT
+from standards_page import render_standards, NAVIGATION_SCRIPT, DOCUMENT_PAGES
 
 SERVICE = 'ephys-qc-modular-workbench'
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
@@ -43,6 +47,17 @@ def save_json(path, data):
     tmp = path.with_suffix('.tmp')
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2, allow_nan=False), encoding='utf-8')
     tmp.replace(path)
+
+
+def insert_report_navigation(report, navigation):
+    """Add served-view navigation without rewriting frozen standalone reports."""
+    rendered, count = re.subn(r'(<body\b[^>]*>)', lambda match: match.group(1) + navigation,
+                             report, count=1, flags=re.I)
+    if count:
+        return rendered
+    # The existing report writers use HTML's optional body start tag.
+    return re.sub(r'(<main\b[^>]*>)', lambda match: navigation + match.group(1),
+                  report, count=1, flags=re.I)
 
 
 def public_input(item):
@@ -92,7 +107,7 @@ class Store:
     def _availability(item, refresh=False):
         try:
             if refresh:
-                item['metadata'] = inspect_recording(item['source_path'])
+                item['metadata'] = inspect_recording(item['source_path'], **reader_kwargs(item.get('metadata', {})))
             paths = [item['source_path']] + [f['path'] for f in item.get('expected_source_files', [])]
             if not all(Path(p).is_file() for p in paths):
                 raise ValueError('来源或配套文件暂时不可用。')
@@ -134,6 +149,10 @@ class Store:
             self.inputs[record['id']] = record
             return {'status': 'registered', 'input': public_input(record)}
 
+    def select_intake_stream(self, identifier, body):
+        with self.lock:
+            return self.intakes.select_stream(identifier, body)
+
     def revise_input(self, identifier, body):
         with self.lock:
             original = self.inputs[identifier]
@@ -148,6 +167,7 @@ class Store:
         self.job(identifier)
         request = read_json(self.root / 'jobs' / identifier / 'request.json')
         return {'input_id': request['input']['id'], 'label': request['input']['label'],
+                'input_modality': request['input'].get('modality', 'scalp_eeg'),
                 'input_revision': request['input'].get('record_revision', 1),
                 'selected_modules': request['selected_modules'], 'qc_config': request['qc_config'],
                 'scope': request['qc_config'].get('scope', 'window'), 'parent_job_id': identifier}
@@ -402,10 +422,33 @@ class Handler(BaseHTTPRequestHandler):
     def get(self, path):
         english = path.startswith('/en/')
         document_path = path[3:] if english else path
+        common_document = next((slug for slug in DOCUMENT_PAGES
+                                if document_path in {'/standards/' + slug, '/standards/' + slug + '.md'}), None)
+        if common_document:
+            documents = (REPO / 'docs' / ('en' if english else '')).resolve()
+            filename = DOCUMENT_PAGES[common_document][0]
+            source = (documents / filename).resolve()
+            if not source.is_relative_to(documents) or not source.is_file():
+                raise KeyError('standards')
+            data = source.read_bytes()
+            if document_path.endswith('.md'):
+                return self.send_bytes(data, 'text/markdown; charset=utf-8', headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"'})
+            return self.send_bytes(render_standards(data.decode('utf-8'), lang='en' if english else 'zh-CN',
+                                                   modality=common_document).encode('utf-8'), 'text/html; charset=utf-8')
+        document_modality = 'scalp_eeg'
+        for modality, info in ROUTES.items():
+            prefix = '/standards/' + info['slug']
+            if info['slug'] and (document_path in {prefix, prefix + '.md'} or document_path.startswith(prefix + '/')):
+                document_modality = modality
+                document_path = document_path.replace(prefix, '/standards', 1)
+                break
         module_document = re.fullmatch(r'/standards/modules/(M0[1-9])(\.md)?', document_path)
         if document_path in {'/standards', '/standards.md'} or module_document:
             module_id = module_document.group(1) if module_document else None
             documents = (REPO / 'docs' / 'en' if english else REPO / 'docs').resolve()
+            if document_modality in DESCRIPTIVE:
+                documents = documents / route(document_modality)['slug']
             source = (documents / 'modules' / f'{module_id}.md' if module_id else documents / 'qc-standards.md').resolve()
             if not source.is_relative_to(documents) or not source.is_file():
                 raise KeyError('standards')
@@ -415,26 +458,47 @@ class Handler(BaseHTTPRequestHandler):
             if path.endswith('.md'):
                 return self.send_bytes(data, 'text/markdown; charset=utf-8', headers={
                     'Content-Disposition': f'attachment; filename="{module_id + ".md" if module_id else "qc-standards.md"}"'})
-            return self.send_bytes(render_standards(data.decode('utf-8'), module_id, lang='en' if english else 'zh-CN').encode('utf-8'),
+            return self.send_bytes(render_standards(data.decode('utf-8'), module_id, lang='en' if english else 'zh-CN', modality=document_modality).encode('utf-8'),
                                    'text/html; charset=utf-8')
         if path in {'/standards-navigation.js', '/standards-print.js'}:
             return self.send_bytes(NAVIGATION_SCRIPT.encode('utf-8'), 'text/javascript; charset=utf-8')
         if path == '/api/v1/health':
             return self.json({'status': 'ok', 'service': SERVICE, 'api_version': API_VERSION, 'version': __version__})
         if path == '/api/v1/catalog':
+            query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+            if set(query) - {'modality'} or any(len(values) != 1 for values in query.values()):
+                raise ValueError('方法目录只接受一个modality字段。')
+            modality = query.get('modality', ['scalp_eeg'])[0]
+            if modality not in ROUTES:
+                raise ValueError('当前目录：' + ', '.join(ROUTES))
             with self.store.lock:
-                inputs = [public_input(i) for i in self.store.inputs.values()]
-            return self.json({'service': SERVICE, 'api_version': API_VERSION, 'version': __version__, 'modules': catalog(),
+                inputs = [public_input(i) for i in self.store.inputs.values() if i.get('modality', 'scalp_eeg') == modality]
+            modules = catalog(modality)
+            overview = '/standards' + ('/' + route(modality)['slug'] if route(modality)['slug'] else '')
+            for module in modules:
+                module['documentation_url'] = overview + '/modules/' + module['id']
+                module.setdefault('selectable', not (modality in DESCRIPTIVE and module['id'] == 'M06'))
+            return self.json({'service': SERVICE, 'api_version': API_VERSION, 'version': __version__, 'modules': modules,
+                              'active_modality': modality, 'overview_url': overview,
+                              'modalities': [{'id': key, 'label': value['label'], 'qc_supported': True, 'scope_note': value['scope_note']} for key, value in ROUTES.items()],
+                              'workflow': workflow(modality),
+                              'method_domains': tool_domains(),
                               'inputs': inputs,
                               'profiles': self.store.settings['profiles'], 'context_tag_options': context_options(),
-                              'capabilities': {'intake': {'formats': ['EDF', 'BDF', 'BrainVision', 'EEGLAB', 'FIF'],
+                              'capabilities': {'intake': {'formats': ['EDF', 'BDF', 'BrainVision', 'EEGLAB', 'FIF', 'SpikeGLX', 'NWB'],
                                                           'readers': list_readers(), 'package_formats': ['ZIP'],
-                                                          'modalities': ['scalp_eeg'],
+                                                          'modalities': list(ROUTES),
                                                           'inspection_modalities': ['scalp_eeg', 'ecog', 'seeg', 'extracellular', 'other'],
                                                           'max_upload_bytes': MAX_UPLOAD_BYTES, 'local_only': True},
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
             return self.json({'intakes': self.store.intakes.pending()})
+        if path == '/api/v1/inputs':
+            if urlsplit(self.path).query:
+                raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
+            with self.store.lock:
+                records = [public_input(item) for item in self.store.inputs.values()]
+            return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
             return self.json(self.store.intakes.get(match.group(1)))
@@ -482,6 +546,16 @@ class Handler(BaseHTTPRequestHandler):
                     for attr in ('src', 'href'):
                         report = report.replace(f'{attr}="{safe_name}"', f'{attr}="{a["url"]}"')
                         report = report.replace(f"{attr}='{safe_name}'", f'{attr}="{a["url"]}"')
+                # Navigation belongs to the served view; frozen report bytes stay unchanged.
+                from html import escape
+                declared = job.get('plan', {}).get('input_modality', {})
+                modality = declared.get('value') if isinstance(declared, dict) else declared
+                modality = modality if modality in ROUTES else 'scalp_eeg'
+                language = parse_qs(urlsplit(self.path).query).get('lang', ['zh-CN'])[0]
+                back = f'/?modality={modality}&job={id_}' + ('&lang=en' if language == 'en' else '')
+                label = 'Return to this QC run' if language == 'en' else '返回本次质控'
+                navigation = f'<nav aria-label="QC navigation" style="padding:14px 24px;background:#eff6ff;border-bottom:1px solid #dbeafe"><a href="{escape(back, quote=True)}">← {label}</a></nav>'
+                report = insert_report_navigation(report, navigation)
                 return self.send_bytes(report.encode('utf-8'), 'text/html; charset=utf-8')
             if filename:
                 target = self.store.artifact(id_, filename)
@@ -506,6 +580,9 @@ class Handler(BaseHTTPRequestHandler):
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/confirm', path)
         if match:
             return self.json(self.store.confirm_intake(match.group(1), self.body()))
+        match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/stream', path)
+        if match:
+            return self.json(self.store.select_intake_stream(match.group(1), self.body()))
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)/revisions', path)
         if match:
             return self.json(self.store.revise_input(match.group(1), self.body()), 201)

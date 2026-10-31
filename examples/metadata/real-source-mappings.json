@@ -1,0 +1,470 @@
+{
+  "dictionary_version": "metadata-fields/1",
+  "audit_version": "source-mapping/1",
+  "scope": "Partial design mapping examples, not runtime request payloads or general-purpose importers",
+  "sources": [
+    {
+      "path": "典型扩充_20261030/ds007020-1.0.0/participants.tsv",
+      "sha256": "1165e81eefeb677e8251f4fb3aad0a9e171b0a544f04f0b76df9509789330cd3",
+      "size_bytes": 1862
+    },
+    {
+      "path": "典型扩充_20261030/ds007020-1.0.0/README.md",
+      "sha256": "4aa2dec77dafce660142b35c58680511a916a00280c24db5e202f38605e9682b",
+      "size_bytes": 2076
+    },
+    {
+      "path": "非EEG补充_20261031/ds006890/participants.tsv",
+      "sha256": "fc6fe4770f75f1a59cd62f8436d5a15336d6ab26616578b9025944d1ca009847",
+      "size_bytes": 96
+    },
+    {
+      "path": "非EEG补充_20261031/ds006890/participants.json",
+      "sha256": "d62d779c7c3921dbbd381fbd0565f3b4ac664aa11cfee3e50c27a5a48053603c",
+      "size_bytes": 489
+    },
+    {
+      "path": "非EEG补充_20261031/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.json",
+      "sha256": "c3f0e69fc8e3e7c1fe884ea3a65143440de46cd2f1ee2bb59e11fff3eeb62a53",
+      "size_bytes": 1581
+    },
+    {
+      "path": "非EEG补充_20261031/originals/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.edf",
+      "sha256": "471e05b0279ac7b7d375ccf90fa495a875b36a2651c7974f3179248fe18f6f3f",
+      "size_bytes": 19635656
+    },
+    {
+      "path": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+      "sha256": "58d883df3f383bacd3db293f59a8ac61f322d148a516ec5e34799ce78657efa3",
+      "size_bytes": 23312384
+    }
+  ],
+  "cases": [
+    {
+      "id": "human-eeg",
+      "source_url": "https://openneuro.org/datasets/ds007020/versions/1.0.0",
+      "fields": {
+        "subject.id": {
+          "value": "sub-PD1001",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/participants.tsv",
+              "locator": "participant_id=sub-PD1001"
+            }
+          ]
+        },
+        "subject.species": {
+          "value": {
+            "source_label": "Human clinical participants",
+            "scientific_name": "Homo sapiens"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/README.md",
+              "locator": "EEG Acquisition Details; Ethics & Privacy"
+            }
+          ],
+          "mapping": "human-clinical-cohort/1; reviewed source interpretation, not BIDS fallback"
+        },
+        "subject.age": {
+          "value": null,
+          "status": "unknown",
+          "confirmation": "unreviewed",
+          "reason": "source_not_provided",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/README.md",
+              "locator": "Participant Information"
+            }
+          ]
+        },
+        "subject.background": {
+          "value": null,
+          "status": "unknown",
+          "confirmation": "unreviewed",
+          "reason": "source_not_provided",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/participants.tsv",
+              "locator": "No individual diagnosis column; participant ID is not diagnosis evidence"
+            }
+          ]
+        },
+        "recording.recording_site": {
+          "value": "scalp",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/README.md",
+              "locator": "10–20 montage; dataset-level declaration"
+            }
+          ]
+        },
+        "recording.signal_kind": {
+          "value": "continuous_voltage",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/README.md",
+              "locator": "Resting-state EEG recordings"
+            }
+          ]
+        },
+        "experiment.task": {
+          "value": {
+            "id": "rest",
+            "label": "eyes-open resting state"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "典型扩充_20261030/ds007020-1.0.0/README.md",
+              "locator": "EEG Acquisition Details"
+            }
+          ]
+        }
+      },
+      "scope": "Partial metadata mapping only; individual disease and age are not inferred from the participant ID"
+    },
+    {
+      "id": "monkey-ecog",
+      "source_url": "https://openneuro.org/datasets/ds006890/versions/1.0.0",
+      "fields": {
+        "subject.id": {
+          "value": "sub-monkeyb",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/participants.tsv",
+              "locator": "participant_id=sub-monkeyb"
+            }
+          ]
+        },
+        "subject.species": {
+          "value": {
+            "source_label": "Macaca fuscata",
+            "scientific_name": "Macaca fuscata"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/participants.tsv",
+              "locator": "sub-monkeyb/species"
+            }
+          ]
+        },
+        "subject.age": {
+          "value": {
+            "lower": 9.0,
+            "upper": 9.0,
+            "unit": "year",
+            "reference": "unknown",
+            "at": "experiment_start",
+            "source_text": "9"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/participants.tsv",
+              "locator": "sub-monkeyb/age"
+            },
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/participants.json",
+              "locator": "age.LongName; age.Description"
+            }
+          ]
+        },
+        "subject.sex": {
+          "value": "F",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/participants.tsv",
+              "locator": "sub-monkeyb/sex"
+            }
+          ]
+        },
+        "recording.recording_site": {
+          "value": "cortical_surface",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.json",
+              "locator": "ECOGChannelCount=32; applies to ECoG group, not all file channels"
+            }
+          ]
+        },
+        "recording.duration_seconds": {
+          "value": null,
+          "status": "conflict",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.json",
+              "locator": "RecordingDuration"
+            },
+            {
+              "kind": "file_header",
+              "reference": "非EEG补充_20261031/originals/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.edf",
+              "locator": "number_of_records * record_duration"
+            }
+          ],
+          "alternatives": [
+            {
+              "value": 195.047,
+              "status": "known",
+              "confirmation": "unreviewed",
+              "source": [
+                {
+                  "kind": "sidecar",
+                  "reference": "非EEG补充_20261031/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.json",
+                  "locator": "RecordingDuration"
+                }
+              ]
+            },
+            {
+              "value": 196.0,
+              "status": "known",
+              "confirmation": "unreviewed",
+              "source": [
+                {
+                  "kind": "file_header",
+                  "reference": "非EEG补充_20261031/originals/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.edf",
+                  "locator": "number_of_records * record_duration"
+                }
+              ]
+            }
+          ],
+          "reason": "Different declared and stored duration; padding is possible but unverified"
+        },
+        "acquisition.hardware": {
+          "value": {
+            "manufacturer": "CorTec GmbH",
+            "model": "Brain Interchange ONE"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "sidecar",
+              "reference": "非EEG补充_20261031/ds006890/sub-monkeyb/ses-day09/ieeg/sub-monkeyb_ses-day09_task-rest_run-01_ieeg.json",
+              "locator": "Manufacturer; ManufacturersModelName"
+            }
+          ]
+        }
+      },
+      "scope": "ECoG group; retains experiment-start age and unresolved duration conflict",
+      "observations": {
+        "file_signal_count": 51,
+        "file_numeric_channel_count": 50,
+        "file_annotation_signal_count": 1,
+        "sidecar_total_channel_count": 49,
+        "ecog_channel_count": 32
+      }
+    },
+    {
+      "id": "mouse-lfp",
+      "source_url": "https://dandiarchive.org/dandiset/000165/0.211118.1526",
+      "fields": {
+        "subject.id": {
+          "value": "Sumac",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/subject/subject_id"
+            }
+          ]
+        },
+        "subject.species": {
+          "value": {
+            "source_label": "Mus musculus",
+            "scientific_name": "Mus musculus"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/subject/species"
+            }
+          ]
+        },
+        "subject.age": {
+          "value": {
+            "lower": 6.4,
+            "upper": 6.4,
+            "unit": "month",
+            "reference": "unknown",
+            "at": "source_unspecified",
+            "source_text": "P6.4M"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/subject/age"
+            }
+          ],
+          "note": "NWB 2.4.0 source has no explicit age reference or timing declaration; no exact-day conversion or newer-schema default applied"
+        },
+        "subject.sex": {
+          "value": "F",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/subject/sex"
+            }
+          ]
+        },
+        "subject.strain": {
+          "value": {
+            "strain": "C57/BL6",
+            "genotype": null
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/subject/strain"
+            }
+          ]
+        },
+        "subject.background": {
+          "value": null,
+          "status": "unknown",
+          "confirmation": "unreviewed",
+          "reason": "source_not_provided",
+          "source": [
+            {
+              "kind": "provider_document",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "No disease assignment established by this audit"
+            }
+          ]
+        },
+        "recording.signal_kind": {
+          "value": "continuous_voltage",
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/processing/ecephys/LFP/ElectricalSeries"
+            }
+          ]
+        },
+        "recording.sampling_rate_hz": {
+          "value": 1000.0,
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/processing/ecephys/LFP/ElectricalSeries/starting_time@rate"
+            }
+          ]
+        },
+        "recording.sample_count": {
+          "value": 274737,
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/processing/ecephys/LFP/ElectricalSeries/data.shape[0]"
+            }
+          ]
+        },
+        "recording.duration_seconds": {
+          "value": 274.737,
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "derived",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/processing/ecephys/LFP/ElectricalSeries"
+            }
+          ],
+          "transformation": "sample_count / rate",
+          "rule_version": "stored-duration/1"
+        },
+        "acquisition.hardware": {
+          "value": {
+            "manufacturer": "Neuronexus",
+            "model": "A4x8-5mm-400-200-703-CM32"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/general/devices/array attributes"
+            }
+          ]
+        },
+        "experiment.task": {
+          "value": {
+            "id": "linear_track",
+            "label": "Linear track recording starting 1 hour after CNO injection"
+          },
+          "status": "known",
+          "confirmation": "unreviewed",
+          "source": [
+            {
+              "kind": "file_header",
+              "reference": "NWB/originals/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+              "locator": "/session_description"
+            }
+          ]
+        }
+      },
+      "scope": "Readable Neuronexus LFP; NOT Neuropixels QC eligibility; no QC algorithms run in this audit",
+      "observations": {
+        "channel_count": 32,
+        "age_reference_explicit": false
+      }
+    }
+  ]
+}

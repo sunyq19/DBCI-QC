@@ -1,0 +1,185 @@
+{
+  "schema_version": "nwb-examples/1.0",
+  "prepared_date": "2026-10-30",
+  "source_observation_count": 5,
+  "synthetic_fixture_count": 2,
+  "source_root": "/path/to/DBCI-QC-data/公开数据/NWB",
+  "upload_root": "/path/to/DBCI-QC-data/测试数据/NWB",
+  "provenance_manifest": "manifest.json",
+  "documentation": "docs/nwb-testing.md",
+  "entries": [
+    {
+      "id": "sumac-lfp",
+      "dandiset": "000165",
+      "version": "0.211118.1526",
+      "asset": "fd219159-b8ee-4bb3-933b-581245af0317",
+      "source_path": "sub-Sumac/sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb",
+      "role": "legacy_unit_continuous_lfp",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "doi": "10.48324/dandi.000165/0.211118.1526",
+      "sha256": "58d883df3f383bacd3db293f59a8ac61f322d148a516ec5e34799ce78657efa3",
+      "original_file_complete": true,
+      "published_sha256_verified": true,
+      "published_dandi_etag_verified": true,
+      "source_published_utc": "2021-11-18T15:26:12.168667+00:00",
+      "source_metadata_modified_utc": "2021-11-16T06:30:10.620955-08:00",
+      "source_blob_modified_utc": "2021-11-15T16:40:28.610873-08:00",
+      "local_file_mtime_utc": "2026-10-30T07:45:37.293179+00:00",
+      "size_bytes": 23312384,
+      "upload_relative_path": "sub-Sumac_ses-Sumac06-LinearTrack_behavior+ecephys.nwb"
+    },
+    {
+      "id": "jacobsen-clock-reset",
+      "dandiset": "000230",
+      "version": "0.220506.1516",
+      "asset": "2f99c2e6-873d-4658-b74f-c81ba98c63b7",
+      "source_path": "sub-70375/sub-70375_ses-20170317T094453_behavior+ecephys.nwb",
+      "role": "negative_nonmonotonic_timestamps",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "doi": "10.48324/dandi.000230/0.220506.1516",
+      "sha256": "42b0289fa260ad37e2caec3e57f1fe5740910b136d1be9a1ca6959c9f8d242d2",
+      "original_file_complete": true,
+      "published_sha256_verified": true,
+      "published_dandi_etag_verified": true,
+      "source_published_utc": "2022-05-06T15:16:17.722170+00:00",
+      "source_metadata_modified_utc": "2022-05-06T17:09:59.254866+02:00",
+      "source_blob_modified_utc": "2022-05-06T16:53:56+02:00",
+      "local_file_mtime_utc": "2026-10-30T07:43:40.626922+00:00",
+      "size_bytes": 24275752,
+      "upload_relative_path": "边界样例/sub-70375_ses-20170317T094453_behavior+ecephys.nwb"
+    },
+    {
+      "id": "tc6-high-gamma",
+      "dandiset": "001193",
+      "version": "0.240921.1006",
+      "asset": "0d19ff6a-94cd-464c-a5af-1ef9a7d79510",
+      "source_path": "sub-TC6/sub-TC6_ses-20190320_obj-18hbwq8_ecephys.nwb",
+      "role": "processed_high_gamma_not_raw_voltage_reference",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "doi": "10.48324/dandi.001193/0.240921.1006",
+      "sha256": "7490caa0c5662facf17ae4b1113a44e5eb077b3762f71e5d9c0e645257f0c42a",
+      "original_file_complete": true,
+      "published_sha256_verified": true,
+      "published_dandi_etag_verified": true,
+      "source_published_utc": "2024-09-21T10:06:46.560360+00:00",
+      "source_metadata_modified_utc": "2024-09-21T17:44:59.436614+08:00",
+      "source_blob_modified_utc": "2024-09-21T17:34:27.729917+08:00",
+      "local_file_mtime_utc": "2026-10-30T07:43:41.395924+00:00",
+      "size_bytes": 29077240,
+      "upload_relative_path": "边界样例/sub-TC6_ses-20190320_obj-18hbwq8_ecephys.nwb"
+    },
+    {
+      "id": "allen-probeD-lfp",
+      "dandiset": "000021",
+      "version": "0.251116.2246",
+      "asset": "11646673-ac9a-42a0-b768-470af79ff4bc",
+      "source_path": "sub-703279277/sub-703279277_ses-719161530_probe-729445654_ecephys.nwb",
+      "role": "public_zero_signal_lfp_boundary",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "doi": "10.48324/dandi.000021/0.251116.2246",
+      "sha256": "ca8bc74bf3c0d9ee34d8338a10fbb1075aea1519206d6731eb39cde96938731d",
+      "original_file_complete": true,
+      "published_sha256_verified": true,
+      "published_dandi_etag_verified": true,
+      "source_published_utc": "2025-11-16T22:46:42.743793+00:00",
+      "source_metadata_modified_utc": "2021-07-02T09:30:57.334580-04:00",
+      "source_blob_modified_utc": "2020-10-21T16:58:26.954013-04:00",
+      "local_file_mtime_utc": "2026-10-30T07:45:41.774188+00:00",
+      "size_bytes": 71781159,
+      "upload_relative_path": "边界样例/sub-703279277_ses-719161530_probe-729445654_ecephys.nwb"
+    },
+    {
+      "id": "ec9-b15",
+      "dandiset": "000019",
+      "version": "0.220126.2148",
+      "asset": "4e4287f2-b557-4f30-a2d6-932f18c3e915",
+      "source_path": "sub-EC9/sub-EC9_ses-EC9-B15.nwb",
+      "role": "real_ecog_derived_positive",
+      "license": [
+        "spdx:CC-BY-4.0"
+      ],
+      "doi": "10.48324/dandi.000019/0.220126.2148",
+      "sha256": "3216e7783925e04bf90382510d73ab828e64f56e30fef0d6b74995a7a109f9da",
+      "source_published_utc": "2022-01-26T21:48:53.613110+00:00",
+      "source_metadata_modified_utc": "2021-07-02T09:28:11.066849-04:00",
+      "source_blob_modified_utc": "2020-10-21T14:21:40.576858-04:00",
+      "source_session_start_time": "1900-01-01T08:00:00+00:00",
+      "local_file_mtime_utc": "2026-10-30T07:52:54.972017+00:00",
+      "original_size_bytes": 558155445,
+      "original_published_digest": {
+        "dandi:dandi-etag": "c1cc0a58bc70e96e5fd8620b42ff0a12-9",
+        "dandi:sha2-256": "b72be69796aab064c7a2dd899d3201be9319ad261b0cecd210e26ef60f70d031"
+      },
+      "original_full_digest_verified": false,
+      "source_sample_start": 30518,
+      "source_sample_stop_exclusive": 61036,
+      "original_sample_count": 595093,
+      "channel_count": 256,
+      "source_starting_time_seconds": 0.0,
+      "excerpt_starting_time_seconds": 10.000138280960567,
+      "sampling_frequency_hz": 3051.7578,
+      "duration_seconds": 10.000138280960567,
+      "source_unit": "volt",
+      "source_conversion": 0.001,
+      "source_offset": 0.0,
+      "source_data_dtype": "float32",
+      "selected_stored_values_sha256": "e61552466a9e5f44562c541b9aaf463438e46205aa21c84977c5c7ca6e3befdd",
+      "operations": [
+        "Select source samples [30518,61036), all source channels",
+        "Write a declared derived NWB; preserve stored float32 values and conversion",
+        "Canonicalize source unit spelling volt to volts without numerical change",
+        "Represent empty source electrode locations as unknown; retain original values in provenance"
+      ],
+      "not_applied": [
+        "filtering",
+        "resampling",
+        "rereferencing",
+        "artifact removal"
+      ],
+      "omitted_source_content": [
+        "stimuli",
+        "trials",
+        "other non-voltage objects"
+      ],
+      "processing_history_complete": false,
+      "reference_scheme": "unknown",
+      "range_bytes_used": 36488885,
+      "all_excerpt_values_bitwise_equal": true,
+      "size_bytes": 29109985,
+      "upload_relative_path": "DANDI_000019_EC9_B15_samples30518-61036.nwb"
+    },
+    {
+      "id": "synthetic-multistream",
+      "role": "multistream_clock_and_mapping",
+      "sha256": "aab6811b8eea03e6176c4166b8f085d1ba7fbaf029c592f0c3d535c4374926c6",
+      "synthetic": true,
+      "source": "https://pynwb.readthedocs.io/en/stable/tutorials/domain/ecephys.html",
+      "size_bytes": 387416,
+      "upload_relative_path": "DBCI_synthetic_multistream.nwb"
+    },
+    {
+      "id": "synthetic-units_only",
+      "role": "negative_no_continuous_voltage",
+      "sha256": "755380dec215190440a32cdba1bf17f91ee4dee79f564fff09d79a65794e9e3d",
+      "synthetic": true,
+      "source": "https://pynwb.readthedocs.io/en/stable/tutorials/domain/ecephys.html",
+      "size_bytes": 183776,
+      "upload_relative_path": "DBCI_synthetic_units_only.nwb"
+    }
+  ],
+  "limitations": [
+    "Repository metadata and stored units are evidence, not independent amplifier calibration.",
+    "The human ECoG file is a declared excerpt, not a full original-file download.",
+    "Some source files are rejected or scientifically restricted boundaries, not usable raw-voltage positives.",
+    "Synthetic samples test contracts only; they add no independent physiological/clinical evidence.",
+    "No dataset supplies artifact or bad-channel accuracy ground truth."
+  ]
+}

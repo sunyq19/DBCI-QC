@@ -179,7 +179,10 @@ class MNEReader(SourceGuard):
                 voltage, unit = False, {'uS': 'S', 'µS': 'S'}.get(original, original or 'unknown')
             self.channels.append({'channel_id': f'{self.record_id}:ch:{i}', 'source_index': i,
                                   'raw_name': name, 'reader_name': self.raw.ch_names[i],
-                                  'channel_type': typ, 'quantity': 'voltage' if voltage else 'other',
+                                  'channel_type': typ,
+                                  'channel_type_source': ('file_declared' if kind == 'FIF' else
+                                                          'reader_default' if kind == 'BrainVision' else 'reader_inferred'),
+                                  'quantity': 'voltage' if voltage else 'other',
                                   'unit': unit, 'physical_unit': original,
                                   'unit_source': 'BrainVision_format_default_microvolts' if kind == 'BrainVision' and not original else 'file_format_calibration',
                                   'unit_status': 'known_voltage' if voltage else 'not_voltage',
@@ -243,13 +246,14 @@ class MNEReader(SourceGuard):
                 'channels': [{'index': ch['source_index'], 'raw_index': ch['source_index'], 'name': ch['raw_name'],
                               'unit': ch['unit'], 'source_unit': ch['physical_unit'],
                               'unit_source': ch['unit_source'],
-                              'channel_type': ch['channel_type'], 'sampling_rate_hz': self.fs} for ch in self.channels],
+                              'channel_type': ch['channel_type'], 'channel_type_source': ch['channel_type_source'],
+                              'sampling_rate_hz': self.fs} for ch in self.channels],
                 'raw_signal_count': len(self.channels), 'annotation_signal_count': 0,
                 'size_bytes': sum(f['size_bytes'] for f in self.source_files),
                 'reader_id': self.description['reader_id'], 'reader_version': self.description['reader_version'],
                 'backend_version': self.description['backend_version'],
                 'source_files': public_manifest(self.source_files), 'annotations': copy.deepcopy(self.description['annotations']),
-                'modality_evidence': {'value': 'unknown', 'source': 'declared_channel_types',
+                'modality_evidence': {'value': 'unknown', 'source': {'FIF': 'file_declared', 'BrainVision': 'reader_default', 'EEGLAB': 'reader_inferred'}[self.kind],
                                       'channel_types': types, 'requires_confirmation': True},
                 'clock': copy.deepcopy(self.description['clock']),
                 'continuous_segments': copy.deepcopy(self.segments), 'warnings': self.warnings.copy()}

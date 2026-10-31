@@ -1,9 +1,61 @@
 """Method-level descriptions and gates, separate from top-level module choices."""
 from .tagging import data_facts
+from .modalities import ROUTES, DESCRIPTIVE, route
 import math
 
 UPSTREAM = {'name': 'BrainElecQC 0.1.0', 'url': 'https://github.com/Jlei61/BrainElecQC', 'license': '上游仓库许可待确认；仅使用本地安装包'}
 PROJECT = {'name': '本平台', 'url': '', 'license': '本地项目；尚未发布许可'}
+
+
+_DOMAINS = (
+    ('data_intake', '数据与元信息', ('M01', 'M02')),
+    ('signal_integrity', '信号完整性', ('M03',)),
+    ('spectrum_interference', '频谱与干扰', ('M04',)),
+    ('channel_quality', '通道质量', ('M05',)),
+    ('artifacts', '伪迹线索', ('M06',)),
+    ('events_sync', '事件与时间', ('M07',)),
+    ('reporting', '结果与报告', ('M08', 'M09')),
+)
+_DOMAIN_BY_MODULE = {module: (id_, label) for id_, label, modules in _DOMAINS for module in modules}
+_ACTIVATION = {
+    'basic': ('with_module', '随模块运行'),
+    'conditional': ('conditional', '满足条件'),
+    'optional': ('manual_extension', '手动扩展'),
+}
+
+
+def tool_domains():
+    """Current functional domains, separate from modality and activation gates.
+
+    New domains (for example spike/unit quality) can be registered when methods
+    exist. An unimplemented domain is not advertised as a current capability.
+    """
+    return [{'id': id_, 'label': label, 'module_ids': list(modules)}
+            for id_, label, modules in _DOMAINS]
+
+
+def _classification(method, modality='scalp_eeg'):
+    """Presentation metadata only; never alters a method's eligibility rules."""
+    domain, label = _DOMAIN_BY_MODULE[method['module_id']]
+    activation, activation_label = _ACTIVATION[method['category']]
+    if method['implementation'] == 'planned':
+        scope = ('计划面向' + route(modality)['label'] +
+                 '；尚未接入，未完成本平台执行验证。未声明其他模态支持。')
+    elif modality in {'seeg', 'extracellular'}:
+        scope = route(modality)['scope_note']
+    elif modality == 'ecog':
+        scope = '当前ECoG基础描述路线；仅声明工程执行范围，不代表伪迹准确性已验证，不迁移头皮判坏阈值。'
+    elif domain == 'data_intake':
+        scope = ('当前声明的质控工程执行范围仅限头皮 EEG。读器提取其他模态元信息，'
+                 '不表示已验证其质控流程；通用处理思路不等于跨模态支持。')
+    else:
+        scope = ('当前已验证的工程执行范围仅限头皮 EEG，仍需满足本方法条件；'
+                 '不表示已验证科学准确性或其他脑电模态。')
+    planned = method['implementation'] == 'planned'
+    return {**method, 'domain': domain, 'domain_label': label,
+            'activation': activation, 'activation_label': activation_label,
+            'supported_modalities': [] if planned else [modality],
+            'intended_modalities': [modality] if planned else [], 'scope_note': scope}
 
 
 def _method(id_, name, module, category, description, requirements, outputs, *, source=None, implementation='available', limitations=None):
@@ -13,7 +65,9 @@ def _method(id_, name, module, category, description, requirements, outputs, *, 
             'limitations': limitations or ['计算完成不等于质量合格；候选需复核。'], 'optional_extension': False}
 
 
-def methods():
+def methods(modality='scalp_eeg'):
+    if modality not in ROUTES:
+        raise ValueError('Unsupported QC modality: ' + str(modality))
     rows = [
         _method('edf_reader', '多格式读取与来源核验', 'M01', 'basic', '核对文件结构、时钟、索引与来源指纹。', ['已核验文件及配套文件'], ['结构与来源核验']),
         _method('voltage_calibration', '单位与电压标定', 'M01', 'basic', '确认数字值可转换成物理电压。', ['有效单位及逐道标定'], ['标定信息', '无法评估原因']),
@@ -34,6 +88,8 @@ def methods():
     ]
     from .extensions import extension_specs
     for extension in extension_specs():
+        if extension.get('research_modalities'):
+            continue
         spec = dict(extension)
         spec.update(optional_extension=True, implementation='available', category='optional')
         rows.append(spec)
@@ -52,7 +108,48 @@ def methods():
                 limitations=['尚未接入；平均参考、1–100Hz和extended-infomax等训练条件需要单独核对。', '分类概率不是质量分，不自动移除成分。']),
     ])
     from .method_descriptions import enrich_method
-    return [enrich_method(row) for row in rows]
+    from .research_methods import research_methods
+    candidates = [_classification(row, modality) for row in research_methods(modality)]
+    if modality in DESCRIPTIVE:
+        from .descriptive_catalog import custom_methods, _adapt
+        shared = [row for row in rows if row['module_id'] in {'M01', 'M02', 'M07', 'M08', 'M09'}]
+        common = [enrich_method(_classification(row, modality)) for row in shared]
+        for row in common:
+            doc = row['documentation']
+            if row['id'] == 'edf_reader':
+                doc['when_not_to_use'] = '不支持未建模的断续EDF、EEGLAB分段数据和分卷FIF；多文件须完整。文件可读不证明采集位置，ECoG须明确确认，不自动重采样。'
+            elif row['id'] == 'voltage_calibration':
+                doc.update(how_it_works='按格式读取器核验源单位与标定，统一返回原始物理电压V；不对波形重参考、插值或重采样。',
+                           when_to_use='已明确确认ECoG，分析及辅助通道电压单位可核验时。',
+                           when_not_to_use='单位未知或所选通道不是电压时不得进入ECoG分析；不凭触点名猜单位。',
+                           upstream_call='ephys_qc.readers.open_reader；ephys_qc.modules.m02.read_window',
+                           implementation_origin='按实际格式使用BrainElecQC或MNE读取器；ECoG测量不调用头皮判坏阈值。')
+        common = [_adapt(row, modality) for row in common]
+        if modality == 'extracellular':
+            for row in common:
+                if row['id'] in {'edf_reader', 'voltage_calibration'}:
+                    row['source'] = dict(PROJECT)
+                    row['documentation']['references'] = [
+                        {'title': 'SpikeGLX metadata and sample conversion', 'url': 'https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html', 'kind': 'official documentation'},
+                        {'title': 'NWB extracellular electrophysiology', 'url': 'https://pynwb.readthedocs.io/en/stable/tutorials/domain/ecephys.html', 'kind': 'official documentation'},
+                        {'title': 'SpikeGLX IMRO and probe mappings', 'url': 'https://billkarsh.github.io/SpikeGLX/help/imroTables/', 'kind': 'official documentation'}]
+                    row['documentation']['version_note'] = 'Native format readers; SpikeGLX NP1 real AP/LF, NP2 synthetic; NWB2 continuous ElectricalSeries.'
+                if row['id'] == 'edf_reader':
+                    row.update(name='Neuropixels连续电压读取与来源核验', description='核验SpikeGLX或NWB所选信号，保留通道身份、电极映射、样本时钟及处理史。')
+                    row['documentation'].update(
+                        purpose='读取有明确设备身份的Neuropixels连续电压。',
+                        how_it_works='SpikeGLX核对BIN/META及标定；NWB核对ElectricalSeries路径、单位、规则时钟、电极映射与设备声明。',
+                        when_to_use='已支持的SpikeGLX AP/LF或NWB2/HDF5连续ElectricalSeries。',
+                        when_not_to_use='裸BIN、压缩cbin、NIDQ、sorting/unit、未支持探针或不一致长度与标定。',
+                        upstream_call='ephys_qc.readers.open_reader',
+                        implementation_origin='本项目格式适配器；保留源标定及处理声明，不调用头皮流程。')
+                elif row['id'] == 'voltage_calibration':
+                    row['documentation'].update(
+                        how_it_works='SpikeGLX按量程与增益标定；NWB按conversion、channel_conversion、offset及明确单位标定为V。',
+                        upstream_call='ephys_qc.readers.open_reader',
+                        implementation_origin='SpikeGLX已用官方readSGLX核对；NWB通过h5py独立核对源切片及单位。')
+        return sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])
+    return [enrich_method(_classification(row)) for row in rows] + candidates
 
 
 def _hf_applicability(facts, config):
@@ -83,7 +180,7 @@ def evaluate_methods(record, config, selected_modules):
     extension_params = config.get('method_config', {}).get('extension_parameters', {})
     from .extensions import evaluate_extension
     result = []
-    for method in methods():
+    for method in methods(record.get('modality', 'scalp_eeg')):
         mid, id_ = method['module_id'], method['id']
         chosen = mid in selected and (not method['optional_extension'] or id_ in extensions)
         status, reason, parameters = 'ready', '适用条件初步满足，仍以实际执行与子方法结果为准。', None
@@ -94,6 +191,8 @@ def evaluate_methods(record, config, selected_modules):
         elif method['optional_extension']:
             gate = evaluate_extension(id_, facts, extension_params.get(id_))
             status, reason, parameters = gate['status'], gate['reason'], gate.get('parameters')
+        elif id_.endswith('_line_description') and record.get('modality') in DESCRIPTIVE and any(f >= facts['sampling_rate_hz'] / 2 for f in config['method_config'][route(record['modality'])['key']]['line_frequencies_hz']):
+            status, reason = 'partial', '部分配置频率超出可测范围；仅保留可测窄带原值，不作干扰判定。'
         elif id_ == 'ecg_locked' and not facts['has_ecg']:
             status, reason = 'blocked', '没有确认并配置ECG导联。'
         elif id_ == 'eog_locked' and not facts['has_eog']:

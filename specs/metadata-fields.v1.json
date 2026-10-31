@@ -1,0 +1,635 @@
+{
+  "dictionary_version": "metadata-fields/1",
+  "date": "2026-10-31",
+  "status": "design_contract_not_runtime_api",
+  "languages": [
+    "zh-CN",
+    "en"
+  ],
+  "value_types": {
+    "string": "string",
+    "object": "object",
+    "array": "array",
+    "positive_number": "finite number > 0",
+    "nonnegative_number": "finite number >= 0",
+    "nonnegative_integer": "integer >= 0",
+    "taxon": "{source_label, scientific_name?, taxonomy_id?}",
+    "age": "{lower?, upper?, unit, reference, at, source_text}; bound required; lower <= upper; exact when equal",
+    "stage": "{label, source_declared, rule_id?, rule_version?}; derived stage requires rule and known species",
+    "clock": "{reference, first_sample?, origin_seconds?, rate_hz?, timestamps_reference?}; per-stream native time",
+    "selection": "{stream_id, source_indices, start_sample, stop_sample_exclusive}; nonempty interval",
+    "calibration": "{source_unit, physical_unit, scale, offset, mapping}; physical = stored * scale + offset",
+    "coordinates": "{values, unit, frame, provenance}; values must reference stable electrode IDs"
+  },
+  "age_units": [
+    "day",
+    "week",
+    "month",
+    "year"
+  ],
+  "age_references": [
+    "birth",
+    "gestational",
+    "other",
+    "unknown"
+  ],
+  "age_time_contexts": [
+    "recording",
+    "session_start",
+    "experiment_start",
+    "source_unspecified"
+  ],
+  "field_statuses": [
+    "known",
+    "unknown",
+    "not_applicable",
+    "conflict"
+  ],
+  "confirmation_states": [
+    "unreviewed",
+    "confirmed"
+  ],
+  "source_kinds": [
+    "file_header",
+    "sidecar",
+    "provider_document",
+    "manual",
+    "derived"
+  ],
+  "groups": [
+    {
+      "id": "subject",
+      "title": {
+        "zh-CN": "受试对象",
+        "en": "Subject"
+      },
+      "fields": [
+        {
+          "id": "subject.id",
+          "label": {
+            "zh-CN": "对象标识",
+            "en": "Subject identifier"
+          },
+          "value_type": "string",
+          "scope": "subject",
+          "missing_action": "retain_unknown",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "去标识的来源对象ID；不能跨数据集仅凭同名合并。",
+            "en": "De-identified source subject ID; matching names across datasets do not establish identity."
+          }
+        },
+        {
+          "id": "subject.species",
+          "label": {
+            "zh-CN": "物种",
+            "en": "Species"
+          },
+          "value_type": "taxon",
+          "scope": "subject",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "保留来源物种文本；有依据时映射学名及分类标识，不默认人类。",
+            "en": "Preserve source species text; map a scientific name and taxonomy ID only with evidence, never assume human."
+          }
+        },
+        {
+          "id": "subject.age",
+          "label": {
+            "zh-CN": "来源年龄",
+            "en": "Source age"
+          },
+          "value_type": "age",
+          "scope": "session",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "数值或区间、单位、年龄起点及所属时间；不把实验开始年龄当本次记录精确年龄。",
+            "en": "Value or interval, unit, reference event and time context; age at experiment start is not exact age at this session."
+          }
+        },
+        {
+          "id": "subject.life_stage",
+          "label": {
+            "zh-CN": "发育阶段",
+            "en": "Life stage"
+          },
+          "value_type": "stage",
+          "scope": "session",
+          "missing_action": "retain_unknown",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "来源声明或按明确物种规则派生；保留规则版本，不反推实际年龄。",
+            "en": "Source-declared or derived under an explicit species-specific rule; retain rule version, do not infer numeric age."
+          }
+        },
+        {
+          "id": "subject.sex",
+          "label": {
+            "zh-CN": "生物学性别",
+            "en": "Biological sex"
+          },
+          "value_type": "string",
+          "scope": "subject",
+          "missing_action": "retain_unknown",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "保留来源定义与原值；不能把未提供解释成某一种性别。",
+            "en": "Retain the source definition and value; missing does not identify a sex."
+          }
+        },
+        {
+          "id": "subject.strain",
+          "label": {
+            "zh-CN": "品系与基因型",
+            "en": "Strain and genotype"
+          },
+          "value_type": "object",
+          "scope": "subject",
+          "missing_action": "retain_unknown",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "动物品系、基因型分别记录；未知不自动填野生型。",
+            "en": "Record animal strain and genotype separately; unknown must not become wild type."
+          }
+        },
+        {
+          "id": "subject.background",
+          "label": {
+            "zh-CN": "疾病或动物模型",
+            "en": "Disease or animal model"
+          },
+          "value_type": "array",
+          "scope": "session",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "可有多个有来源的背景；健康对照须有声明，药物处理不自动成为疾病。",
+            "en": "Multiple sourced backgrounds are allowed; healthy control requires evidence, treatment is not automatically disease."
+          }
+        }
+      ]
+    },
+    {
+      "id": "recording",
+      "title": {
+        "zh-CN": "信号与文件",
+        "en": "Signal and files"
+      },
+      "fields": [
+        {
+          "id": "recording.id",
+          "label": {
+            "zh-CN": "记录标识",
+            "en": "Recording identifier"
+          },
+          "value_type": "string",
+          "scope": "recording",
+          "missing_action": "block_registration",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "本次原始或派生记录的稳定ID，区别于受试对象ID。",
+            "en": "Stable ID for this source or derived recording, distinct from subject ID."
+          }
+        },
+        {
+          "id": "recording.files",
+          "label": {
+            "zh-CN": "文件与成员",
+            "en": "Files and companions"
+          },
+          "value_type": "array",
+          "scope": "recording",
+          "missing_action": "block_reading",
+          "qc_use": "reader",
+          "definition": {
+            "zh-CN": "主文件、配套成员、格式、校验算法和值；格式不证明模态。",
+            "en": "Main file, companions, format, digest algorithm and value; format does not establish modality."
+          }
+        },
+        {
+          "id": "recording.signal_kind",
+          "label": {
+            "zh-CN": "信号对象",
+            "en": "Signal object"
+          },
+          "value_type": "string",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "routing",
+          "definition": {
+            "zh-CN": "continuous_voltage、epoched_voltage、sorted_units、derived_feature或unknown；可描述不代表可执行。",
+            "en": "continuous_voltage, epoched_voltage, sorted_units, derived_feature or unknown; representability is not execution support."
+          }
+        },
+        {
+          "id": "recording.recording_site",
+          "label": {
+            "zh-CN": "记录位置",
+            "en": "Recording site"
+          },
+          "value_type": "string",
+          "scope": "channel_group",
+          "missing_action": "restrict_method",
+          "qc_use": "routing",
+          "definition": {
+            "zh-CN": "scalp、cortical_surface、depth、other或unknown；允许同文件多组。",
+            "en": "scalp, cortical_surface, depth, other or unknown; one file may contain multiple groups."
+          }
+        },
+        {
+          "id": "recording.streams",
+          "label": {
+            "zh-CN": "数据流",
+            "en": "Signal streams"
+          },
+          "value_type": "array",
+          "scope": "recording",
+          "missing_action": "block_reading",
+          "qc_use": "reader",
+          "definition": {
+            "zh-CN": "每流稳定ID、源对象路径及通道映射；多流不默认拼接。",
+            "en": "Stable stream IDs, source object paths and channel maps; do not concatenate by default."
+          }
+        },
+        {
+          "id": "recording.sampling_rate_hz",
+          "label": {
+            "zh-CN": "采样率",
+            "en": "Sampling rate"
+          },
+          "value_type": "positive_number",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "原生采样率，Hz；保留头声明和时钟估计的差异，不取均值掩盖冲突。",
+            "en": "Native rate in Hz; preserve disagreement between header and timestamps, do not average it away."
+          }
+        },
+        {
+          "id": "recording.sample_count",
+          "label": {
+            "zh-CN": "采样点数",
+            "en": "Sample count"
+          },
+          "value_type": "nonnegative_integer",
+          "scope": "stream",
+          "missing_action": "block_reading",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "每流实际样本数，不由四舍五入后的时长反算。",
+            "en": "Actual samples per stream, not inferred from rounded duration."
+          }
+        },
+        {
+          "id": "recording.duration_seconds",
+          "label": {
+            "zh-CN": "时长",
+            "en": "Duration"
+          },
+          "value_type": "nonnegative_number",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "记录存储时长与实验声明时长分开，单位s；不把填充当真实实验时间。",
+            "en": "Store file and declared experimental duration separately in seconds; padding is not observed experimental time."
+          }
+        },
+        {
+          "id": "recording.clock",
+          "label": {
+            "zh-CN": "原生时钟",
+            "en": "Native clock"
+          },
+          "value_type": "clock",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "源首样本、时间原点、时间戳或采样率及其参照；非零起点保留。",
+            "en": "Source first sample, time origin, timestamps or rate and reference; retain nonzero origins."
+          }
+        },
+        {
+          "id": "recording.continuity",
+          "label": {
+            "zh-CN": "连续性",
+            "en": "Continuity"
+          },
+          "value_type": "object",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "continuous、epoched、discontinuous或unknown，以及已知连续段/缺口。",
+            "en": "continuous, epoched, discontinuous or unknown, with known segments and gaps."
+          }
+        },
+        {
+          "id": "recording.selection",
+          "label": {
+            "zh-CN": "本次选区",
+            "en": "Analysis selection"
+          },
+          "value_type": "selection",
+          "scope": "analysis",
+          "missing_action": "block_execution",
+          "qc_use": "routing",
+          "definition": {
+            "zh-CN": "所选流、源通道及样本半开区间；范围改变应生成新计划。",
+            "en": "Selected stream, source channels and half-open sample interval; changed selection requires a new plan."
+          }
+        }
+      ]
+    },
+    {
+      "id": "acquisition",
+      "title": {
+        "zh-CN": "通道与采集",
+        "en": "Channels and acquisition"
+      },
+      "fields": [
+        {
+          "id": "acquisition.channels",
+          "label": {
+            "zh-CN": "通道身份与角色",
+            "en": "Channel identities and roles"
+          },
+          "value_type": "array",
+          "scope": "channel",
+          "missing_action": "block_execution",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "稳定ID、源索引、源名称、声明类型、确认角色；重名不合并，数字同步道不作神经电压。",
+            "en": "Stable ID, source index/name, declared type and confirmed role; duplicate names stay distinct and digital sync is not neural voltage."
+          }
+        },
+        {
+          "id": "acquisition.calibration",
+          "label": {
+            "zh-CN": "单位与标定",
+            "en": "Units and calibration"
+          },
+          "value_type": "calibration",
+          "scope": "channel",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "源单位、转换系数和偏置、物理单位、依据及可信状态；未知单位禁用绝对幅度判据。",
+            "en": "Source unit, scale/offset, physical unit, evidence and confidence; unknown units disable absolute-amplitude criteria."
+          }
+        },
+        {
+          "id": "acquisition.reference",
+          "label": {
+            "zh-CN": "参考与比较组",
+            "en": "Reference and comparison groups"
+          },
+          "value_type": "object",
+          "scope": "channel_group",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "采集参考、当前参考及可比通道组分别保存；ECG/EOG辅助道不等于参考电极。",
+            "en": "Separate acquisition reference, current reference and comparable groups; ECG/EOG auxiliary channels are not reference electrodes."
+          }
+        },
+        {
+          "id": "acquisition.electrodes",
+          "label": {
+            "zh-CN": "电极接触点",
+            "en": "Electrode contacts"
+          },
+          "value_type": "array",
+          "scope": "electrode",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "接触点ID、通道到电极的映射、正负极关系；接触点数量不等于通道数量。",
+            "en": "Contact IDs, channel-to-contact mapping and positive/negative contacts; contact count is not channel count."
+          }
+        },
+        {
+          "id": "acquisition.coordinates",
+          "label": {
+            "zh-CN": "位置与坐标系",
+            "en": "Positions and coordinate frame"
+          },
+          "value_type": "coordinates",
+          "scope": "electrode",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "坐标值、单位、坐标系及实测/模板来源必须一起记录；未知时禁用依赖位置的操作。",
+            "en": "Coordinate values, units, frame and measured/template provenance are inseparable; missing positions disable spatial operations."
+          }
+        },
+        {
+          "id": "acquisition.hardware",
+          "label": {
+            "zh-CN": "采集设备",
+            "en": "Acquisition hardware"
+          },
+          "value_type": "object",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "routing",
+          "definition": {
+            "zh-CN": "厂商、型号、采集技术及证据；Neuropixels是技术/设备，不是物种或文件格式。",
+            "en": "Manufacturer, model, technology and evidence; Neuropixels is a technology/device, not a species or format."
+          }
+        },
+        {
+          "id": "acquisition.probe_layout",
+          "label": {
+            "zh-CN": "探针与分组",
+            "en": "Probe layout and groups"
+          },
+          "value_type": "object",
+          "scope": "channel_group",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "probe、shank、site、网格或电极杆关系及来源；不能仅凭名字建立邻接。",
+            "en": "Sourced probe, shank, site, grid or shaft relations; names alone do not establish adjacency."
+          }
+        },
+        {
+          "id": "acquisition.filters",
+          "label": {
+            "zh-CN": "采集滤波与带宽",
+            "en": "Acquisition filters and bandwidth"
+          },
+          "value_type": "array",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "硬件/采集软件的滤波及参数；未知与明确未滤波不同。",
+            "en": "Hardware/acquisition software filters and parameters; unknown is distinct from explicitly unfiltered."
+          }
+        },
+        {
+          "id": "acquisition.line_frequency_hz",
+          "label": {
+            "zh-CN": "供电频率",
+            "en": "Power-line frequency"
+          },
+          "value_type": "positive_number",
+          "scope": "session",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "明确声明的50/60Hz等供电频率；信号谱峰与供电声明分别保存。",
+            "en": "Declared mains frequency such as 50/60 Hz; distinguish a measured spectral peak from a supply declaration."
+          }
+        }
+      ]
+    },
+    {
+      "id": "experiment",
+      "title": {
+        "zh-CN": "实验与状态",
+        "en": "Experiment and state"
+      },
+      "fields": [
+        {
+          "id": "experiment.task",
+          "label": {
+            "zh-CN": "记录任务",
+            "en": "Recording task"
+          },
+          "value_type": "object",
+          "scope": "session",
+          "missing_action": "retain_unknown",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "任务ID、名称和来源；同一session多任务应有时段。",
+            "en": "Task ID, name and source; multiple tasks in one session need intervals."
+          }
+        },
+        {
+          "id": "experiment.states",
+          "label": {
+            "zh-CN": "记录状态时段",
+            "en": "State intervals"
+          },
+          "value_type": "array",
+          "scope": "interval",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "context",
+          "definition": {
+            "zh-CN": "清醒、睡眠、麻醉等按带时钟的时段记录；整个session的粗声明也应注明覆盖。",
+            "en": "Record wake, sleep and anesthesia with clocked intervals; coarse session declarations also state coverage."
+          }
+        },
+        {
+          "id": "experiment.events",
+          "label": {
+            "zh-CN": "事件与标注",
+            "en": "Events and annotations"
+          },
+          "value_type": "array",
+          "scope": "interval",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "原始标签、时间/样本、持续时间、时钟及映射；点事件不虚构持续时间。",
+            "en": "Source label, time/sample, duration, clock and mapping; point events do not acquire invented duration."
+          }
+        },
+        {
+          "id": "experiment.annotation_coverage",
+          "label": {
+            "zh-CN": "标注提取状态",
+            "en": "Annotation extraction status"
+          },
+          "value_type": "object",
+          "scope": "stream",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "区分未提取、已查未发现、部分提取及已提取的范围；不以空列表证明无事件。",
+            "en": "Distinguish not extracted, checked absent, partially extracted and extracted scope; an empty list alone does not prove absence."
+          }
+        }
+      ]
+    },
+    {
+      "id": "processing",
+      "title": {
+        "zh-CN": "处理与来源",
+        "en": "Processing and provenance"
+      },
+      "fields": [
+        {
+          "id": "processing.derivation",
+          "label": {
+            "zh-CN": "原始与派生关系",
+            "en": "Raw/derived relationship"
+          },
+          "value_type": "object",
+          "scope": "recording",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "来源是否处理、父记录和关系；不知道处理史不等于原始。",
+            "en": "Processing status, parent recording and relationship; unknown history does not establish raw data."
+          }
+        },
+        {
+          "id": "processing.history",
+          "label": {
+            "zh-CN": "既往处理",
+            "en": "Processing history"
+          },
+          "value_type": "array",
+          "scope": "stream",
+          "missing_action": "restrict_method",
+          "qc_use": "technical",
+          "definition": {
+            "zh-CN": "滤波、重参考、重采样、插值、ICA/ASR等顺序、参数、范围及软件版本。",
+            "en": "Ordered filtering, re-referencing, resampling, interpolation, ICA/ASR with parameters, scope and software versions."
+          }
+        },
+        {
+          "id": "processing.source",
+          "label": {
+            "zh-CN": "来源与版本",
+            "en": "Source and version"
+          },
+          "value_type": "object",
+          "scope": "recording",
+          "missing_action": "restrict_interpretation",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "来源URL/DOI、固定版本、许可与冲突；原始声明和平台判断分开。",
+            "en": "Source URL/DOI, fixed version, license and conflicts; separate source declarations from platform decisions."
+          }
+        },
+        {
+          "id": "processing.revision",
+          "label": {
+            "zh-CN": "描述修订",
+            "en": "Descriptor revision"
+          },
+          "value_type": "object",
+          "scope": "recording",
+          "missing_action": "block_registration",
+          "qc_use": "provenance",
+          "definition": {
+            "zh-CN": "字段字典版本、描述版本及父版本；旧任务冻结原描述，不回填新结论。",
+            "en": "Dictionary version, descriptor revision and parent; historical jobs retain their original description."
+          }
+        }
+      ]
+    }
+  ],
+  "references": {
+    "BIDS": "https://bids-specification.readthedocs.io/en/v1.11.2/",
+    "NWB": "https://github.com/NeurodataWithoutBorders/nwb-schema/blob/2.11.0/core/nwb.file.yaml"
+  }
+}

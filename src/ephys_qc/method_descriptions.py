@@ -376,7 +376,10 @@ def method_documentation(identifier):
     A new executable/planned catalogue entry must receive an explicit source
     review rather than inheriting generic documentation that implies support.
     """
-    return deepcopy(_DOCUMENTATION[identifier])
+    if identifier in _DOCUMENTATION:
+        return deepcopy(_DOCUMENTATION[identifier])
+    from .research_methods import research_documentation
+    return research_documentation(identifier)
 
 
 def enrich_method(method):

@@ -1,8 +1,10 @@
 # 公开 EEG 示例与复现
 
-截至 2026-10-29，工作台示例登记模板包含 5 个公开数据集的 11 份记录，用于验证读取、显式选道、方法适用条件、标注对齐和报告追溯。它们是小规模场景示例，不是伪迹检测准确率基准。S001R01/R02/R03 属于同一参与者，S002R01/R04 也属于同一参与者；记录数不能当作独立参与者数。
+截至 2026-10-29，代表性覆盖集包含7个公开数据集、26份记录；固定案例见[coverage-cases.json](../datasets/coverage-cases.json)，批量执行规则见[数据覆盖验收规范](data-validation.md)。以下先保留原有11份登记模板，再说明本轮新增15份。它们用于验证读取、适用条件、标注语义和报告追溯，不是已完成独立裁决的准确率基准。相同参与者的多次运行不能当作独立参与者。
 
 ## 记录与默认窗口
+
+本轮新增数据包含真实连续SET，本文中较早的EDF选区说明仍只对应原有11份模板。上传任意文件不会自动导入其原目录中的背景或外部标签。
 
 ### 本机直接上传样例
 
@@ -118,3 +120,54 @@ python scripts/public_examples/validate_recommended_examples.py \
 三份默认窗口均已在独立目录执行推荐流程并生成报告，没有失败模块，原始文件和标注SHA256前后不变，总质量分保持null。结果均为`partial`：未知参考/未声明比较组限制M05，缺少ECG/原始EMG等辅助证据限制M06；R01的短尾窗及SC4011的100Hz采样还限制部分谱分析。SC4011源文件3个未选择的辅助通道单位未知，读取器保留结构警告，不能把这项警告隐去。R04任务事件和SC4011的REM覆盖核验成功，均未作为检测真值。
 
 最终三份运行的精确路径、所用推荐策略版本、计划标识、模块状态和原始文件指纹集中在 `final-validation-summary.json`。首次R04使用较宽的`motor`背景标签，随后改为明确的`motor_imagery`并单独重跑；前次结果保留，最终摘要只引用修正后的R04。这里的真实运行证明工程链路可执行，不证明伪迹准确率、临床可靠性或整夜处理能力。
+
+## 代表性覆盖扩充：新增15份
+
+本轮在原11份记录外新增15份：12份EDF（含2份复用已有公开原件）和3份真实连续SET。固定记录级窗口、来源版本和SHA256见 `datasets/coverage-cases.json`；两个HMC登记ID归入同一官方数据集版本，不重复统计数据集。
+
+| 新增记录 | 默认原始时间/s | EEG/采样率 | 来源背景 |
+| --- | --- | --- | --- |
+| `eegmmidb-s003r01` | 0–61 | 64/160 Hz | EEGMMIDB · S003R01 睁眼静息 |
+| `eegmmidb-s003r02` | 0–61 | 64/160 Hz | EEGMMIDB · S003R02 闭眼静息 |
+| `eegmmidb-s004r02` | 0–61 | 64/160 Hz | EEGMMIDB · S004R02 闭眼静息 |
+| `eegmmidb-s005r03` | 0–120 | 64/160 Hz | EEGMMIDB · S005R03 真实左右握拳 |
+| `eegmmidb-s006r04` | 0–120 | 64/160 Hz | EEGMMIDB · S006R04 想象左右握拳 |
+| `eegmmidb-s007r05` | 0–120 | 64/160 Hz | EEGMMIDB · S007R05 真实双拳或双足运动 |
+| `eegmmidb-s008r06` | 0–120 | 64/160 Hz | EEGMMIDB · S008R06 想象双拳或双足运动 |
+| `chbmit-chb02-16` | 120–240 | 23/256 Hz | CHB-MIT · chb02_16 临床发作 |
+| `chbmit-chb03-01` | 350–470 | 23/256 Hz | CHB-MIT · chb03_01 临床发作 |
+| `hmc-sn061` | 1830–1950 | 4/256 Hz | HMC · SN061 N3睡眠与辅助导联 |
+| `sleep-edfx-sc4021` | 24990–25110 | 2/100 Hz | Sleep-EDF · SC4021 R&K深睡 |
+| `ds004504-sub001` | 0–120 | 19/500 Hz | OpenNeuro · sub-001 阿尔茨海默病闭眼静息 |
+| `ds004504-sub037` | 0–120 | 19/500 Hz | OpenNeuro · sub-037 健康对照闭眼静息 |
+| `ds004504-sub066` | 0–120 | 19/500 Hz | OpenNeuro · sub-066 额颞叶痴呆闭眼静息 |
+| `physiomotion-sub1-run01` | 300–420 | 59/1000 Hz | PhysioMotion · sub-1 run-01 人工伪迹标签 |
+
+
+### 固定版本准备与复跑
+
+新增12份EDF及配套资料使用[准备器](../scripts/public_examples/prepare_coverage_examples.py)和[固定源清单](../scripts/public_examples/coverage_examples_sources.json)。源清单包含35个对象、373,439,679字节，保存官方PhysioNet校验值或OpenNeuro固定Git版本的annex指纹。现有文件校验失败时拒绝覆盖。原始、派生标注和运行报告分别保存。
+
+```bash
+python scripts/public_examples/prepare_coverage_examples.py \
+  --repo-root "$PWD" \
+  --data-root /path/to/public-coverage-data \
+  --evidence-dir /path/to/public-coverage-preparation
+
+python scripts/public_examples/prepare_clinical_set_examples.py \
+  --output /path/to/public-coverage-data/ds004504-1.0.8
+```
+
+第一条生成 `additions.json`（11份）与 `physiomotion-additions.json`（1份）；第二条生成3份SET的 `additions.json`。准备器只下载/核验、派生标注和验证计划，不执行质检，不修改工作台配置。第一条支持 `--offline` 核验现有文件，`--reuse-eegmmidb-dir`可复用含S003R01/R02的目录。各登记文件可分别交给 `scripts/validate_data_coverage.py`，也可人工核对ID后合并。原11份记录仍按本文前述说明准备。
+
+### 新增来源及解释边界
+
+[ds004504 v1.0.8](https://openneuro.org/datasets/ds004504/versions/1.0.8)采用固定提交 `73b1b04c0a8e45e96c6f0682cc077a7919480fc4`，许可CC0。本轮取未清洗的subject目录：sub-001为来源AD组，sub-037为对照组，sub-066为FTD组。未取derivatives作为干净真值；原始目录不含来源设备自动伪迹标签。README与逐记录侧车对参考和滤波的描述不一致，因此参考及处理史保留未核实，未启用比较组。来源诊断分组仅用于报告背景。[固定版本说明](https://github.com/OpenNeuroDatasets/ds004504/tree/73b1b04c0a8e45e96c6f0682cc077a7919480fc4)
+
+[PhysioMotion ds006386 v1.0.1](https://openneuro.org/datasets/ds006386/versions/1.0.1)采用固定提交 `647f61744019ad41801598384bb461b7fdc06560`，许可CC0。取sub-1/run-01及人工CSV。CSV有382行，其中默认300–420秒与26行眼部伪迹标签相交；标签是ALL或双极导联，原始59道为单电极。登记使用独立 `quality_reference`，状态为 `montage_alignment_pending`；不送入检测器或M07，不计算通道级准确率。来源channels.tsv单位写V，而EDF物理头为uV；读取遵循EDF标定，已独立核验，不重复按侧车缩放。[数据描述论文](https://doi.org/10.1038/s41597-026-07120-7)
+
+新的EEGMMIDB R05/R06分别为双拳/双足真实运动与想象，不能沿用R03/R04的左右手含义。HMC SN061默认窗为来源N3；Sleep-EDF SC4021默认窗保持原R&K的stage 3与4，不自动合并为AASM N3。CHB-MIT新增两个来源患者的含发作记录，发作标签仍独立于质量判断。
+
+### 本轮结果入口
+
+26份默认窗口均已实际采用推荐方案运行；机器可读摘要见[覆盖基线](../profiles/data-coverage-baseline.json)，完整证据位于本地工作区 `work/ephys_coverage_20261029/`。15份新增记录另做完整选区独立读取核对：12EDF采用MNE对照平台读取器，3SET采用SciPy读取原始内嵌数值后按EEGLAB单位对照平台结果；逐道逐点一致，源文件未变。该结果验证解码与工程链路，不验证自然伪迹准确率。

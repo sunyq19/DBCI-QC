@@ -4,6 +4,8 @@
 
 适用性先写入计划节点的 `ready/partial/skipped + reason`；执行结果使用 `completed/partial/skipped/failed`，并保留子方法状态与未评原因。`partial` 表示模块部分检查可评，不能等同于质量不合格。工作台已支持独立版本化人工复核；算法结果保持 `review_status=pending`，不被人工决定覆写。统一评分尚未校准，`score.value=null`。
 
+字段设计另见[字段字典](metadata-fields.md)。`metadata-fields/1`尚未整体迁移到现有运行API，不能直接替代当前请求格式。
+
 ## 数据说明
 
 每批数据登记来源地址或提供方、版本与文件指纹、许可与访问条件、原始实验、受试者分组、设备、导联、参考、采样率、处理史及配套文件。
@@ -24,13 +26,28 @@ Python/CLI 工具包接受本机文件路径，显式确认后冻结来源与配
 | outputs | 指标、通道和时间范围、证据文件、单位 |
 | validation_status | 未验证、工程核验、合成验证、独立真实标签验证等证据状态 |
 
+### 方法目录字段
+
+当前方法目录在原声明上增加以下兼容字段；这些字段用于组织目录，不替代执行门槛：
+
+| 字段 | 当前约定 |
+| --- | --- |
+| `domain` / `domain_label` | 检查目的的稳定 ID 与显示名；同域可有多个执行模块 |
+| `activation` / `activation_label` | `with_module`、`conditional`、`manual_extension`，分别为随模块运行、满足条件、手动扩展 |
+| `supported_modalities` | 当前已接入的模态范围；按具体方法列出 `scalp_eeg`、`ecog`、`seeg` 或 `extracellular` 的已实现子集，计划方法为空 |
+| `intended_modalities` | 计划方法拟接入的模态；不代表当前可运行 |
+| `scope_note` | 工程适用范围及验证边界说明 |
+| `implementation` | `available` 或 `planned`，与方法是否适用于本份数据分别判断 |
+
+旧 `category` 字段保留兼容，不再用于顶层分组。HTTP目录增加 `method_domains` 数组（`id`、`label`、`module_ids`）；工作台据此组织分组与筛选，并兼容旧目录。`events_sync` 是保留的域 ID，当前显示为“事件与时间”，不表示已实现多设备同步校验。
+
 ## 运行计划与状态
 
 计划应记录输入版本、配置指纹、分析时段、通道选择、参考比较组、方法版本和每个适用性决定。计划在执行前冻结。
 
-任务状态拟沿用 `queued/running/completed/failed/cancelling/cancelled/interrupted`。模块执行状态用 `pending/running/completed/failed/skipped`；适用性另用 `applicable/not_applicable/insufficient_information`，避免把计算是否成功和数据是否适用混为一谈。
+当前任务状态为 `queued/running/completed/failed/cancelling/cancelled/interrupted`。计划节点使用 `ready/partial/skipped + reason`；运行节点先为 `pending/running`，结果使用 `completed/partial/skipped/failed`，取消/中断另按任务及模块证据记录。子方法保留自己的状态与理由，不从模块汇总状态推断每个方法都执行。
 
-例如：缺少 EOG 的方法可为 `skipped + insufficient_information`；有 EOG 但计算异常为 `failed + applicable`；计算成功未发现显著影响为 `completed + applicable`。是否参与评分另有 assessment 状态，不从 completed 自动推断合格。
+例如，缺少EOG的方法应记录缺失前提及未评原因；计算异常应记录失败；计算完成但无候选不能自动解释为质量合格。方法适用性的目标语义见[方法适用规则](method-applicability.md)，不得把文档中的解释标签直接当作当前API已接受的新枚举。
 
 ## 结果与人工复核
 

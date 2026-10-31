@@ -135,6 +135,26 @@ class ReviewLogContracts(unittest.TestCase):
         self.assertEqual(self.workspace.review()['counts']['pending'], 1)
         self.assertFalse((self.root / 'reviews.json').exists())
 
+    def test_truncated_evidence_stays_explicit_after_stored_candidates_reviewed(self):
+        payload = candidate_fixture()
+        payload.update(candidate_details_truncated=True, candidate_evidence={
+            'truncated': True, 'observed_interval_count': 5, 'stored_interval_count': 1,
+            'omitted_interval_count': 4})
+        path = self.root / 'artifacts/M03_continuity.json'
+        self.write(path, payload)
+        original = path.read_bytes()
+        before = self.workspace.candidates()
+        self.assertEqual(before['count'], 1)
+        warning = before['warnings'][0]
+        self.assertEqual(warning['code'], 'candidate_details_truncated')
+        self.assertEqual(warning['omitted_interval_count'], 4)
+        saved = self.workspace.update_review(self.body())
+        self.assertEqual(saved['counts']['pending'], 0)
+        self.assertEqual(saved['warnings'], before['warnings'])
+        self.assertEqual(self.workspace.review()['warnings'], before['warnings'])
+        self.assertIsNone(self.workspace.candidates()['quality_pass'])
+        self.assertEqual(path.read_bytes(), original)
+
     def test_decisions_append_versions_without_mutating_algorithm_files(self):
         protected = {p: p.read_bytes() for p in self.root.rglob('*.json')}
         first = self.workspace.update_review(self.body())

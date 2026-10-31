@@ -14,7 +14,8 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / 'apps' / 'workbench'))
 import server as workbench_server
 from standards_page import (Markdown, inline, render_standards, safe_url,
-                            heading_tree, MODULE_TITLES, NAVIGATION_SCRIPT, PRINT_SCRIPT)
+                            heading_tree, MODULE_TITLES, NAVIGATION_SCRIPT, PRINT_SCRIPT,
+                            DOCUMENT_PAGES)
 
 
 class Elements(HTMLParser):
@@ -78,7 +79,7 @@ class MarkdownSafetyTests(unittest.TestCase):
         self.assertFalse(any(tag in {'img', 'a'} for tag, _ in parsed.elements))
 
     def test_unicode_heading_ids_are_unique_stable_and_match_contents(self):
-        source = '# 文档\n## 原始数据\n## 原始数据\n## 原始数据-2\n## document\n'
+        source = '# 文档\n## 原始数据\n## 原始数据\n## 原始数据-2\n## document\n## specification-navigation\n'
         page = render_standards(source)
         parsed = Elements(page)
         ids = [attrs['id'] for _, attrs in parsed.elements if 'id' in attrs]
@@ -279,6 +280,12 @@ class StandardsRouteTests(unittest.TestCase):
     def setUp(self):
         self.data = '# 质控标准\r\n\r\n## 适用范围\r\n\r\n**原始数据**保留。\r\n'.encode('utf-8')
         self.source.write_bytes(self.data)
+        for slug, (filename, zh, en) in DOCUMENT_PAGES.items():
+            for language, title in [('', zh), ('en', en)]:
+                path = self.root / 'docs' / language / filename
+                if path.is_symlink():
+                    path.unlink()
+                path.write_text(f'# {title}\n\n## 1 Scope\n[Fields](/standards/fields)', encoding='utf-8')
         (self.root / 'docs/en/qc-standards.md').write_text('# EEG QC specification\n\n## 1 Scope\nPreserve source data.', encoding='utf-8')
         for identifier in MODULE_TITLES:
             path = self.modules / f'{identifier}.md'
@@ -299,6 +306,42 @@ class StandardsRouteTests(unittest.TestCase):
         for path in ['/en/standards/modules/M10', '/en/standards/../server.py', '/en/standards/modules/../../private.txt', '/en/en/standards', '/en/api/v1/jobs']:
             self.assertEqual(self.request(path)[0], 404)
         self.assertEqual(self.request('/en/standards', headers={'Origin': 'https://other.example'})[0], 403)
+
+    def test_common_documents_are_read_only_localized_and_download_exact_source(self):
+        for slug, (filename, zh, en) in DOCUMENT_PAGES.items():
+            for prefix, language, title in [('', '', zh), ('/en', 'en', en)]:
+                path = prefix + '/standards/' + slug
+                status, headers, page = self.request(path)
+                self.assertEqual(status, 200)
+                self.assertIn(title, page.decode())
+                self.assertIn(f'href="{prefix}/standards/fields"', page.decode())
+                self.assertIn('id="return-workbench"', page.decode())
+                self.assertEqual(headers['Cache-Control'], 'no-store')
+                self.assertEqual(self.request(path+'.md')[2], (self.root/'docs'/language/filename).read_bytes())
+                self.assertEqual(self.request(path+'.md')[1]['Content-Disposition'], f'attachment; filename="{filename}"')
+                self.assertEqual(self.request(path, 'POST')[0], 404)
+                self.assertEqual(self.request(path, headers={'Origin': 'https://other.example'})[0], 403)
+
+    def test_common_catalog_cannot_expose_arbitrary_paths_or_symlinks(self):
+        for path in ['/standards/fields/modules/M01', '/standards/fields.md/extra',
+                     '/standards/implementation/../../server.py', '/standards/metadata-fields',
+                     '/standards/TODO.md', '/en/standards/unknown']:
+            self.assertEqual(self.request(path)[0], 404)
+            self.assertIsNone(safe_url(path))
+        source = self.root/'docs/metadata-fields.md'
+        source.unlink()
+        self.assertEqual(self.request('/standards/fields')[0], 404)
+        secret = self.root/'secret.md'
+        secret.write_text('PRIVATE')
+        source.symlink_to(secret)
+        self.assertEqual(self.request('/standards/fields')[0], 404)
+        self.assertEqual(self.request('/standards/fields.md')[0], 404)
+
+    def test_common_source_updates_are_immediate(self):
+        source = self.root/'docs/method-applicability.md'
+        source.write_text('# Revised applicability')
+        self.assertIn('Revised applicability', self.request('/standards/applicability')[2].decode())
+        self.assertEqual(self.request('/standards/applicability.md')[2], source.read_bytes())
 
     def request(self, path, method='GET', headers=None):
         request = urllib.request.Request(self.url + path, method=method, headers=headers or {})
@@ -336,7 +379,7 @@ class StandardsRouteTests(unittest.TestCase):
         self.assertIn('javascript', headers['Content-Type'])
         self.assertEqual(script, PRINT_SCRIPT.encode('utf-8'))
         self.assertEqual(self.request('/standards-navigation.js')[2], NAVIGATION_SCRIPT.encode('utf-8'))
-        self.assertIn('<a href="/standards">质控标准</a>', self.request('/')[2].decode('utf-8'))
+        self.assertRegex(self.request('/')[2].decode('utf-8'), r'<a\b[^>]*href="/standards/overview"[^>]*>质控标准</a>')
 
     def test_routes_are_read_only_and_do_not_expose_other_repository_files(self):
         for path in ['/standards', '/standards.md', '/standards/modules/M01', '/standards/modules/M09.md']:

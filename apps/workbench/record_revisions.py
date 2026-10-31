@@ -10,6 +10,8 @@ import uuid
 from intake import (_save, _load, _hash, MODALITIES, REFERENCE_SCHEMES,
                     registration_selection)
 from ephys_qc.readers import inspect_recording, open_reader
+from ephys_qc.source_selection import reader_kwargs
+from ephys_qc.modalities import DESCRIPTIVE, default_methods
 from ephys_qc.tagging import validate_context, data_facts
 
 
@@ -41,7 +43,7 @@ class RecordRevisions:
             if _hash(Path(member['path'])) != member['sha256']:
                 raise ValueError('来源配套文件发生变化，不能修订旧记录。')
         record = copy.deepcopy(original)
-        record['metadata'] = inspect_recording(source)
+        record['metadata'] = inspect_recording(source, **reader_kwargs(original.get('metadata', {})))
         modality = body.get('modality', record.get('modality', 'scalp_eeg'))
         reference = body.get('reference_scheme', record.get('reference_scheme', 'unknown'))
         if modality not in MODALITIES - {'unknown'} or reference not in REFERENCE_SCHEMES:
@@ -56,7 +58,13 @@ class RecordRevisions:
         record['context_evidence'] = {key: evidence for key, evidence in record.get('context_evidence', {}).items()
                                       if config['context_tags'].get(key) == old_context.get(key)}
         # Changing role/reference invalidates previous comparison groups.
-        if eeg != selection.get('eeg_indices') or reference != original.get('reference_scheme', 'unknown'):
+        if modality != original.get('modality', 'scalp_eeg'):
+            # A confirmed input revision starts a new modality configuration;
+            # the old input and its frozen method parameters remain untouched.
+            config['method_config'] = default_methods(modality, record['metadata'])
+        if modality in DESCRIPTIVE:
+            config.setdefault('method_config', {})['comparison_groups'] = None
+        elif eeg != selection.get('eeg_indices') or reference != original.get('reference_scheme', 'unknown'):
             config.setdefault('method_config', {})['comparison_groups'] = (
                 ['user_confirmed_reference'] * len(eeg) if reference in {'common_reference', 'linked_ears'} else None)
         label = body.get('label', record['label'])
@@ -110,7 +118,7 @@ class RecordRevisions:
             raise ValueError('每个原始标签须对应明确解释。')
         if not isinstance(mapping.get('note', ''), str) or len(mapping.get('note', '')) > 2000:
             raise ValueError('标注说明最多2000字。')
-        reader = open_reader(record['source_path'], record['id'])
+        reader = open_reader(record['source_path'], record['id'], **reader_kwargs(record.get('metadata', {})))
         try:
             events = reader.describe().get('events', [])
         finally:

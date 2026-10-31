@@ -1,0 +1,872 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-30T08:33:52.615937+00:00",
+  "baseline_commit": "77746d387a0ca7e5bf55cf250f02121a85872a72",
+  "purpose": "data coverage engineering audit; not a clinical quality benchmark",
+  "selection_rule": "Fixed before signal download or QC: BDF subjects 1/2; BrainVision PD1001/PD1011; paired SET PD1001; new AD subject 002; motion subject 2 run 01; sleep subject SC403 night 1. No outcome-based replacement.",
+  "split_rule": "4 development packages and 4 frozen validation packages. No source or threshold changes between runs. All are consumed after one audit; future independent validation needs new subjects.",
+  "overlap_note": "ds004584 sub-001 has EEG ID PD1001 and matches ds007020 sub-PD1001; treat as paired formats, not independent people. Other inter-dataset overlap not ruled out.",
+  "acceptance": [
+    "Exact source size and hash",
+    "Channel roles grounded in header and source documents",
+    "No reference inferred from disease or filename",
+    "Per-module status and omission reasons",
+    "Input hash and parameter traceability",
+    "Score remains null/uncalibrated",
+    "Default first 120s only; no whole-night claim"
+  ],
+  "datasets": {
+    "ds005284-1.0.0": {
+      "dataset": "ds005284",
+      "version": "1.0.0",
+      "git_revision": "71e72dd42cd756fa530d0e3e4b710aba06a8b581",
+      "license": "CC0",
+      "name": "26 By Biosemi",
+      "url": "https://openneuro.org/datasets/ds005284/versions/1.0.0",
+      "doi": "doi:10.18112/openneuro.ds005284.v1.0.0",
+      "references": [
+        "Lu X, Thompson WF, Zhang L, Hu L. Music Reduces Pain Unpleasantness: Evidence from an EEG Study. J Pain Res. 2019 Dec 13;12:3331-3342. doi: 10.2147/JPR.S212080. PMID: 31853196; PMCID: PMC6916681."
+      ]
+    },
+    "ds007020-1.0.0": {
+      "dataset": "ds007020",
+      "version": "1.0.0",
+      "git_revision": "b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "license": "CC0",
+      "name": "EEG Mortality Dataset in Parkinson's Disease",
+      "url": "https://openneuro.org/datasets/ds007020/versions/1.0.0",
+      "doi": "doi:10.18112/openneuro.ds007020.v1.0.0",
+      "references": []
+    },
+    "ds004584-1.0.0": {
+      "dataset": "ds004584",
+      "version": "1.0.0",
+      "git_revision": "261510fd9780d738a77fee52b906b3d56b69b74e",
+      "license": "CC0",
+      "name": "Rest eyes open",
+      "url": "https://openneuro.org/datasets/ds004584/versions/1.0.0",
+      "doi": "doi:10.18112/openneuro.ds004584.v1.0.0",
+      "references": [
+        "doi: https://doi.org/10.1101/2022.07.26.22278079"
+      ]
+    },
+    "ds004504-1.0.8": {
+      "dataset": "ds004504",
+      "version": "1.0.8",
+      "git_revision": "73b1b04c0a8e45e96c6f0682cc077a7919480fc4",
+      "license": "CC0",
+      "name": "A dataset of EEG recordings from: Alzheimer's disease, Frontotemporal dementia and Healthy subjects",
+      "url": "https://openneuro.org/datasets/ds004504/versions/1.0.8",
+      "doi": "doi:10.18112/openneuro.ds004504.v1.0.8",
+      "references": [
+        "Miltiadous, A., Tzimourta, K. D., Afrantou, T., Ioannidis, P., Grigoriadis, N., Tsalikakis, D. G., Angelidis, P., Tsipouras, M. G., Glavas, E., Giannakeas, N., & Tzallas, A. T. (2023). A Dataset of Scalp EEG Recordings of Alzheimer’s Disease, Frontotemporal Dementia and Healthy Subjects from Routine EEG. Data, 8(6), 95. doi: 10.3390/data8060095",
+        "Miltiadous, A., Gionanidis, E., Tzimourta, K. D., Giannakeas, N., & Tzallas, A. T. (2023). DICE-net: A Novel Convolution-Transformer Architecture for Alzheimer Detection in EEG Signals. IEEE Access, 1–1. doi: 10.1109/ACCESS.2023.3294618"
+      ]
+    },
+    "ds006386-1.0.1": {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "git_revision": "647f61744019ad41801598384bb461b7fdc06560",
+      "license": "CC0",
+      "name": "PhysioMotion_Artifact",
+      "url": "https://openneuro.org/datasets/ds006386/versions/1.0.1",
+      "doi": "doi:10.18112/openneuro.ds006386.v1.0.1",
+      "references": []
+    },
+    "sleep-edfx-1.0.0": {
+      "dataset": "sleep-edfx",
+      "version": "1.0.0",
+      "name": "Sleep-EDF Database Expanded",
+      "license": "ODC-By-1.0",
+      "url": "https://physionet.org/content/sleep-edfx/1.0.0/",
+      "doi": "10.13026/C2X676",
+      "references": [
+        "Kemp et al. 2000. doi:10.1109/10.867928",
+        "Mourtazaev et al. 1995. doi:10.1093/sleep/18.7.557"
+      ]
+    }
+  },
+  "records": [
+    {
+      "id": "ds005284-sub-001-bdf",
+      "dataset": "ds005284-1.0.0",
+      "entry": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_eeg.bdf",
+      "subject_id": "sub-001",
+      "split": "development",
+      "label": "激光刺激 EEG · BDF",
+      "disease": "unknown",
+      "task": "erp",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds005284-sub-002-bdf",
+      "dataset": "ds005284-1.0.0",
+      "entry": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_eeg.bdf",
+      "subject_id": "sub-002",
+      "split": "frozen_validation",
+      "label": "激光刺激 EEG · BDF",
+      "disease": "unknown",
+      "task": "erp",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds007020-sub-PD1001-vhdr",
+      "dataset": "ds007020-1.0.0",
+      "entry": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.vhdr",
+      "subject_id": "sub-PD1001",
+      "split": "development",
+      "label": "临床睁眼静息 · BrainVision",
+      "disease": "unknown",
+      "task": "rest",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds007020-sub-PD1011-vhdr",
+      "dataset": "ds007020-1.0.0",
+      "entry": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.vhdr",
+      "subject_id": "sub-PD1011",
+      "split": "frozen_validation",
+      "label": "临床睁眼静息 · BrainVision",
+      "disease": "unknown",
+      "task": "rest",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds004584-sub-001-set",
+      "dataset": "ds004584-1.0.0",
+      "entry": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_eeg.set",
+      "subject_id": "sub-001",
+      "split": "development",
+      "label": "帕金森病睁眼静息 · SET＋FDT",
+      "disease": "parkinsons",
+      "task": "rest",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds004504-sub-002-set",
+      "dataset": "ds004504-1.0.8",
+      "entry": "ds004504-1.0.8/sub-002/eeg/sub-002_task-eyesclosed_eeg.set",
+      "subject_id": "sub-002",
+      "split": "frozen_validation",
+      "label": "阿尔茨海默病闭眼静息 · SET",
+      "disease": "dementia",
+      "task": "rest",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "ds006386-sub-2-edf",
+      "dataset": "ds006386-1.0.1",
+      "entry": "ds006386-1.0.1/sub-2/eeg/sub-2_task-artifact_run-01_eeg.edf",
+      "subject_id": "sub-2",
+      "split": "development",
+      "label": "运动伪迹 · EDF",
+      "disease": "unknown",
+      "task": "other",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    },
+    {
+      "id": "sleep-edfx-SC4031-edf",
+      "dataset": "sleep-edfx-1.0.0",
+      "entry": "sleep-edfx-1.0.0/sleep-cassette/SC4031E0-PSG.edf",
+      "subject_id": "SC403",
+      "split": "frozen_validation",
+      "label": "睡眠 PSG · 混合采样率 EDF",
+      "disease": "healthy_control",
+      "task": "sleep",
+      "modality": "scalp_eeg",
+      "window_start_seconds": 0,
+      "window_duration_seconds": 120
+    }
+  ],
+  "files": [
+    {
+      "relative_path": "ds005284-1.0.0/CHANGES",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/CHANGES",
+      "bytes": 42,
+      "sha256": "3ae13db34151d02fb37cd081bd7a2b3c6c2ea3fc97fc55f57615b332c07cfc51",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/README",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/README",
+      "bytes": 1531,
+      "sha256": "f406fdec0f638ca3c59ad5b6320d85c589658e5398f2fe2b1da48397114f8986",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/dataset_description.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/dataset_description.json",
+      "bytes": 559,
+      "sha256": "83ee628a450e5fe07f4f48fe22cd70a6dfe3fef21d10e21540a6f2283255010a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/participants.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/participants.json",
+      "bytes": 671,
+      "sha256": "daa0263bf216da7c2955482c3c5c3f5cf54ae2f0129fc754f3629bdf8b64ef58",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/participants.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/participants.tsv",
+      "bytes": 948,
+      "sha256": "f625a728bd1c07e64b5c5a558ffb39fcc1d689e8fd15cc64574ad37c38c29863",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/task-26ByBiosemi_events.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/task-26ByBiosemi_events.json",
+      "bytes": 427,
+      "sha256": "93e5d5c4cb3842bba731abd82b845907bb93515d62b685de1c04c4c8466e2f86",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-001/eeg/sub-001_task-26ByBiosemi_channels.tsv",
+      "bytes": 944,
+      "sha256": "9e67fd2f067c7da952e2a264ccc45f68b61aac4f5a08fb592cd7b9c77ebaea6f",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_eeg.bdf",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds005284/sub-001/eeg/sub-001_task-26ByBiosemi_eeg.bdf",
+      "bytes": 65511936,
+      "sha256": "a3dcbdc69c5cd2b47c19cd2fcbe27ddbca0baa3deca6881b37e8e02fed970cda",
+      "hash_basis": "git-annex SHA256E at 71e72dd42cd756fa530d0e3e4b710aba06a8b581",
+      "role": "signal",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-001/eeg/sub-001_task-26ByBiosemi_eeg.json",
+      "bytes": 613,
+      "sha256": "28cedf99aac38ab19808269ee4bb2acef2670a254d160fc13f4e3815d7fb0d88",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-001/eeg/sub-001_task-26ByBiosemi_electrodes.tsv",
+      "bytes": 1963,
+      "sha256": "8a44389c3d85e0aac1b0d7235f0e6c688abd2a2c3392d58a8f05553875ab2f13",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-001/eeg/sub-001_task-26ByBiosemi_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-001/eeg/sub-001_task-26ByBiosemi_events.tsv",
+      "bytes": 1142,
+      "sha256": "53bd460a305cf87648265db8398ae289d86c743687e0ddae92615b8daa466768",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-002/eeg/sub-002_task-26ByBiosemi_channels.tsv",
+      "bytes": 944,
+      "sha256": "9e67fd2f067c7da952e2a264ccc45f68b61aac4f5a08fb592cd7b9c77ebaea6f",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_eeg.bdf",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds005284/sub-002/eeg/sub-002_task-26ByBiosemi_eeg.bdf",
+      "bytes": 65711616,
+      "sha256": "a8f700a4b3c50420d9c357e698653deb73419f6a39ec9ddc52fafdf2c03f4b25",
+      "hash_basis": "git-annex SHA256E at 71e72dd42cd756fa530d0e3e4b710aba06a8b581",
+      "role": "signal",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-002/eeg/sub-002_task-26ByBiosemi_eeg.json",
+      "bytes": 613,
+      "sha256": "93468a91be6945fbb3d2a3d9ab169cb62d314e1bb32069f126b82ba8f956c66a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-002/eeg/sub-002_task-26ByBiosemi_electrodes.tsv",
+      "bytes": 1963,
+      "sha256": "8a44389c3d85e0aac1b0d7235f0e6c688abd2a2c3392d58a8f05553875ab2f13",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds005284-1.0.0/sub-002/eeg/sub-002_task-26ByBiosemi_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds005284/71e72dd42cd756fa530d0e3e4b710aba06a8b581/sub-002/eeg/sub-002_task-26ByBiosemi_events.tsv",
+      "bytes": 652,
+      "sha256": "89d1207735133c02b702be12a79a50b3a5eed231b8d363724f7bc5222d38ddf2",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds005284-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/CHANGES",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/CHANGES",
+      "bytes": 27,
+      "sha256": "47f9daf294e6a150645b69b4eef57c57368515cd87b249fb2d8df8bada7668f7",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/README.md",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/README.md",
+      "bytes": 2076,
+      "sha256": "4aa2dec77dafce660142b35c58680511a916a00280c24db5e202f38605e9682b",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/dataset_description.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/dataset_description.json",
+      "bytes": 373,
+      "sha256": "fa6a7e88c7a2ab75b12539d8f38b009d1cff013eb778a813be2bc5c291541213",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/participants.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/participants.json",
+      "bytes": 348,
+      "sha256": "49cb2978289788e438c266ed95cd064f4fa9786f066ed4fb9f64299cd72fa5ed",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/participants.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/participants.tsv",
+      "bytes": 1862,
+      "sha256": "1165e81eefeb677e8251f4fb3aad0a9e171b0a544f04f0b76df9509789330cd3",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_space-CapTrak_coordsystem.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_space-CapTrak_coordsystem.json",
+      "bytes": 969,
+      "sha256": "0794e7dc3c1281f5628ad0eaec51bf09ff3a69964cdfb0572e6408f59eca945a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_space-CapTrak_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_space-CapTrak_electrodes.tsv",
+      "bytes": 4302,
+      "sha256": "74c63f32bd33b4ecadbe2c7d7d7f648220b7f835b4105d15604299c7464deeba",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_channels.tsv",
+      "bytes": 4861,
+      "sha256": "f97af31378cb3ca461c1e9a27d55dabba7e33f161d6365ba97c90c33eadbf79e",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.eeg",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.eeg",
+      "bytes": 35489160,
+      "sha256": "a728776ac390d3c640ad19b07be9b91b7e48b90db5f466e15a7c0a1a969d21b7",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.json",
+      "bytes": 524,
+      "sha256": "9c314f2468ffedd08436352ae1e01f1ffc19a2b5eca8af96e2c6d6fec8b33018",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.vhdr",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.vhdr",
+      "bytes": 14302,
+      "sha256": "a2684ecf03f32eff080454eb84a5a5bfc7e0e152434f2e42b9ec7c4288d5c9b2",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.vmrk",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_eeg.vmrk",
+      "bytes": 490,
+      "sha256": "75dcef5b847305413060b0a98616a99ea197875b7eefc2bb4057470e245e8095",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_events.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_events.json",
+      "bytes": 786,
+      "sha256": "7d8a1d3535368695b608f474a8532b59f92d7b8516b60156a4e8c58e285c3fad",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1001/ses-01/eeg/sub-PD1001_ses-01_task-rest_events.tsv",
+      "bytes": 71,
+      "sha256": "1b4c1f5c10d1550317146b9cdbd79ba0637e84094b29d90e8860c88a3114c2b1",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_space-CapTrak_coordsystem.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_space-CapTrak_coordsystem.json",
+      "bytes": 969,
+      "sha256": "0794e7dc3c1281f5628ad0eaec51bf09ff3a69964cdfb0572e6408f59eca945a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_space-CapTrak_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_space-CapTrak_electrodes.tsv",
+      "bytes": 4293,
+      "sha256": "4be2efc2e380ec9b9f35ae7e8f675fd4c623f21674433fe7fab759ed7df0a340",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_channels.tsv",
+      "bytes": 4861,
+      "sha256": "f97af31378cb3ca461c1e9a27d55dabba7e33f161d6365ba97c90c33eadbf79e",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.eeg",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.eeg",
+      "bytes": 41081040,
+      "sha256": "71968c62c4cfa7fbdcb2f52bf75660e8dcd94d910c432c251c9bb974020397c8",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.json",
+      "bytes": 524,
+      "sha256": "d47daae1ab2c8476136aa62a70cd9ad8f4c34aebb4d7006edfdf57547f8863ef",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.vhdr",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.vhdr",
+      "bytes": 14302,
+      "sha256": "7265801c6604c6ae8bdcab78d9f65f377532819ca1db96c6ca6eeb568a563bda",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.vmrk",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds007020/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_eeg.vmrk",
+      "bytes": 490,
+      "sha256": "f4617eaecccdd7ea68ccc22bdb622f364133de0b02a2f9b6b51496a0f89bdfbe",
+      "hash_basis": "git-annex SHA256E at b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a",
+      "role": "signal",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_events.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_events.json",
+      "bytes": 786,
+      "sha256": "7d8a1d3535368695b608f474a8532b59f92d7b8516b60156a4e8c58e285c3fad",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds007020-1.0.0/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds007020/b063f0d23e466fa4dfd77b6e4afaf6fb4f672a9a/sub-PD1011/ses-01/eeg/sub-PD1011_ses-01_task-rest_events.tsv",
+      "bytes": 71,
+      "sha256": "1b4c1f5c10d1550317146b9cdbd79ba0637e84094b29d90e8860c88a3114c2b1",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds007020-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/CHANGES",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/CHANGES",
+      "bytes": 35,
+      "sha256": "bd60cbafdd8c9e721142415902b44e1e94a11d04e3e97563a3af0a9d487722be",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/README",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/README",
+      "bytes": 259,
+      "sha256": "4b22718f92c91b98f761da43e7f91a0c07bbdc361c1b323606aa3f2bfe1d99d4",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/dataset_description.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/dataset_description.json",
+      "bytes": 504,
+      "sha256": "fc5928408c4930c142c3b00b0016889f57eab49cfd628ab0cebf958d56cafbb7",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/participants.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/participants.json",
+      "bytes": 615,
+      "sha256": "6913c5b45c2bb8b91325ece6d33c29faf9b25188e9ec0d56a0c6f20a183930f5",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/participants.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/participants.tsv",
+      "bytes": 5915,
+      "sha256": "f4ead5d1590e0a8fc2ead9ffc2b653fa65bb685d85fa2f7174f10f44823b5926",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/task-Rest_events.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/task-Rest_events.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/sub-001/eeg/sub-001_task-Rest_channels.tsv",
+      "bytes": 745,
+      "sha256": "7483c59062d6288b84176e1654455a039b6c6515e283f1fb2541d51616845a85",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_coordsystem.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/sub-001/eeg/sub-001_task-Rest_coordsystem.json",
+      "bytes": 97,
+      "sha256": "38cbd743cd80f8243716dcfe326138c49c124855551fbed50f935724a5ee71d3",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_eeg.fdt",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds004584/sub-001/eeg/sub-001_task-Rest_eeg.fdt",
+      "bytes": 35489160,
+      "sha256": "7d60ef6f91905ad9f8a25a6151cee31eb3d538e8c0d8c502f1d902c0101d9865",
+      "hash_basis": "git-annex SHA256E at 261510fd9780d738a77fee52b906b3d56b69b74e",
+      "role": "signal",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/sub-001/eeg/sub-001_task-Rest_eeg.json",
+      "bytes": 539,
+      "sha256": "a3b71bee7f948bc20b0832b1070f4464f15c15489239ed4f868ba4f1e4f1afc7",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_eeg.set",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds004584/sub-001/eeg/sub-001_task-Rest_eeg.set",
+      "bytes": 614256,
+      "sha256": "12057f1c22970885f5e76d9069e5bcc0be8b206f7dfd34815987ba7a97c188f0",
+      "hash_basis": "git-annex SHA256E at 261510fd9780d738a77fee52b906b3d56b69b74e",
+      "role": "signal",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/sub-001/eeg/sub-001_task-Rest_electrodes.tsv",
+      "bytes": 1999,
+      "sha256": "1211ceb3e32c99fc2c631357b379c5b61c8a46e9cd90495950cb72f532bc7aba",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004584-1.0.0/sub-001/eeg/sub-001_task-Rest_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004584/261510fd9780d738a77fee52b906b3d56b69b74e/sub-001/eeg/sub-001_task-Rest_events.tsv",
+      "bytes": 56,
+      "sha256": "b0b98a02d625b19aa66d0eb099c1e73fd50dd542e5679a28e4a38754f6a8222b",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004584-1.0.0"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/CHANGES",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/CHANGES",
+      "bytes": 448,
+      "sha256": "648f0f66ad2669cd24e83653d9ce80fb21157df2728153533853bd7277597e60",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/README",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/README",
+      "bytes": 4168,
+      "sha256": "a551f7e4844f09515499da342605cbdc8aff86a627057048da95748ea6d3b48a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/dataset_description.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/dataset_description.json",
+      "bytes": 2224,
+      "sha256": "062dbd4c3b815ed84caf23abf34d262aeb22081e8d75b19374a115a410dedfdd",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/participants.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/participants.json",
+      "bytes": 613,
+      "sha256": "e479ba99b89ca756d8894ec14665780eada7c0e831ca2422699439d9ae98740c",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/participants.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/participants.tsv",
+      "bytes": 1706,
+      "sha256": "bd17cf02ec9733c9029d4a6d977b2918309b3c667ff9ceb1b5dce6e3cebccbc1",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/sub-002/eeg/sub-002_task-eyesclosed_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/sub-002/eeg/sub-002_task-eyesclosed_channels.tsv",
+      "bytes": 284,
+      "sha256": "b78bb6ff8de9632610902683435c62ed467ee81514ebff8ddd3cf29130842cf8",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/sub-002/eeg/sub-002_task-eyesclosed_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds004504/73b1b04c0a8e45e96c6f0682cc077a7919480fc4/sub-002/eeg/sub-002_task-eyesclosed_eeg.json",
+      "bytes": 868,
+      "sha256": "65c5ac052b8f2dc6b1d6fc4ee239ef6f3bf26ad4e1fe0de8153ac25abc109a40",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds004504-1.0.8/sub-002/eeg/sub-002_task-eyesclosed_eeg.set",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds004504/sub-002/eeg/sub-002_task-eyesclosed_eeg.set",
+      "bytes": 31770832,
+      "sha256": "3178a7b0cc07799857f564eb236cc835cf479bb161cf7745b0427bf8c08c7818",
+      "hash_basis": "git-annex SHA256E at 73b1b04c0a8e45e96c6f0682cc077a7919480fc4",
+      "role": "signal",
+      "dataset": "ds004504-1.0.8"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/CHANGES",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/CHANGES",
+      "bytes": 91,
+      "sha256": "47ed7e53672f08929fee923f8d32c0b06e58104190b84ad43943b3a24c28543a",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/README",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/README",
+      "bytes": 694,
+      "sha256": "69c01ab715c3bc3e613d77d65691474eea1fea74365db7fe6040cc553bbc3cd4",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/dataset_description.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/dataset_description.json",
+      "bytes": 215,
+      "sha256": "6a23f99882a7fe3e027e97cbb09e50af6d8be3addfd0bd25d7cbf3785d802112",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/participants.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/participants.json",
+      "bytes": 756,
+      "sha256": "4b8aeb7120262dc2ff8cb93d218fdcc09062a65f0ec300afa2e67bb6c81d95dc",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/participants.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/participants.tsv",
+      "bytes": 846,
+      "sha256": "35ffa12f722a5f20e38363bbeb4f847d8f072c989cf1929a5aa865328e19421e",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_space-CapTrak_coordsystem.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/sub-2/eeg/sub-2_space-CapTrak_coordsystem.json",
+      "bytes": 1056,
+      "sha256": "0ae8b8e77d46a7279b40e7be718b468490b081be38062fdc3b551f0d5cb77501",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_space-CapTrak_electrodes.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/sub-2/eeg/sub-2_space-CapTrak_electrodes.tsv",
+      "bytes": 3852,
+      "sha256": "470fcc07522aabc7a273c4b22691bd9a0cb244c73442518d33f267b0cc84b479",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_task-artifact_run-01_channels.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/sub-2/eeg/sub-2_task-artifact_run-01_channels.tsv",
+      "bytes": 3434,
+      "sha256": "397168d1d9d5b5f7a5c884e0e71f3ebd55e29ae74754cad39b2cba524d05b6bb",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_task-artifact_run-01_eeg.edf",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-2/eeg/sub-2_task-artifact_run-01_eeg.edf",
+      "bytes": 165847672,
+      "sha256": "530bef80dcc50c3b4d139403c3931cb876bd242776429ca93c0815dad5d6f729",
+      "hash_basis": "git-annex SHA256E at 647f61744019ad41801598384bb461b7fdc06560",
+      "role": "signal",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_task-artifact_run-01_eeg.json",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/sub-2/eeg/sub-2_task-artifact_run-01_eeg.json",
+      "bytes": 501,
+      "sha256": "6010341aecd763d38d240d423889e07ec861a8a66c34f5f2521d120f8a1cab46",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/sub-2/eeg/sub-2_task-artifact_run-01_events.tsv",
+      "url": "https://raw.githubusercontent.com/OpenNeuroDatasets/ds006386/647f61744019ad41801598384bb461b7fdc06560/sub-2/eeg/sub-2_task-artifact_run-01_events.tsv",
+      "bytes": 5737,
+      "sha256": "7d49cacbf43e70415255b9b9894cd7b2fa1688db0adb4aaeb1d5c163f0a8f560",
+      "hash_basis": "git-commit-addressed metadata bytes",
+      "role": "source_documentation",
+      "dataset": "ds006386-1.0.1"
+    },
+    {
+      "relative_path": "sleep-edfx-1.0.0/sleep-cassette/SC4031E0-PSG.edf",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4031E0-PSG.edf",
+      "bytes": 51438848,
+      "sha256": "ce2314a60dd6e1437f9cd720c2e59c23aabe471e4821f9544593109a9b0715dd",
+      "hash_basis": "PhysioNet official SHA256SUMS.txt",
+      "role": "signal",
+      "dataset": "sleep-edfx-1.0.0"
+    },
+    {
+      "relative_path": "sleep-edfx-1.0.0/sleep-cassette/SC4031EC-Hypnogram.edf",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4031EC-Hypnogram.edf",
+      "bytes": 3700,
+      "sha256": "7ec3d3c8d8f1a89d48df4cc85be374fbdf70d4b5ec5ec321c03d586dd2cc1617",
+      "hash_basis": "PhysioNet official SHA256SUMS.txt",
+      "role": "original_annotations",
+      "dataset": "sleep-edfx-1.0.0"
+    },
+    {
+      "relative_path": "sleep-edfx-1.0.0/SHA256SUMS.txt",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/SHA256SUMS.txt",
+      "bytes": 39799,
+      "sha256": "1bc88e19e2e921f7851d7cf61e31ceb8f6d670211ca546a323e9db5a77525edf",
+      "hash_basis": "snapshot of official checksum manifest",
+      "role": "source_documentation",
+      "dataset": "sleep-edfx-1.0.0"
+    },
+    {
+      "relative_path": "ds006386-1.0.1/derivatives/Manual_Annotations/sub2_run01.csv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/derivatives/Manual_Annotations/sub2_run01.csv",
+      "bytes": 35209,
+      "sha256": "8d8837f4c1bb70719ceb5b0715f964bab2ae0657dc7cebf978d9b215873cb9fa",
+      "hash_basis": "git-annex SHA256E at 647f61744019ad41801598384bb461b7fdc06560",
+      "role": "manual_artifact_annotations",
+      "dataset": "ds006386-1.0.1"
+    }
+  ]
+}

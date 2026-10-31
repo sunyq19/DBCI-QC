@@ -7,6 +7,7 @@ import re
 from .core import build_plan as _build_plan, catalog, run_job
 from .readers import inspect_recording, list_readers, open_reader
 from .recommendations import recommend
+from .workflow import workflow
 
 
 def _snapshot(value):
@@ -14,8 +15,8 @@ def _snapshot(value):
 
 
 def _confirmed(record, config=None):
-    if not isinstance(record, dict) or record.get('modality') != 'scalp_eeg':
-        raise ValueError('Explicit scalp_eeg confirmation is required by the current toolkit')
+    if not isinstance(record, dict) or record.get('modality') not in {'scalp_eeg', 'ecog', 'seeg', 'extracellular'}:
+        raise ValueError('Explicit supported modality confirmation is required by the toolkit')
     config = record.get('default_config', {}) if config is None else config
     metadata = record.get('metadata')
     if not isinstance(config, dict) or not isinstance(metadata, dict):
@@ -41,21 +42,21 @@ def _confirmed(record, config=None):
 
 
 def prepare_recording(source_path, *, record_id, modality, qc_config,
-                      reference_scheme='unknown', label=None, provenance=None):
+                      reference_scheme='unknown', label=None, provenance=None, stream_id=None):
     """Inspect and fingerprint a source with caller-confirmed roles and selection.
 
     ``qc_config.selection`` must explicitly name ``eeg_indices``. The existing
     planner validates rates, time, roles and method parameters. No QC is run.
     Reader metadata cannot confirm electrode placement; modality is mandatory.
     """
-    if modality != 'scalp_eeg':
-        raise ValueError('Current QC requires explicit modality="scalp_eeg"; inspect other modalities separately')
+    if modality not in {'scalp_eeg', 'ecog', 'seeg', 'extracellular'}:
+        raise ValueError('Current QC requires explicit supported modality; Neuropixels requires verified SpikeGLX or NWB continuous voltage with explicit device evidence')
     if not isinstance(record_id, str) or not record_id.strip():
         raise ValueError('record_id must be a nonempty stable identifier')
     if not isinstance(qc_config, dict):
         raise ValueError('qc_config must contain an explicit selection')
     source = Path(source_path)
-    reader = open_reader(source, record_id)
+    reader = open_reader(source, record_id, **({'stream_id': stream_id} if stream_id is not None else {}))
     try:
         metadata = reader.metadata()
         files = copy.deepcopy(reader.describe()['source_files'])
@@ -151,5 +152,5 @@ def run_module(module_id, record, output_dir, *, qc_config=None, emit=None):
     return run_modules(record, output_dir, [module_id], qc_config=qc_config, emit=emit)
 
 
-__all__ = ['catalog', 'list_readers', 'inspect_recording', 'prepare_recording',
+__all__ = ['catalog', 'workflow', 'list_readers', 'inspect_recording', 'prepare_recording',
            'recommend', 'build_plan', 'run_modules', 'run_module']

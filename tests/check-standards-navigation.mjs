@@ -160,3 +160,10 @@ test('A page with no secondary headings retains return and print operations', ()
 });
 
 console.log(`${passed} document navigation contracts passed; no browser or network used.`);
+
+// Direct visits must retain the selected ECoG route and language.
+for (const href of ['/?modality=ecog', '/?modality=ecog&lang=en']) {
+  const f = fixture({referrer: ''}); f.back.getAttribute = () => href;
+  f.click(); assert.deepEqual(f.calls.assigned, [href]);
+}
+console.log('ECoG direct-return routes preserve modality and language.');

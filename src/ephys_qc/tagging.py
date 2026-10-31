@@ -73,7 +73,10 @@ def data_facts(record, config=None):
     for key in ('verified_electrode_coordinates', 'verified_epochs'):
         if key in record and type(record[key]) is not bool:
             raise ValueError(key + '需为明确的布尔值。')
-    return {'sampling_rate_hz': next(iter(rates)) if len(rates) == 1 else None,
+    return {'modality': record.get('modality', 'scalp_eeg'), 'scope': config.get('scope', 'window'),
+            'stream_band': metadata.get('acquisition', {}).get('stream_band'),
+            'probe_shanks': [(c.get('probe_grid') or {}).get('shank') for c in selected],
+            'sampling_rate_hz': next(iter(rates)) if len(rates) == 1 else None,
             'n_eeg': len(indices), 'window_seconds': selection.get('duration_seconds'),
             'verified_voltage': bool(selected) and len(selected) == len(indices) and
                                 all(unit(c) in {'v', 'mv', 'uv', 'nv'} for c in selected + auxiliary),
@@ -104,7 +107,15 @@ def describe_data(record, config=None):
         record.get('modality_source', '登记信息；格式本身不能证明电极位置'), known=modality != 'unknown')
     format_ = record.get('metadata', {}).get('format', 'unknown')
     tag('format', '格式', format_, format_ if format_ != 'unknown' else '格式未核验', '接入器核验', known=format_ != 'unknown')
-    tag('n_eeg', '分析导联', facts['n_eeg'], f"{facts['n_eeg']} 道 EEG", '本次明确的通道索引配置')
+    acquisition = record.get('metadata', {}).get('acquisition') or {}
+    if format_ == 'SpikeGLX':
+        band = acquisition.get('stream_band')
+        tag('signal_object', '数据对象', 'continuous_voltage', '原始连续电压', 'SpikeGLX读取器，不包含分选单元')
+        tag('stream_band', '原始流', band, band.upper() if band else '未知', '文件及META声明', known=band in {'ap', 'lf'})
+        probe = acquisition.get('probe_type')
+        tag('probe_type', '探针型号', probe, str(probe) if probe is not None else '未知', 'META声明', known=probe is not None)
+    signal_label = {'ecog': 'ECoG 触点', 'seeg': 'sEEG 触点', 'extracellular': 'Neuropixels 通道'}.get(modality, 'EEG')
+    tag('n_eeg', '分析导联', facts['n_eeg'], f"{facts['n_eeg']} 道 {signal_label}", '本次明确的通道索引配置')
     fs = facts['sampling_rate_hz']
     tag('sampling_rate_hz', '采样率', fs, f'{fs:g} Hz' if fs else '采样率待核验', '文件元数据与选道', known=fs is not None)
     tag('verified_voltage', '电压单位', facts['verified_voltage'], '电压单位已登记' if facts['verified_voltage'] else '电压单位待核验',

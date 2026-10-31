@@ -101,7 +101,7 @@ check('upload stays available before the conditional analysis workspace',()=>{
 });
 check('pipeline title is a heading, not a disclosure toggle',()=>{
   assert(/^h[1-6]$/.test(byId('pipeline-title').tag));assert(html.slice(byId('pipeline-title').offset).startsWith(`<${byId('pipeline-title').tag}`));
-  assert(source.includes('框架预览'));assert(source.includes('读取与识别'));assert(source.includes('质量检查'));assert(source.includes('汇总与报告'));
+  assert(source.includes('框架预览'));assert(source.includes('读取与确认'));assert(source.includes('质量检查'));assert(source.includes('结果与报告'));
 });
 check('desktop studio uses a two-column grid with a spanning graph rail',()=>{
   const box=style(layout,1400),rail=style(pipeline,1400);assert.equal(box.display,'grid');assert(box['grid-template-columns']&&box['grid-template-columns']!=='1fr');
@@ -137,6 +137,13 @@ check('persistent graph does not expose analysis actions before confirmation',()
 });
 check('layout changes preserve the safe module documentation entry',()=>{
   assert.equal(byId('module-details-link').attrs.target,'_blank');assert((byId('module-details-link').attrs.rel||'').split(/\s+/).includes('noopener'));assert(source.includes('window.addEventListener("hashchange",openModuleFromHash)'));
+});
+check('unified landing has no modality navigation and toolbox scope remains secondary',()=>{
+  assert(!byId('modality-tabs'));assert.equal(layout.children[0],upload);assert(containing(byId('toolkit-modality-filter'),byId('toolkit-section')));assert.equal(byId('toolkit-section').tag,'details');assert(!Object.hasOwn(byId('toolkit-section').attrs,'open'));assert.equal(byId('standards-link').attrs.href,'/standards/overview');
+});
+
+check('four-modality upload remains unified and raw SpikeGLX companion requirements are explicit',()=>{
+  assert(!byId('modality-tabs'));const accept=byId('intake-file').attrs.accept.split(',');assert(accept.includes('.meta'));assert(accept.includes('.zip'));assert(!accept.includes('.bin'));assert(html.includes('SpikeGLX (.bin + .meta ZIP)'));assert(html.includes('每包仅一个 AP 或 LF 原始流'));assert(html.includes('不评估已分选单元'));assert(accept.includes('.nwb'));assert(html.includes('NWB 2 / HDF5'));assert(html.includes('Units 仅识别，不做波形质控'));assert(!html.includes('NWB 暂不支持读取'));assert(!html.includes('sEEG、细胞外记录尚未接入质控'));
 });
 for(const[name,run]of tests){run();console.log(`PASS ${name}`)}
 console.log(`${tests.length} static layout contracts passed. This is not browser geometry, keyboard, or visual validation.`);

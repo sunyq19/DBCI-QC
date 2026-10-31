@@ -61,6 +61,19 @@ def run(context: ModuleContext) -> dict:
     row = context.row
     state = context.state
     save = context.save
+    from ..modalities import validate_analysis_channels
+    actual_metadata = state['reader'].metadata()
+    from ..source_selection import validate_frozen_stream
+    validate_frozen_stream(actual_metadata, config['selection'])
+    if actual_metadata.get('format') == 'NWB' and actual_metadata.get('selected_stream_id') != context.record['metadata'].get('selected_stream_id'):
+        raise ValueError('实际NWB信号与登记的对象路径不一致。')
+    modality = context.record.get('modality', 'scalp_eeg')
+    validate_analysis_channels(actual_metadata, config['selection']['eeg_indices'], modality)
+    if modality == 'extracellular':
+        expected = context.record['metadata'].get('acquisition', {})
+        actual = actual_metadata.get('acquisition', {})
+        if any(expected.get(key) != actual.get(key) for key in ('stream_band', 'probe_type', 'probe_model', 'neuropixels_device_declared')):
+            raise ValueError('登记的Neuropixels流或探针类型与实际源文件不一致。')
     payload = read_window(state, config)
     payload['data_tags'] = result['data_tags']
     payload['method_applicability'] = result['method_applicability']

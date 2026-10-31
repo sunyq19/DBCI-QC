@@ -8,9 +8,208 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `质控台	QC Workbench
+  const pairs = `读取本机文件，生成检查报告。	Read a local recording and generate a QC report.
+选择本机文件	Choose a local file
+已选择文件	File selected
+单个记录，或包含配套文件的 ZIP	A single recording or a ZIP with companion files
+点击更换文件	Click to choose another file
+基础方法	Core methods
+按条件启用	Conditional methods
+可选增强	Optional enhancements
+输入、输出与依赖	Inputs, outputs and dependencies
+← 查看所属模块	← Back to module
+详情	Details
+提取状态未记录	Extraction status not recorded
+尚未提取	Not extracted
+文件可能含事件；尚未映射到所选信号。	The file may contain events; they have not been mapped to the selected signal.
+通道角色优先保留已声明类型，未声明时仅按名称提出角色建议；模态及参考仍须确认，不据名称推断疾病。	Declared channel types take priority. Names only suggest roles when types are undeclared; modality and reference still require confirmation. Disease is not inferred from names.
+文件标注仅提取原始事件描述，不据此推断疾病、睡眠阶段或质量标签。	File annotations retain original event descriptions only; disease, sleep stages and quality labels are not inferred.
+请先选择一个可读取的连续电压信号；Units表仅作内容识别，不进入波形质控。	Select a readable continuous-voltage signal first. Units tables are identified only and do not undergo waveform QC.
+已核验SpikeGLX AP/LF或明确设备身份的NWB连续电压；保留源处理声明，不包含单元质量或跨流同步。	Verified SpikeGLX AP/LF or continuous NWB voltage with explicit device identity. Preserve source processing declarations; exclude unit quality and cross-stream synchronization.
+核对SpikeGLX配套文件或NWB信号对象、探针声明与逐通道电压标定；保留处理史。	Check SpikeGLX companion files or NWB signal objects, probe declarations and per-channel voltage calibration; preserve processing history.
+仅已核验设备的连续电压；不接收排序结果，不自动对齐多个信号或解释同步脉冲。	Continuous voltage from verified devices only. Sorting outputs are excluded; signals are not automatically aligned and synchronization pulses are not interpreted.
+Neuropixels连续电压读取与来源核验	Neuropixels continuous-voltage reading and provenance checks
+核验SpikeGLX或NWB所选信号，保留通道身份、电极映射、样本时钟及处理史。	Verify the selected SpikeGLX or NWB signal, preserving channel identity, electrode mapping, sample timing and processing history.
+读取有明确设备身份的Neuropixels连续电压。	Read continuous Neuropixels voltage with explicit device identity.
+SpikeGLX核对BIN/META及标定；NWB核对ElectricalSeries路径、单位、规则时钟、电极映射与设备声明。	For SpikeGLX, verify BIN/META and calibration. For NWB, verify the ElectricalSeries path, units, regular timing, electrode mapping and device declarations.
+已支持的SpikeGLX AP/LF或NWB2/HDF5连续ElectricalSeries。	Supported SpikeGLX AP/LF or continuous ElectricalSeries in NWB 2 / HDF5.
+本项目格式适配器；保留源标定及处理声明，不调用头皮流程。	This project's format adapters preserve source calibration and processing declarations without invoking the scalp EEG workflow.
+SpikeGLX按量程与增益标定；NWB按conversion、channel_conversion、offset及明确单位标定为V。	SpikeGLX uses range and gain calibration. NWB uses conversion, channel_conversion, offset and explicit units to obtain volts.
+SpikeGLX已用官方readSGLX核对；NWB通过h5py独立核对源切片及单位。	SpikeGLX was checked against official readSGLX. NWB source slices and units were independently checked with h5py.
+冻结所选连续信号、源通道及样本坐标；保留NWB对象路径、探针、时钟和处理声明。	Freeze the selected continuous signal, source channels and sample coordinates; preserve the NWB object path, probe, timing and processing declarations.
+已核验Neuropixels设备、单个SpikeGLX或NWB连续电压信号、时钟及电极映射。	Verified Neuropixels device, one continuous SpikeGLX or NWB voltage signal, timing and electrode mapping.
+设备身份未知的细胞外记录、分选后spike/units、未选择的多流或同步数字通道。	Extracellular recordings with unknown device identity, sorted spikes or units, unselected multiple streams, or digital synchronization channels.
+EDF/BDF 原生采样流	EDF/BDF native sampling streams
+SpikeGLX · Neuropixels 原始流	SpikeGLX · Neuropixels raw streams
+NWB · 连续电压流	NWB · Continuous-voltage streams
+不支持 EDF+D/BDF+D；不同采样流不能隐式重采样。	EDF+D/BDF+D are unsupported; streams at different rates cannot be implicitly resampled.
+主文件、MarkerFile 和 DataFile 须位于同一目录。	The main file, MarkerFile and DataFile must share one directory.
+当前后端对重复通道名明确拒绝，不合并或静默改名。	The current backend rejects duplicate channel names; it does not merge or silently rename them.
+只接入连续记录；外置 FDT 须在同一目录；不执行历史脚本或 ICA。	Continuous recordings only. External FDT files must share the directory; historical scripts and ICA are not executed.
+只接入单文件原始记录；split FIF 暂不接入；保留非 EEG 通道类型。	Single-file Raw recordings only. Split FIF is unsupported; non-EEG channel types are preserved.
+单个 AP 或 LF .bin 须配同名 .meta；当前接入 NP1 型号0及 NP2 型号21/24。	One AP or LF .bin requires its matching .meta. Supported models are NP1 type 0 and NP2 types 21/24.
+不接入任意二进制、压缩 cbin、跨流自动同步或 spike sorting。	Arbitrary binary files, compressed cbin, automatic cross-stream synchronization and spike sorting are unsupported.
+支持自包含 NWB 2 / HDF5 的连续 ElectricalSeries；多个可用流须明确选择。	Supports continuous ElectricalSeries in self-contained NWB 2 / HDF5 files. Multiple available streams require an explicit selection.
+核验原生时钟、电压单位及电极映射；不接入不等距时钟、外部链接或 spike/unit 质控。	Verify native timing, voltage units and electrode mapping. Irregular timing, external links and spike/unit QC are unsupported.
+NWB ElectricalSeries 缺少明确的电压单位；不能猜测单位。	NWB ElectricalSeries lacks explicit voltage units; units cannot be guessed.
+NWB 时钟单位不是明确的秒；不能将其他时间单位直接当成秒。	NWB timing units are not explicitly seconds; other units cannot be treated as seconds.
+NWB 样本数与采样时钟无法组成有效时长。	The NWB sample count and sampling clock do not define a valid duration.
+NWB 内部链接循环或深度过大。	NWB internal links contain a cycle or exceed the depth limit.
+NWB 连续流缺少规则采样时钟。	The continuous NWB stream lacks a regular sampling clock.
+NWB timestamps 须与样本数一致且至少有两个数值。	NWB timestamps must match the sample count and contain at least two values.
+NWB timestamps 数值精度不足，无法核验规则采样。	NWB timestamp precision is insufficient to verify regular sampling.
+NWB 连续电压须为非空 time × channel 或一维数值数组。	Continuous NWB voltage must be a nonempty time-by-channel or one-dimensional numeric array.
+NWB 流通道数必须在 1–4096 之间。	An NWB stream must contain 1–4096 channels.
+NWB channel_conversion 必须为有限正数。	NWB channel_conversion values must be finite and positive.
+NWB 电压校准超出数值范围。	NWB voltage calibration exceeds the numeric range.
+NWB ElectricalSeries 缺少 electrodes 映射。	NWB ElectricalSeries lacks an electrodes mapping.
+NWB electrodes 行索引必须与每个通道一一对应。	NWB electrode row indices must map to every channel.
+NWB electrodes 行索引越界；不能把表 ID 当成行号。	NWB electrode row indices are out of bounds; table IDs cannot be treated as row numbers.
+NWB ElectricalSeries 使用非规范单位拼写/量级；依据原始 data.unit 显式换算为 V。	NWB ElectricalSeries uses nonstandard unit spelling or scale; original data.unit explicitly determines conversion to volts.
+NWB 读取窗口须位于明确选定的规则电压流内，输出仅为物理电压。	An NWB read window must remain within the explicitly selected regular voltage stream; output is physical voltage only.
+NWB 读取通道须为不同的有效源通道 ID。	NWB read channels must have distinct, valid source channel IDs.
+NWB 内部链接路径无效。	An NWB internal link path is invalid.
+NWB 外部链接不受支持；请提供自包含 HDF5 文件。	NWB external links are unsupported; provide a self-contained HDF5 file.
+NWB 内部链接目标缺失。	An NWB internal link target is missing.
+NWB 虚拟数据集或外部原始数据存储不受支持。	NWB virtual datasets and external raw-data storage are unsupported.
+NWB timestamps 存在缺失、回跳或重复，不能视为连续规则采样。	NWB timestamps contain missing, decreasing or duplicate values and cannot represent continuous regular sampling.
+NWB timestamps 不等距或存在间断；当前不重采样。	NWB timestamps are irregular or contain gaps; resampling is not performed.
+当前 NWB 读取器仅支持 NWB 2 / HDF5。	The NWB reader supports NWB 2 / HDF5 only.
+NWB channel_conversion 必须与通道一一对应。	NWB channel_conversion must provide one value per channel.
+NWB electrode ID 不是可追溯的整数或字符串。	An NWB electrode ID is not a traceable integer or string.
+NWB ElectricalSeries 缺少可追溯的 HDF5 对象路径。	NWB ElectricalSeries lacks a traceable HDF5 object path.
+NWB 电压校准发生数值溢出。	NWB voltage calibration overflowed.
+NWB信号选择必须是文件中列出的对象路径。	The NWB signal selection must be an object path listed in the file.
+请先选择一个可读取的NWB连续电压信号；Units不是连续波形。	Select a readable continuous NWB voltage signal first; Units are not continuous waveforms.
+NWB所选信号尚未通过连续电压、规则时钟、单位和电极映射核验。	The selected NWB signal has not passed continuous-voltage, regular-timing, unit and electrode-mapping checks.
+NWB信号已随记录冻结；切换信号须重新选择和确认记录。	The NWB signal is frozen with the record; changing it requires a new selection and confirmation.
+请选择文件中列出的NWB信号。	Choose an NWB signal listed in the file.
+已登记记录的NWB信号不可覆盖；请重新提交文件以检查其他信号。	A registered NWB signal cannot be overwritten; submit the file again to check another signal.
+所选NWB信号不可读取，或不属于这份文件。	The selected NWB signal is unreadable or does not belong to this file.
+NWB信号选择已变化，请重新核对当前信号后确认。	The NWB signal selection has changed; check the current signal before confirming again.
+只有NWB记录接受信号对象选择。	Only NWB records accept a signal-object selection.
+此 ElectricalSeries 位于处理结果容器；不是已核验的原始采集信号。	This ElectricalSeries is in a processing container; it is not a verified raw acquisition signal.
+Neuropixels 电压	Neuropixels voltage
+头皮 EEG · ECoG / sEEG · Neuropixels 电压	Scalp EEG · ECoG / sEEG · Neuropixels voltage
+NWB：仅接入 NWB 2 / HDF5 中受支持的连续电压 ElectricalSeries；多流须选择一条，不拼接。Units 仅识别，不做波形质控。	NWB: supports selected continuous-voltage ElectricalSeries in NWB 2 / HDF5. Choose one stream; streams are not concatenated. Units are identified only, without waveform QC.
+Neuropixels 接入受支持的 SpikeGLX AP/LF 与具明确设备证据的 NWB 连续电压，不评估已分选单元。单独 .eeg 不能上传。	Neuropixels accepts supported SpikeGLX AP/LF and continuous NWB voltage with explicit device evidence. Sorted-unit quality is not assessed. Standalone .eeg files cannot be uploaded.
+当前接入受支持的 SpikeGLX AP/LF 与具有明确设备证据的 NWB 连续电压；不评估已分选单元。	Supported SpikeGLX AP/LF and continuous NWB voltage with explicit device evidence are accepted; sorted-unit quality is not assessed.
+待选信号	Select a signal
+选择信号	Select signal
+选择连续电压流	Choose a continuous-voltage stream
+当前信号	Selected signal
+先选择信号，再确认模态与通道。	Select a signal, then confirm its modality and channels.
+未找到可用的连续电压流。	No supported continuous-voltage stream was found.
+信号列表与读取范围	Streams and read support
+可读取	Readable
+暂不支持	Unsupported
+切换信号需重新读取文件并确认。	Read the file again and confirm it to change signals.
+正在读取所选信号…	Reading the selected signal…
+信号读取结果不完整，请恢复读取状态后核对。	The signal response is incomplete. Restore the intake and check its state.
+信号已读取，请重新确认信息	Signal read. Confirm its information again.
+信号未就绪，请重新选择或恢复读取	Signal is not ready. Select again or restore the intake.
+请先选择可读取的连续电压流。	Choose a readable continuous-voltage stream first.
+来源容器	Source container
+信号频带	Signal band
+已识别 Units 表。 Units 不属于连续电压流，不进行波形质控。	Units table identified. Units are not continuous-voltage streams and do not undergo waveform QC.
+Neuropixels原始流基础检查	Neuropixels raw-stream basic checks
+单个AP/LF流的完整性、频谱和逐通道统计；不含分选后单元质量。	Integrity, spectrum and per-channel statistics for one AP/LF stream; excludes sorted-unit quality.
+本项目原生SpikeGLX标定；已用官方readSGLX独立核对公开NP1 AP/LF样例。	Native SpikeGLX calibration in this project; public NP1 AP/LF samples have been independently cross-checked using official readSGLX.
+SpikeGLX须将同名.ap.bin/.ap.meta或.lf.bin/.lf.meta一起打包ZIP，不能单独提交META。	ZIP the matching .ap.bin/.ap.meta or .lf.bin/.lf.meta files together; a META file cannot be submitted alone.
+请选择已支持格式；SpikeGLX的单流BIN和META必须一起打包ZIP。	Choose a supported format. The BIN and META of one SpikeGLX stream must be zipped together.
+SpikeGLX配套缺失：META须对应同名AP或LF BIN。	A SpikeGLX companion file is missing: the META must match an AP or LF BIN with the same base name.
+ZIP须包含唯一的EDF、BDF、VHDR、SET、FIF或SpikeGLX META主文件及其配套文件。	The ZIP must contain exactly one EDF, BDF, VHDR, SET, FIF or SpikeGLX META entry with its companion files.
+SpikeGLX原始流读取与来源核验	SpikeGLX raw-stream reading and provenance checks
+核验单个AP/LF二进制及META，保留原始通道身份与样本时钟。	Check one AP/LF binary file and its META, preserving original channel identities and sample timing.
+读取已支持型号的Neuropixels原始AP或LF流。	Read a raw AP or LF stream from a supported Neuropixels probe model.
+核对同名BIN/META、原始长度、保存通道映射、探针类型、逐道增益与firstSample；同步字独立保留。	Check matching BIN/META files, original length, saved-channel mapping, probe type, per-channel gain and firstSample; preserve synchronization words separately.
+读取器明确支持的SpikeGLX AP/LF及完整配套META。	SpikeGLX AP/LF explicitly supported by the reader, with a complete companion META file.
+裸BIN、压缩cbin、NIDQ、sorting/unit、未支持探针或不一致长度与标定。	A standalone BIN, compressed cbin, NIDQ, sorting or unit results, unsupported probes, or inconsistent length or calibration.
+本项目原生int16读取器；依据SpikeGLX元数据校准，不调用头皮流程。	This project's native int16 reader calibrates from SpikeGLX metadata without invoking the scalp EEG workflow.
+按imAiRangeMax / imMaxInt / 逐道gain校准为V；数字同步字保留bits且不参与神经信号指标。	Calibrate to V using imAiRangeMax / imMaxInt / per-channel gain. Digital synchronization words remain in bits and are excluded from neural-signal metrics.
+SpikeGLX 文本头超过 4 MiB。	The SpikeGLX text header exceeds 4 MiB.
+SpikeGLX 元数据存在无效或重复键。	SpikeGLX metadata contains invalid or duplicate keys.
+SpikeGLX 保存通道子集无效。	The saved SpikeGLX channel subset is invalid.
+SpikeGLX 保存通道范围倒置。	A saved SpikeGLX channel range is reversed.
+SpikeGLX 保存通道子集须唯一、有序且与 nSavedChans 一致。	The saved SpikeGLX channel subset must be unique, ordered and consistent with nSavedChans.
+SpikeGLX 保存通道超出采集通道范围。	Saved SpikeGLX channels exceed the acquired-channel range.
+SpikeGLX 仅支持单流 .ap.bin 或 .lf.bin 与同名 .meta；不接入任意二进制文件。	SpikeGLX supports one .ap.bin or .lf.bin stream with its matching .meta file, not arbitrary binary files.
+当前 SpikeGLX 仅接入 imec Neuropixels 流。	Only imec Neuropixels streams are supported by the current SpikeGLX reader.
+当前仅支持 Neuropixels 型号 0、21、24；不会猜测未知型号的校准。	Only Neuropixels models 0, 21 and 24 are supported. Calibration is not guessed for unknown models.
+SpikeGLX 保存或采集通道计数不一致。	Saved or acquired SpikeGLX channel counts are inconsistent.
+SpikeGLX 文件名 AP/LF 与保存通道类型不一致。	The AP/LF filename designation conflicts with the saved channel types.
+NP2 型号 21/24 不提供原生 LF 流。	NP2 models 21/24 do not provide native LF streams.
+SpikeGLX 子集与 AP/LF/SY 计数不一致。	The SpikeGLX subset does not match the AP/LF/SY counts.
+SpikeGLX ADC 范围与当前支持的探针型号不一致。	The SpikeGLX ADC range does not match the supported probe model.
+SpikeGLX 数据字节数与元数据/完整采样帧不一致。	The SpikeGLX byte count does not match the metadata or complete sampling frames.
+SpikeGLX 声明时长与采样帧数不一致。	The declared SpikeGLX duration does not match the sampling-frame count.
+SpikeGLX imroTbl 型号或通道数不一致。	The SpikeGLX imroTbl model or channel count is inconsistent.
+SpikeGLX imroTbl 条目格式不支持。	The SpikeGLX imroTbl entry format is unsupported.
+SpikeGLX imroTbl 存在重复通道。	SpikeGLX imroTbl contains duplicate channels.
+SpikeGLX imroTbl 未完整描述采集通道。	SpikeGLX imroTbl does not describe all acquired channels.
+SpikeGLX snsChanMap 条目数不一致。	The SpikeGLX snsChanMap entry count is inconsistent.
+SpikeGLX snsChanMap 与保存通道子集不一致。	SpikeGLX snsChanMap does not match the saved-channel subset.
+SpikeGLX 通道名重复；不静默改名。	SpikeGLX channel names are duplicated; they are not silently renamed.
+SpikeGLX LF 通道缺少对应 imroTbl 校准。	A SpikeGLX LF channel lacks its corresponding imroTbl calibration.
+NP2 固定增益与声明值冲突。	The declared gain conflicts with the fixed NP2 gain.
+SpikeGLX snsShankMap 与神经通道数不一致。	SpikeGLX snsShankMap does not match the neural-channel count.
+SpikeGLX snsShankMap 条目无效。	A SpikeGLX snsShankMap entry is invalid.
+SpikeGLX 读取窗口须位于一个原生连续段内。	A SpikeGLX read window must remain within one native continuous segment.
+读取通道必须是不同的有效源通道 ID。	Read channels must use distinct valid source-channel IDs.
+读取窗口超过 256 MiB 限制。	The read window exceeds the 256 MiB limit.
+按注册读取器核对主文件与伴随文件指纹、格式结构、采样流与连续段。	Use registered readers to check main and companion file fingerprints, format structure, sampling streams and continuous segments.
+已登记原始文件或配套文件组	Registered source file or companion-file set
+支持连续EDF/BDF、BrainVision、EEGLAB与单文件FIF；只有已确认头皮EEG可执行本质控，结构可读不等于科学有效。	Continuous EDF/BDF, BrainVision, EEGLAB and single-file FIF are supported. This QC route requires confirmed scalp EEG; readable structure does not establish scientific validity.
+单窗最多120秒；整记录按原生连续段分块；不自动重参考或跨采样流对齐。	Each window is at most 120 seconds. Whole-record checks use native continuous segments, without automatic re-referencing or alignment across sampling streams.
+空间预测和插值尚未接入；桥接、LOF须单独选择；来源坏道标签不参与检测。	Spatial prediction and interpolation are not integrated. Bridging and LOF require explicit selection; source bad-channel labels are not used by detectors.
+基础方法每组至少4道是当前实现门槛；扩展另有门槛，都不是国际共识。	The minimum of four channels per group is a requirement of the current basic implementation. Extensions have separate requirements; neither is an international consensus threshold.
+任务事件TSV使用明确的event_name字段；支持登记的来源转换表，非通用BIDS解析器。	Task-event TSV files require an explicit event_name field. Registered source mappings are supported; this is not a general BIDS parser.
+检测报告保持不变；人工意见在工作台独立留版本，不自动删除原数据。	Detection reports remain unchanged. The workbench stores versioned review decisions separately, without automatically deleting source data.
+头皮EEG科研检查；准确率和总分仍需独立验证。	Scalp EEG research checks; accuracy and an overall score still require independent validation.
+本项目	This project
+SciPy: BSD-3-Clause；本项目许可见仓库	SciPy: BSD-3-Clause; see the repository for this project's license
+SciPy及本项目	SciPy and this project
+SciPy Welch 官方文档	Official SciPy Welch documentation
+皮层表面触点基础描述；不迁移头皮判坏阈值。	Basic descriptions of cortical surface contacts; scalp rejection thresholds are not transferred.
+深部触点基础描述；不推断电极杆邻接，不将病理放电判坏。	Basic descriptions of depth contacts. Electrode-shaft adjacency is not inferred, and pathological discharges are not classified as defective data.
+电极杆、触点邻接、坐标和双极派生须有来源；不凭名称推断或跨杆比较。	Electrode shafts, contact adjacency, coordinates and bipolar derivations require documented sources; they are not inferred from names or compared across shafts.
+核对SpikeGLX配套文件、探针声明、AP/LF原生流和逐通道电压标定；同步字保持独立。	Check SpikeGLX companion files, probe declarations, native AP/LF streams and per-channel voltage calibration; keep synchronization words separate.
+仅已接入型号的原始单流；不接收排序结果，不自动对齐AP/LF或解释同步脉冲。	Only a single raw stream from a supported probe model is accepted. Sorted results are not accepted; AP/LF streams are not automatically aligned, and synchronization pulses are not interpreted.
+仅已核验SpikeGLX单个原始AP/LF流；不包含spike sorting、单元质量或跨流同步。	Only a verified single raw SpikeGLX AP/LF stream is supported; spike sorting, unit quality and cross-stream synchronization are excluded.
+冻结单个AP或LF流、源通道与原始样本坐标；保留探针和采样声明，不重参考或重采样。	Freeze one AP or LF stream, source channels and original sample coordinates. Preserve probe and sampling declarations without re-referencing or resampling.
+AP与LF分别运行；采样相位补偿、漂移估计、spike sorting与单元质量未接入。	AP and LF run separately. Sampling-phase compensation, drift estimation, spike sorting and unit quality are not integrated.
+AP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。	AP high-frequency activity includes neural firing; raw RMS and PSD are not directly labeled as noise. No sorting or unit metrics are computed.
+已核验SpikeGLX探针型号、单个AP/LF流、电压标定与源通道。	The SpikeGLX probe model, single AP/LF stream, voltage calibration and source channels are verified.
+任意其他细胞外格式、分选后spike/units、混合流或同步数字通道。	Other extracellular formats, sorted spikes or units, mixed streams, or digital synchronization channels.
+仅原始单流描述；无spike sorting、单元指标、探针漂移或跨流同步判定。	Descriptions of a single raw stream only; no spike sorting, unit metrics, probe-drift assessment or cross-stream synchronization checks.
+Neuropixels原始检查仅接入已核验SpikeGLX AP/LF流；未接入其他细胞外记录或已分选单元。	Raw Neuropixels checks accept verified SpikeGLX AP/LF streams only; other extracellular recordings and sorted units are not supported.
+Neuropixels选道仅接受明确声明的神经电压通道；同步字不得进入分析。	Neuropixels analysis accepts explicitly declared neural voltage channels only; synchronization words must not enter analysis.
+同步 / 数字通道（不分析）	Sync / digital channel (not analyzed)
+同步 / 数字通道不能登记为分析信号或生理辅助导联。	Sync / digital channels cannot be assigned as analysis signals or physiological auxiliary channels.
+头皮 EEG · ECoG / sEEG · Neuropixels AP/LF	Scalp EEG · ECoG / sEEG · Neuropixels AP/LF
+ECoG / sEEG 与 Neuropixels 仅提供基础质控，不套用头皮 EEG 判坏阈值。	ECoG / sEEG and Neuropixels provide basic QC only; scalp EEG rejection thresholds are not applied.
+SpikeGLX：每包仅一个 AP 或 LF 原始流，将同名 .bin 与 .meta 打包 ZIP；两类流不拼接、不混选。	SpikeGLX: ZIP one raw AP or LF stream with its matching .bin and .meta files. Streams are not concatenated or selected together.
+Neuropixels 仅接入原始 AP/LF，不评估已分选单元；NWB 暂不支持读取，单独 .eeg 不能上传。	Neuropixels supports raw AP/LF only, not quality assessment of sorted units. NWB is not supported; a standalone .eeg file cannot be uploaded.
+原始数据流	Raw stream
+探针型号	Probe type
+sEEG 触点	sEEG contacts
+背景（可选）	Context (optional)
+当前仅接入 SpikeGLX 原始 AP/LF；其他细胞外记录需另行核验。	Only raw SpikeGLX AP/LF is supported here; other extracellular recordings require separate validation.
+质控台	QC Workbench
 当前不支持此 EDF/BDF TAL 时钟布局：需要从记录时间0开始、覆盖文件头时长的单一连续段；这不表示文件必然损坏。	Unsupported EDF/BDF TAL clock layout: a single continuous segment must start at recording time 0 and cover the header duration. This does not necessarily mean the file is damaged.
 本地处理	Local processing
+质控模态	QC modalities
+头皮 EEG · ECoG（基础质控）	Scalp EEG · ECoG (basic QC)
+读取格式	File formats
+读取后确认模态与通道，无需预选。	Confirm modality and channels after reading; no advance selection needed.
+文件要求与支持范围	File requirements and support
+BrainVision：将 .vhdr、.vmrk 和头文件指定的数据文件（通常为 .eeg）一起打包 ZIP。	BrainVision: ZIP the .vhdr, .vmrk and the data file referenced by the header (usually .eeg) together.
+EEGLAB：连续记录 .set 可直接上传；有外置 .fdt 时一起打包 ZIP。	EEGLAB: upload a continuous .set recording directly; ZIP it with the external .fdt file when present.
+FIF：仅支持单文件 Raw 记录；暂不支持拆分 FIF 或 epochs。	FIF: single-file Raw recordings only; split FIF and epochs are not supported.
+EDF/BDF：暂不支持不连续记录 EDF+D / BDF+D。	EDF/BDF: discontinuous EDF+D / BDF+D recordings are not supported.
+ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 512 MiB。	ZIP: one recording with one primary file per archive; both upload and extracted size must be within 512 MiB.
+sEEG、细胞外记录尚未接入质控；格式可读取不代表该模态可分析。	sEEG and extracellular QC are not yet available; a readable format does not imply QC support for its modality.
+NWB、Neuropixels 原生格式暂不支持读取；单独 .eeg 不能上传。	NWB and native Neuropixels formats cannot yet be read; a standalone .eeg file cannot be uploaded.
 候选	Candidate
 该记录未提供说明。	No description is available for this recording.
 波形采用有界极值包络显示，不改变分析数据。同单位共用标尺并保留零基线；超范围显示会标记。候选不等于已确认伪迹。	Waveforms use a bounded extrema envelope without altering analysis data. Channels with the same unit share a scale and retain the zero baseline; clipped display values are marked. Candidates are not confirmed artifacts.
@@ -533,6 +732,7 @@ extensions只能选择已接入的可选方法。	Only implemented optional meth
 细胞外电生理	Extracellular electrophysiology
 其他模态	Other modality
 分析模态	Analysis modality
+建议模态	Suggested modality
 尚未解析	Not yet parsed
 未检出标注	No annotations detected
 多个原生采样率	Multiple native sampling rates
@@ -691,7 +891,7 @@ EEG 质控工作台	QC Workbench
 上传 EDF 后，流程将按数据更新。	Upload an EDF file to adapt the workflow to your data.
 上传文件后，流程将按数据更新。	Upload a file to adapt the workflow to your data.
 质控模块流程图	QC module workflow
-点击模块查看详情	Select a module for details
+点击模块查看说明	Select a module for details
 技术规范 ↗	Technical specification ↗
 模块执行状态	Module execution status
 配置与适用条件	Configuration and applicability
@@ -750,6 +950,135 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 正在读取运行记录。	Loading run history.
 读取目录中	Loading catalog
 按需浏览方法，查看原理、适用条件和来源。	Browse methods, their principles, requirements and sources.
+检查目的	Check purpose
+全部目的	All purposes
+数据与元信息	Data and metadata
+伪迹线索	Artifact indicators
+事件与时间	Events & timing
+结果与报告	Results and reporting
+当前接入：头皮 EEG	Current scope: scalp EEG
+仅复核已保存的位置；完整计数见模块证据。	Only saved locations are available for review; see module evidence for complete counts.
+候选证据有范围限制，请展开核对。	Candidate evidence has coverage limitations. Expand to review them.
+候选详情已截断；当前仅复核已保存的位置，完整计数见模块证据。	Candidate details are truncated. Only saved locations are available for review; see module evidence for complete counts.
+观察区间数	Observed intervals
+已存区间数	Stored intervals
+未存区间数	Omitted intervals
+方法目录	Method catalog
+方法范围：ECoG	Method scope: ECoG
+方法范围：头皮 EEG	Method scope: scalp EEG
+当前记录 / 默认目录	Current record / default catalog
+记录目录格式不完整。	The record inventory is incomplete.
+字段与方案	Metadata and plan
+确认与规划	Confirm and plan
+结果汇总	Result summary
+报告与复核	Report and review
+读取来源文件、通道和原生时间信息。	Read source files, channels and native timing.
+确认关键字段，再生成适用的检查方案。	Confirm key metadata, then prepare an applicable check plan.
+检查缺失、恒值等信号完整性问题。	Check signal integrity, including missing and constant values.
+描述频谱与可能的窄带干扰。	Describe the spectrum and potential narrow-band interference.
+核对各通道的描述量和质量线索。	Review per-channel measurements and quality indicators.
+按信号类型和辅助信息评估伪迹线索。	Assess artifact indicators according to signal type and auxiliary information.
+核对事件与原始记录时间。	Check events against the original recording timeline.
+汇总已完成、未评和受限的结果。	Summarize completed, unassessed and limited results.
+生成证据报告，并结合波形复核。	Generate an evidence report and review it with waveforms.
+读取并确认记录后，显示适用的方法与条件。	Applicable methods and requirements appear after the recording is read and confirmed.
+模态建议来自文件声明，待核对	Modality suggested from file declarations; verify it
+含混合通道，请选择分析组	Mixed channel types; select an analysis group
+模态待确认	Modality needs confirmation
+当前接入：ECoG	Current scope: ECoG
+已接入头皮EEG科研检查；检测准确率与总分仍需独立验证。	Scalp EEG research checks are integrated. Detection accuracy and an overall score still require independent validation.
+皮层表面脑电基础检查；不套用头皮EEG坏道或伪迹阈值。	Basic surface cortical EEG checks; scalp EEG bad-channel and artifact thresholds are not applied.
+当前ECoG基础描述路线；仅声明工程执行范围，不代表伪迹准确性已验证，不迁移头皮判坏阈值。	The basic ECoG route declares execution scope only. Artifact accuracy is not validated, and scalp rejection thresholds are not transferred.
+接触点描述	Contact descriptions
+核对ECoG来源文件、格式结构、原生时钟及单位；模态来自明确确认。	Check ECoG source files, format structure, native timing and units. Modality requires explicit confirmation.
+读取器可读不证明电极位置；只有明确确认的ECoG分析通道可进入此路线。	Reader compatibility does not establish electrode location. This route requires explicitly confirmed ECoG analysis channels.
+冻结ECoG分析触点、原生时间窗和来源声明；不推断空间邻接或重新参考。	Freeze ECoG contact selection, native time bounds and source declarations. Do not infer spatial adjacency or re-reference signals.
+已确认ECoG的源通道索引	Source indices of confirmed ECoG channels
+原生采样率和电压单位	Native sampling rate and voltage units
+明确时间范围	Explicit time range
+描述非有限样本段与至少两个相邻完全相等样本的恒值段。	Describe non-finite intervals and runs of at least two adjacent samples with exactly equal values.
+原始样本区间	Original sample intervals
+非有限及精确恒值描述	Non-finite and exact-constant descriptions
+恒值描述不是已确认伪迹；无头皮幅度或时长坏段阈值，不自动删除样本。	Constant-value intervals are not confirmed artifacts. No scalp amplitude or duration rejection threshold is used, and no samples are removed.
+计算Welch PSD与已配置窄带的功率、峰值位置描述。	Calculate Welch PSD and describe power and peak locations in configured narrow bands.
+PSD及单位	PSD and units
+窄带描述量	Narrow-band measurements
+不可测原因	Reasons a measurement is unavailable
+不调用头皮FOOOF/α功率判定、Thomson阈值或肌电阈值；高频和病理活动不判坏。	Do not apply scalp FOOOF/alpha criteria, Thomson thresholds or muscle thresholds. High-frequency or pathological activity is not classified as bad.
+逐触点描述有限样本数、均值、标准差、RMS与峰峰值。	Describe each contact's finite-sample count, mean, standard deviation, RMS and peak-to-peak amplitude.
+原始ECoG电压	Original ECoG voltage
+稳定源通道身份	Stable source-channel identity
+逐触点描述统计	Per-contact descriptive statistics
+不调用PREP、LOF、桥接或跨触点阈值；不从触点名推测空间关系或坏触点。	Do not apply PREP, LOF, bridging or cross-contact thresholds. Do not infer spatial relationships or bad contacts from contact names.
+ECoG生理伪迹方法尚未接入，选中也明确保留未评。	Physiological artifact methods for ECoG are not integrated. They remain unassessed even if selected.
+未接入原因	Reason not integrated
+头皮ECG/EOG/肌电阈值不迁移至ECoG。	Scalp ECG, EOG and muscle thresholds are not transferred to ECoG.
+本项目ECoG独立实现	Independent ECoG implementation in this project
+明确确认为ECoG且电压和原生采样时间已核验。	ECoG modality is explicitly confirmed, with verified voltage units and native timing.
+未确认模态、单位、采样时钟，或试图使用头皮判坏阈值。	Modality, units or timing are unconfirmed, or scalp rejection thresholds are being requested.
+仅声明实现与工程执行范围；不宣称坏触点或伪迹准确性已验证。	Implementation and execution scope only; bad-contact and artifact accuracy are not claimed to be validated.
+本项目描述性实现；不调用头皮检测流水线。	Descriptive implementation in this project; the scalp detection pipeline is not called.
+非有限与精确恒值段	Non-finite and exact-constant intervals
+定位非有限值及连续完全相等样本。	Locate non-finite values and consecutive samples with exactly equal values.
+原时钟样本区间与数量。	Sample intervals and counts on the original clock.
+至少2个相邻完全相等样本只是描述，不等于已确认伪迹。	At least two adjacent exactly equal samples are a descriptive finding, not a confirmed artifact.
+ECoG Welch功率谱	ECoG Welch power spectrum
+保留原始ECoG频率能量的描述。	Describe the frequency-energy distribution of the original ECoG signal.
+Hann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。	Welch density estimate using Hann windows, 50% overlap and constant detrending, in V²/Hz.
+不进行α谱模型或高频判坏；去均值只用于PSD估计，不覆盖原始信号。	No alpha-spectrum model or high-frequency rejection is applied. Detrending is used only for PSD estimation and does not overwrite the source signal.
+ECoG窄带功率描述	ECoG narrow-band power description
+描述配置频率附近的可测功率及峰值。	Describe measurable power and peaks near configured frequencies.
+在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。	Measure within ±max(1 Hz, frequency resolution) on the same PSD; do not classify using a threshold.
+窄带峰值不证明干扰来源，不排除生理或病理活动；未自动扩展谐波。	Narrow-band peaks do not establish an interference source or exclude physiological or pathological activity. Harmonics are not added automatically.
+ECoG触点描述统计	ECoG contact descriptive statistics
+提供原始触点的有限样本统计。	Provide finite-sample statistics for original contacts.
+各触点独立均值、标准差、RMS、峰峰值与非有限计数。	Independent per-contact mean, standard deviation, RMS, peak-to-peak amplitude and non-finite count.
+没有比较组阈值，不凭幅度、相关性、触点名称或病理标签判坏。	No comparison-group threshold is used. Amplitude, correlation, contact names and pathological labels do not determine bad contacts.
+已确认ECoG电压	Confirmed ECoG voltage
+原生时钟和源索引	Native clock and source indices
+不支持未建模的断续EDF、EEGLAB分段数据和分卷FIF；多文件须完整。文件可读不证明采集位置，ECoG须明确确认，不自动重采样。	Unmodeled discontinuous EDF, epoched EEGLAB and split FIF are unsupported; companion files must be complete. Readability does not establish acquisition location. ECoG requires explicit confirmation, with no automatic resampling.
+按格式读取器核验源单位与标定，统一返回原始物理电压V；不对波形重参考、插值或重采样。	Verify source units and calibration through the format reader and return original physical voltage in V. No re-referencing, interpolation or resampling is performed.
+已明确确认ECoG，分析及辅助通道电压单位可核验时。	ECoG is explicitly confirmed and voltage units can be verified for analysis and auxiliary channels.
+单位未知或所选通道不是电压时不得进入ECoG分析；不凭触点名猜单位。	Unknown units or non-voltage channels prevent ECoG analysis. Units are not inferred from contact names.
+按实际格式使用BrainElecQC或MNE读取器；ECoG测量不调用头皮判坏阈值。	Use BrainElecQC or MNE readers according to the format. ECoG measurements do not call scalp rejection thresholds.
+先核实ECoG模态、分析通道及电压单位。	First verify ECoG modality, analysis channels and voltage units.
+ECoG输入与配置	ECoG input and configuration
+配置未通过ECoG入口核验；未自动移除或改写不相容参数。	The configuration failed ECoG intake checks. Incompatible parameters were not removed or changed automatically.
+建议基础完整性、频谱观察与逐触点统计；不使用头皮EEG坏道或伪迹阈值。	Recommend basic integrity checks, spectral observations and per-contact statistics, without scalp EEG bad-channel or artifact thresholds.
+根据已确认ECoG模态和技术信息生成基础检查计划。	Generate a basic check plan from confirmed ECoG modality and technical metadata.
+逐触点结合原始波形和采集资料复核；异常幅度、谱峰或高频不自动等于坏道。	Review each contact with its original waveform and acquisition information. Unusual amplitude, spectral peaks or high frequencies do not automatically indicate a bad channel.
+发作、癫痫样放电与生理高频可能是研究目标，不作为伪迹真值或扣分依据。	Seizures, epileptiform discharges and physiological high-frequency activity may be research targets; they are not artifact ground truth or grounds for score deductions.
+当前为ECoG基础描述流程；不运行PREP、头皮桥接/LOF、FOOOFα指标或肌电阈值。	This is a basic descriptive ECoG workflow. It does not run PREP, scalp bridging/LOF, FOOOF alpha measures or muscle thresholds.
+不根据触点名推测电极邻接、脑区、共同参考或植入位置。	Do not infer electrode adjacency, brain region, common reference or implant location from contact names.
+工频附近能量只作观察量，不以固定比值自动判定污染。	Energy near line frequency is an observation only; a fixed ratio does not automatically classify contamination.
+计算完成不表示信号质量合格，总分保持null；当前未校准ECoG检测准确率。	Completed computation does not establish acceptable signal quality. The overall score remains null; ECoG detection accuracy is not calibrated.
+参考尚未核实；基础逐触点描述仍可运行，不进行跨触点相似性判定。	The reference is unverified. Basic per-contact descriptions can run, without cross-contact similarity judgments.
+滤波史未知；谱形和工频观察只能结合源记录说明解释。	Filter history is unknown. Interpret spectral shape and line-frequency observations alongside source-record information.
+尚未登记支持的事件表；文件内事件描述不自动解释为临床或质量标注。	No supported event table is registered. File event descriptions are not automatically interpreted as clinical or quality annotations.
+读取与确认	Read and confirm
+正在读取模块目录	Loading module catalog
+ECoG 触点	ECoG contacts
+分析通道	Analysis channels
+参考比较组（按分析通道索引顺序配置）	Reference comparison groups (in analysis-channel index order)
+未被当前配置指定为分析通道或辅助导联。	Not selected as an analysis or auxiliary channel in this configuration.
+配置未明确指定分析通道索引，不能运行。	Analysis channel indices are not explicitly configured; analysis cannot start.
+当前模态仅保存提取信息，不运行其他模态的质控。	Only extracted information is saved for this modality; QC from another modality is not applied.
+分析通道和辅助导联必须处于相同原生采样率；请取消不同采样率的信号，不会自动重采样。	Analysis and auxiliary channels must share a native sampling rate. Deselect channels at other rates; no automatic resampling is performed.
+服务尚未提供此模态的质控目录，未套用其他模态方法。	The service has not provided a QC catalog for this modality. Methods from another modality were not applied.
+随模块运行	Runs with module
+满足条件	When eligible
+手动扩展	Manual extension
+功能域未声明	Functional domain not declared
+启用方式未声明	Activation not declared
+适用模态	Applicable modalities
+计划适用模态	Intended modalities
+目录未声明计划适用模态。	The catalog does not declare intended modalities.
+目录未声明适用模态。	The catalog does not declare applicable modalities.
+模块内的方法按条件运行；手动扩展需明确启用。待接入方法仅供查阅。	Methods run when their requirements are met. Enable manual extensions explicitly. Planned methods are listed for reference.
+当前筛选没有方法。可切换检查目的或接入状态。	No methods match these filters. Change the purpose or availability filter.
+计划面向头皮 EEG；尚未接入，未完成本平台执行验证。未声明其他模态支持。	Planned for scalp EEG; not integrated or execution-validated in this platform. Support for other modalities is not declared.
+当前声明的质控工程执行范围仅限头皮 EEG。读器提取其他模态元信息，不表示已验证其质控流程；通用处理思路不等于跨模态支持。	The current QC execution scope is scalp EEG. Extracting metadata from other modalities does not validate their QC workflows or establish cross-modality support.
+当前已验证的工程执行范围仅限头皮 EEG，仍需满足本方法条件；不表示已验证科学准确性或其他脑电模态。	Execution has been checked for scalp EEG only, subject to this method’s requirements. This does not establish scientific accuracy or validation for other modalities.
 方法类别	Method category
 全部类别	All categories
 通用	General
@@ -863,7 +1192,7 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 可补充字段	Optional information
 解释与使用边界	Interpretation and limitations
 推荐配置与原始依据	Recommended configuration and original evidence
-查看方法依据 ↗	View method rationale ↗
+查看方法依据	View method rationale
 正在核对…	Validating…
 核对手动方案	Validate manual plan
 正在准备检查…	Preparing check…
@@ -996,7 +1325,7 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 历史选择只读；要修改，请在左侧配置新分析。	Historical selections are read-only. Configure a new analysis to make changes.
 可选开源扩展	Optional open-source extensions
 默认关闭。选择扩展会同时选中所属模块；实际适用性以执行计划为准。	Off by default. Selecting an extension also selects its parent module; the execution plan checks applicability.
-条件与来源 ↗	Requirements and sources ↗
+条件与来源	Requirements and sources
 当前目录中的方法尚未接入，不能在此版本运行。	This method is listed but is not implemented in this version.
 此计划未保存该方法的适用性，请重新规划核对。	This plan has no applicability record for the method. Prepare a new plan.
 请先预览执行计划，由服务端核对当前数据与方法条件。	Preview the execution plan to check data and method requirements.
@@ -1165,7 +1494,347 @@ EDF技术头与选道	EDF technical header and channel selection
 状态标注不是质量标签。	State annotations are not quality labels.
 用于解释和后续分层验证；本版不据此修改质量阈值或打分。	Used for interpretation and later stratified validation, not to change QC thresholds or scores.
 来源原文	Original source text`;
-  const dictionary = Object.freeze(Object.fromEntries(pairs.split("\n").map(line => line.split("\t"))));
+  // BEGIN reviewed research methods (src/ephys_qc/research_methods.py)
+  const researchPairs = [
+  [
+    "尚未接入；本次仅核对上游来源和登记方法，没有运行或验证算法。",
+    "Not integrated. This review registers upstream sources only; the algorithm has not been run or validated here."
+  ],
+  [
+    "仅登记拟接入的上游调用；没有复制上游算法、安装依赖或改变现有计算。",
+    "Proposed upstream call only; no algorithm was copied, dependency installed, or existing computation changed."
+  ],
+  [
+    "尚无平台执行调用；拟调用：",
+    "No platform execution call; proposed API: "
+  ],
+  [
+    "FASTER 统计坏道",
+    "FASTER statistical bad channels"
+  ],
+  [
+    "用多个统计特征寻找异常通道，补充现有PREP与LOF线索。",
+    "Find channel outliers across several statistical features, complementing PREP and LOF."
+  ],
+  [
+    "拟采用MNE-FASTER的坏道步骤：在明确分段后的EEG上计算方差、相关性、Hurst指数、峰度和可测工频特征，按特征保留候选。",
+    "Use the MNE-FASTER channel step on explicitly epoched EEG: variance, correlation, Hurst exponent, kurtosis and measurable line-noise features, retaining candidates by metric."
+  ],
+  [
+    "FASTER是成熟方法族；该Python实现不是MNE内置功能，也不等于完整FASTER流水线。统计离群不是伪迹真值。",
+    "FASTER is an established method family. This Python implementation is not built into MNE and this entry is not the full FASTER pipeline. Outliers are not artifact ground truth."
+  ],
+  [
+    "足够多且可比较的头皮EEG通道；明确分段与参考；逐项核对可测频带。",
+    "Sufficient comparable scalp EEG channels, explicit epochs and reference, and measurable bands for each metric."
+  ],
+  [
+    "按统计特征列出的通道候选",
+    "Channel candidates grouped by statistical metric"
+  ],
+  [
+    "不直接用于少通道PSG或颅内记录；不把拼接窗口当任务试次；不自动删道。上游依赖MNE内部接口，接入须做版本兼容测试。",
+    "Do not directly apply to sparse PSG or intracranial recordings, treat windows as task trials, or delete channels. Upstream uses internal MNE APIs, requiring compatibility tests."
+  ],
+  [
+    "2026-10-31核对；上游最新列出版本1.2.2，仓库最近推送2025-02-12，未归档。本平台尚未做安装兼容测试。",
+    "Reviewed 2026-10-31: latest listed release 1.2.2; repository last pushed 2025-02-12, not archived. Installation compatibility is untested here."
+  ],
+  [
+    "ASR 突发伪迹",
+    "ASR artifact bursts"
+  ],
+  [
+    "记录异常突发的候选区间及重建影响，作为可选清洗评估。",
+    "Record candidate artifact bursts and reconstruction effects as an optional cleaning evaluation."
+  ],
+  [
+    "ASR由相对干净的校准数据估计协方差与阈值，再识别偏离校准分布的子空间。clean_rawdata还包含独立的坏道与窗口处理步骤。",
+    "ASR estimates covariance and thresholds from relatively clean calibration data, then identifies subspaces departing from that distribution. clean_rawdata also includes separate channel and window operations."
+  ],
+  [
+    "这是重建或剔除工具，不能把被修改比例解释为质量分。校准段、阈值、随机性和前后差异必须保存；原始信号不覆盖。",
+    "This reconstructs or rejects data; the modified fraction is not a quality score. Save calibration, thresholds, randomness and before/after differences, preserving the original."
+  ],
+  [
+    "连续多通道头皮EEG；可说明来源的校准段；明确秩、参考、滤波及所用实现许可。",
+    "Continuous multichannel scalp EEG, traceable calibration data, and explicit rank, reference, filtering and implementation licensing."
+  ],
+  [
+    "突发候选及清洗前后差异（拟输出）",
+    "Burst candidates and before/after differences (proposed)"
+  ],
+  [
+    "不直接迁移至发作期颅内或Neuropixels数据。上游ASR文件另含UC商业使用许可说明，不能仅凭仓库GPL标识认定可直接商用。",
+    "Do not directly transfer to ictal intracranial or Neuropixels recordings. ASR files contain a separate UC commercial-use notice; the repository GPL label alone does not establish commercial permission."
+  ],
+  [
+    "仓库GPL-3.0；ASR文件另有UC使用条款，接入前逐文件核对。",
+    "Repository GPL-3.0; ASR files have additional UC terms requiring file-level review."
+  ],
+  [
+    "2026-10-31核对官方教程及源码；clean_rawdata为EEGLAB默认插件，仓库最近推送2026-09-07。本平台未安装MATLAB适配。",
+    "Official tutorial and code reviewed 2026-10-31. clean_rawdata is a default EEGLAB plugin; last repository push 2026-09-07. No MATLAB adapter is installed here."
+  ],
+  [
+    "CleanLine 工频处理评估",
+    "CleanLine line-noise evaluation"
+  ],
+  [
+    "评估正弦工频的拟合、残留和处理影响。",
+    "Evaluate fitted sinusoidal line noise, residuals and processing effects."
+  ],
+  [
+    "CleanLine用多窗谱估计和F统计量识别正弦成分，再以回归估计并移除。计划保留原始与处理副本的频谱比较。",
+    "CleanLine identifies sinusoidal components using multitaper estimates and an F statistic, then estimates and removes them by regression. Preserve spectra of the original and processed copy."
+  ],
+  [
+    "与现有Thomson工频检测有关，但当前平台没有调用CleanLine。移除工频不证明其他频段或神经信号未受影响。",
+    "Related to the existing Thomson line-noise detector, but CleanLine is not currently called. Removing line noise does not prove preservation of other bands or neural signals."
+  ],
+  [
+    "工频及谐波处于可测频带；明确窗长、频率扫描和原始处理史；MATLAB与EEGLAB环境。",
+    "Measurable line frequencies and harmonics, explicit window and frequency scan settings, processing history, and MATLAB with EEGLAB."
+  ],
+  [
+    "正弦拟合、残留PSD与处理差异（拟输出）",
+    "Sinusoidal fits, residual PSD and processing differences (proposed)"
+  ],
+  [
+    "只对副本评估，不默认去工频；谱峰不自动证明电源干扰，尚未声明颅内适用性。依赖包许可需单独核对。",
+    "Evaluate a copy only, without default cleaning. Peaks do not establish power-line interference; intracranial applicability is not claimed. Review dependency licenses separately."
+  ],
+  [
+    "cleanline.m为GPL-3.0-or-later；捆绑依赖须分别核对。",
+    "cleanline.m: GPL-3.0-or-later; review bundled dependencies separately."
+  ],
+  [
+    "2026-10-31核对；EEGLAB官方插件，仓库最近推送2025-02-07，未归档。源码许可比仓库自动识别结果更具体。",
+    "Reviewed 2026-10-31: official EEGLAB plugin; last repository push 2025-02-07, not archived. Source licensing is more specific than automatic repository detection."
+  ],
+  [
+    "Zapline-plus 自适应工频",
+    "Zapline-plus adaptive line noise"
+  ],
+  [
+    "评估随时间变化的窄带干扰及分段处理效果。",
+    "Evaluate time-varying narrowband interference and chunk-wise processing."
+  ],
+  [
+    "在ZapLine的频谱与空间分解基础上，自动寻找噪声频率、划分空间稳定片段并选择去除成分数量。",
+    "Extends ZapLine spectral and spatial decomposition with noise-frequency detection, spatially stable chunks and automatic selection of removed components."
+  ],
+  [
+    "属于清洗扩展而非独立质量标准；需比较目标频带、邻近频带和前后波形，保留原始数据。",
+    "A cleaning extension, not an independent quality standard. Compare target and neighboring bands and waveforms, retaining original data."
+  ],
+  [
+    "多通道头皮EEG；足够的稳定片段；明确频谱参数、通道组与MATLAB依赖。",
+    "Multichannel scalp EEG, sufficient stable chunks, and explicit spectral settings, channel groups and MATLAB dependencies."
+  ],
+  [
+    "噪声频率、片段、去除成分及前后谱（拟输出）",
+    "Noise frequencies, chunks, removed components and before/after spectra (proposed)"
+  ],
+  [
+    "不默认用于少通道、病理高频或Neuropixels；不能把生理窄带活动自动当作噪声。",
+    "No default use for sparse channels, pathological high frequencies or Neuropixels; physiological narrowband activity must not automatically be labeled noise."
+  ],
+  [
+    "2026-10-31核对；EEGLAB官方插件目录收录，仓库最近推送2023-04-14，未归档。更新较少，拟冻结版本做回归。",
+    "Reviewed 2026-10-31: listed in the official EEGLAB plugins; last repository push 2023-04-14, not archived. Infrequent updates call for a pinned version and regression checks."
+  ],
+  [
+    "FieldTrip 分段伪迹线索",
+    "FieldTrip segment artifact evidence"
+  ],
+  [
+    "按明确的通道组和频带检测时间区间异常。",
+    "Detect interval outliers in explicitly selected channel groups and bands."
+  ],
+  [
+    "ft_artifact_zvalue在带边界扩展的数据上提取所选特征，标准化并汇总通道证据，输出候选起止样本；检测与剔除是两个步骤。",
+    "ft_artifact_zvalue extracts configured features with padding, standardizes and combines channel evidence, and returns candidate sample intervals. Detection and rejection are separate steps."
+  ],
+  [
+    "FieldTrip用于EEG与iEEG分析，但这不证明同一频带或阈值跨模态有效。颅内拟接入只保留待复核线索，发作及HFO不能据幅度判坏。",
+    "FieldTrip supports EEG and iEEG analysis, but this does not validate shared bands or thresholds. Intracranial integration would retain review candidates only; amplitude alone must not reject seizures or HFOs."
+  ],
+  [
+    "明确原始样本坐标、通道比较组、参考、频带、边界扩展与阈值；颅内需独立样例验证。",
+    "Explicit source sample coordinates, channel groups, reference, bands, padding and thresholds; intracranial use requires independent examples."
+  ],
+  [
+    "候选起止样本与检测配置",
+    "Candidate onset/offset samples and detection configuration"
+  ],
+  [
+    "不复制官方MEG示例中的110–140Hz或跳变阈值作为EEG/iEEG默认值；不自动调用ft_rejectartifact。",
+    "Do not copy the MEG tutorial 110–140 Hz band or jump thresholds as EEG/iEEG defaults; do not automatically call ft_rejectartifact."
+  ],
+  [
+    "2026-10-31核对官方教程；仓库最近推送2026-10-22，未归档。已有方法生态不等于本平台完成MATLAB或颅内验证。",
+    "Official tutorial reviewed 2026-10-31; last repository push 2026-10-22, not archived. An established ecosystem is not platform validation of MATLAB or intracranial use."
+  ],
+  [
+    "SpikeInterface / IBL 坏道",
+    "SpikeInterface / IBL bad channels"
+  ],
+  [
+    "补充Neuropixels原始电压的坏道候选分类。",
+    "Add candidate bad-channel classifications for raw Neuropixels voltage."
+  ],
+  [
+    "detect_bad_channels提供std、mad和coherence+psd等路线；IBL路线结合沿探针的相关证据与高频PSD，输出good、noise、dead、out标签。",
+    "detect_bad_channels offers std, mad and coherence+psd routes. The IBL route combines along-probe correlation evidence with high-frequency PSD, yielding good, noise, dead and out labels."
+  ],
+  [
+    "这些是通道标签，不是分选单元质量。out是算法提出的脑外候选，不替代解剖证据；dead和out并非所有检测路线都有。",
+    "These are channel labels, not sorted-unit quality. The out label is an algorithmic outside-brain candidate, not anatomical proof; dead and out are not available in every method."
+  ],
+  [
+    "优先AP流；核实物理单位、探针几何与通道顺序；按probe/shank分别处理，固定抽样和滤波参数。",
+    "Prioritize AP streams with verified physical units, geometry and channel order; process each probe/shank separately and freeze sampling and filtering settings."
+  ],
+  [
+    "逐通道候选标签与方法配置",
+    "Per-channel candidate labels and method settings"
+  ],
+  [
+    "不把同步字混入；不将AP默认高频阈值套到LF流；未知几何时不运行coherence+psd，不默认删道或插值。",
+    "Exclude synchronization words; do not apply AP high-frequency defaults to LF streams. Block coherence+psd without geometry; do not remove or interpolate channels by default."
+  ],
+  [
+    "2026-10-31核对官方文档及实现；仓库最近推送2026-10-30，未归档。本平台尚未建立Recording适配或验证阈值。",
+    "Official docs and code reviewed 2026-10-31; last repository push 2026-10-30, not archived. A Recording adapter and threshold validation are still absent here."
+  ],
+  [
+    "调用MNE-FASTER 1.2.2的find_bad_channels。连续数据按固定段组织后参与通道统计；50/60Hz均可测时才启用line_noise。不作距离校正。",
+    "Call MNE-FASTER 1.2.2 find_bad_channels on fixed continuous segments. Enable line_noise only when both 50 and 60 Hz are measurable. No reference-distance correction."
+  ],
+  [
+    "按特征列出通道候选；固定段不是任务试次，统计离群不等于伪迹。",
+    "Channel candidates by metric. Fixed segments are not task trials; statistical outliers are not artifact ground truth."
+  ],
+  [
+    "独立适配器调用已安装的上游包或冻结源码；仅处理内存副本。兼容层和版本记录在运行证据中。",
+    "Independent adapter calls installed upstream packages or pinned source on memory copies only. Execution evidence records compatibility layers and versions."
+  ],
+  [
+    "已接入执行与报告；合成信号及公开样例用于工程回归，不代表临床准确率或质量阈值已验证。",
+    "Execution and reporting integrated. Synthetic signals and public samples provide engineering regression, not clinical accuracy or validated quality thresholds."
+  ],
+  [
+    "2026-10-31执行适配；Python包固定版本，MATLAB源码固定commit，通过Octave兼容层执行。无MATLAB对照一致性结论。",
+    "Execution adapter dated 2026-10-31. Python versions and MATLAB commits are pinned; Octave uses documented compatibility shims. MATLAB equivalence is not established."
+  ],
+  [
+    "多项统计特征筛查通道离群。",
+    "Screen channel outliers across statistical features."
+  ],
+  [
+    "ASR 重建影响评估",
+    "ASR reconstruction effects"
+  ],
+  [
+    "对副本做明确的1Hz四阶零相位高通，再调用clean_rawdata原版asr_calibrate/asr_process。必须显式确认窗口内至少30秒校准段，保留校准指纹、秩、矩阵和滤波器；lookahead=0。",
+    "Apply an explicit fourth-order 1 Hz zero-phase high-pass to a copy, then call upstream asr_calibrate/asr_process. Explicitly confirm at least 30 s of calibration within the window; retain hashes, rank, matrices and filters. lookahead=0."
+  ],
+  [
+    "保存相同高通副本之间的变化量与PSD，不把重建差异解释为伪迹比例或质量分。仅单窗口；秩不足、未确认校准或无预置谱滤波器时阻断。原始信号不覆盖。",
+    "Save differences and PSD between identically high-pass-filtered copies, not artifact fractions or scores. Window only; block insufficient rank, unconfirmed calibration or missing upstream spectral filters. Preserve originals."
+  ],
+  [
+    "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+    "Meet the channel, reference, bandwidth and duration gates in the runtime specification; configure pinned sources and the Octave compatibility runtime."
+  ],
+  [
+    "前后PSD、逐道变化量、输入输出指纹；不导出清洗波形。",
+    "Before/after PSD, channel-wise changes and hashes; no cleaned-waveform export."
+  ],
+  [
+    "评估明确校准条件下的ASR重建影响。",
+    "Evaluate ASR reconstruction with explicit calibration."
+  ],
+  [
+    "调用官方cleanLineNoise新实现，仅处理明确指定的一个工频。多窗谱F检验和回归由上游执行；Octave的DPSS接口使用SciPy对称L2归一化窗。",
+    "Call upstream cleanLineNoise, the newer CleanLine implementation, for one specified line frequency. Upstream performs multitaper F tests and regression; the Octave DPSS bridge uses symmetric L2-normalized SciPy tapers."
+  ],
+  [
+    "前后PSD与变化量仅描述处理影响，不证明神经信号保留。末尾不足滑窗部分不处理；不自动补谐波，不覆盖原始信号。",
+    "Before/after PSD and differences describe processing effects, not neural-signal preservation. Leave the incomplete sliding-window tail unchanged; do not add harmonics or overwrite originals."
+  ],
+  [
+    "比较工频处理前后的频谱与变化量。",
+    "Compare spectra and differences before and after line-noise processing."
+  ],
+  [
+    "Zapline-plus 工频处理评估",
+    "Zapline-plus line-noise evaluation"
+  ],
+  [
+    "调用clean_data_with_zapline_plus。明确一个工频，把当前片段作为一个固定chunk；自动选择去除成分并调整sigma，保留配置和analytics。",
+    "Call clean_data_with_zapline_plus for one explicit line frequency and one fixed chunk per selected window. Adapt removed components and sigma; retain configuration and analytics."
+  ],
+  [
+    "本版未启用自动分段；至少32秒及8个同参考通道。处理影响不是质量分，生理窄带活动也可能被改变；原始信号不覆盖。",
+    "Adaptive chunking is not enabled. Require at least 32 s and eight comparable channels. Effects are not a quality score; physiological narrowband activity may also change. Preserve originals."
+  ],
+  [
+    "固定片段内自适应处理工频，保留前后对照。",
+    "Adapt line-noise processing within a fixed chunk and retain comparisons."
+  ],
+  [
+    "FieldTrip 差分区间线索",
+    "FieldTrip difference interval evidence"
+  ],
+  [
+    "调用ft_artifact_zvalue，特征固定为相邻差分绝对值、cumulative=no；保留最大单道z值。无带通、无边界扩展；从MATLAB一基闭区间映射到原始时钟半开区间。",
+    "Call ft_artifact_zvalue with absolute sample differences and cumulative=no, retaining the maximum channel z value. No band-pass or padding. Map one-based inclusive samples to half-open source-clock intervals."
+  ],
+  [
+    "EEG、ECoG和sEEG共用这一描述性特征，不共享质量结论。病理放电也可能触发；候选不定位单道、不自动剔除。",
+    "EEG, ECoG and sEEG share this descriptive feature, not quality conclusions. Pathological activity can trigger it. Intervals do not localize a channel and are not automatically rejected."
+  ],
+  [
+    "至少10秒连续EEG/ECoG/sEEG电压及原始时钟；本版无滤波、无空间比较。",
+    "At least 10 s of continuous EEG/ECoG/sEEG voltage and its source clock. This adapter uses neither filtering nor spatial comparisons."
+  ],
+  [
+    "按相邻差分z值标记待复核区间。",
+    "Mark review intervals using sample-difference z values."
+  ],
+  [
+    "SpikeInterface AP 通道离群",
+    "SpikeInterface AP channel outliers"
+  ],
+  [
+    "调用SpikeInterface 0.104.2 detect_bad_channels的std/mad路径。输入V显式转为µV，按文件声明的shank分组，高通后固定种子抽样；不混入同步通道。",
+    "Call SpikeInterface 0.104.2 detect_bad_channels with std/mad. Convert V to µV, group by file-declared shank, high-pass and sample with a fixed seed; exclude sync channels."
+  ],
+  [
+    "只输出good/noise；good表示未超本阈值，不是通道合格，也不是分选单元质量。coherence+psd、dead/out和LF未接入。",
+    "Only good/noise labels. Good means below this threshold, not a passing channel or sorted-unit quality. coherence+psd, dead/out and LF are not integrated."
+  ],
+  [
+    "已标定的AP电压；文件声明的shank分组，每组至少8道。std/mad不使用空间坐标。",
+    "Calibrated AP voltage with file-declared shank groups and at least eight channels per group. std/mad does not use spatial coordinates."
+  ],
+  [
+    "按shank分别筛查AP通道离群。",
+    "Screen AP channel outliers separately by shank."
+  ],
+  [
+    "处理前后对照已写入报告；原始信号保留。",
+    "Before/after comparisons are in the report; the original signal is preserved."
+  ]
+];
+  // END reviewed research methods
+  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs];
+  // The descriptive catalogs adapt known ECoG text with these exact route labels.
+  // Derive whole-phrase translations only; never replace arbitrary source text.
+  const routePairs = explicitPairs.filter(([label])=>label.includes("ECoG")).flatMap(([label,english])=>[["sEEG","sEEG"],["Neuropixels AP/LF","Neuropixels AP/LF"],["Neuropixels 电压","Neuropixels voltage"]].map(([route,translation])=>[label.replaceAll("ECoG",route),english.replaceAll("ECoG",translation)]));
+  const dictionary = Object.freeze(Object.fromEntries([...routePairs,...explicitPairs]));
   const keys = {
     "workbench.title": ["质控台", "QC Workbench"],
     "language.label": ["界面语言", "Interface language"],
@@ -1179,14 +1848,35 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^已识别 Units：([\d,.]+) 个单元。 Units 不属于连续电压流，不进行波形质控。$/, (_,count) => `Units identified: ${count} units. Units are not continuous-voltage streams and do not undergo waveform QC.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 必须是非负整数。$/, (_,field) => `SpikeGLX ${field} must be a non-negative integer.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 超出支持范围。$/, (_,field) => `SpikeGLX ${field} is outside the supported range.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 必须是正数。$/, (_,field) => `SpikeGLX ${field} must be positive.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 必须是有限正数。$/, (_,field) => `SpikeGLX ${field} must be finite and positive.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 需要 AP、LF、SY 三个计数。$/, (_,field) => `SpikeGLX ${field} requires three counts: AP, LF and SY.`],
+    [/^SpikeGLX ([A-Za-z0-9_.]+) 表结构无效。$/, (_,field) => `The SpikeGLX ${field} table structure is invalid.`],
+    [/^(.+) 共用描述性数学核，但模态、输入和参数独立核验。$/, (_,text) => `${translate(text,"en")} The descriptive mathematics is shared, with independent validation of modality, input and parameters.`],
+    [/^方法范围：(头皮 EEG|ECoG|sEEG|细胞外电生理|Neuropixels AP\/LF)$/, (_,name) => `Method scope: ${dictionary[name] || name}`],
+    [/^(\d+) 个 (ECoG|sEEG) 触点$/, (_,n,name) => `${n} ${name} contacts`],
+    [new RegExp(`^(${numeric}) 个 (ECoG|sEEG) 触点 · (.+) Hz · 原记录 (${numeric})–(${numeric}) 秒$`), (_,n,name,rate,start,stop) => `${n} ${name} contacts · ${rate} Hz · Original recording ${start}–${stop} s`],
+    [new RegExp(`^(${numeric}) 个分析通道 · (.+) Hz · 原记录 (${numeric})–(${numeric}) 秒$`), (_,n,rate,start,stop) => `${n} analysis channels · ${rate} Hz · Original recording ${start}–${stop} s`],
+    [/^(头皮 EEG|ECoG|sEEG|细胞外电生理|其他模态)（待确认）$/, (_,name) => `${dictionary[name] || name} (needs confirmation)`],
+    [/^查看证据限制 · (\d+) 项$/, (_,n) => `Evidence limitations · ${n}`],
+    [/^(\d+) 个分析通道$/, (_,n) => `${n} analysis channels`],
+    [/^(\d+) 个 ECoG 触点$/, (_,n) => `${n} ECoG contacts`],
+    [/^模块依赖：(.+)$/, (_,ids) => `Module dependencies: ${ids}`],
+    [/^依赖 (M0[1-9](?: · M0[1-9])*)$/, (_,ids) => `Requires ${ids}`],
     [/^正在传输 (\d+)%$/, (_,n) => `Transferring ${n}%`],
+    [/^(\d+) 个模块 · (\d+) 项方法$/, (_, m, n) => `${m} modules · ${n} methods`],
     [/^(\d+) 个模块$/, (_,n) => `${n} modules`],
     [/^片段预检 · 原记录 (.+)–(.+) 秒 · 不代表整份记录。$/, (_,a,b) => `Window check · Source range ${a}–${b} s · Not a whole-recording assessment.`],
     [/^整份检查 · 记录 (.+) 秒 · 已计算 (.+) 秒 · 失败 (.+) 秒 · 未执行 (.+) 秒 · 数据间隙 (.+) 秒。计算覆盖不代表质量通过。$/, (_,a,b,c,d,e) => `Whole-recording check · Total ${a} s · Computed ${b} s · Failed ${c} s · Unexecuted ${d} s · Data gaps ${e} s. Execution coverage is not a quality pass.`],
+    [/^(M0[1-9]) · 详情 ↗$/, (_, id) => `${id} · Details ↗`],
     [/^(.+) ↗$/, (_, title) => `${dictionary[title] || title} ↗`],
     [/^查看 (.+) 的依据$/, (_, name) => `View evidence for ${translate(name,"en")}`],
     [/^EDF 第 (\d+) 道缩放范围无效。$/, (_, n) => `Invalid scaling range for EDF source channel ${n}.`],
     [/^([\d,]+) 条记录$/, (_, n) => `${n} records`],
+    [/^核对通道 · 已选择 (\d+) 道分析信号$/, (_, n) => `Review channels · ${n} analysis signals selected`],
     [/^核对通道 · 建议 (\d+) 道分析信号$/, (_, n) => `Review channels · ${n} analysis signals suggested`],
     [/^(ECG|EOG|EMG) 辅助导联$/, (_, role) => `${role} auxiliary channel`],
     [/^(M0[1-9]) \/ (接入|计划|检查|汇总|报告|模块说明)$/, (_, id, stage) => `${id} / ${dictionary[stage]}`],
@@ -1199,6 +1889,7 @@ EDF技术头与选道	EDF technical header and channel selection
     [new RegExp(`^耗时 (${numeric}) 秒$`), (_, n) => `Elapsed ${n} s`],
     [new RegExp(`^所选时段超出记录范围（0–(${numeric}) 秒）。$`), (_, n) => `The selected range exceeds the recording (0–${n} s).`],
     [new RegExp(`^原始时间轴 (${numeric})–(${numeric}) 秒 · 共 (${numeric}) 秒$`), (_, a, b, c) => `Original timeline ${a}–${b} s · ${c} s total`],
+    [new RegExp(`^(${numeric}) 个 ECoG 触点 · (.+) Hz · 原记录 (${numeric})–(${numeric}) 秒$`), (_, a, b, c, d) => `${a} ECoG contacts · ${b} Hz · Original recording ${c}–${d} s`],
     [new RegExp(`^(${numeric}) 道 EEG · (.+) Hz · 原记录 (${numeric})–(${numeric}) 秒$`), (_, a, b, c, d) => `${a} EEG channels · ${b} Hz · Original recording ${c}–${d} s`],
     [/^查看 (\d+) 个方法的适用性与参数$/, (_, n) => `Requirements and parameters for ${n} methods`],
     [/^方法限制（(\d+) 项）$/, (_, n) => `Method limitations (${n})`],
@@ -1323,11 +2014,17 @@ EDF技术头与选道	EDF technical header and channel selection
     }
     attributeSources.set(element,records);
     // These are navigation links owned by the workbench. Source URLs, download
-    // endpoints, query strings and API paths are never rewritten.
+    // endpoints and other API paths are never rewritten. Report links are an
+    // explicit exception: their language query controls the return navigation.
     if (element.tagName === "A") {
       const href = element.getAttribute("href") || "";
+      if (/^\/api\/v1\/jobs\/[a-zA-Z0-9_-]{1,120}\/report(?:\?lang=(?:en|zh-CN))?$/.test(href)) {
+        const target = href.split("?")[0] + (language === "en" ? "?lang=en" : "");
+        if (target !== href) element.setAttribute("href",target);
+        return;
+      }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:\/modules\/M0[1-9])?$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

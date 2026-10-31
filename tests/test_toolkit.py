@@ -53,7 +53,7 @@ class ToolkitTests(unittest.TestCase):
         self.assertEqual(self.record['default_config']['selection']['eeg_indices'], [0, 1])
 
     def test_confirmation_and_explicit_module_selection_required(self):
-        for modality in (None, 'seeg', 'unknown'):
+        for modality in (None, 'other', 'unknown'):
             with self.assertRaises(ValueError):
                 prepare_recording(self.source, record_id='x', modality=modality, qc_config=self.config)
         record = copy.deepcopy(self.record); del record['modality']

@@ -161,6 +161,37 @@ check('critical new intake labels, module names, context and scientific cautions
   for(const label of ['质控台','上传文件','读取文件','信息提取','数据格式','通道数','记录时长','采样率','模态','标注','自动提取','待确认','疾病背景','未知','参考构型','确认并推荐','推荐质控流程','查看模块','没有文件','读取后显示','数据接入与结构核验','数据画像与检查计划','信号完整性','频谱与干扰','坏通道候选','生理伪迹线索','状态和事件检查','分项评价与可比性','报告与人工复核','运动想象','总分尚未校准','事件不是质量真值。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
   assert.equal(api.translate('EDF/BDF/BrainVision/EEGLAB/FIF/ZIP','en'),'EDF/BDF/BrainVision/EEGLAB/FIF/ZIP');
 });
+check('toolkit purpose, activation and modality dimensions translate independently',()=>{
+  const api=harness().start();
+  const labels=['检查目的','全部目的','数据与元信息','信号完整性','频谱与干扰','通道质量','伪迹线索','事件与时间','结果与报告','当前接入：头皮 EEG','随模块运行','满足条件','手动扩展','适用模态','计划适用模态','目录未声明计划适用模态。','目录未声明适用模态。','功能域未声明','启用方式未声明','模块内的方法按条件运行；手动扩展需明确启用。待接入方法仅供查阅。','当前筛选没有方法。可切换检查目的或接入状态。','M03 · 详情 ↗','计划面向头皮 EEG；尚未接入，未完成本平台执行验证。未声明其他模态支持。','当前声明的质控工程执行范围仅限头皮 EEG。读器提取其他模态元信息，不表示已验证其质控流程；通用处理思路不等于跨模态支持。','当前已验证的工程执行范围仅限头皮 EEG，仍需满足本方法条件；不表示已验证科学准确性或其他脑电模态。'];
+  for(const label of labels)assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+  const h=harness({saved:'en'}),select=h.element('select','',{id:'toolkit-category',value:'artifacts'}),option=h.element('option','伪迹线索',{value:'artifacts'}),badge=h.element('span','当前接入：头皮 EEG');select.append(option);h.body.append(select,badge);const translated=h.start();assert.equal(option.textContent,'Artifact indicators');assert.equal(select.value,'artifacts');assert.equal(badge.textContent,'Current scope: scalp EEG');translated.setLanguage('zh-CN');assert.equal(option.textContent,'伪迹线索');assert.equal(select.value,'artifacts');
+});
+check('ECoG document and report routes preserve modality and language without rewriting arbitrary APIs',()=>{
+  const h=harness({saved:'en'}),overview=h.element('a','质控标准',{href:'/standards/ecog'}),module=h.element('a','详细介绍 ↗',{href:'/standards/ecog/modules/M03'}),report=h.element('a','打开实际报告',{href:'/api/v1/jobs/ecog-job/report'}),other=h.element('a','Artifact',{href:'/api/v1/jobs/ecog-job/artifacts/report.html'}),custom=h.element('a','Report',{href:'/api/v1/jobs/ecog-job/report?download=true'});h.body.append(overview,module,report,other,custom);const api=h.start();
+  assert.equal(overview.getAttribute('href'),'/en/standards/ecog');assert.equal(module.getAttribute('href'),'/en/standards/ecog/modules/M03');assert.equal(report.getAttribute('href'),'/api/v1/jobs/ecog-job/report?lang=en');assert.equal(other.getAttribute('href'),'/api/v1/jobs/ecog-job/artifacts/report.html');assert.equal(custom.getAttribute('href'),'/api/v1/jobs/ecog-job/report?download=true');
+  api.setLanguage('zh-CN');h.flush();assert.equal(overview.getAttribute('href'),'/standards/ecog');assert.equal(module.getAttribute('href'),'/standards/ecog/modules/M03');assert.equal(report.getAttribute('href'),'/api/v1/jobs/ecog-job/report');
+});
+check('ECoG catalog names, limits and basic recommendations translate without implying scalp thresholds',()=>{
+  const api=harness().start();
+  for(const label of ['当前接入：ECoG','读取与确认','正在读取模块目录','接触点描述','ECoG 触点','89 个 ECoG 触点','89 个分析通道','模块依赖：M06 → M03','非有限与精确恒值段','ECoG Welch功率谱','ECoG窄带功率描述','ECoG触点描述统计','当前ECoG基础描述路线；仅声明工程执行范围，不代表伪迹准确性已验证，不迁移头皮判坏阈值。','建议基础完整性、频谱观察与逐触点统计；不使用头皮EEG坏道或伪迹阈值。','ECoG生理伪迹方法尚未接入，选中也明确保留未评。','配置未通过ECoG入口核验；未自动移除或改写不相容参数。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+});
+check('persistent candidate-evidence coverage warnings translate without changing counts',()=>{
+  const api=harness().start();for(const label of ['仅复核已保存的位置；完整计数见模块证据。','候选证据有范围限制，请展开核对。','候选详情已截断；当前仅复核已保存的位置，完整计数见模块证据。','观察区间数','已存区间数','未存区间数','查看证据限制 · 2 项'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);assert.equal(api.translate('150','en'),'150');
+});
+check('unified framework and unconfirmed modality evidence translate without changing scope',()=>{
+  const h=harness({saved:'en'}),link=h.element('a','质控标准',{href:'/standards/overview'});h.body.append(link);const api=h.start();assert.equal(link.getAttribute('href'),'/en/standards/overview');
+  for(const label of ['文件读取','字段与方案','信号完整性','频谱与干扰','通道质量','伪迹线索','事件与时间','结果汇总','报告与复核','确认与规划','当前记录 / 默认目录','方法范围：ECoG','方法范围：头皮 EEG','模态建议来自文件声明，待核对','含混合通道，请选择分析组','建议模态','ECoG（待确认）','头皮 EEG（待确认）','核对通道 · 已选择 89 道分析信号','读取并确认记录后，显示适用的方法与条件。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+  assert.equal(api.translate('ECoG（待确认）','en'),'ECoG (needs confirmation)');api.setLanguage('zh-CN');assert.equal(link.getAttribute('href'),'/standards/overview');
+});
+check('shared and modality documentation links translate without broadening URL privileges',()=>{
+  for(const route of ['/standards/overview','/standards/fields','/standards/applicability','/standards/implementation','/standards/seeg','/standards/seeg/modules/M03','/standards/neuropixels','/standards/neuropixels/modules/M05']){const h=harness({saved:'en'}),link=h.element('a','详细介绍 ↗',{href:route}),foreign=h.element('a','Other',{href:'https://example.test'+route}),unsafe=h.element('a','Other',{href:route+'?run=1'});h.body.append(link,foreign,unsafe);const api=h.start();assert.equal(link.getAttribute('href'),'/en'+route);assert.equal(foreign.getAttribute('href'),'https://example.test'+route);assert.equal(unsafe.getAttribute('href'),route+'?run=1');api.setLanguage('zh-CN');assert.equal(link.getAttribute('href'),route);}
+  const api=harness().start();for(const label of ['方法范围：sEEG','方法范围：细胞外电生理','方法范围：Neuropixels AP/LF','sEEG 触点','48 个 sEEG 触点','48 个 sEEG 触点 · 1000 Hz · 原记录 0–5 秒','384 个分析通道 · 30000 Hz · 原记录 0–5 秒','细胞外电生理（待确认）','原始数据流','探针型号','背景（可选）','当前仅接入 SpikeGLX 原始 AP/LF；其他细胞外记录需另行核验。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);assert.equal(api.translate('AP','en'),'AP');assert.equal(api.translate('LF','en'),'LF');
+});
+check('new descriptive catalogs translate limits without claiming unit quality or pathological artifact truth',()=>{
+  const api=harness().start();for(const label of ['sEEG Welch功率谱','Neuropixels AP/LF Welch功率谱','已确认sEEG电压','已确认Neuropixels AP/LF电压','sEEG生理伪迹方法尚未接入，选中也明确保留未评。','Neuropixels AP/LF生理伪迹方法尚未接入，选中也明确保留未评。','深部触点基础描述；不推断电极杆邻接，不将病理放电判坏。','AP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。','AP与LF分别运行；采样相位补偿、漂移估计、spike sorting与单元质量未接入。','原时钟样本区间与数量。 共用描述性数学核，但模态、输入和参数独立核验。','同步 / 数字通道（不分析）','同步 / 数字通道不能登记为分析信号或生理辅助导联。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+  const raw='用户说明：Neuropixels AP/LF存在异常';assert.equal(api.translate(raw,'en'),raw);assert(api.translate('AP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。','en').includes('No sorting or unit metrics'));
+});
 check('translator never mutates source objects or runs network/recommendation/job actions',()=>{
   // Catalog prose may legitimately document score.value=null. Scan executable
   // code after the literal dictionary; DOM behavior is also checked above.
@@ -176,7 +207,28 @@ check('current static HTML system labels have English translations',()=>{
   assert.deepEqual(missing,[],`Missing static UI translations: ${missing.join(' | ')}`);
 });
 
+check('unpaired SpikeGLX upload errors stay clear in English',()=>{
+  const api=harness().start();for(const label of ['SpikeGLX须将同名.ap.bin/.ap.meta或.lf.bin/.lf.meta一起打包ZIP，不能单独提交META。','请选择已支持格式；SpikeGLX的单流BIN和META必须一起打包ZIP。','SpikeGLX配套缺失：META须对应同名AP或LF BIN。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+});
+check('NWB stream controls and boundaries translate without changing stream identifiers',()=>{
+  const api=harness().start();for(const label of ['提取状态未记录','尚未提取','文件可能含事件；尚未映射到所选信号。','选择信号','选择连续电压流','先选择信号，再确认模态与通道。','未找到可用的连续电压流。','已识别 Units：3 个单元。 Units 不属于连续电压流，不进行波形质控。','信号未就绪，请重新选择或恢复读取','请先选择可读取的连续电压流。','Neuropixels 电压','当前接入受支持的 SpikeGLX AP/LF 与具有明确设备证据的 NWB 连续电压；不评估已分选单元。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);assert.equal(api.translate('/processing/ecephys/LFP/lfp','en'),'/processing/ecephys/LFP/lfp');assert.equal(api.translate('Neuropixels 电压','en'),'Neuropixels voltage');
+});
+if(process.env.QC_CATALOG_FIXTURE)check('actual four-route system catalog prose has complete English translations',()=>{
+  const api=harness().start(),fixture=JSON.parse(fs.readFileSync(process.env.QC_CATALOG_FIXTURE,'utf8')),missing=new Set();
+  function walk(value){if(typeof value==='string'&&/[\u3400-\u9fff]/.test(value)){if(/[\u3400-\u9fff]/.test(api.translate(value,'en')))missing.add(value)}else if(Array.isArray(value))value.forEach(walk);else if(value&&typeof value==='object')Object.values(value).forEach(walk)}
+  for(const catalog of Object.values(fixture.catalogs))walk({modules:catalog.modules,modalities:catalog.modalities,workflow:catalog.workflow,domains:catalog.method_domains,readers:catalog.capabilities?.intake?.readers});for(const intake of fixture.intakes||[])walk({warnings:intake.warnings,reasons:(intake.metadata?.available_streams||[]).map(stream=>stream.reason)});assert.deepEqual([...missing],[]);
+});
 let failures=0;
+check('module hierarchy and direct method navigation translate',()=>{
+  const api=harness().start();
+  for(const label of ['基础方法','按条件启用','可选增强','输入、输出与依赖 ↗','← 查看所属模块','详情 ↗'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+  assert.equal(api.translate('9 个模块 · 24 项方法','en'),'9 modules · 24 methods');
+});
+check('file selection states translate without altering raw filenames',()=>{
+  const h=harness({saved:'en'}), title=h.element('strong','已选择文件'), file=h.element('span','临床记录 <1>.nwb · 1 KiB',{'data-i18n-skip':''});h.body.append(title,file);const api=h.start();
+  assert.equal(title.textContent,'File selected');assert.equal(file.textContent,'临床记录 <1>.nwb · 1 KiB');
+  for(const label of ['选择本机文件','点击更换文件','单个记录，或包含配套文件的 ZIP'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+});
 for(const [name,run] of tests){try{run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}
 console.log(`${tests.length-failures}/${tests.length} localization checks passed`);
 if(failures)process.exitCode=1;

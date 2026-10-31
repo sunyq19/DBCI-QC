@@ -1,6 +1,8 @@
 # Technical specification for scalp EEG data quality control
 
-Project specification · Draft for comment · Version 0.5 · 29 October 2026
+Project specification · Draft for comment · Version 0.6 · 31 October 2026
+
+Shared requirements: [general requirements](/standards/overview), [field dictionary](/standards/fields), [method applicability](/standards/applicability). Actual capabilities are listed separately under [implementation scope](/standards/implementation). Species and age retain source, units and time context; human age categories must not be applied to animals. These metadata requirements do not change existing analysis-profile versions or establish new cross-species thresholds.
 
 ## 1 Scope
 

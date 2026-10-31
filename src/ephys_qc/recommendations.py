@@ -33,7 +33,7 @@ def _missing(key, label, reason, blocking=False, blocks_methods=None):
 def _finish(result, record, submitted):
     # Include the user's current selection/parameters even when the proposed
     # extension selection differs. Object-key order is intentionally irrelevant.
-    identity = {"policy_version": POLICY_VERSION, "schema_version": SCHEMA_VERSION,
+    identity = {"policy_version": result.get("policy_version", POLICY_VERSION), "schema_version": SCHEMA_VERSION,
                 "record": record, "submitted_qc_config": submitted or {},
                 "status": result["status"], "plan_id": result.get("plan_id"),
                 "selected_modules": result["selected_modules"], "qc_config": result["qc_config"]}
@@ -52,7 +52,7 @@ def _empty(record, status, reason, missing=None):
                 "尚未读取信号、核验文件现存性、运行方法或生成质量分。"],
             "data_tags": [], "method_applicability": [], "review_focus": [], "plan_id": None,
             "plan_warnings": [], "current_extensions": [], "extension_selection_changed": False,
-            "scope": {"supported_modality": "scalp_eeg", "supported_metadata_formats": ["EDF", "EDF+", "BDF", "BrainVision", "EEGLAB", "FIF"],
+            "scope": {"supported_modality": "scalp_eeg", "supported_metadata_formats": ["EDF", "EDF+", "BDF", "BrainVision", "EEGLAB", "FIF", "NWB"],
                       "declared_modality": record.get("modality"),
                       "declared_format": record.get("metadata", {}).get("format") if isinstance(record.get("metadata"), dict) else None,
                       "basis": "registered_metadata_only", "signal_read": False, "job_created": False},
@@ -114,6 +114,12 @@ def recommend(record, qc_config=None):
     submitted = copy.deepcopy(qc_config)
     scope_missing = []
     modality = record.get("modality")
+    if modality in {'seeg', 'extracellular'}:
+        from .recommendations_descriptive import recommend_descriptive
+        return recommend_descriptive(record, submitted)
+    if modality == 'ecog':
+        from .recommendations_ecog import recommend_ecog
+        return recommend_ecog(record, submitted)
     metadata = record.get("metadata")
     file_format = metadata.get("format") if isinstance(metadata, dict) else None
     if modality in (None, "", "unknown"):
@@ -122,7 +128,7 @@ def recommend(record, qc_config=None):
         return _finish(_empty(record, "unsupported", "当前推荐仅接入头皮EEG；此模态没有已验证的推荐路线。"), record, submitted)
     if file_format in (None, "", "unknown"):
         scope_missing.append(_missing("metadata.format", "原始文件格式", "需由读取模块核实文件格式，不根据扩展名推断。", True))
-    elif file_format not in {"EDF", "EDF+", "BDF", "BrainVision", "EEGLAB", "FIF"}:
+    elif file_format not in {"EDF", "EDF+", "BDF", "BrainVision", "EEGLAB", "FIF", "NWB"}:
         return _finish(_empty(record, "unsupported", "此格式没有可用读取模块；尚不能推荐信号检查。"), record, submitted)
     if scope_missing:
         return _finish(_empty(record, "needs_input", "先补充并核实模态/文件格式，再给出可应用建议。", scope_missing), record, submitted)
@@ -158,7 +164,8 @@ def recommend(record, qc_config=None):
 
     specs = methods()
     by_id = {m["id"]: m for m in specs}
-    extra_ids = [m["id"] for m in extension_specs()]
+    extra_ids = [m["id"] for m in extension_specs() if "scalp_eeg" in m.get("research_modalities", ["scalp_eeg"])
+                 and not (config.get("scope") == "recording" and m["id"] == "asr_bursts")]
     probe_config = copy.deepcopy(config)
     probe_config["method_config"]["extensions"] = extra_ids
     try:
@@ -167,6 +174,8 @@ def recommend(record, qc_config=None):
         return _finish(_empty(record, "needs_input", "候选方法参数未通过现有计划器；未生成建议。",
                              [_missing("method_config", "方法参数", str(error), True)]), record, submitted)
     gates = {m["id"]: m for m in candidate_plan["method_applicability"]}
+    if config.get("scope") == "recording":
+        gates["asr_bursts"].update(status="blocked", reason="ASR需要明确校准段，仅限单窗口评估。")
     selected = list(_BASE_MODULES)
     if any(gates[name]["status"] in {"ready", "partial"} for name in ("ecg_locked", "eog_locked", "hf_burst")):
         selected.append("M06")

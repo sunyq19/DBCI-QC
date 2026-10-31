@@ -95,7 +95,7 @@ def native_tal_fixture(root, *, bdf=False, onsets=('0', '1')):
 class RegistryTests(unittest.TestCase):
     def test_catalog_covers_formats_without_importing_heavy_dependencies(self):
         specs = list_readers()
-        self.assertEqual({f for s in specs for f in s['formats']}, {'EDF', 'BDF', 'BrainVision', 'EEGLAB', 'FIF'})
+        self.assertEqual({f for s in specs for f in s['formats']}, {'EDF', 'BDF', 'BrainVision', 'EEGLAB', 'FIF', 'SpikeGLX', 'NWB'})
         specs[0]['extensions'].append('.wrong')
         self.assertNotIn('.wrong', list_readers()[0]['extensions'])
         json.dumps(list_readers(), allow_nan=False)
@@ -139,6 +139,7 @@ class ScientificReaderTests(unittest.TestCase):
         self.assertEqual([c['index'] for c in metadata['channels']], [0, 1])
         self.assertTrue(all('path' not in f for f in metadata['source_files']))
         self.assertEqual(metadata['modality_evidence']['value'], 'unknown')
+        self.assertEqual(metadata['modality_evidence']['source'], 'reader_default')
         json.dumps(metadata, allow_nan=False)
 
     def test_bdf_mixed_native_rates_are_not_resampled_or_combined(self):

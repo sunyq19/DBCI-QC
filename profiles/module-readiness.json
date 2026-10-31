@@ -1,62 +1,97 @@
 {
-  "schema_version": "module-readiness/0.1",
-  "date": "2026-10-28",
+  "schema_version": "module-readiness/0.2",
+  "date": "2026-10-29",
   "platform_scheduler_implemented": true,
   "modules": [
     {
       "module_id": "M01",
-      "data_evidence": "three_edf_datasets",
-      "execution_evidence": "independent_reader_executed_four_registered_edf_inputs",
-      "validation_limit": "other_formats_not_validated"
+      "data_evidence": "five_format_engineering_fixtures_plus_26_EDF_SET_records",
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "format coverage is not detector accuracy; long natural BDF BrainVision FIF coverage limited",
+      "default_window_status_counts": {
+        "completed": 23,
+        "partial": 3
+      }
     },
     {
       "module_id": "M02",
       "data_evidence": "three_profiles_with_missing_aux_and_small_groups",
-      "execution_evidence": "planner_tests_and_live_api_dependency_selection_passed",
-      "validation_limit": "not_independently_validated"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "not_independently_validated",
+      "default_window_status_counts": {
+        "completed": 26
+      }
     },
     {
       "module_id": "M03",
       "data_evidence": "real_records_and_known_flatline_copy",
-      "execution_evidence": "independent_module_executed_four_inputs_and_optional_only_run",
-      "validation_limit": "natural_fault_accuracy_not_validated"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "natural_fault_accuracy_not_validated",
+      "default_window_status_counts": {
+        "completed": 23,
+        "partial": 3
+      }
     },
     {
       "module_id": "M04",
       "data_evidence": "real_records_and_known_50hz_copy",
-      "execution_evidence": "independent_module_executed_four_inputs_partial_tail_exposed",
-      "validation_limit": "natural_noise_accuracy_not_validated"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "natural_noise_accuracy_not_validated",
+      "default_window_status_counts": {
+        "partial": 10,
+        "completed": 16
+      }
     },
     {
       "module_id": "M05",
       "data_evidence": "two_full_ds002034_records_with_source_status",
-      "execution_evidence": "independent_module_executed_four_inputs_sparse_groups_gated",
-      "validation_limit": "source_label_disagreement_requires_review"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "source_label_disagreement_requires_review",
+      "default_window_status_counts": {
+        "completed": 3,
+        "partial": 23
+      }
     },
     {
       "module_id": "M06",
-      "data_evidence": "hmc_auxiliary_and_no_aux_controls",
-      "execution_evidence": "independent_module_executed_with_auxiliary_and_missing_auxiliary_controls",
-      "validation_limit": "natural_artifact_interval_labels_missing"
+      "data_evidence": "HMC auxiliary leads, absent-auxiliary controls, PhysioMotion source labels",
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "source bipolar labels need montage alignment; no independent artifact accuracy claim",
+      "default_window_status_counts": {
+        "partial": 24,
+        "completed": 2
+      }
     },
     {
       "module_id": "M07",
       "data_evidence": "hmc_sleep_stages_and_ds002034_events",
-      "execution_evidence": "hmc_states_and_ds_task_events_ingested_with_original_time",
-      "validation_limit": "physical_latency_not_validated"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "physical_latency_not_validated",
+      "default_window_status_counts": {
+        "skipped": 10,
+        "completed": 16
+      }
     },
     {
       "module_id": "M08",
       "data_evidence": "four_pilot_results",
-      "execution_evidence": "live_results_null_score_and_missing_assessments_verified",
-      "validation_limit": "global_score_not_calibrated"
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "global_score_not_calibrated",
+      "default_window_status_counts": {
+        "partial": 26
+      }
     },
     {
       "module_id": "M09",
-      "data_evidence": "four_pilot_reports",
-      "execution_evidence": "four_html_png_reports_generated_api_verified_review_writeback_not_implemented",
-      "validation_limit": "human_acceptance_pending"
+      "data_evidence": "26_real_reports_and_prior_versioned_review_acceptance",
+      "execution_evidence": "26_real_record_recommended_window_runs; see data-coverage-baseline.json for selected and unselected states",
+      "validation_limit": "browser walk-through and expert quality adjudication pending",
+      "default_window_status_counts": {
+        "completed": 26
+      }
     }
   ],
-  "runtime_validation": "docs/runtime-validation.md"
+  "runtime_validation": "docs/runtime-validation.md",
+  "coverage_baseline": "profiles/data-coverage-baseline.json",
+  "scientific_accuracy_validated": false
 }

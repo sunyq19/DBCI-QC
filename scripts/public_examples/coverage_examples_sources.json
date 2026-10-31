@@ -1,0 +1,437 @@
+{
+  "schema_version": "ephys-coverage-sources/1.0",
+  "datasets": {
+    "eegmmidb-1.0.0": {
+      "license": "ODC-By-1.0",
+      "dataset_url": "https://physionet.org/content/eegmmidb/1.0.0/",
+      "license_url": "https://physionet.org/content/eegmmidb/view-license/1.0.0/"
+    },
+    "chbmit-1.0.0": {
+      "license": "ODC-By-1.0",
+      "dataset_url": "https://physionet.org/content/chbmit/1.0.0/",
+      "license_url": "https://physionet.org/content/chbmit/view-license/1.0.0/"
+    },
+    "hmc-sleep-staging-1.1": {
+      "license": "CC-BY-4.0",
+      "dataset_url": "https://physionet.org/content/hmc-sleep-staging/1.1/",
+      "license_url": "https://physionet.org/content/hmc-sleep-staging/view-license/1.1/"
+    },
+    "sleep-edfx-1.0.0": {
+      "license": "ODC-By-1.0",
+      "dataset_url": "https://physionet.org/content/sleep-edfx/1.0.0/",
+      "license_url": "https://physionet.org/content/sleep-edfx/view-license/1.0.0/"
+    },
+    "ds006386-1.0.1": {
+      "license": "CC0",
+      "dataset_url": "https://openneuro.org/datasets/ds006386/versions/1.0.1",
+      "license_source": "dataset_description.json at commit 647f61744019ad41801598384bb461b7fdc06560",
+      "metadata_repository": "https://github.com/OpenNeuroDatasets/ds006386",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    }
+  },
+  "files": [
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S003/S003R01.edf",
+      "dataset_relative_path": "S003/S003R01.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S003/S003R01.edf",
+      "role": "original_waveform",
+      "bytes": 1275936,
+      "sha256": "2af68afa8d4f158a7ae7f3903b66f0947925880639b7a8b5b6bb13b0c6c50f96",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S003/S003R02.edf",
+      "dataset_relative_path": "S003/S003R02.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S003/S003R02.edf",
+      "role": "original_waveform",
+      "bytes": 1275936,
+      "sha256": "41044fea497e05650c4b1f4009011b44a50a6cefd55d5afa9e1d1b7988afd6e5",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S004/S004R02.edf",
+      "dataset_relative_path": "S004/S004R02.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S004/S004R02.edf",
+      "role": "original_waveform",
+      "bytes": 1275936,
+      "sha256": "32134f3ce7056fd6487855552636b8f93ea2d67631ef1da6f6474eda6040162f",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S006/S006R04.edf",
+      "dataset_relative_path": "S006/S006R04.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S006/S006R04.edf",
+      "role": "original_waveform",
+      "bytes": 2555616,
+      "sha256": "4bd532bb728e1f2ed2afc0a5c162830a07465b6a4a58e105d1316c6ff1921f3b",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S005/S005R03.edf",
+      "dataset_relative_path": "S005/S005R03.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S005/S005R03.edf",
+      "role": "original_waveform",
+      "bytes": 2555616,
+      "sha256": "3bf2695b66661a274bb099dd093c8f2eb4ede8a7068ec4bfd0a1fe9f4bfc0e18",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S007/S007R05.edf",
+      "dataset_relative_path": "S007/S007R05.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S007/S007R05.edf",
+      "role": "original_waveform",
+      "bytes": 2596896,
+      "sha256": "6697e3a18c3025727806e28df7c378468b700f73532fd61ecbebaa2960d712dc",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/S008/S008R06.edf",
+      "dataset_relative_path": "S008/S008R06.edf",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/S008/S008R06.edf",
+      "role": "original_waveform",
+      "bytes": 2555616,
+      "sha256": "c2afadf0b5cbc8764825fbe26ae358df677c46ce44c6e8622e4fa3d47d6abb14",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb02/chb02-summary.txt",
+      "dataset_relative_path": "chb02/chb02-summary.txt",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb02/chb02-summary.txt",
+      "role": "official_clinical_annotation",
+      "bytes": 4471,
+      "sha256": "a4a84999f666652479bc0340d49c98f9c018a53b155e3164500f035dc35b025a",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb02/chb02_16.edf.seizures",
+      "dataset_relative_path": "chb02/chb02_16.edf.seizures",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb02/chb02_16.edf.seizures",
+      "role": "official_clinical_annotation",
+      "bytes": 54,
+      "sha256": "81db9912a0bf9d1e2020233336410d7ce71428cdc35cfa56465bc13b6f53404c",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb03/chb03_01.edf.seizures",
+      "dataset_relative_path": "chb03/chb03_01.edf.seizures",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb03/chb03_01.edf.seizures",
+      "role": "official_clinical_annotation",
+      "bytes": 54,
+      "sha256": "3f3600ed4f605ad17252a5595a3d7a8d00ee296500850d6266153b9d29e88c14",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb03/chb03-summary.txt",
+      "dataset_relative_path": "chb03/chb03-summary.txt",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb03/chb03-summary.txt",
+      "role": "official_clinical_annotation",
+      "bytes": 4935,
+      "sha256": "8d74eb131a96959c7b2aec82215d232dc26c3012c4d98c2a1c5f5dac520f52b4",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb02/chb02_16.edf",
+      "dataset_relative_path": "chb02/chb02_16.edf",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb02/chb02_16.edf",
+      "role": "original_waveform",
+      "bytes": 11299328,
+      "sha256": "b50345b4b7d35d2735e3d2fc5f7df3e39a60916a881a11f2cd40337e529ea3fa",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "hmc-sleep-staging",
+      "version": "1.1",
+      "relative_path": "hmc-sleep-staging-1.1/recordings/SN061_sleepscoring.edf",
+      "dataset_relative_path": "recordings/SN061_sleepscoring.edf",
+      "url": "https://physionet.org/files/hmc-sleep-staging/1.1/recordings/SN061_sleepscoring.edf",
+      "role": "original_annotation",
+      "bytes": 61952,
+      "sha256": "5db46fad3608f83fd4d28d924d280f5fe88155a6249f9ac2a61dbe898731ebd0",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "hmc-sleep-staging",
+      "version": "1.1",
+      "relative_path": "hmc-sleep-staging-1.1/recordings/SN061_sleepscoring.txt",
+      "dataset_relative_path": "recordings/SN061_sleepscoring.txt",
+      "url": "https://physionet.org/files/hmc-sleep-staging/1.1/recordings/SN061_sleepscoring.txt",
+      "role": "original_annotation",
+      "bytes": 40834,
+      "sha256": "0802cf550929cb8a54197b8db8c5a056728d298b018ab0657bda4270529474f1",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/chb03/chb03_01.edf",
+      "dataset_relative_path": "chb03/chb03_01.edf",
+      "url": "https://physionet.org/files/chbmit/1.0.0/chb03/chb03_01.edf",
+      "role": "original_waveform",
+      "bytes": 42399744,
+      "sha256": "74f1ebc1334c4d52a132513c8ecab03d15d5b8ecbd91c7fdc71346bf69797d02",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "sleep-edfx",
+      "version": "1.0.0",
+      "relative_path": "sleep-edfx-1.0.0/sleep-cassette/SC4021EH-Hypnogram.edf",
+      "dataset_relative_path": "sleep-cassette/SC4021EH-Hypnogram.edf",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4021EH-Hypnogram.edf",
+      "role": "original_annotation",
+      "bytes": 4804,
+      "sha256": "62b49b26bf08941cb0e974cfeeb0a820bf7dd43fb0c66dd89b4c3a6c0ee45dd8",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "sleep-edfx",
+      "version": "1.0.0",
+      "relative_path": "sleep-edfx-1.0.0/sleep-cassette/SC4021E0-PSG.edf",
+      "dataset_relative_path": "sleep-cassette/SC4021E0-PSG.edf",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/SC4021E0-PSG.edf",
+      "role": "original_waveform",
+      "bytes": 51147008,
+      "sha256": "810adaedf42621e389ca767274045fbafb123bbc5d99bc15ce2c5bacb52e378c",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "hmc-sleep-staging",
+      "version": "1.1",
+      "relative_path": "hmc-sleep-staging-1.1/recordings/SN061.edf",
+      "dataset_relative_path": "recordings/SN061.edf",
+      "url": "https://physionet.org/files/hmc-sleep-staging/1.1/recordings/SN061.edf",
+      "role": "original_waveform",
+      "bytes": 106039552,
+      "sha256": "8cf35bbcaaf8af35f996eb28a90cf628a7bb00fe8b39a5b957e294ff3db0802d",
+      "hash_source": "official versioned SHA256SUMS.txt"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/dataset_description.json",
+      "dataset_relative_path": "dataset_description.json",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/dataset_description.json",
+      "role": "source_sidecar_or_label",
+      "bytes": 215,
+      "sha256": "6a23f99882a7fe3e027e97cbb09e50af6d8be3addfd0bd25d7cbf3785d802112",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/README",
+      "dataset_relative_path": "README",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/README",
+      "role": "source_sidecar_or_label",
+      "bytes": 694,
+      "sha256": "69c01ab715c3bc3e613d77d65691474eea1fea74365db7fe6040cc553bbc3cd4",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/CHANGES",
+      "dataset_relative_path": "CHANGES",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/CHANGES",
+      "role": "source_sidecar_or_label",
+      "bytes": 91,
+      "sha256": "47ed7e53672f08929fee923f8d32c0b06e58104190b84ad43943b3a24c28543a",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/participants.tsv",
+      "dataset_relative_path": "participants.tsv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/participants.tsv",
+      "role": "source_sidecar_or_label",
+      "bytes": 846,
+      "sha256": "35ffa12f722a5f20e38363bbeb4f847d8f072c989cf1929a5aa865328e19421e",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/participants.json",
+      "dataset_relative_path": "participants.json",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/participants.json",
+      "role": "source_sidecar_or_label",
+      "bytes": 756,
+      "sha256": "4b8aeb7120262dc2ff8cb93d218fdcc09062a65f0ec300afa2e67bb6c81d95dc",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/sub-1_scans.tsv",
+      "dataset_relative_path": "sub-1/sub-1_scans.tsv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/sub-1_scans.tsv",
+      "role": "source_sidecar_or_label",
+      "bytes": 423,
+      "sha256": "ae8e93b2c69162a1209fe9f5d80e41137f51e1bf57ee9a7a8ee54e832acbbd0b",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_task-artifact_run-01_eeg.json",
+      "dataset_relative_path": "sub-1/eeg/sub-1_task-artifact_run-01_eeg.json",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_task-artifact_run-01_eeg.json",
+      "role": "source_sidecar_or_label",
+      "bytes": 501,
+      "sha256": "492bd9604a7a3f0575ebb19fa1253c0ac23dd57cd71cd5a9ac454bbcc1979ae6",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_task-artifact_run-01_channels.tsv",
+      "dataset_relative_path": "sub-1/eeg/sub-1_task-artifact_run-01_channels.tsv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_task-artifact_run-01_channels.tsv",
+      "role": "source_sidecar_or_label",
+      "bytes": 3434,
+      "sha256": "397168d1d9d5b5f7a5c884e0e71f3ebd55e29ae74754cad39b2cba524d05b6bb",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_task-artifact_run-01_events.tsv",
+      "dataset_relative_path": "sub-1/eeg/sub-1_task-artifact_run-01_events.tsv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_task-artifact_run-01_events.tsv",
+      "role": "source_sidecar_or_label",
+      "bytes": 6879,
+      "sha256": "10d02728db9c539b23b7fed4e7ee38354e0a65ede3d036b1f1eacc0df849344d",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_space-CapTrak_coordsystem.json",
+      "dataset_relative_path": "sub-1/eeg/sub-1_space-CapTrak_coordsystem.json",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_space-CapTrak_coordsystem.json",
+      "role": "source_sidecar_or_label",
+      "bytes": 1056,
+      "sha256": "0ae8b8e77d46a7279b40e7be718b468490b081be38062fdc3b551f0d5cb77501",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_space-CapTrak_electrodes.tsv",
+      "dataset_relative_path": "sub-1/eeg/sub-1_space-CapTrak_electrodes.tsv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_space-CapTrak_electrodes.tsv",
+      "role": "source_sidecar_or_label",
+      "bytes": 3852,
+      "sha256": "470fcc07522aabc7a273c4b22691bd9a0cb244c73442518d33f267b0cc84b479",
+      "hash_source": "pinned Git metadata byte comparison",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/sub-1/eeg/sub-1_task-artifact_run-01_eeg.edf",
+      "dataset_relative_path": "sub-1/eeg/sub-1_task-artifact_run-01_eeg.edf",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/sub-1/eeg/sub-1_task-artifact_run-01_eeg.edf",
+      "role": "original_waveform",
+      "bytes": 147894344,
+      "sha256": "819c4a91795085ad0bd0188d8f141917f45495597e9319253d9fbffbb460600e",
+      "hash_source": "git-annex SHA256E key",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "ds006386",
+      "version": "1.0.1",
+      "relative_path": "ds006386-1.0.1/derivatives/Manual_Annotations/sub1_run01.csv",
+      "dataset_relative_path": "derivatives/Manual_Annotations/sub1_run01.csv",
+      "url": "https://s3.amazonaws.com/openneuro.org/ds006386/derivatives/Manual_Annotations/sub1_run01.csv",
+      "role": "source_sidecar_or_label",
+      "bytes": 16064,
+      "sha256": "fce416e84798fe99870827ca7ad07b0e27926de2758dc03e9aac81755564abdf",
+      "hash_source": "git-annex SHA256E key",
+      "pinned_metadata_commit": "647f61744019ad41801598384bb461b7fdc06560"
+    },
+    {
+      "dataset": "eegmmidb",
+      "version": "1.0.0",
+      "relative_path": "eegmmidb-1.0.0/_provenance/official_SHA256SUMS.txt",
+      "dataset_relative_path": "SHA256SUMS.txt",
+      "url": "https://physionet.org/files/eegmmidb/1.0.0/SHA256SUMS.txt",
+      "role": "official_checksum_manifest",
+      "bytes": 259919,
+      "sha256": "7f5d16957d8ee7bce86cc7ccba0e5994f63f33781607eb3f838392d49311a208",
+      "hash_source": "fixed manifest snapshot"
+    },
+    {
+      "dataset": "chbmit",
+      "version": "1.0.0",
+      "relative_path": "chbmit-1.0.0/_provenance/official_SHA256SUMS.txt",
+      "dataset_relative_path": "SHA256SUMS.txt",
+      "url": "https://physionet.org/files/chbmit/1.0.0/SHA256SUMS.txt",
+      "role": "official_checksum_manifest",
+      "bytes": 73298,
+      "sha256": "f1698efeb9fef887e55cedf6eda13386d9a888db663aec48b2aa194b7b753d2b",
+      "hash_source": "fixed manifest snapshot"
+    },
+    {
+      "dataset": "hmc-sleep-staging",
+      "version": "1.1",
+      "relative_path": "hmc-sleep-staging-1.1/_provenance/official_SHA256SUMS.txt",
+      "dataset_relative_path": "SHA256SUMS.txt",
+      "url": "https://physionet.org/files/hmc-sleep-staging/1.1/SHA256SUMS.txt",
+      "role": "official_checksum_manifest",
+      "bytes": 43220,
+      "sha256": "8089d591e654e8a312012c173a12173251929d522d7955064fa4cae223715db7",
+      "hash_source": "fixed manifest snapshot"
+    },
+    {
+      "dataset": "sleep-edfx",
+      "version": "1.0.0",
+      "relative_path": "sleep-edfx-1.0.0/_provenance/official_SHA256SUMS.txt",
+      "dataset_relative_path": "SHA256SUMS.txt",
+      "url": "https://physionet.org/files/sleep-edfx/1.0.0/SHA256SUMS.txt",
+      "role": "official_checksum_manifest",
+      "bytes": 39799,
+      "sha256": "1bc88e19e2e921f7851d7cf61e31ceb8f6d670211ca546a323e9db5a77525edf",
+      "hash_source": "fixed manifest snapshot"
+    }
+  ],
+  "notes": [
+    "Source URLs are public. Fixed SHA256 must match; a later different object at the same URL is rejected.",
+    "No waveform is bundled with the repository.",
+    "Dataset license and citation obligations remain applicable."
+  ]
+}

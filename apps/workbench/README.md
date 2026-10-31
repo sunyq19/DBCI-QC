@@ -35,9 +35,11 @@
 
 ## 数据提交和推荐
 
-首页选择本机文件，初次加载不选择登记记录、不推荐、不规划。支持连续EDF/EDF+、BDF、BrainVision、连续EEGLAB、单文件FIF。服务复制到仓库外`intakes/<id>/`，保存原始上传和实际读取主/配套文件的SHA256。配套文件须同目录打包ZIP，一包仅一份记录，至多64个条目；上传与解压后总大小均不超过512 MiB。ZIP不得含越界路径、链接、重复文件名或加密内容。读取器复核真实文件结构，不接受服务器路径或URL。
+当前实现：1.0.0rc3.dev4。NWB 2/HDF5支持范围、真实来源和边界例见[NWB接入样例](../../docs/nwb-testing.md)。单位表只展示其存在，不能计作连续通道或声称已完成unit质控。
 
-右侧展示格式、通道数、时长、采样率、待确认模态、标注数及原始标签；保留通道名、索引、单位和文件声明。随后明确确认分析模态与通道角色，疾病、年龄、任务、参考及来源未知时保留未知。建议角色来自文件通道类型及名称线索，不证明电极位置。所选分析与辅助信号须有可换算电压单位、共用原生采样率，禁止自动上采样或按重名合并；BrainVision重名因当前后端限制明确拒绝。辅助导联每类最多一条。共同/联耳参考按用户声明建比较组；未知、混合或双极构型不自动成组。非头皮EEG可登记信息，但推荐返回unsupported，不生成可执行头皮EEG计划。
+首页选择本机文件，初次加载不选择登记记录、不推荐、不规划。支持连续EDF/EDF+、BDF、BrainVision、连续EEGLAB、单文件FIF、NWB 2/HDF5连续ElectricalSeries，以及已支持探针的SpikeGLX AP/LF单流。后者须将同名`.ap.bin/.ap.meta`或`.lf.bin/.lf.meta`打包ZIP；一次不同时提交AP和LF。服务复制到仓库外`intakes/<id>/`，保存原始上传和实际读取主/配套文件的SHA256。配套文件须同目录打包ZIP，一包仅一份记录，至多64个条目；上传与解压后总大小均不超过512 MiB。ZIP不得含越界路径、链接、重复文件名或加密内容。读取器复核真实文件结构，不接受服务器路径或URL。
+
+右侧展示格式、通道数、时长、采样率、待确认模态、标注数及原始标签；保留通道名、索引、单位和文件声明。随后明确确认分析模态与通道角色，疾病、年龄、任务、参考及来源未知时保留未知。建议角色来自文件通道类型及名称线索，不证明电极位置。所选分析与辅助信号须有可换算电压单位、共用原生采样率，禁止自动上采样或按重名合并；BrainVision重名因当前后端限制明确拒绝。辅助导联每类最多一条。共同/联耳参考按用户声明建比较组；未知、混合或双极构型不自动成组。已接入模态按已确认信息进入各自路线，其他信号仅保留读取信息，不生成错配计划。NWB多流须先选择一个ElectricalSeries，流选择与输入版本、计划及报告一起冻结；NWB不自动证明电极位置。
 
 确认后保存`record.json`和`confirmation.json`，服务重启仍能恢复；完全相同的确认重试不会新建记录，变化的重复确认不能覆盖已有来源。主文件及所有配套文件在确认、读取和汇总时校验。原始注释可读取计数与描述，但未核实的事件含义不能自动进入M07，也不作为质量真值。FIF的采集起始样本和滤波声明保留；报告时间为当前文件起点秒，滤波声明不等于独立测量。
 
@@ -52,6 +54,7 @@
 | `GET /api/v1/catalog` | 模块定义、已登记数据与场景 |
 | `POST /api/v1/intakes` | 二进制本机文件，技术读取但不登记 |
 | `GET /api/v1/intakes/{id}` | 已读取的技术头及待确认信息 |
+| `POST /api/v1/intakes/{id}/stream` | 用`{stream_id}`选择NWB中列出的可用连续流，仅用于尚未登记的接收文件 |
 | `POST /api/v1/intakes/{id}/confirm` | 明确确认角色和字段，登记为输入 |
 | `POST /api/v1/recommend` | 按已登记输入及当前配置生成可解释推荐，不运行 |
 | `POST /api/v1/plan` | 按数据和选择生成检查计划 |
@@ -66,9 +69,9 @@
 
 计划请求为 `{input_id, selected_modules, qc_config}`；运行请求在同一配置上增加 `plan_id`。修改配置后必须重新生成计划；服务端会复算标识并拒绝不一致的请求。任务不接受任意文件路径或任意 Python 代码。
 
-上传请求使用`Content-Type: application/octet-stream`和URL编码的`X-Filename`，body为文件字节。确认请求为`{confirmed:true,modality:"scalp_eeg",reference_scheme,eeg_indices,reference_indices,context_tags,label?,source_note?}`。推荐请求为`{input_id,qc_config?}`，返回规则版本、推荐标识、`can_apply`、理由及可直接传给计划接口的`selected_modules/qc_config`；无运行资格时不提供可执行推荐。技术确认不能由疾病标签替代。
+上传请求使用`Content-Type: application/octet-stream`和URL编码的`X-Filename`，body为文件字节。确认请求为`{confirmed:true,modality:"scalp_eeg"|"ecog"|"seeg"|"extracellular",reference_scheme,eeg_indices,reference_indices,context_tags,label?,source_note?,selected_stream_id?}`。推荐请求为`{input_id,qc_config?}`，返回规则版本、推荐标识、`can_apply`、理由及可直接传给计划接口的`selected_modules/qc_config`；无运行资格时不提供可执行推荐。技术确认不能由疾病标签替代。NWB确认须携带与当前接收状态一致的`selected_stream_id`；已登记记录不能由此接口覆盖信号选择，检查其他流须重新提交文件。
 
-目录包含模块 `methods` 分项、输入 `data_tags`、背景选项 `context_tag_options`。当前有 18 项数据标签和 24 个方法分项（21 个已接入、3 个待接入）。界面根据目录中 `optional_extension` 与 `implementation` 动态生成开关，当前可选扩展如下。
+目录包含模块 `methods` 分项、输入 `data_tags`、背景选项 `context_tag_options`。头皮EEG目录现有29个方法分项（21个已接入、8个待接入）；其他模态按各自目录展示。新增候选及接入边界见[补充调研](../../docs/qc-methods-review-20261031.md)。界面根据目录中 `optional_extension` 与 `implementation` 动态生成开关，当前可选扩展如下。
 
 | 扩展 ID | 所属模块 | 输出含义 |
 |---|---|---|
@@ -102,4 +105,18 @@
 
 ## 当前范围
 
-五类格式、明确的头皮EEG通道/参考配置，快速预检单窗最多120秒，整份检查按原生连续段拆窗；不接入EDF+D/BDF+D、epoched SET及split FIF。11份预登记记录来自5个数据集，包含同一受试者的多个运行，不能当成11名独立受试者；新增读取夹具另行记录。NWB、其他模态质控、跨窗候选自动合并、已校准总分、疾病专属判定、Linxi宿主插件属于后续工作。人工意见独立保存于 reviews.json，检测结果保持原样。睡眠、任务和发作标注不输入M03–M06检测器，也不是伪迹真值。实际运行与独立读取器核验范围见 [验收记录](../../docs/runtime-validation.md)。
+七类格式，头皮EEG及ECoG/sEEG/Neuropixels连续电压描述路线；快速预检单窗最多120秒，整份检查按原生连续段拆窗。不接入EDF+D/BDF+D、epoched SET及split FIF。预登记数据包含头皮EEG、同一ECoG观测的两种格式、sEEG FIF、NP1人脑AP派生片段及设备测试LF。不能将格式表示或设备测试夹具当作独立临床受试者。NWB-Zarr、任意细胞外记录的通用质控、分选后单元质量、探针漂移、多模态联合、跨窗候选自动合并、已校准总分、疾病专属判定和Linxi宿主插件属于后续工作。人工意见独立保存于reviews.json，检测结果保持原样。睡眠、任务和发作标注不是伪迹真值。实际运行与独立读取器核验范围见[验收记录](../../docs/runtime-validation.md)。
+
+## 模态目录与导航
+
+`GET /api/v1/catalog?modality=scalp_eeg|ecog|seeg|extracellular`返回该模态的`modules`、`inputs`、`method_domains`，以及`active_modality`、`modalities`、`workflow`和`overview_url`。默认仍为头皮EEG。`workflow.groups`提供图示分组，`default_selected_modules`提供初始选择；每模块`documentation_url`指向对应模态文档，`selectable:false`表示当前不能启用。
+
+首页统一使用`/`，`?job=<id>`定位任务，`&lang=en`选择英文。上传前不选择模态；`GET /api/v1/inputs`列出全部已登记输入，与可执行方法目录分离。旧`modality`地址参数保留兼容，不作为输入证据。选择记录/任务后按已确认或冻结信息加载内部目录，方法浏览筛选不改分析配置。
+
+上传响应中的`suggestions.modality`仅为建议，依据另列于`suggestions.modality_evidence`，包含`status`（file_declared/unknown/mixed）、`source`、`reason`与按源索引列出的`channel_groups`。只有可靠文件声明可以提出模态，默认类型或名称不构成解剖位置证据。建议不自动注册或执行；多组记录须明确本次范围，缺条件的方法由推荐说明。
+
+通用规范入口为`/standards/overview`；ECoG适用规则为`/standards/ecog`，模块为`/standards/ecog/modules/M01`至`M09`，英文加`/en`。报告返回原任务，不改写冻结报告文件。
+
+sEEG规范位于`/standards/seeg`，Neuropixels规范位于`/standards/neuropixels`；模块与英文页沿用相同子路径结构。Neuropixels内部使用`extracellular`标识，当前支持已核验SpikeGLX AP/LF或有明确Neuropixels设备证据的NWB连续ElectricalSeries，不等于支持所有细胞外数据。路线标识为`neuropixels-voltage/2`，标签为“Neuropixels 电压”。
+
+SpikeGLX读取器严格核验保存通道映射、探针与IMRO、逐道标定、原生时钟和声明文件长度/哈希；数字同步字保留为bits，不参与电压质控。NP1公开AP/LF已独立读回；NP2 type21/24仅有合成测试。新路线的M03–M05复用描述量计算核；M06不开放。数据准备与验收入口见[多模态接入设计](../../docs/multimodal-extension.md)。

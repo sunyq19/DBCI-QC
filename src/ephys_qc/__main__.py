@@ -28,13 +28,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog='dbci-qc', description='Modular electrophysiology QC without a web server')
     parser.add_argument('--version', action='version', version=__version__)
     commands = parser.add_subparsers(dest='command', required=True)
-    commands.add_parser('catalog', help='List modules, methods and dependencies')
+    directory = commands.add_parser('catalog', help='List modules, methods and dependencies')
+    directory.add_argument('--modality', choices=['scalp_eeg', 'ecog', 'seeg', 'extracellular'], default='scalp_eeg')
     inspect = commands.add_parser('inspect', help='Inspect technical metadata without QC')
     inspect.add_argument('source')
+    inspect.add_argument('--stream', help='NWB ElectricalSeries path returned by inspect')
     prepare = commands.add_parser('prepare', help='Freeze source metadata and explicitly confirmed selection')
     prepare.add_argument('source')
+    prepare.add_argument('--stream', help='NWB ElectricalSeries path returned by inspect')
     prepare.add_argument('--id', required=True)
-    prepare.add_argument('--modality', choices=['scalp_eeg'], required=True)
+    prepare.add_argument('--modality', choices=['scalp_eeg', 'ecog', 'seeg', 'extracellular'], required=True)
     prepare.add_argument('--config', required=True, help='QC configuration JSON with explicit EEG indices')
     prepare.add_argument('--reference-scheme', default='unknown')
     prepare.add_argument('--output', required=True, help='New recording JSON file; never overwrite')
@@ -50,12 +53,12 @@ def main(argv=None):
         # Reserve stdout for one JSON value, even when scientific backends log.
         with redirect_stdout(sys.stderr):
             if args.command == 'catalog':
-                result = catalog()
+                result = catalog(args.modality)
             elif args.command == 'inspect':
-                result = inspect_recording(args.source)
+                result = inspect_recording(args.source, **({'stream_id': args.stream} if args.stream else {}))
             elif args.command == 'prepare':
                 result = prepare_recording(args.source, record_id=args.id, modality=args.modality,
-                                           qc_config=_read(args.config), reference_scheme=args.reference_scheme)
+                                           qc_config=_read(args.config), reference_scheme=args.reference_scheme, stream_id=args.stream)
                 with Path(args.output).open('x', encoding='utf-8') as target:
                     target.write(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
             else:

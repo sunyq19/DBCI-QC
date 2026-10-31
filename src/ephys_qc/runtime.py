@@ -11,7 +11,7 @@ from .annotations import file_sha256
 from .planning import build_plan
 from .tagging import data_facts
 from collections import Counter
-from .modules import ModuleContext, run_module
+from .modules import ModuleContext, run_module, module_specs
 # Compatibility names for existing readers, report tools and tests.
 from .modules.m02 import read_window as _read_window
 from .modules.m09 import waveform as _waveform, render_report as _report
@@ -95,6 +95,7 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     if root == source or source in root.parents or root in source.parents:
         raise ValueError("Job outputs must be separate from the original input file")
     result = {"schema_version": "ephys-result/1.3", "plan_id": plan["plan_id"], 'scope': 'window',
+              'analysis_profile': plan['analysis_profile'],
               "recording": {"channel_count": 0, "sampling_rate_hz": None,
                             "start_seconds": plan["qc_config"]["selection"]["start_seconds"],
                             "duration_seconds": plan["qc_config"]["selection"]["duration_seconds"]},
@@ -111,20 +112,49 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     methods = config["method_config"]
     _write_json(artifacts / "plan.json", plan)
     versions = {}
-    for name in ("brainelecqc", "numpy", "scipy", "mne", "fooof", "matplotlib"):
+    for name in ("brainelecqc", "numpy", "scipy", "mne", "fooof", "matplotlib", "pynwb", "hdmf", "h5py"):
         try:
             versions[name] = importlib.metadata.version(name)
         except importlib.metadata.PackageNotFoundError:
             versions[name] = None
     method_sources = {}
-    for name in ("continuity", "spectral", "bad_channels", "events", "muscle"):
+    from .modalities import DESCRIPTIVE, route
+    modality = record.get('modality', 'scalp_eeg')
+    ecog = modality == 'ecog'
+    descriptive = modality in DESCRIPTIVE
+    source_modules = ({name: 'ephys_qc.modules.ecog.' + name for name in ('common', 'm03', 'm04', 'm05')}
+                      if ecog else {name: 'brainelecqc.eeg.' + name for name in ('continuity', 'spectral', 'bad_channels', 'events', 'muscle')})
+    if modality in {'seeg', 'extracellular'}:
+        source_modules = {name: 'ephys_qc.modules.continuous.' + name for name in ('common', 'm03', 'm04', 'm05')}
+    for name, module_name in source_modules.items():
         try:
-            spec = importlib.util.find_spec("brainelecqc.eeg." + name)
+            spec = importlib.util.find_spec(module_name)
             method_sources[name] = {"file": str(spec.origin), "sha256": file_sha256(spec.origin)} if spec and spec.origin else None
         except (ImportError, ValueError, OSError):
             method_sources[name] = None
     from .version import __version__
-    _write_json(artifacts / "environment.json", {"packages": versions, "implementation": "ephys_qc/" + __version__, "adapter": "independent_public_function_calls", "method_sources": method_sources})
+    environment = {"packages": versions, "implementation": "ephys_qc/" + __version__,
+                'analysis_profile': plan['analysis_profile'],
+                "adapter": route(modality)["key"] + "_descriptive_measurements" if descriptive else "independent_public_function_calls", "method_sources": method_sources,
+                'actual_executed_sources': {}}
+    entrypoints = {item['id']: item['entrypoint'].split(':')[0] for item in module_specs(record.get('modality', 'scalp_eeg'))}
+    _write_json(artifacts / "environment.json", environment)
+
+    def track_sources(mid):
+        names = [entrypoints[mid]]
+        if mid in {'M01', 'M02'} and record.get('metadata', {}).get('format') == 'NWB':
+            names += ['ephys_qc.readers.nwb_reader', 'ephys_qc.source_selection']
+        if ecog and mid in {'M03', 'M04', 'M05'}:
+            names += ['ephys_qc.modules.ecog.common', 'ephys_qc.ecog_config']
+        if modality in {'seeg', 'extracellular'} and mid in {'M03', 'M04', 'M05'}:
+            names += ['ephys_qc.modules.continuous.' + mid.lower(), 'ephys_qc.modules.continuous.common', 'ephys_qc.modalities', 'ephys_qc.ecog_config']
+        for name in names:
+            spec = importlib.util.find_spec(name)
+            if spec and spec.origin:
+                entry = environment['actual_executed_sources'].setdefault(name, {
+                    'file': str(spec.origin), 'sha256': file_sha256(spec.origin), 'module_ids': []})
+                if mid not in entry['module_ids']:
+                    entry['module_ids'].append(mid)
 
     def save(name, payload, row):
         _write_json(artifacts / name, payload)
@@ -177,11 +207,37 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
                         if count_key in detail:
                             entry[count_key] = detail[count_key]
                     entry['reason'] = detail.get('reason', gate['reason'])
-                    if gate['status'] == 'partial':
+                    if gate['status'] == 'partial' and entry['reason'] != gate['reason']:
                         entry['reason'] += '；' + gate['reason']
                     detail['applicability'] = gate
                     detail['context_tags'] = config['context_tags']
                     detail['channel_mapping'] = channel_mapping
+                    detail['sample_clock'] = {
+                        'seconds_reference': 'selected_input_recording_time',
+                        'window_start_seconds': state['start'],
+                        'source_start_sample': state['recording']['start_sample'],
+                        'source_stop_sample_exclusive': state['recording']['stop_sample'],
+                        'sampling_rate_hz': state['fs']}
+                    for candidate in detail.get('candidates', []):
+                        if candidate.get('start_seconds') is not None and candidate.get('stop_seconds') is not None:
+                            candidate['source_start_sample'] = state['recording']['start_sample'] + round((candidate['start_seconds'] - state['start']) * state['fs'])
+                            candidate['source_stop_sample_exclusive'] = state['recording']['start_sample'] + round((candidate['stop_seconds'] - state['start']) * state['fs'])
+                    if detail.get('calculated') and detail.get('evaluation'):
+                        import statistics
+                        evaluation = detail['evaluation']
+                        entry['evaluation_summary'] = {
+                            'median_relative_rms_change': statistics.median(evaluation['relative_rms_change_by_channel']),
+                            'interpretation': '处理变化量，不是质量分或伪迹比例',
+                            'original_signal_overwritten': False}
+                        # A readable comparison accompanies the raw JSON evidence.
+                        from .modules.m09 import extension_spectrum
+                        image_name = mid + '_' + id_ + '_spectrum.png'
+                        try:
+                            extension_spectrum(evaluation, artifacts / image_name, spec['name'])
+                            row['artifacts'].append(image_name)
+                            entry['spectrum_image'] = image_name
+                        except Exception as plot_error:
+                            detail.setdefault('notes', []).append('PSD图生成失败，数值仍保留：' + str(plot_error))
                     if entry['status'] != 'completed' and row['status'] == 'completed':
                         row.update(status='partial', reason='增强方法存在适用限制或未评项，详见子项。')
             except Exception as error:
@@ -218,11 +274,12 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
         started = time.perf_counter()
         row["status"] = "partial" if node["status"] == "partial" else "completed"
         try:
+            track_sources(mid)
             run_module(mid, ModuleContext(
                 record=record, plan=plan, config=config, state=state, result=result, row=row,
                 source=source, root=root, artifacts=artifacts, write_artifact=save,
                 source_context=source_context))
-            if mid in {'M03', 'M05', 'M06'}:
+            if mid in {'M03', 'M04', 'M05', 'M06'}:
                 run_extras(mid, row)
             row["duration_seconds"] = time.perf_counter() - started
         except Exception as error:
@@ -237,6 +294,9 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
         gc.collect()
     if state.get('reader') and not source_context:
         state['reader'].close()
+    for entry in environment['actual_executed_sources'].values():
+        entry['module_statuses'] = {mid: statuses[mid] for mid in entry['module_ids']}
+    _write_json(artifacts / "environment.json", environment)
     result["status"] = "failed" if any(statuses.get(k) == "failed" for k in ("M01", "M02", "M08")) else "partial" if any(v in {"partial", "failed"} for v in statuses.values()) else "completed"
     result["warnings"] = list(dict.fromkeys(result["warnings"]))
     result = _safe(result)

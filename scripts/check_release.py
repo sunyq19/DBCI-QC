@@ -9,7 +9,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 
 def main():
-    missing = [name for name in ('numpy', 'mne', 'brainelecqc', 'autoreject')
+    missing = [name for name in ('numpy', 'mne', 'brainelecqc', 'autoreject', 'pynwb', 'h5py')
                if importlib.util.find_spec(name) is None]
     if missing or not shutil.which('node'):
         raise SystemExit('Use the configured scientific Python and Node; missing: ' + ', '.join(missing or ['node']))

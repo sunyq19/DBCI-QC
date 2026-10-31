@@ -7,6 +7,7 @@ from collections import Counter
 from .tagging import validate_context, data_facts, describe_data
 from .method_registry import methods as method_catalog, evaluate_methods
 from .readers import SUPPORTED_FORMATS
+from .modalities import ROUTES, DESCRIPTIVE, route, validate_descriptive_methods, validate_analysis_channels
 
 
 _SPECS = [
@@ -40,14 +41,20 @@ _SPECS = [
 ]
 
 
-def catalog():
-    children = method_catalog()
-    return [{"id": i, "name": name, "stage": stage, "description": description,
+def catalog(modality='scalp_eeg'):
+    children = method_catalog(modality)
+    rows = [{"id": i, "name": name, "stage": stage, "description": description,
              "inputs": inputs.copy(), "outputs": outputs.copy(), "dependencies": dependencies.copy(),
              "required": required, "limitations": limitations.copy(),
              "evidence": "独立调度适配；方法级与数据级验证范围需分别核对，执行成功不代表质量合格。",
              "methods": [copy.deepcopy(method) for method in children if method['module_id'] == i]}
             for i, name, stage, dependencies, required, description, inputs, outputs, limitations in _SPECS]
+    if modality in DESCRIPTIVE:
+        from .descriptive_catalog import module_overrides
+        for row in rows:
+            row.update(selectable=True, implementation='available')
+            row.update(module_overrides(row['id'], modality))
+    return rows
 
 
 def _finite_json(value, path="config"):
@@ -103,12 +110,13 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         raise ValueError("input_record requires a stable id")
     # Legacy registered jobs predate the explicit modality field. New intake
     # requires confirmation; an explicitly different modality cannot bypass it.
-    if 'modality' in input_record and input_record['modality'] != 'scalp_eeg':
-        raise ValueError('当前执行器只支持已确认的头皮EEG模态。')
+    modality = input_record.get('modality', 'scalp_eeg')
+    if modality not in ROUTES:
+        raise ValueError('请确认已接入的分析路线：头皮EEG、ECoG、sEEG或Neuropixels原始AP/LF。')
     if input_record.get('metadata', {}).get('format', 'EDF') not in SUPPORTED_FORMATS:
-        raise ValueError('当前执行器只支持已核验的 EDF/BDF、BrainVision、EEGLAB 和单文件 FIF。')
-    if input_record.get('metadata', {}).get('format', 'EDF') not in {'EDF', 'EDF+'} and input_record.get('modality') != 'scalp_eeg':
-        raise ValueError('新增格式必须先明确确认为头皮EEG，不能仅按文件类型推定模态。')
+        raise ValueError('当前执行器只支持已注册并核验的读取格式。')
+    if input_record.get('metadata', {}).get('format', 'EDF') not in {'EDF', 'EDF+'} and input_record.get('modality') not in ROUTES:
+        raise ValueError('新增格式必须先明确确认支持的模态，不能仅按文件类型推定。')
     if qc_config is not None and not isinstance(qc_config, dict):
         raise ValueError("qc_config must be an object")
     default = input_record.get("default_config", {})
@@ -130,6 +138,8 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     if not isinstance(selection, dict) or set(selection) - {"eeg_indices", "reference_indices", "start_seconds", "duration_seconds", "stream_id", "segment_id"}:
         raise ValueError("Invalid selection fields")
     meta = input_record.get("metadata", {})
+    from .source_selection import validate_frozen_stream
+    validate_frozen_stream(meta, selection)
     channels = meta.get("channels", [])
     if not isinstance(channels, list) or not channels:
         raise ValueError("metadata.channels is required for a reviewed selection")
@@ -137,9 +147,12 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     indices = selection.get("eeg_indices")
     if not isinstance(indices, list) or not indices or any(type(i) is not int or i not in by_index for i in indices) or len(set(indices)) != len(indices):
         raise ValueError("eeg_indices must contain distinct registered source indices")
-    incompatible = {'seeg', 'ecog', 'dbs', 'mag', 'grad', 'ref_meg', 'stim', 'fnirs_cw_amplitude', 'hbo', 'hbr'}
-    if any(by_index[i].get('channel_type', 'unknown') in incompatible for i in indices):
-        raise ValueError('选中通道包含已声明的非头皮EEG类型，不能套用头皮EEG质控。')
+    incompatible = {'seeg', 'ecog', 'neuropixels', 'dbs', 'mag', 'grad', 'ref_meg', 'stim', 'fnirs_cw_amplitude', 'hbo', 'hbr'}
+    if modality == 'scalp_eeg':
+        if any(by_index[i].get('channel_type', 'unknown') in incompatible for i in indices):
+            raise ValueError('选中通道包含已声明的非头皮EEG类型，不能套用头皮EEG质控。')
+    else:
+        validate_analysis_channels(meta, indices, modality)
     refs = selection.setdefault("reference_indices", {})
     if not isinstance(refs, dict) or set(refs) - {"ecg", "eog", "emg"}:
         raise ValueError("reference_indices accepts ecg/eog/emg only")
@@ -148,7 +161,7 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     if len(set(refs.values())) != len(refs):
         raise ValueError("A single auxiliary channel cannot silently serve multiple roles")
     voltage_units = {'V', 'mV', 'uV', 'µV', 'μV', 'nV'}
-    if any(by_index[i].get('unit') not in voltage_units | {None} for i in indices + list(refs.values())):
+    if any(by_index[i].get('unit') not in voltage_units | ({None} if modality == 'scalp_eeg' else set()) for i in indices + list(refs.values())):
         raise ValueError('所选 EEG 和辅助通道必须具有已核验的电压单位。')
     duration = _number(meta.get("duration_seconds"), "metadata.duration_seconds", True)
     start = _number(selection.get("start_seconds", 0), "start_seconds")
@@ -170,37 +183,44 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     if round(length * fs) < 1 or (len(indices) + len(refs)) * round(length * fs) * 8 > 256 * 1024 * 1024:
         raise ValueError("Selected window is empty or exceeds the 256 MiB input budget")
     methods = config.setdefault("method_config", {})
-    if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters"}:
-        raise ValueError("Invalid method_config fields")
-    for key, value in methods.items():
-        if key not in {"comparison_groups", "extensions"} and not isinstance(value, dict):
-            raise ValueError(f"method_config.{key} must be an object")
+    if modality in DESCRIPTIVE:
+        methods = config['method_config'] = validate_descriptive_methods(methods, modality, meta)
+        labels, minimum = [], 4
+    else:
+        if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters"}:
+            raise ValueError("Invalid method_config fields")
+        for key, value in methods.items():
+            if key not in {"comparison_groups", "extensions"} and not isinstance(value, dict):
+                raise ValueError(f"method_config.{key} must be an object")
+        minimum = methods.get("bad_channels", {}).get("min_group_channels", 4)
+        if type(minimum) is not int or minimum < 4:
+            raise ValueError("bad_channels.min_group_channels must be an integer >= 4")
+        groups = methods.get("comparison_groups")
+        if groups is not None:
+            if isinstance(groups, dict) and set(groups) != {f"{input_record['id']}:ch:{i}" for i in indices}:
+                raise ValueError("comparison_groups mapping keys must match stable reader channel IDs: <input-id>:ch:<source-index>")
+            labels = list(groups.values()) if isinstance(groups, dict) else groups
+            if not isinstance(labels, list) or len(labels) != len(indices) or any(not isinstance(g, str) or not g.strip() for g in labels):
+                raise ValueError("comparison_groups must declare one nonempty group for each selected EEG channel")
+        else:
+            labels = []
     from .extensions import extension_specs, evaluate_extension
-    extra_specs = {item['id']: item for item in extension_specs()}
+    extra_specs = {item['id']: item for item in extension_specs()
+                   if modality in item.get('research_modalities', ['scalp_eeg'])}
     extras = methods.setdefault('extensions', [])
     if not isinstance(extras, list) or any(not isinstance(item, str) or item not in extra_specs for item in extras):
         raise ValueError('extensions只能选择已接入的可选方法。')
     methods['extensions'] = sorted(set(extras))
     supplied_params = methods.setdefault('extension_parameters', {})
+    if not isinstance(supplied_params, dict):
+        raise ValueError('extension_parameters must be an object')
     if set(supplied_params) - set(extra_specs):
         raise ValueError('存在未接入方法的参数。')
-    minimum = methods.get("bad_channels", {}).get("min_group_channels", 4)
-    if type(minimum) is not int or minimum < 4:
-        raise ValueError("bad_channels.min_group_channels must be an integer >= 4")
-    groups = methods.get("comparison_groups")
-    if groups is not None:
-        if isinstance(groups, dict) and set(groups) != {f"{input_record['id']}:ch:{i}" for i in indices}:
-            raise ValueError("comparison_groups mapping keys must match stable reader channel IDs: <input-id>:ch:<source-index>")
-        labels = list(groups.values()) if isinstance(groups, dict) else groups
-        if not isinstance(labels, list) or len(labels) != len(indices) or any(not isinstance(g, str) or not g.strip() for g in labels):
-            raise ValueError("comparison_groups must declare one nonempty group for each selected EEG channel")
-    else:
-        labels = []
     facts = data_facts(input_record, config)
     for extension in sorted(set(extras) | set(supplied_params)):
         gate = evaluate_extension(extension, facts, supplied_params.get(extension))
         supplied_params[extension] = gate['parameters']
-    modules = catalog()
+    modules = catalog(modality)
     known = {m["id"]: m for m in modules}
     if selected_modules is None:
         requested = set(known)
@@ -224,13 +244,19 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         status, reason = "ready", "符合当前运行入口条件；结果仍待人工复核"
         if mid not in selected:
             status, reason = "skipped", "用户未选择此模块"
-        elif mid == "M05" and (not labels or min(Counter(labels).values()) < minimum):
+        elif modality in DESCRIPTIVE and mid == 'M06' and 'fieldtrip_zvalue' not in extras:
+            status = 'skipped'
+            reason = ('未选择可选区间检测；生理伪迹分类未运行。' if modality in {'ecog', 'seeg'} else
+                      route(modality)['label'] + '伪迹方法尚未接入；不迁移头皮ECG/EOG/肌电阈值。')
+        elif modality in DESCRIPTIVE and mid == 'M04' and length < methods[route(modality)['key']]['psd_window_seconds']:
+            status, reason = 'partial', '选区短于所设PSD窗长；实际窗长与不可测范围将明确记录。'
+        elif modality == "scalp_eeg" and mid == "M05" and (not labels or min(Counter(labels).values()) < minimum):
             status, reason = "partial", "参考组未声明或部分组不足4道；保留描述量，相关组的队列阈值不启用"
-        elif mid == "M05" and fs <= 100:
+        elif modality == "scalp_eeg" and mid == "M05" and fs <= 100:
             status, reason = "partial", "采样率不高于100 Hz，高频分项不可评"
-        elif mid == "M06" and (set(refs) != {"ecg", "eog", "emg"} or length < 10 or min(100, .45 * fs) - 30 < 20):
+        elif modality == "scalp_eeg" and mid == "M06" and (set(refs) != {"ecg", "eog", "emg"} or length < 10 or min(100, .45 * fs) - 30 < 20):
             status, reason = "partial", "部分辅助导联、时长或有效频带不足；可计算的线索保留，缺失项不计为合格"
-        elif mid == "M04" and length < 10:
+        elif modality == "scalp_eeg" and mid == "M04" and length < 10:
             status, reason = "partial", "短于10秒，部分谱拟合不可评"
         elif mid == "M07" and not input_record.get("annotation"):
             status, reason = "skipped", "没有登记事件或状态标注；不推断任务或睡眠状态"
@@ -239,6 +265,8 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         if mid in selected and status != "ready":
             warnings.append(f"{mid}: {reason}")
         nodes.append({"id": mid, "name": module["name"], "status": status, "reason": reason, "depends_on": dependencies})
+    if modality in DESCRIPTIVE:
+        warnings.append(route(modality)['label'] + '基础路线只提供完整性、频谱和触点描述；不以头皮阈值、高频或病理活动判坏。')
     applicability = evaluate_methods(input_record, config, selected)
     data_tags = describe_data(input_record, config)
     for method in applicability:
@@ -266,7 +294,8 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
                    "selected_modules": sorted(selected), "qc_config": config}
     _finite_json(fingerprint, "plan_identity")
     identity = hashlib.sha256(json.dumps(fingerprint, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
-    return {"schema_version": "ephys-plan/1.3", "plan_id": identity, 'scope': 'window', 'input_lineage': lineage,
+    return {"schema_version": "ephys-plan/1.3", "plan_id": identity,
+            'analysis_profile': route(modality)['profile'], 'scope': 'window', 'input_lineage': lineage,
             "selected_modules": sorted(selected), "auto_added_modules": sorted(selected - requested),
             "qc_config": config, "nodes": nodes,
             "edges": [{"from": d, "to": n["id"]} for n in nodes if n["id"] in selected for d in n["depends_on"] if d in selected],

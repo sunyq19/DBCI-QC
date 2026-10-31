@@ -6,6 +6,22 @@ import os
 from .context import ModuleContext
 
 
+def extension_spectrum(evaluation, path, name):
+    """Compare copies; do not label power reduction as improved data quality."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots(figsize=(9, 3))
+    f = np.asarray(evaluation['frequencies_hz'])
+    for key, label, color in [('mean_psd_before_v2_hz', 'Evaluation input', '#64748b'),
+                              ('mean_psd_after_v2_hz', 'Processed copy', '#2563eb')]:
+        ax.plot(f, 10*np.log10(np.maximum(evaluation[key], np.finfo(float).tiny)), label=label, color=color, lw=1)
+    ax.set(xlabel='Frequency (Hz)', ylabel='Mean PSD (dB re V²/Hz)', title='Processing effects — not a quality score')
+    ax.legend(frameon=False); ax.grid(alpha=.15); fig.tight_layout()
+    fig.savefig(path, dpi=130); plt.close(fig)
+
+
 def waveform(state, path, config_dir):
     os.environ.setdefault("MPLCONFIGDIR", str(config_dir))
     import matplotlib
@@ -36,6 +52,10 @@ def render_report(result, label, path):
     escape = lambda value: html.escape(str(value), quote=True)
     number = lambda value: f"{value:g}" if isinstance(value, (int, float)) else "待核对"
     status_names = {"completed": "完成", "partial": "部分可评", "skipped": "跳过", "failed": "失败"}
+    from ..modalities import ROUTES, DESCRIPTIVE
+    modality = next((key for key, value in ROUTES.items() if value['profile'] == result.get('analysis_profile')), 'scalp_eeg')
+    descriptive = modality in DESCRIPTIVE
+    modality_name = ROUTES[modality]['label']
 
     def sentence(row):
         values = row["summary"] if isinstance(row["summary"], dict) else {}
@@ -49,11 +69,19 @@ def render_report(result, label, path):
             roles = "、".join(aux.get(k, k) for k in values.get("auxiliary_roles", [])) or "未提供"
             return f"已按原始时钟读取 {values.get('channel_count', '—')} 个选中通道；辅助导联：{roles}。保持原参考和原生采样率。"
         if mid == "M03":
+            if descriptive:
+                omitted = values.get('candidate_evidence', {}).get('omitted_interval_count', 0)
+                limitation = f"另有 {omitted} 个区间仅保留计数，详细位置达到存储预算。" if omitted else ''
+                return f"保存 {values.get('candidate_count', 0)} 个技术性待复核区间位置（非有限值或相邻采样严格相等）。{limitation}未以幅度、病理活动或头皮阈值判坏。"
             return f"记录 {values.get('candidate_count', 0)} 个连续性待复核区间。检查包括平线和恒值平台；一般重复数据块尚未实现。"
         if mid == "M04":
+            if descriptive:
+                return f"已保存 {values.get('psd_computed_channel_count', 0)} 个接触点的 Welch PSD，以及 {values.get('line_computed_observation_count', 0)} 个可测窄带观测。仅描述功率，不据此确认干扰或判定质量。"
             count = values.get("line_flagged_observations", 0)
             return f"工频检查记录 {count} 个命中窗观测（重叠窗不等于独立伪迹段）；PSD与谱拟合证据已保存。未实现专门漂移判定。"
         if mid == "M05":
+            if descriptive:
+                return f"已保存 {values.get('described_channel_count', 0)} 个接触点的独立描述统计；未评 {values.get('unassessed_channel_count', 0)} 个。不推断触点空间关系，不输出自动坏道标签。"
             names = values.get("candidate_channels", [])
             named = "、".join(names[:12]) + (f"等 {len(names)} 道" if len(names) > 12 else "")
             finding = f"待复核通道：{named}。" if names else "当前规则未产生通道候选。"
@@ -90,6 +118,13 @@ def render_report(result, label, path):
         extra = ''.join(f'<li><b>{escape(e["name"])}</b> · {escape(status_names.get(e["status"], e["status"]))}：{escape(e["reason"])}</li>'
                         for e in row.get('summary', {}).get('extensions', []))
         extra = f'<h3>本次选择的开源增强</h3><ul>{extra}</ul>' if extra else ''
+        for entry in row.get('summary', {}).get('extensions', []):
+            summary_effect = entry.get('evaluation_summary')
+            if summary_effect:
+                extra += (f'<p>{escape(entry["name"])}：逐道相对RMS变化中位数 '
+                          f'{summary_effect["median_relative_rms_change"]:.3g}。这是处理变化量，不是伪迹比例或质量分。</p>')
+            if entry.get('spectrum_image'):
+                extra += f'<img src="{escape(entry["spectrum_image"])}" alt="处理前后PSD比较">'
         blocks.append(f'<section><div class="module-heading"><h2><span class="module-id">{escape(row["id"])}</span> {escape(row["name"])}</h2>'
                       f'<span class="badge {escape(row["status"])}">{escape(status_names.get(row["status"], row["status"]))}</span></div>'
                       f'<p>{escape(sentence(row))}</p>{reason}{extra}<p class="muted">计算耗时 {row["duration_seconds"]:.3f} 秒</p>'
@@ -102,12 +137,14 @@ def render_report(result, label, path):
     stop = first + duration if isinstance(first, (int, float)) and isinstance(duration, (int, float)) else None
     identity = json.dumps({"source_sha256": result["source_sha256"], "plan_id": result["plan_id"],
                            'data_tags': result.get('data_tags', []),
+                           **({'source_signal': result['source_signal']} if 'source_signal' in result else {}),
                            'input_provenance': result.get('input_provenance', {}), 'input_data_usage': result.get('input_data_usage', {}),
                            "recording": recording, "qc_config": result.get("qc_config", {})}, ensure_ascii=False, indent=2, allow_nan=False)
     notices = f'<details class="notices"><summary>查看适用性提示（{len(result["warnings"])}项）</summary><ul>{warnings}</ul></details>' if warnings else ""
+    time_label = '信号内时间' if result.get('source_signal') else '原始时间'
     body = f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{escape(label)} — EEG QC</title><style>body{{font:16px/1.65 system-ui,sans-serif;color:#183348;background:#f4f7f8;margin:0}}main{{max-width:1100px;margin:auto;padding:32px}}section,header,figure{{background:white;border:1px solid #d8e3e7;border-radius:12px;padding:22px;margin:18px 0}}h1{{font-size:28px;margin:8px 0 22px}}h2{{font-size:20px;margin:0}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 monospace;background:#f3f6f7;padding:16px;border-radius:8px}}img{{max-width:100%}}a{{color:#126f89}}.status{{background:#fff3d6;padding:12px;border-radius:8px}}.facts{{display:flex;gap:14px;flex-wrap:wrap}}.facts span{{background:#edf5f6;padding:12px 18px;border-radius:8px}}.module-heading{{display:flex;align-items:center;justify-content:space-between;gap:15px}}.module-id,.muted,figcaption{{color:#627780;font-size:13px}}.badge{{font-size:13px;white-space:nowrap;padding:3px 10px;border-radius:20px;background:#ecf2f4}}.completed{{background:#e5f3ee;color:#245d49}}.partial{{background:#fff0cc;color:#78550c}}.failed{{background:#fce5e4;color:#9c3832}}details{{margin:14px 0}}summary{{cursor:pointer;color:#356779}}.note{{border-left:3px solid #d9ae50;padding-left:12px;color:#735a24}}.evidence{{font-size:13px;overflow-wrap:anywhere}}footer{{color:#627780;font-size:13px;padding:12px}}@media(max-width:650px){{main{{padding:12px}}section,header,figure{{padding:16px}}h1{{font-size:23px}}}}</style><main>
-<header><p class="muted">独立模块 EEG 质控 · 本地结果</p><h1>{escape(label)}</h1><div class="facts"><span><b>{escape(recording.get('channel_count', '—'))}</b> 个选中通道</span><span><b>{number(recording.get('sampling_rate_hz'))}</b> Hz</span><span>原始时间 <b>{number(first)}–{number(stop)}</b> 秒</span></div><p class="status">总分未校准 · 待人工复核。各模块的“完成”仅表示计算完成，不表示数据质量合格。</p>{notices}<details><summary>查看来源指纹、选道与运行配置</summary><pre>{escape(identity)}</pre></details></header>
+<title>{escape(label)} — {modality_name} QC</title><style>body{{font:16px/1.65 system-ui,sans-serif;color:#183348;background:#f4f7f8;margin:0}}main{{max-width:1100px;margin:auto;padding:32px}}section,header,figure{{background:white;border:1px solid #d8e3e7;border-radius:12px;padding:22px;margin:18px 0}}h1{{font-size:28px;margin:8px 0 22px}}h2{{font-size:20px;margin:0}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 monospace;background:#f3f6f7;padding:16px;border-radius:8px}}img{{max-width:100%}}a{{color:#126f89}}.status{{background:#fff3d6;padding:12px;border-radius:8px}}.facts{{display:flex;gap:14px;flex-wrap:wrap}}.facts span{{background:#edf5f6;padding:12px 18px;border-radius:8px}}.module-heading{{display:flex;align-items:center;justify-content:space-between;gap:15px}}.module-id,.muted,figcaption{{color:#627780;font-size:13px}}.badge{{font-size:13px;white-space:nowrap;padding:3px 10px;border-radius:20px;background:#ecf2f4}}.completed{{background:#e5f3ee;color:#245d49}}.partial{{background:#fff0cc;color:#78550c}}.failed{{background:#fce5e4;color:#9c3832}}details{{margin:14px 0}}summary{{cursor:pointer;color:#356779}}.note{{border-left:3px solid #d9ae50;padding-left:12px;color:#735a24}}.evidence{{font-size:13px;overflow-wrap:anywhere}}footer{{color:#627780;font-size:13px;padding:12px}}@media(max-width:650px){{main{{padding:12px}}section,header,figure{{padding:16px}}h1{{font-size:23px}}}}</style><main>
+<header><p class="muted">独立模块 {modality_name} 质控 · 本地结果</p><h1>{escape(label)}</h1><div class="facts"><span><b>{escape(recording.get('channel_count', '—'))}</b> 个选中通道</span><span><b>{number(recording.get('sampling_rate_hz'))}</b> Hz</span><span>{time_label} <b>{number(first)}–{number(stop)}</b> 秒</span></div><p class="status">总分未校准 · 待人工复核。各模块的“完成”仅表示计算完成，不表示数据质量合格。</p>{notices}<details><summary>查看来源指纹、选道与运行配置</summary><pre>{escape(identity)}</pre></details></header>
 {image}{''.join(blocks)}<footer>检测仅提供待复核证据；保留原始数据。任务事件与睡眠阶段不是质量标签。人工意见在工作台独立留版本，本检测报告保持不变。</footer></main></html>'''
     path.write_text(body, encoding="utf-8")
 

@@ -102,12 +102,12 @@ class IntakeBoundaryTests(unittest.TestCase):
                 self.store.confirm(intake['id'], body)
         self.assertEqual(self.store.registered(), [])
 
-    def test_non_scalp_is_registered_for_inspection_but_cannot_run_scalp_qc(self):
+    def test_other_modality_is_registered_for_inspection_but_cannot_run_qc(self):
         from ephys_qc.recommendations import recommend
         from ephys_qc.planning import build_plan
         intake = self.receive()
-        record = self.store.confirm(intake['id'], confirmation(modality='seeg'))
-        self.assertEqual(record['modality'], 'seeg')
+        record = self.store.confirm(intake['id'], confirmation(modality='other'))
+        self.assertEqual(record['modality'], 'other')
         self.assertEqual(recommend(record)['status'], 'unsupported')
         with self.assertRaises(ValueError):
             build_plan(record)

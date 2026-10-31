@@ -20,9 +20,9 @@ def facts(**overrides):
 class ExtensionPlanningTests(unittest.TestCase):
     def test_specs_are_independent_optional_objects(self):
         first = extension_specs()
-        self.assertEqual({s["id"] for s in first}, {"mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof", "autoreject_global"})
+        self.assertEqual({s["id"] for s in first}, {"mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof", "autoreject_global", "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue", "spikeinterface_bad_channels"})
         self.assertEqual(len(first), len({s['id'] for s in first}))
-        self.assertTrue(all(s["category"] == "optional" and s["source"]["license"] == "BSD-3-Clause" for s in first))
+        self.assertTrue(all(s["category"] == "optional" and bool(s["source"]["license"]) for s in first))
         first[0]["defaults"]["flat_volts"] = 77
         self.assertEqual(extension_specs()[0]["defaults"]["flat_volts"], 0)
         json.dumps(extension_specs(), allow_nan=False)

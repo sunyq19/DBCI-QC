@@ -55,6 +55,8 @@ def _source_layout(record, config):
     selection = config.get('selection', {})
     if not isinstance(selection, dict):
         raise ValueError('Invalid selection fields')
+    from .source_selection import validate_frozen_stream
+    validate_frozen_stream(meta, selection)
     indices = selection.get('eeg_indices')
     channels = meta.get('channels', [])
     if not isinstance(channels, list) or not channels:
@@ -160,6 +162,8 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
                             'duration_seconds': (stop - first) / fs})
     # Validate the original selection and all explicitly supplied method params.
     # Only timing/segment is replaced by the whole-record scope.
+    if 'asr_bursts' in config.get('method_config', {}).get('extensions', []):
+        raise ValueError('ASR当前仅支持已复核校准段的单窗口评估；整记录分窗不可自动重校准。')
     config['scope'] = 'window'
     config.pop('recording_options', None)
     config['selection'].pop('stream_id', None)
@@ -214,7 +218,7 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
     if layout['gap_samples']:
         warnings.append('文件声明存在无样本的采集缺口；这些时间不纳入已检查范围。')
     warnings += [m['reason'] for m in skipped]
-    if 'M06' in plan['selected_modules'] or options['expensive_methods'] == 'run':
+    if record.get('modality', 'scalp_eeg') == 'scalp_eeg' and ('M06' in plan['selected_modules'] or options['expensive_methods'] == 'run'):
         warnings.append('已选生理伪迹或交叉验证方法将逐窗串行执行，长记录可能耗时较长，可取消；不会只抽查首窗。')
     plan['warnings'] = list(dict.fromkeys(original['warnings'] + warnings))
     # Dependency closure is identical whether callers submit the original
@@ -338,10 +342,14 @@ def render_recording_report(result, path):
     warning = ''.join('<li>' + esc(w) + '</li>' for w in result['warnings'])
     gaps = ''.join(f'<li>{g["start_seconds"]:g}–{g["start_seconds"] + g["duration_seconds"]:g} 秒：来源声明缺口，未评估。</li>' for g in result['coverage_plan']['gaps'])
     module_rows = ''.join(f'<tr><td>{esc(m["id"])} {esc(m["name"])}</td><td>{esc(labels.get(m["status"], m["status"]))}</td><td>{esc(json.dumps(m["summary"]["window_status_counts"], ensure_ascii=False))}</td></tr>' for m in result['modules'])
+    source_info = ''
+    metadata = result.get('input_metadata', {})
+    if metadata.get('format') == 'NWB':
+        source_info = '<details><summary>NWB信号与时间来源</summary><p>各窗口时间从所选信号起点计；源文件时间偏移保留在clock中。</p><pre>' + esc(json.dumps({key: metadata.get(key) for key in ('selected_stream_id', 'clock', 'acquisition', 'nwb')}, ensure_ascii=False, indent=2)) + '</pre></details>'
     path.write_text(f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>整记录质控报告</title>
 <style>body{{font:16px/1.7 system-ui,sans-serif;background:#f3f7fc;color:#18334c}}main{{max-width:1100px;margin:auto;padding:24px}}section,header{{background:white;padding:24px;margin:18px 0;border:1px solid #d4dfed;border-radius:10px}}table{{border-collapse:collapse;width:100%;font-size:14px}}th,td{{padding:9px;text-align:left;border-bottom:1px solid #dce5ee;vertical-align:top}}a{{color:#1459ac}}.scroll{{overflow-x:auto}}.note{{border-left:4px solid #d89430;padding-left:16px}}@media print{{body{{background:white}}section,header{{break-inside:avoid}}}}</style><main>
 <header><p>整记录分块质控 · 原生时钟</p><h1>{esc(result.get('label', '记录'))}</h1><p class="note">总分未校准 · 待人工复核。覆盖率是执行范围，不是质量合格率。</p>
-<p>记录 {c['total_seconds']:g} 秒；完成计算 {c['completed_seconds']:g} 秒（{c['execution_percent']:.2f}%）；失败 {c['failed_seconds']:g} 秒；未执行 {c['unexecuted_seconds']:g} 秒；来源缺口 {c['gap_seconds']:g} 秒。</p><p>来源核验：{esc(result.get('source_integrity', 'unverified'))}。可用样本执行覆盖 {c['available_execution_percent']:.2f}%；所有已选模块均计算完成的范围 {c['fully_assessed_percent']:.2f}%，仍不代表质量合格。</p></header>
+<p>记录 {c['total_seconds']:g} 秒；完成计算 {c['completed_seconds']:g} 秒（{c['execution_percent']:.2f}%）；失败 {c['failed_seconds']:g} 秒；未执行 {c['unexecuted_seconds']:g} 秒；来源缺口 {c['gap_seconds']:g} 秒。</p><p>来源核验：{esc(result.get('source_integrity', 'unverified'))}。可用样本执行覆盖 {c['available_execution_percent']:.2f}%；所有已选模块均计算完成的范围 {c['fully_assessed_percent']:.2f}%，仍不代表质量合格。</p>{source_info}</header>
 <section><h2>窗口与证据</h2><div class="scroll"><table><thead><tr><th>窗口</th><th>原始秒</th><th>状态</th><th>证据</th><th>原因</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></section>
 <section><h2>模块汇总</h2><div class="scroll"><table><tbody>{module_rows}</tbody></table></div></section>
 <section><h2>覆盖与候选索引</h2><p><a href="coverage.json">覆盖明细</a> · <a href="candidate-index.json">{len(result['candidate_index'])} 个原始候选索引</a> · <a href="plan.json">冻结计划</a></p><ul>{gaps}</ul><p>候选按窗口保留原始时间和源通道身份；尚未自动合并跨窗重复/相邻事件，也不自动删除数据。</p><ul>{warning}</ul></section></main></html>''', encoding='utf-8')
@@ -382,7 +390,8 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     try:
         if source_context is None and window_runner is None:
             from .readers import open_reader
-            reader = open_reader(source, str(record['id'])); own_reader = True
+            from .source_selection import reader_kwargs
+            reader = open_reader(source, str(record['id']), **reader_kwargs(record.get('metadata', {}))); own_reader = True
             description = reader.describe()
             digest = next(item['sha256'] for item in description['source_files'] if Path(item['path']).resolve() == source)
             source_context = {'reader': reader, 'sha256': digest}
@@ -445,6 +454,7 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     modules = _modules(plan, windows)
     status = 'failed' if fatal or all(w['status'] == 'failed' for w in windows) else 'cancelled' if cancelled else 'partial' if any(w['status'] != 'completed' for w in windows) or plan['skipped_methods'] or cov['gap_samples'] else 'completed'
     result = {'schema_version': 'ephys-recording-result/1.0', 'scope': 'recording', 'status': status,
+              'analysis_profile': plan['analysis_profile'],
               'plan_id': plan['plan_id'], 'label': record.get('label', record['id']), 'qc_config': plan['qc_config'],
               'selected_modules': plan['selected_modules'], 'modules': modules, 'windows': windows,
               'window_count': len(windows), 'coverage': cov, 'coverage_plan': plan['coverage_plan'],

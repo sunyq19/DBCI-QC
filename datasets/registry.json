@@ -1,72 +1,146 @@
 {
-  "schema_version": "dataset-registry/0.2",
-  "checked_at": "2026-10-29",
+  "schema_version": "dataset-registry/0.3",
+  "checked_at": "2026-10-30",
+  "coverage_manifest": "datasets/coverage-cases.json",
+  "note": "Counts refer to the current representative cohort, not every local copy or independent subjects. Engineering completion is recorded separately.",
   "datasets": [
     {
-      "dataset_id": "eegmmidb-baseline-demo",
+      "dataset_id": "chbmit-1.0.0",
+      "source_url": "https://physionet.org/content/chbmit/1.0.0/",
+      "version": "1.0.0",
+      "license": "Open Data Commons Attribution License v1.0 (ODC-By-1.0)",
+      "modality": "scalp_eeg",
+      "records_in_coverage_cohort": 3,
+      "source_formats": [
+        "EDF"
+      ],
+      "record_ids": [
+        "chbmit-chb01-03",
+        "chbmit-chb02-16",
+        "chbmit-chb03-01"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
+    },
+    {
+      "dataset_id": "ds004504-1.0.8",
+      "source_url": "https://openneuro.org/datasets/ds004504/versions/1.0.8",
+      "version": "1.0.8",
+      "license": "CC0",
+      "modality": "scalp_eeg",
+      "records_in_coverage_cohort": 3,
+      "source_formats": [
+        "EEGLAB"
+      ],
+      "record_ids": [
+        "ds004504-sub001",
+        "ds004504-sub037",
+        "ds004504-sub066"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
+    },
+    {
+      "dataset_id": "ds006386-1.0.1",
+      "source_url": "https://openneuro.org/datasets/ds006386/versions/1.0.1",
+      "version": "1.0.1",
+      "license": "CC0",
+      "modality": "scalp_eeg",
+      "records_in_coverage_cohort": 1,
+      "source_formats": [
+        "EDF"
+      ],
+      "record_ids": [
+        "physiomotion-sub1-run01"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
+    },
+    {
+      "dataset_id": "eegmmidb-1.0.0",
       "source_url": "https://physionet.org/content/eegmmidb/1.0.0/",
       "version": "1.0.0",
       "license": "Open Data Commons Attribution License v1.0",
       "modality": "scalp_eeg",
-      "local_availability": "six_baseline_edf_plus_S001R03_motor_execution",
-      "subjects_in_local_subset": 3,
-      "records_in_local_subset": 7,
-      "experiment": "S001 R01 eyes-open, R02 eyes-closed, R03 real left/right fist motor execution; R03 is not imagery",
-      "reference_quality_labels": "not_provided_in_demo",
-      "purpose": [
-        "reader_validation",
-        "multichannel_workflow",
-        "applicability_and_report_checks"
+      "records_in_coverage_cohort": 12,
+      "source_formats": [
+        "EDF"
       ],
-      "registered_workbench_records": 3
+      "record_ids": [
+        "eegmmidb-s001r01",
+        "eegmmidb-s001r02",
+        "eegmmidb-s001r03",
+        "eegmmidb-s002r01",
+        "eegmmidb-s002r04",
+        "eegmmidb-s003r01",
+        "eegmmidb-s003r02",
+        "eegmmidb-s004r02",
+        "eegmmidb-s005r03",
+        "eegmmidb-s006r04",
+        "eegmmidb-s007r05",
+        "eegmmidb-s008r06"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
     },
     {
-      "dataset_id": "hmc-sn062-demo",
+      "dataset_id": "hmc-sleep-staging-1.1",
       "source_url": "https://physionet.org/content/hmc-sleep-staging/1.1/",
       "version": "1.1",
       "license": "CC-BY-4.0",
-      "modality": "scalp_eeg_with_psg_auxiliary",
-      "local_availability": "original_waveform_available_sleep_scoring_sidecars_downloaded_separately_20261028",
-      "records_in_local_subset": 1,
-      "record_duration_seconds": 14104,
-      "demo_analysis_start_seconds": 100,
-      "demo_analysis_duration_seconds": 100,
-      "reference_quality_labels": "sleep_stages_are_not_quality_labels",
-      "purpose": [
-        "sparse_channels",
-        "mixed_references",
-        "auxiliary_leads",
-        "partial_assessment"
+      "modality": "scalp_eeg",
+      "records_in_coverage_cohort": 2,
+      "source_formats": [
+        "EDF"
       ],
-      "sleep_annotation_coverage_seconds": [
-        0,
-        14100
+      "record_ids": [
+        "hmc-sn062",
+        "hmc-sn061"
       ],
-      "unannotated_tail_seconds": 4
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
     },
     {
       "dataset_id": "openneuro-ds002034",
       "source_url": "https://openneuro.org/datasets/ds002034/versions/1.0.3",
-      "documentation_url": "https://github.com/OpenNeuroDatasets/ds002034",
       "version": "1.0.3",
       "license": "CC0",
       "modality": "scalp_eeg",
-      "local_availability": "two_full_edf_records_and_16_sidecars_downloaded_20261028",
-      "reference_quality_labels": "source_provided_record_level_good_bad_channel_labels; not independently adjudicated by this project",
-      "purpose": [
-        "bad_channel_evaluation",
-        "edf_bids_metadata"
+      "records_in_coverage_cohort": 2,
+      "source_formats": [
+        "EDF"
       ],
-      "cautions": [
-        "preserve_duplicate_reference_channel_identity",
-        "keep_quality_labels_out_of_predictor_inputs",
-        "no_time_resolved_artifact_ground_truth",
-        "edf_82_signals_vs_tsv_81_rows",
-        "source_record_level_labels_do_not_describe_each_window"
+      "record_ids": [
+        "ds002034-sub01",
+        "ds002034-sub02"
       ],
-      "records_in_local_subset": 2,
-      "subjects_in_local_subset": 2,
-      "pinned_commit": "6abfa95617407c878b18b276eafa773ada07a03a"
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
+    },
+    {
+      "dataset_id": "sleep-edfx-1.0.0",
+      "source_url": "https://physionet.org/content/sleep-edfx/1.0.0/",
+      "version": "1.0.0",
+      "license": "Open Data Commons Attribution License v1.0 (ODC-By-1.0)",
+      "modality": "scalp_eeg",
+      "records_in_coverage_cohort": 3,
+      "source_formats": [
+        "EDF"
+      ],
+      "record_ids": [
+        "sleep-edfx-sc4001",
+        "sleep-edfx-sc4011",
+        "sleep-edfx-sc4021"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/coverage-cases.json"
     },
     {
       "dataset_id": "tuar-3.0.1",
@@ -88,36 +162,31 @@
       ]
     },
     {
-      "dataset_id": "sleep-edfx-1.0.0",
-      "source_url": "https://physionet.org/content/sleep-edfx/1.0.0/",
-      "version": "1.0.0",
-      "license": "Open Data Commons Attribution License v1.0",
-      "modality": "scalp_eeg",
-      "experiment": "Sleep-cassette SC4001 first-night PSG with R&K 1968 hypnogram",
-      "purpose": [
-        "sparse_bipolar_eeg",
-        "native_mixed_sample_rates",
-        "sleep_annotation_alignment"
+      "dataset_id": "mne-epilepsy-ecog-1",
+      "source_url": "https://openneuro.org/datasets/ds003029",
+      "mirror_url": "https://github.com/mne-tools/mne-data/releases/download/epilepsy_ecog-1/MNE-epilepsy-ecog-data.tar.gz",
+      "version": "MNE epilepsy_ecog-1 pinned archive",
+      "license": "CC0",
+      "modality": "ecog",
+      "records_in_coverage_cohort": 1,
+      "registered_format_examples": 2,
+      "source_formats": [
+        "BrainVision"
       ],
-      "records_in_local_subset": 1,
-      "reference_quality_labels": "not_available; state and clinical events are not artifact ground truth",
-      "local_availability": "original waveform and source labels verified against official SHA256"
-    },
-    {
-      "dataset_id": "chbmit-1.0.0",
-      "source_url": "https://physionet.org/content/chbmit/1.0.0/",
-      "version": "1.0.0",
-      "license": "Open Data Commons Attribution License v1.0",
-      "modality": "scalp_eeg",
-      "experiment": "Pediatric epilepsy scalp EEG; chb01_03 source seizure at 2996–3036 seconds",
-      "purpose": [
-        "bipolar_derivations",
-        "duplicate_channel_labels",
-        "clinical_events_separate_from_artifacts"
+      "derived_formats": [
+        "FIF"
       ],
-      "records_in_local_subset": 1,
-      "reference_quality_labels": "not_available; state and clinical events are not artifact ground truth",
-      "local_availability": "original waveform and source labels verified against official SHA256"
+      "record_ids": [
+        "mne-ecog-pt1-brainvision",
+        "mne-ecog-pt1-fif"
+      ],
+      "availability": "source_files_available_and_fingerprinted",
+      "accuracy_validated": false,
+      "coverage_evidence": "datasets/ecog-examples.json"
     }
-  ]
+  ],
+  "coverage_manifests": {
+    "scalp_eeg": "datasets/coverage-cases.json",
+    "ecog": "datasets/ecog-examples.json"
+  }
 }

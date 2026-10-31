@@ -18,7 +18,7 @@ function fixtureCatalog() {
   const inputs = ["rest","attention"].map((task,index) => ({id:`input-${index}`,label:`输入 ${index}`,profile_id:"profile",metadata:{duration_seconds:300,channels:[{index:0,name:"EEG",sampling_rate_hz:160,unit:"uV"}],size_bytes:100},description:"fixture",data_tags:[{key:"sampling_rate_hz",label:"采样率",value:160,display:"160 Hz",kind:"technical",source:"技术头",status:"known"},{key:"coordinates",label:"坐标",value:null,display:"位置未核实",kind:"technical",source:"来源未提供",status:"unknown"},{key:"task",label:"任务",value:task,display:task,kind:"context",source:"来源任务",status:"known"}],default_config:{selection:{eeg_indices:[0],reference_indices:{},start_seconds:0,duration_seconds:30},context_tags:{disease:"unknown",age_group:"unknown",task},method_config:{comparison_groups:["ref"],preserved_option:{a:1}}}}));
   return {modules,inputs,profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
 }
-function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = ""} = {}) {
+function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = "", search = "", serverInputs = false} = {}) {
   const elements = new Map();
   const get = id => {
     if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
@@ -26,16 +26,43 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   };
   ids.forEach(get);
   const storage = new Map();
-  const location = {protocol:"http:",pathname:"/",search:"",hash}, windowEvents = new Map();
+  const location = {protocol:"http:",pathname:"/",search,hash}, windowEvents = new Map();
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
-  const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:fetchImpl,AbortController,setTimeout,clearTimeout,URL,console};
-  const names = "state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges";
+  const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
+  const names = "state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
   const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
   test.state.catalog=fixtureCatalog();if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
   return {...test,selectInput:(id,options={autoPrepare:false})=>test.selectInput(id,options),get,location,history,storage,setHash(value){location.hash=value;for(const handler of windowEvents.get("hashchange")||[])handler({type:"hashchange"})}};
+}
+function modalityCatalog(modality = "scalp_eeg") {
+  const catalog = fixtureCatalog(), ecog = modality === "ecog";
+  catalog.active_modality = modality;
+  catalog.overview_url = ecog ? "/standards/ecog" : "/standards";
+  catalog.modalities = [{id:"scalp_eeg",label:"头皮 EEG",qc_supported:true},{id:"ecog",label:"ECoG",qc_supported:true,scope_note:"ECoG 基础检查"},{id:"seeg",label:"sEEG",qc_supported:false}];
+  catalog.workflow = {groups:[{id:"intake",label:"读取与确认",module_ids:["M01","M02"]},{id:"checks",label:"质量检查",module_ids:["M03","M04","M05","M06","M07"]},{id:"report",label:"结果与报告",module_ids:["M08","M09"]}],default_selected_modules:ecog?["M03","M04","M05"]:["M03","M04","M05","M06","M07"]};
+  for (const module of catalog.modules) {
+    module.required = ["M01","M02","M08","M09"].includes(module.id);
+    module.selectable = !(ecog && module.id === "M06");
+    module.documentation_url = `${catalog.overview_url}/modules/${module.id}`;
+    module.name = `${ecog ? "ECoG" : "Scalp"} ${module.id}`;
+    module.methods = ecog ? module.id === "M06" ? [] : [rawMethod(`ecog_${module.id}`,"basic",{supported_modalities:["ecog"]})] : module.methods.map(method => ({...method,supported_modalities:method.implementation === "planned"?[]:["scalp_eeg"],intended_modalities:["scalp_eeg"]}));
+  }
+  catalog.inputs.forEach((input,index) => { input.modality = modality;input.id = `${modality}-${index}`;input.label = `${modality} record ${index}`;input.default_config.method_config.extensions=[]; });
+  return catalog;
+}
+function fourCatalog(modality="scalp_eeg") {
+  const invasive=modality!=="scalp_eeg",catalog=modalityCatalog(invasive?"ecog":"scalp_eeg");
+  const routes={scalp_eeg:"/standards",ecog:"/standards/ecog",seeg:"/standards/seeg",extracellular:"/standards/neuropixels"};
+  const labels={scalp_eeg:"头皮 EEG",ecog:"ECoG",seeg:"sEEG",extracellular:"Neuropixels AP/LF"};
+  catalog.active_modality=modality;catalog.overview_url=routes[modality];
+  catalog.modalities=Object.entries(labels).map(([id,label])=>({id,label,qc_supported:true}));
+  catalog.modules.forEach(module=>{module.documentation_url=`${routes[modality]}/modules/${module.id}`;module.name=`${labels[modality]} ${module.id}`;if(invasive)module.methods=module.methods.map(method=>({...method,id:`${modality}_${module.id}`,supported_modalities:[modality]}));});
+  catalog.inputs.forEach((input,index)=>{input.id=`${modality}-${index}`;input.modality=modality;input.label=`${modality} record ${index}`;input.profile_id=({scalp_eeg:"scalp-eeg/1",ecog:"ecog-basic/1",seeg:"seeg-basic/1",extracellular:"neuropixels-raw/1"})[modality];
+    if(modality==="extracellular")input.metadata={...input.metadata,format:"SpikeGLX",acquisition:{stream_band:index?"lf":"ap",probe_type:"NP1.0"},channels:[{index:0,name:"AP0",sampling_rate_hz:index?2500:30000,unit:"uV",channel_type:"neuropixels",channel_type_source:"file_declared"}]};
+  });return catalog;
 }
 const tests = [];
 function check(name,run) { tests.push([name,run]); }
@@ -109,10 +136,10 @@ check("a valid plan displays its frozen source instead of later catalog metadata
   t.renderInputUsage();assert(t.get("input-usage").innerHTML.includes("规划时来源"));assert(!t.get("input-usage").innerHTML.includes("当前来源"));
   t.state.input.provenance.name="随后变更的来源";t.renderInputUsage();assert(t.get("input-usage").innerHTML.includes("规划时来源"));assert(!t.get("input-usage").innerHTML.includes("随后变更"));
 });
-check("method categories preserve dependent execution and only supported switches",()=>{
+check("method activation labels preserve dependent execution and only supported switches",()=>{
   const t=harness();const three=t.methodCardsHtml(t.state.catalog.modules.find(m=>m.id==="M03")),six=t.methodCardsHtml(t.state.catalog.modules.find(m=>m.id==="M06"));
-  assert(three.includes("通用"));assert(six.includes("条件"));assert(six.includes("可选"));assert(six.includes("尚未接入"));
-  assert.equal((three.match(/type="checkbox"/g)||[]).length,1);assert.equal((six.match(/type="checkbox"/g)||[]).length,1);assert(six.includes("不能在这里独立开关"));
+  assert(three.includes("随模块运行"));assert(six.includes("满足条件"));assert(six.includes("手动扩展"));assert(six.includes("尚未接入"));
+  assert.equal((three.match(/type="checkbox"/g)||[]).length,1);assert.equal((six.match(/type="checkbox"/g)||[]).length,1);assert(six.includes("手动扩展需明确启用"));
 });
 check("method blocked state exposes the actual reason and parameters",()=>{
   const t=harness();const plan={plan_id:"p",method_applicability:[{id:"mne_muscle",module_id:"M06",status:"blocked",selected:true,reason:"采样率不足",parameters:{filter_freq:[110,140]}}]};
@@ -165,9 +192,62 @@ function recommendationFixture(t, extra={}) {
   const config=JSON.parse(JSON.stringify(t.currentConfig()));config.method_config.extensions=["mne_amplitude"];config.method_config.extension_parameters={mne_amplitude:{flat_volts:0,min_duration_seconds:0.2}};
   return {schema_version:"test",recommendation_id:"r1",plan_id:"preview-only",policy_version:"p1",status:"ready",can_apply:true,summary:"建议基础检查",selected_modules:["M01","M02","M03","M08","M09"],qc_config:config,recommended_methods:[{id:"mne_amplitude",module_id:"M03",name:"平线",reason:"显式零差分候选"}],optional_methods:[],blocked_methods:[],missing_fields:[],cautions:["候选需复核"],...extra};
 }
-check("Toolkit filters category and availability without changing configuration",()=>{
-  const t=harness(),before=t.fingerprint();assert.equal(t.toolkitMethods("optional","available").length,2);assert.equal(t.toolkitMethods("optional","planned")[0].id,"future_check");
-  t.get("toolkit-category").value="conditional";t.get("toolkit-implementation").value="available";t.renderToolkit();assert(t.get("toolkit-methods").innerHTML.includes("conditional_check"));assert(!t.get("toolkit-methods").innerHTML.includes("mne_amplitude"));assert.equal(t.fingerprint(),before);
+check("Toolkit filters purpose and availability without changing configuration or legacy choices",()=>{
+  const t=harness(),before=t.fingerprint();assert.equal(t.toolkitMethods("artifacts","available").length,2);assert.equal(t.toolkitMethods("artifacts","planned")[0].id,"future_check");
+  t.get("toolkit-category").value="artifacts";t.get("toolkit-implementation").value="available";t.renderToolkit();const markup=t.get("toolkit-methods").innerHTML;
+  assert(markup.includes("conditional_check"));assert(!markup.includes("mne_amplitude"));assert(markup.includes("按条件启用"));assert(markup.includes("可选增强"));assert(!markup.includes(">条件<"));assert.equal(t.fingerprint(),before);
+});
+check("Toolkit groups methods under modules and three stages; planned methods require explicit browsing",()=>{
+  const t=harness();for(const module of t.state.catalog.modules)if(!module.methods.length)module.methods.push(rawMethod(`method_${module.id}`,"basic"));
+  t.get("toolkit-category").value="all";t.get("toolkit-implementation").value="all";t.renderToolkit();const markup=t.get("toolkit-methods").innerHTML;
+  const stages=[...markup.matchAll(/data-toolkit-stage="([^"]+)"/g)].map(match=>match[1]);assert.deepEqual(stages,["intake","checks","report"]);
+  const modules=[...markup.matchAll(/data-toolkit-module="([^"]+)"/g)].map(match=>match[1]);assert.deepEqual(modules,["M01","M02","M03","M04","M05","M06","M07","M08","M09"]);
+  assert.equal((markup.match(/class="toolkit-card"/g)||[]).length,t.toolkitMethods("all","all").length);
+  assert(markup.includes("future_check"));assert(!markup.includes("测试用方法说明"),"Long method descriptions stay in details");
+  assert(!/>通用<|>条件<|>可选</.test(markup));assert(!markup.includes('type="checkbox"'),"Browsing purposes does not become an execution selector");
+});
+check("Default toolbox shows integrated methods and exact method details without changing a plan",()=>{
+  const t=harness(), before=t.fingerprint();t.renderToolkit();const markup=t.get("toolkit-methods").innerHTML;
+  assert(!markup.includes("future_check"));assert(markup.includes('data-method-id="mne_amplitude"'));
+  assert(!/class="toolkit-module"[^>]* open/.test(markup));
+  t.showModule("M03",{catalog:t.state.catalog,modality:"scalp_eeg",browsing:true,methodId:"mne_amplitude"});
+  const detail=t.get("module-dialog-content").innerHTML;
+  assert(detail.includes("mne_amplitude"));assert(!detail.includes("方法 basic_check"));assert(detail.includes('class="method-more" open'));
+  assert(detail.includes("https://example.test/method"));assert(detail.includes('data-method-parent="M03"'));assert(!detail.includes('type="checkbox"'));
+  assert.equal(t.fingerprint(),before);assert.equal(t.get("module-dialog-title").textContent,"方法 mne_amplitude");
+});
+check("The three-stage framework remains stable before and after reading a file",()=>{
+  const t=harness(undefined,{selected:false});t.renderPipeline();const before=t.get("pipeline").innerHTML;
+  assert.equal((before.match(/class="flow-stage"/g)||[]).length,3);
+  t.selectInput("input-0");t.renderPipeline();assert.equal((t.get("pipeline").innerHTML.match(/class="flow-stage"/g)||[]).length,3);
+});
+check("Catalog domain and activation metadata remain separate from supported modality",()=>{
+  const t=harness(),module=t.state.catalog.modules.find(m=>m.id==="M03"),method=module.methods[0];
+  Object.assign(method,{domain:"signal_integrity",domain_label:"信号完整性",activation:"with_module",activation_label:"随模块运行",supported_modalities:["scalp_eeg"],scope_note:"仅头皮 EEG；<script>不能扩大范围</script>"});
+  const detail=t.methodCardsHtml(module);assert(detail.includes("随模块运行"));assert(detail.includes("适用模态"));assert(detail.includes("头皮 EEG"));assert(detail.includes("&lt;script&gt;"));assert(!detail.includes("<script>"));
+  assert(/<details class="method-more"><summary>原理、条件与来源<\/summary>/.test(detail));
+  assert(!/class="method-more" open/.test(detail));assert(!detail.includes(">通用<"));
+  const other=t.state.catalog.modules.find(m=>m.id==="M06");assert(t.methodCardsHtml(other).includes("目录未声明适用模态。"),"Legacy catalog does not acquire modality claims");
+  method.domain="reporting";method.domain_label="结果与报告";assert(t.toolkitMethods("reporting","available").some(row=>row.id===method.id),"Explicit server domain takes precedence over compatibility fallback");
+});
+check("Declared domain ordering and new method domains populate filters without an execution-side effect",()=>{
+  const t=harness(),before=t.fingerprint();t.state.catalog.method_domains=[{id:"artifacts",label:"伪迹线索"},{id:"signal_integrity",label:"信号完整性"}];
+  t.state.catalog.modules.find(m=>m.id==="M07").methods.push(rawMethod("future_domain","optional",{implementation:"planned",domain:"new_domain",domain_label:"未来功能域"}));
+  t.get("toolkit-category").value="new_domain";t.get("toolkit-implementation").value="all";t.renderToolkit();const choices=t.get("toolkit-category").innerHTML;
+  assert(choices.indexOf('value="artifacts"')<choices.indexOf('value="signal_integrity"'));assert(choices.includes('value="new_domain"'));assert.equal(t.get("toolkit-category").value,"new_domain");
+  assert(t.get("toolkit-methods").innerHTML.includes("future_domain"));assert.equal(t.fingerprint(),before);
+  t.get("toolkit-category").value="removed_domain";t.renderToolkit();assert.equal(t.get("toolkit-category").value,"all");
+});
+check("Planned method modality is an intended target, never advertised as supported",()=>{
+  const t=harness(),module=t.state.catalog.modules.find(m=>m.id==="M06"),future=module.methods.find(m=>m.id==="future_check");
+  Object.assign(future,{supported_modalities:[],intended_modalities:["scalp_eeg"],scope_note:"计划面向头皮 EEG；尚未接入。"});
+  let cards=t.methodCardsHtml({id:"M06",methods:[future]});assert(cards.includes("计划适用模态"));assert(cards.includes("头皮 EEG"));assert(!cards.includes("<h5>适用模态</h5>"));assert(!cards.includes('type="checkbox"'));
+  delete future.intended_modalities;future.supported_modalities=["ecog"];cards=t.methodCardsHtml({id:"M06",methods:[future]});assert(cards.includes("目录未声明计划适用模态。"));assert(!cards.includes("ECoG"));
+});
+check("Purpose browsing in history does not alter frozen plan or unlock extension switches",()=>{
+  const t=harness();t.state.mode="job";t.state.job={id:"frozen",plan:{qc_config:{method_config:{extensions:["mne_amplitude"]}}}};const before=JSON.stringify(t.state.job);
+  t.get("toolkit-category").value="signal_integrity";t.renderToolkit();const cards=t.methodCardsHtml(t.state.catalog.modules.find(m=>m.id==="M03"));
+  assert(/data-extension="mne_amplitude" checked disabled/.test(cards));assert.equal(JSON.stringify(t.state.job),before);assert(t.get("toolkit-methods").innerHTML.includes("mne_amplitude"));
 });
 check("rich documentation escapes source content and keeps repository paths non-clickable",()=>{
   const t=harness(),markup=t.methodDocumentationHtml({documentation:{purpose:"<img src=x>",how_it_works:"算法机制",interpretation:"候选需复核",when_to_use:["明确配置"],when_not_to_use:"参考未知",validation_status:"未完成临床验证",upstream_call:"module.function",implementation_origin:"本项目封装",version_note:"fixture",references:[{title:"官方",url:"https://example.test/docs",kind:"官方文档"},{title:"源码",url:"src/ephys_qc/runtime.py",kind:"本项目封装"},{title:"危险",url:"javascript:alert(1)"}]}});
@@ -201,7 +281,7 @@ check("recommendation overview stays compact while every reason remains in close
   t.state.recommendation=recommendation;t.state.recommendationKey=t.fingerprint();const before=t.fingerprint();t.renderRecommendation();const markup=t.get("recommendation-content").innerHTML,overview=markup.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g,"");
   assert(markup.includes('建议采用的方法与理由 <span class="tag subtle">16 项</span>'));assert(markup.includes('可补充字段 <span class="tag subtle">1 项</span>'));assert(!/<details\b[^>]*\bopen(?:\s|=|>)/.test(markup));
   for(const text of ["完整建议理由 15","可选理由","不适用理由","坐标未核实","一般注意事项完整保留",hash,policy]){assert(markup.includes(text));assert(!overview.includes(text));}
-  assert(overview.includes("必须确认模态"));assert(overview.includes("1 道 EEG"));assert(markup.includes("检查模块"));assert(markup.includes("默认增强"));assert(!overview.includes("检查模块"));assert(!overview.includes("默认增强"));assert(!overview.includes("先核对波形"));assert(markup.includes("<li>先核对波形</li><li>再复核候选</li>"));assert(!overview.includes("&quot;先核对波形&quot;"));assert.equal(t.fingerprint(),before);
+  assert(overview.includes("必须确认模态"));assert(overview.includes("1 个分析通道"));assert(markup.includes("检查模块"));assert(markup.includes("默认增强"));assert(!overview.includes("检查模块"));assert(!overview.includes("默认增强"));assert(!overview.includes("先核对波形"));assert(markup.includes("<li>先核对波形</li><li>再复核候选</li>"));assert(!overview.includes("&quot;先核对波形&quot;"));assert.equal(t.fingerprint(),before);
 });
 check("intake confirms explicit roles, retains source indices and refuses mixed clocks",()=>{
   const t=harness();t.state.intake={id:"read1",metadata:{channels:[{index:0,name:"same",sampling_rate_hz:100},{index:1,name:"same",sampling_rate_hz:100},{index:2,name:"EOG",sampling_rate_hz:100},{index:3,name:"EMG",sampling_rate_hz:1}]}};
@@ -329,7 +409,7 @@ check("a late catalog response cannot choose a previously confirmed file after a
   const wait=deferred();const t=harness(async(url)=>url.endsWith("/catalog")?wait.promise:response({jobs:[]}));t.state.intakeRequest=1;t.state.intakeBusy=true;t.state.intake={id:"a",status:"registered"};const pending=t.loadCatalog("input-0",{intakeRequest:1});t.get("intake-file").files=[{name:"next.edf",size:100}];t.chooseLocalFile();wait.resolve(response(fixtureCatalog()));await pending;assert.equal(t.state.input,null);assert(t.state.filePending);assert(t.get("analysis-workspace").hidden);assert(t.get("run-button").disabled);
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -337,13 +417,14 @@ check("module links and fragments accept only exact M01 to M09 IDs",()=>{
   const t=harness(undefined,{selected:false});
   for(let n=1;n<=9;n++){const id=`M0${n}`;assert.equal(t.moduleStandardsUrl(id),`/standards/modules/${id}`);assert.equal(t.moduleFromHash(`#module-${id}`),id)}
   for(const id of ["M00","M10","m01","M01/../../jobs","M01?run=1","M01\" onclick=\"bad","",null])assert.equal(t.moduleStandardsUrl(id),null);
+  assert.equal(t.moduleStandardsUrl("M03",{modules:[{id:"M03",documentation_url:"undefined/modules/M03"}]},"unknown"),null);
   for(const hash of ["#module-M00","#module-M10","#module-m01","#module-%4D01","#module-M01/","#module-M01?run=1","#module-M01\n","#module-M01-extra","#other","",null])assert.equal(t.moduleFromHash(hash),null);
 });
 check("all nine module deep links open after an empty catalog without selecting or running",async()=>{
   for(let n=1;n<=9;n++){
     const id=`M0${n}`,calls=[],catalog=fixtureCatalog();catalog.inputs=[];
     const t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/catalog"))return response(catalog);if(url.endsWith("/jobs")&&!options.method)return response({jobs:[]});throw new Error(`Unexpected ${url}`)},{selected:false,hash:`#module-${id}`});
-    t.state.catalog=null;assert(await t.loadCatalog());assert(t.get("module-dialog").open);assert.equal(t.state.dialogModule,id);assert.equal(t.get("module-details-link").attrs.href,`/standards/modules/${id}`);assert.equal(t.state.input,null);assert.equal(t.state.recommendation,null);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);assert(t.get("analysis-workspace").hidden);assert(t.get("run-button").disabled);assert.deepEqual(calls.map(([url])=>url),["/api/v1/catalog","/api/v1/jobs"]);
+    t.state.catalog=null;assert(await t.loadCatalog());assert(t.get("module-dialog").open);assert.equal(t.state.dialogModule,id);assert.equal(t.get("module-details-link").attrs.href,"/standards/overview");assert.equal(t.state.input,null);assert.equal(t.state.recommendation,null);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);assert(t.get("analysis-workspace").hidden);assert(t.get("run-button").disabled);assert.deepEqual(calls.map(([url])=>url),["/api/v1/catalog","/api/v1/jobs"]);
   }
 });
 check("hash changes only read module information and preserve the current draft",()=>{
@@ -353,13 +434,13 @@ check("hash changes only read module information and preserve the current draft"
 });
 check("hash received before catalog readiness is applied only to the latest fragment",async()=>{
   const wait=deferred(),calls=[];const t=harness(async(url)=>{calls.push(url);return url.endsWith("/catalog")?wait.promise:response({jobs:[]})},{selected:false,hash:"#module-M01"});
-  t.state.catalog=null;const pending=t.loadCatalog();t.setHash("#module-M06");assert(!t.get("module-dialog").open);wait.resolve(response(fixtureCatalog()));await pending;assert.equal(t.state.dialogModule,"M06");assert.equal(t.state.input,null);assert.deepEqual(calls,["/api/v1/catalog","/api/v1/jobs"]);
+  t.state.catalog=null;const pending=t.loadCatalog();t.setHash("#module-M06");assert(t.get("module-dialog").open);assert.equal(t.get("module-details-link").attrs.href,"/standards/overview");wait.resolve(response(fixtureCatalog()));await pending;assert.equal(t.state.dialogModule,"M06");assert.equal(t.state.input,null);assert.deepEqual(calls,["/api/v1/catalog","/api/v1/jobs"]);
 });
 check("invalid deep links and forged catalog IDs cannot open or produce links",async()=>{
   const catalog=fixtureCatalog();catalog.modules.push({id:"M01/../../jobs",name:"invalid"});
   const t=harness(async(url)=>response(url.endsWith("/catalog")?catalog:{jobs:[]}),{selected:false,hash:"#module-M99"});await t.loadCatalog();assert(!t.get("module-dialog").open);assert.equal(t.state.input,null);
   t.showModule("M01/../../jobs");assert(!t.get("module-dialog").open);assert.equal(t.get("module-details-link").attrs.href,undefined);
-  t.setHash("#module-M02");t.setHash("#module-M02?run=1");assert.equal(t.state.dialogModule,"M02");assert.equal(t.get("module-details-link").attrs.href,"/standards/modules/M02");
+  t.setHash("#module-M02");t.setHash("#module-M02?run=1");assert.equal(t.state.dialogModule,"M02");assert.equal(t.get("module-details-link").attrs.href,"/standards/overview");
 });
 check("closing a deep-linked dialog clears only its fragment without history navigation or loops",()=>{
   const t=harness(undefined,{selected:false});t.location.search="?view=local";t.setHash("#module-M04");t.get("close-dialog-button").dispatch("click");assert(!t.get("module-dialog").open);assert.equal(t.state.dialogModule,null);assert.equal(t.location.hash,"");assert.equal(t.location.search,"?view=local");assert.deepEqual(t.history.replacements,["/?view=local"]);
@@ -378,7 +459,7 @@ check("empty intake exposes nine neutral modules without choosing or planning",(
   assert.equal(t.get("pipeline-state").textContent,"框架预览");assert(t.get("pipeline-caption").textContent.includes("上传文件"));
   assert.equal((t.get("pipeline").innerHTML.match(/data-detail=/g)||[]).length,9);
   assert(!t.get("pipeline").innerHTML.includes("已选择"));assert(!t.get("pipeline").innerHTML.includes("就绪"));assert(t.get("plan-disclosure").hidden);
-  t.state.catalog=null;t.renderPipeline();assert.equal((t.get("pipeline").innerHTML.match(/ disabled /g)||[]).length,9);
+  t.state.catalog=null;t.renderPipeline();assert.equal((t.get("pipeline").innerHTML.match(/data-detail=/g)||[]).length,9);assert(t.visualNodes().every(node=>node.status==="framework"));assert(t.get("run-button").disabled);
 });
 check("reading and confirming never imply that quality checks have executed",()=>{
   const t=harness(undefined,{selected:false});t.state.filePending=true;t.state.intakeBusy=true;t.updateActions();assert.equal(t.get("pipeline-state").textContent,"读取中");
@@ -414,14 +495,14 @@ check("historical extraction never borrows a new file header or unconfirmed form
 check("unsupported modality preserves extracted information but never produces a runnable plan",async()=>{
   const t=harness();t.state.input.modality="seeg";t.state.recommendation={status:"unsupported",can_apply:false};t.updateActions();assert.equal(t.get("pipeline-state").textContent,"仅信息提取");assert(t.get("run-button").disabled);assert(t.visualNodes().every(n=>n.status==="unplanned"));assert(!t.get("record-summary").hidden);
 });
-check("non-scalp modality remains extraction-only after manual edits and creates no plan or job",async()=>{
+check("modalities absent from the catalog remain extraction-only after manual edits and create no plan or job",async()=>{
   for(const modality of ["seeg","ecog","extracellular","other","unknown"]){
     const calls=[],t=harness(async(url,options={})=>{calls.push([url,options]);return response({recommendation_id:"unsupported",status:"unsupported",can_apply:false,reason:"No QC route for this modality"})});
     t.state.input.modality=modality;t.state.recommendation={status:"unsupported",can_apply:false};t.updateActions();
     t.setContext("disease","other");assert.equal(t.state.recommendation,null);assert(t.state.manualDraft);
     t.get("start-seconds").value="10";t.invalidatePlan();t.setExtension("mne_amplitude",true);
     assert(t.get("run-button").disabled);assert(t.get("plan-button").disabled);assert(!t.get("recommend-button").disabled);
-    assert.equal(t.get("pipeline-state").textContent,"仅信息提取");assert(t.get("action-hint").textContent.includes("不运行头皮 EEG"));
+    assert.equal(t.get("pipeline-state").textContent,"仅信息提取");assert(t.get("action-hint").textContent.includes("不运行其他模态"));
     assert(t.visualNodes().every(node=>node.status==="unplanned"));assert(t.get("recommendation-content").innerHTML.includes("仅信息提取"));assert(!t.get("recommendation-content").innerHTML.includes("开始检查时会先核对"));assert(!t.get("record-summary").hidden);
     assert.equal(await t.makePlan(),false);await t.startJob();assert.equal(calls.length,0);
     await t.makeRecommendation();assert.deepEqual(calls.map(([url])=>url),["/api/v1/recommend"]);assert(t.get("run-button").disabled);
@@ -453,6 +534,19 @@ check("coverage describes execution and keeps gaps and unexecuted duration expli
 });
 check("candidate filtering preserves whole-window localization and distinct review states",()=>{
   const t=harness();t.state.candidates=[{id:"a",module_id:"M05",method:"LOF",channel_indices:[4],channel_names:["<Cz>"],localization:"whole_window",start_seconds:30,stop_seconds:120,status:"pending"},{id:"b",module_id:"M03",method:"flat",localization:"interval",start_seconds:42,stop_seconds:43,status:"pending"}];t.state.review={version:1,decisions:{a:{decision:"rejected"}}};t.get("candidate-filter").value="all";t.get("candidate-module").value="all";t.renderCandidateList();let markup=t.get("candidate-list").innerHTML;assert(markup.includes("仅整窗定位"));assert(!markup.includes("30–120"));assert(markup.includes("&lt;Cz&gt;"));assert(markup.includes("驳回候选"));t.get("candidate-filter").value="pending";t.renderCandidateList();assert(!t.get("candidate-list").innerHTML.includes('data-candidate="a"'));assert(t.get("candidate-list").innerHTML.includes('data-candidate="b"'));
+});
+check("candidate truncation evidence survives waveform refreshes and is separate from transient errors",async()=>{
+  const warning={code:"candidate_details_truncated",artifact:"M03_continuity.json",reason:"候选详情已截断；当前仅复核已保存的位置，完整计数见模块证据。",observed_interval_count:150,stored_interval_count:50,omitted_interval_count:100},calls=[];
+  const t=harness(async url=>{calls.push(url);if(url.endsWith("/candidates"))return response({candidates:[],warnings:[warning]});if(url.endsWith("/review"))return response({version:0,decisions:{},warnings:[{...warning}]});return response({start_seconds:0,stop_seconds:5,channels:[]})});
+  t.state.job={id:"bounded",status:"completed",plan:{input_metadata:t.state.input.metadata,qc_config:t.currentConfig()}};t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];await t.openReviewWorkspace("job");
+  const markup=t.get("review-evidence-notice").innerHTML;assert(!t.get("review-evidence-notice").hidden);assert(markup.includes("仅复核已保存的位置"));assert(markup.includes("M03_continuity.json"));assert.equal(t.state.reviewWarnings.length,1);for(const text of ["观察区间数","已存区间数","未存区间数","150","50","100"])assert(markup.includes(text));assert(t.get("review-error").hidden);assert(!/<details[^>]* open/.test(markup));
+  t.get("review-error").textContent="transient waveform error";t.get("review-error").hidden=false;await t.loadWaveform();assert(t.get("review-error").hidden);assert.equal(t.get("review-evidence-notice").innerHTML,markup);assert(!t.get("review-evidence-notice").hidden);assert.equal(calls.filter(url=>url.includes("/waveform?")).length,2);
+  await t.selectJob("next",{id:"next",status:"failed",plan:{},modules:[]});assert(t.get("review-evidence-notice").hidden);assert.equal(t.get("review-evidence-notice").innerHTML,"");assert.equal(t.state.reviewWarnings.length,0);assert.equal(t.state.workspace,null);
+});
+check("late candidate evidence cannot leak into a newly selected input",async()=>{
+  const wait=deferred(),t=harness(async url=>url.endsWith("/candidates")?wait.promise:response({version:0,decisions:{}}));t.state.job={id:"old",status:"completed",plan:{input_metadata:t.state.input.metadata,qc_config:t.currentConfig()}};
+  const pending=t.openReviewWorkspace("job");await t.selectInput("input-1");wait.resolve(response({candidates:[],warnings:[{code:"candidate_details_truncated",artifact:"old.json",reason:"old details"}]}));await pending;
+  assert(t.get("review-evidence-notice").hidden);assert.equal(t.state.reviewWarnings.length,0);assert.equal(t.state.workspace,null);assert.equal(t.state.input.id,"input-1");
 });
 check("waveform requests are bounded and stale responses cannot replace a newer view",async()=>{
   const first=deferred(),calls=[];const t=harness(async(url)=>{calls.push(url);return calls.length===1?first.promise:response({start_seconds:10,stop_seconds:15,channels:[]})});t.state.workspace={kind:"input",id:"source",total_seconds:300};t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];t.get("waveform-start").value=0;t.get("waveform-duration").value=20;await t.loadWaveform();assert.equal(calls.length,0);t.get("waveform-duration").value=5;const pending=t.loadWaveform();t.get("waveform-start").value=10;await t.loadWaveform();first.resolve(response({start_seconds:0,stop_seconds:5,channels:[]}));await pending;assert.equal(t.state.waveform.start_seconds,10);assert(calls[1].includes("max_points=1600"));assert(calls[1].includes("channel_indices=0"));
@@ -491,5 +585,182 @@ check("only edited metadata is submitted and clearing an existing mapping is exp
   const absent={};assert.equal(JSON.stringify(t.revisionMetadataChanges(absent,{verified:false,highpass:"",lowpass:"",note:"",annotation:""})),"{}");assert.equal(JSON.stringify(t.revisionMetadataChanges(absent,{verified:false,annotation:"null"})),"{}");
   assert.equal(JSON.stringify(input),before);assert.throws(()=>t.revisionMetadataChanges(input,{...fields,annotation:"{"}),/JSON/);
 });
-for(const [name,run] of tests){await run();console.log(`PASS ${name}`)}
-console.log(`${tests.length} pure JavaScript checks passed. Visual/browser behavior is not tested.`);
+check("legacy ECoG URL remains read-only while the landing graph and standards link stay neutral",async()=>{
+  const catalog=modalityCatalog("ecog"),calls=[],t=harness(async url=>{calls.push(url);return response(url.includes("catalog")?catalog:{jobs:[]})},{selected:false,search:"?lang=en&modality=ecog",hash:"#module-M03"});t.state.catalog=null;assert(await t.loadCatalog());
+  assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert(!t.hasExecutionContext());assert.equal(t.get("standards-link").attrs.href,"/standards/overview");assert.equal(t.get("module-details-link").attrs.href,"/standards/ecog/modules/M03");assert(t.get("pipeline").innerHTML.includes("字段与方案"));assert(!t.get("pipeline").innerHTML.includes("尚未接入"));assert(t.visualNodes().every(node=>node.status==="framework"));assert(!html.includes('id="modality-tabs"'));assert(t.get("run-button").disabled);assert(!calls.some(url=>/recommend|\/plan/.test(url)));
+});
+check("all registered records and histories are visible without a modality navigation choice",async()=>{
+  const scalp=modalityCatalog(),ecog=modalityCatalog("ecog"),records=[...scalp.inputs,...ecog.inputs],jobs=[{id:"s",label:"Scalp saved",input_modality:"scalp_eeg",status:"completed"},{id:"e",label:"ECoG saved",input_modality:"ecog",status:"completed"}],calls=[];
+  const t=harness(async url=>{calls.push(url);return response(url==="/api/v1/inputs"?{inputs:records}:url==="/api/v1/jobs"?{jobs}:scalp)},{selected:false,serverInputs:true});t.state.catalog=null;assert(await t.loadCatalog());
+  assert.equal(t.visibleInputs().length,4);for(const record of records)assert(t.get("input-select").innerHTML.includes(record.id));assert(t.get("history-list").innerHTML.includes("Scalp saved"));assert(t.get("history-list").innerHTML.includes("ECoG saved"));assert.equal(t.state.input,null);assert(calls.includes("/api/v1/inputs"));
+});
+check("record selection automatically activates its confirmed catalog and excludes incompatible scalp methods",async()=>{
+  const ecog=modalityCatalog("ecog"),scalp=modalityCatalog(),t=harness(async url=>response(ecog),{selected:false});t.state.catalog=scalp;t.state.records=[...scalp.inputs,...ecog.inputs];await t.selectInput("scalp_eeg-0");t.setExtension("mne_muscle",true);await t.selectInput("ecog-0");
+  assert.equal(t.state.activeModality,"ecog");assert.equal(t.state.input.id,"ecog-0");assert.deepEqual([...t.state.selected],["M03","M04","M05"]);assert.equal(t.state.extensions.size,0);assert.equal(t.extensionMethods().length,0);assert(!t.body().selected_modules.includes("M06"));assert(!t.body().selected_modules.includes("M07"));assert(t.get("channel-count").textContent.includes("ECoG"));assert.equal(t.get("standards-link").attrs.href,"/standards/ecog");assert.equal(t.state.plan,null);assert(!t.state.loadingRecord);
+});
+check("late catalog activation cannot replace a newer record or freshly selected file",async()=>{
+  for(const next of ["record","file"]){const wait=deferred(),t=harness(()=>wait.promise,{selected:false});t.state.catalog=modalityCatalog();t.state.records=[...t.state.catalog.inputs,...modalityCatalog("ecog").inputs];const pending=t.selectInput("ecog-0");
+    if(next==="record")await t.selectInput("scalp_eeg-1");else{t.get("intake-file").files=[{name:"new.fif",size:100}];t.chooseLocalFile();}
+    wait.resolve(response(modalityCatalog("ecog")));await pending;assert.equal(t.state.activeModality,"scalp_eeg");assert.equal(t.state.input?.id,next==="record"?"scalp_eeg-1":undefined);assert.equal(t.state.plan,null);assert(!t.state.loadingRecord);if(next==="file")assert(t.state.filePending);
+  }
+});
+check("all-modality latest draft is discoverable and restores through automatic catalog activation",async()=>{
+  const t=harness(async()=>response(modalityCatalog("ecog")),{selected:false});t.state.catalog=modalityCatalog();t.state.records=[...t.state.catalog.inputs,...modalityCatalog("ecog").inputs];await t.selectInput("ecog-0");t.get("start-seconds").value=17;t.saveDraft();t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=modalityCatalog();
+  assert.equal(t.savedDraft().modality,"ecog");await t.restoreDraft();assert.equal(t.state.input.id,"ecog-0");assert.equal(t.state.activeModality,"ecog");assert.equal(t.get("start-seconds").value,"17");assert.equal(t.state.plan,null);assert(t.state.manualDraft);
+});
+check("cloning rejects frozen modality mismatches before changing the record",()=>{
+  const t=harness(undefined,{selected:false});t.state.activeModality="ecog";t.state.catalog=modalityCatalog("ecog");t.selectInput("ecog-0");const before=t.fingerprint();assert.throws(()=>t.applyConfiguration({input_id:"ecog-0",input_modality:{value:"scalp_eeg"},selected_modules:["M03"],qc_config:t.currentConfig()}),/原记录或配置不可用/);assert.equal(t.fingerprint(),before);
+});
+check("catalog failure blocks record execution without borrowing another modality",async()=>{
+  const t=harness(async()=>response(fixtureCatalog()),{selected:false});t.state.catalog=modalityCatalog();t.state.records=[...t.state.catalog.inputs,...modalityCatalog("ecog").inputs];assert.equal(await t.selectInput("ecog-0"),false);assert.equal(t.state.input,null);assert(t.get("catalog-error").textContent.includes("未套用其他模态"));assert(t.get("run-button").disabled);assert(t.visualNodes().every(node=>node.status==="framework"));
+});
+check("job deep link uses its frozen modality and keeps all histories accessible",async()=>{
+  const job={id:"ecog-job",input_modality:"ecog",label:"ECoG saved",status:"failed",plan:{selected_modules:["M01","M02","M03","M08","M09"],nodes:[],qc_config:{selection:{eeg_indices:[0]},method_config:{extensions:[]}}},modules:[{id:"M03",status:"partial"}]},before=JSON.stringify(job);
+  const t=harness(async url=>response(url.includes("catalog")?modalityCatalog("ecog"):job),{selected:false,search:"?lang=en&modality=scalp_eeg&job=ecog-job",hash:"#module-M03"});t.state.catalog=modalityCatalog();t.state.history=[job,{id:"scalp-old",label:"Scalp saved",input_modality:"scalp_eeg",status:"completed"}];await t.selectJob("ecog-job");assert.equal(t.state.activeModality,"ecog");assert.equal(JSON.stringify(job),before);assert(t.location.search.includes("job=ecog-job"));assert(t.location.search.includes("lang=en"));assert.equal(t.location.hash,"#module-M03");assert.equal(t.get("module-details-link").attrs.href,"/standards/ecog/modules/M03");assert(t.get("history-list").innerHTML.includes("Scalp saved"));assert(t.get("history-list").innerHTML.includes("ECoG saved"));assert(t.get("run-button").disabled);
+});
+check("toolbox modality browsing does not change active input configuration or its plan",async()=>{
+  const t=harness(async()=>response(modalityCatalog("ecog")),{selected:false});t.state.catalog=modalityCatalog();t.state.modalityChoices=t.state.catalog.modalities;await t.selectInput("scalp_eeg-0");t.setExtension("mne_muscle",true);t.state.plan=planFixture(t.body());t.state.planKey=t.fingerprint();const before=t.fingerprint(),plan=t.state.plan;
+  assert(await t.browseMethods("ecog"));assert.equal(t.state.activeModality,"scalp_eeg");assert.equal(t.fingerprint(),before);assert.equal(t.state.plan,plan);assert(t.get("toolkit-methods").innerHTML.includes("ecog_M03"));assert(!t.get("toolkit-methods").innerHTML.includes("mne_muscle"));t.showModule("M03",{catalog:t.state.browseCatalog,modality:"ecog",browsing:true});assert.equal(t.get("module-details-link").attrs.href,"/standards/ecog/modules/M03");assert(!t.get("module-dialog-content").innerHTML.includes('type="checkbox"'));assert.equal(t.fingerprint(),before);await t.browseMethods("current");assert(t.toolkitMethods("all","all").some(method=>method.id==="mne_muscle"));
+});
+check("file-declared modality is a suggestion requiring explicit confirmation and mixed groups are deliberate",()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();t.state.intake={id:"declared",metadata:{channels:[{index:0,name:"ECOG1",sampling_rate_hz:100},{index:1,name:"EEG1",sampling_rate_hz:100},{index:2,name:"MISC",sampling_rate_hz:100}]},suggestions:{modality:"ecog",eeg_indices:[0],reference_indices:{},modality_evidence:{status:"file_declared",reason:"ECoG declared by source",source:"FIF"}}};t.renderIntake();assert(t.get("intake-confirmation").innerHTML.includes('value="ecog" selected'));assert(!t.get("intake-confirmed").checked);assert.equal(t.state.input,null);
+  t.state.intake.suggestions={modality:"unknown",eeg_indices:[],reference_indices:{},modality_evidence:{status:"mixed",reason:"Multiple declared types",channel_groups:[{modality:"ecog",indices:[0]},{modality:"scalp_eeg",indices:[1]}]}};t.renderIntake();assert(t.get("intake-confirmation").innerHTML.includes('value="unknown" selected'));const roles=[0,1,2].map(index=>({dataset:{intakeChannel:String(index)},value:"unused"}));t.get("intake-confirmation").querySelectorAll=()=>roles;t.get("intake-confirmed").checked=true;t.applyIntakeModalitySuggestion("ecog");assert.deepEqual(roles.map(role=>role.value),["eeg","unused","unused"]);assert(!t.get("intake-confirmed").checked);t.applyIntakeModalitySuggestion("scalp_eeg");assert.deepEqual(roles.map(role=>role.value),["unused","eeg","unused"]);t.applyIntakeModalitySuggestion("unknown");assert(roles.every(role=>role.value==="unused"));assert.equal(t.state.input,null);assert.equal(t.state.plan,null);
+});
+check("confirmation preserves intake metadata while automatically preparing the appropriate catalog",async()=>{
+  const record=modalityCatalog("ecog").inputs[0],calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/confirm"))return response({status:"registered",input:record});if(url.includes("catalog"))return response(modalityCatalog("ecog"));if(url.endsWith("/recommend"))return response(recommendationFixture(t,{qc_config:t.currentConfig(),selected_modules:["M01","M02","M03","M04","M05","M08","M09"],recommended_methods:[]}));if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));throw Error(url)},{selected:false});t.state.catalog=modalityCatalog();t.state.intake={id:"new-ecog",filename:"record.fif",status:"needs_confirmation",metadata:record.metadata};t.state.filePending=true;t.get("intake-confirmation").querySelectorAll=()=>[{dataset:{intakeChannel:"0"},value:"eeg"}];t.get("intake-modality").value="ecog";t.get("intake-reference").value="unknown";t.get("intake-confirmed").checked=true;await t.confirmIntake();assert.equal(t.state.intake.id,"new-ecog");assert.equal(t.state.intake.status,"registered");assert.equal(t.state.input.id,record.id);assert(t.validPlan());assert(!t.get("run-button").disabled);assert(!calls.some(([url])=>url==="/api/v1/jobs"));
+});
+check("inspection-only intake can be confirmed and restored without requesting an unsupported QC catalog",async()=>{
+  const record=modalityCatalog().inputs[0];record.id="seeg-record";record.modality="seeg";const calls=[],t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/confirm"))return response({status:"registered",input:record});if(url==="/api/v1/intakes/seeg-intake")return response({id:"seeg-intake",status:"registered",input_id:record.id,input_modality:"seeg"});if(url==="/api/v1/inputs/seeg-record")return response(record);throw Error(url)},{selected:false});t.state.catalog=modalityCatalog();
+  t.state.intake={id:"seeg-intake",metadata:record.metadata};t.get("intake-confirmation").querySelectorAll=()=>[{dataset:{intakeChannel:"0"},value:"eeg"}];t.get("intake-modality").value="seeg";t.get("intake-reference").value="unknown";t.get("intake-confirmed").checked=true;await t.confirmIntake();assert.equal(t.state.input.modality,"seeg");assert(t.get("run-button").disabled);assert.equal(t.get("pipeline-state").textContent,"仅信息提取");assert.equal(t.state.plan,null);assert(t.get("intake-status").textContent.includes("信息已保存"));
+  await t.restoreIntake("seeg-intake");assert.equal(t.state.input.id,"seeg-record");assert(t.get("run-button").disabled);assert(!calls.some(([url])=>/catalog|recommend|\/plan|\/jobs/.test(url)));
+});
+check("stale cross-catalog configuration restore cannot overwrite a newer selection of the same record",async()=>{
+  const old=deferred(),fresh=deferred();let calls=0;
+  const t=harness(()=>++calls===1?old.promise:fresh.promise,{selected:false});t.state.catalog=modalityCatalog();const ecog=modalityCatalog("ecog");t.state.records=[...t.state.catalog.inputs,...ecog.inputs];
+  const config={input_id:"ecog-0",modality:"ecog",selected_modules:["M01","M02","M03","M08","M09"],qc_config:structuredClone(ecog.inputs[0].default_config)};config.qc_config.selection.start_seconds=99;
+  const restoring=t.applyConfiguration(config);await t.selectInput("scalp_eeg-1");const selecting=t.selectInput("ecog-0");fresh.resolve(response(ecog));await selecting;t.get("start-seconds").value=42;t.invalidatePlan();
+  old.resolve(response(ecog));assert.equal(await restoring,false);assert.equal(t.state.input.id,"ecog-0");assert.equal(t.get("start-seconds").value,"42");assert.equal(t.state.plan,null);
+});
+check("pending extraction identifies only file-declared modality suggestions and never implies confirmation",()=>{
+  const t=harness(undefined,{selected:false}),meta={format:"FIF",duration_seconds:10,channels:[{index:0,name:"ECOG1",sampling_rate_hz:100}],modality_evidence:{source:"source.channel_types",requires_confirmation:true}};
+  t.state.intake={id:"pending",status:"needs_confirmation",metadata:meta,suggestions:{modality:"ecog",modality_evidence:{status:"file_declared",source:"source.channel_types"}}};t.renderExtraction();let markup=t.get("record-summary").innerHTML;
+  assert(markup.includes("建议模态"));assert(markup.includes("ECoG（待确认）"));assert(markup.includes("source.channel_types"));assert(markup.includes("分析模态需确认"));assert.equal(t.state.input,null);assert.equal(t.state.plan,null);
+  t.state.intake.suggestions.modality_evidence.status="unknown";t.renderExtraction();markup=t.get("record-summary").innerHTML;assert(!markup.includes("建议模态"));assert(markup.includes("<dd>待确认</dd>"));
+  t.state.intake.suggestions.modality_evidence.status="mixed";t.renderExtraction();assert(!t.get("record-summary").innerHTML.includes("建议模态"));
+  t.state.input={id:"confirmed",modality:"scalp_eeg",metadata:meta};t.renderExtraction();markup=t.get("record-summary").innerHTML;assert(markup.includes("分析模态"));assert(markup.includes("<dd>头皮 EEG</dd>"));assert(!markup.includes("ECoG（待确认）"));
+  t.state.mode="job";t.state.job={id:"frozen",plan:{input_modality:{value:"ecog"},input_metadata:meta}};t.renderExtraction();markup=t.get("record-summary").innerHTML;assert(markup.includes("<dd>ECoG</dd>"));assert(!markup.includes("建议模态"));
+});
+check("an explicit file choice wins over startup navigation recovery while history is loading",async()=>{
+  const wait=deferred(),calls=[];const t=harness(async url=>{calls.push(url);if(url.includes("catalog"))return response(modalityCatalog());if(url.endsWith("/jobs"))return wait.promise;throw Error(url)},{selected:false,search:"?job=old-job"});t.state.catalog=null;
+  const loading=t.loadCatalog();for(let n=0;n<12;n++)await Promise.resolve();t.get("intake-file").files=[{name:"chosen.fif",size:100}];t.chooseLocalFile();wait.resolve(response({jobs:[]}));await loading;
+  assert(t.state.filePending);assert.equal(t.state.input,null);assert.equal(t.state.job,null);assert(!calls.includes("/api/v1/jobs/old-job"));assert.equal(t.state.navigationRestored,true);
+});
+check("four confirmed modalities use their own catalogs, contact labels and safe documentation routes",async()=>{
+  const ids=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(ids.map(id=>[id,fourCatalog(id)]));
+  const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=ids.flatMap(id=>catalogs[id].inputs);
+  for(const id of ids){await t.selectInput(`${id}-0`);t.renderToolkit();assert.equal(t.state.activeModality,id);assert.equal(t.state.input.id,`${id}-0`);assert.equal(t.get("standards-link").attrs.href,catalogs[id].overview_url);assert.equal(t.moduleStandardsUrl("M03"),catalogs[id].overview_url+"/modules/M03");
+    if(id!=="scalp_eeg"){assert.deepEqual([...t.state.selected],["M03","M04","M05"]);assert.equal(t.state.extensions.size,0);assert(!t.body().selected_modules.includes("M06"));assert(!t.body().selected_modules.includes("M07"));assert(t.toolkitMethods("all","all").every(method=>method.supported_modalities.includes(id)));}
+    assert.equal(t.get("toolkit-modality").textContent,`方法范围：${catalogs[id].modalities.find(row=>row.id===id).label}`);assert(!t.get("recommendation-content").innerHTML.includes("道 EEG"));
+  }
+  assert(t.get("record-summary").innerHTML.includes("信号频带"));assert(t.get("record-summary").innerHTML.includes("<dd>AP</dd>"));assert(t.get("record-summary").innerHTML.includes("NP1.0"));assert(t.get("channel-count").textContent.includes("分析通道"));
+  const module=t.state.catalog.modules.find(row=>row.id==="M03");module.documentation_url="/standards/seeg/modules/M03";assert.equal(t.moduleStandardsUrl("M03"),null);module.documentation_url="/standards/neuropixels/modules/M03?run=1";assert.equal(t.moduleStandardsUrl("M03"),null);
+});
+check("legacy sEEG and extracellular URLs only browse the matching catalog on the neutral landing",async()=>{
+  for(const id of ["seeg","extracellular"]){const catalog=fourCatalog(id),calls=[];const t=harness(async url=>{calls.push(url);return response(url.includes("catalog")?catalog:{jobs:[]})},{selected:false,search:`?lang=en&modality=${id}`,hash:"#module-M04"});t.state.catalog=null;assert(await t.loadCatalog());assert.equal(t.state.activeModality,id);assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert.equal(t.get("standards-link").attrs.href,"/standards/overview");assert.equal(t.get("module-details-link").attrs.href,catalog.overview_url+"/modules/M04");assert(t.visualNodes().every(node=>node.status==="framework"));assert(!calls.some(url=>/recommend|\/plan/.test(url)));}
+});
+check("all four modality drafts are discoverable and discarded without changing unrelated session data",async()=>{
+  const modalities=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(modalities.map(id=>[id,fourCatalog(id)]));
+  const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=modalities.flatMap(id=>catalogs[id].inputs);t.storage.set("unrelated","keep");
+  for(const [index,id] of modalities.entries()){await t.selectInput(`${id}-0`);t.get("start-seconds").value=index+10;t.saveDraft();const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`;const saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));assert.equal(saved.modality,id);}
+  for(const [index,id] of modalities.entries()){const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`,saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));}
+  t.storage.delete("ephys-qc.draft.v1.latest");t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=catalogs.scalp_eeg;assert.equal(t.savedDraft().modality,"extracellular");await t.restoreDraft();assert.equal(t.state.input.modality,"extracellular");assert.equal(t.get("start-seconds").value,"13");assert.equal(t.state.plan,null);t.discardDraft();assert.equal(t.savedDraft(),null);assert.equal(t.storage.get("unrelated"),"keep");for(const key of t.storage.keys())assert(!key.startsWith("ephys-qc.draft.v1"));
+});
+check("toolbox browsing across four modalities is independent from the active plan",async()=>{
+  const modalities=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(modalities.map(id=>[id,fourCatalog(id)]));const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=modalities.flatMap(id=>catalogs[id].inputs);await t.selectInput("seeg-0");t.state.plan=planFixture(t.body());t.state.planKey=t.fingerprint();const before=t.fingerprint(),plan=t.state.plan;
+  for(const id of modalities){assert(await t.browseMethods(id));assert.equal(t.fingerprint(),before);assert.equal(t.state.plan,plan);assert.equal(t.state.activeModality,"seeg");t.showModule("M03",{catalog:t.state.browseCatalog,modality:id,browsing:true});assert.equal(t.get("module-details-link").attrs.href,catalogs[id].overview_url+"/modules/M03");assert(!t.get("module-dialog-content").innerHTML.includes('type="checkbox"'));}
+});
+check("Neuropixels AP/LF evidence is displayed without inferring sorted spikes or auto-confirming",()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog();
+  for(const band of ["ap","lf"]){t.state.intake={id:band,status:"needs_confirmation",metadata:{format:"SpikeGLX",acquisition:{stream_band:band,probe_type:21},channels:[{index:0,name:"signal",sampling_rate_hz:band==="ap"?30000:2500,unit:"uV",channel_type:"neuropixels",channel_type_source:"file_declared"}]},suggestions:{modality:"extracellular",eeg_indices:[0],reference_indices:{},modality_evidence:{status:"file_declared",source:"source.channel_types",reason:"SpikeGLX raw stream"}}};t.renderIntake();const summary=t.get("record-summary").innerHTML;assert(summary.includes(`<dd>${band.toUpperCase()}</dd>`));assert(summary.includes("<dd>21</dd>"));assert(summary.includes("细胞外电生理（待确认）"));assert(!/spikes|已分选/.test(summary));assert(!t.get("intake-confirmed").checked);assert.equal(t.state.input,null);assert(t.get("intake-modality-note").textContent.includes("SpikeGLX AP/LF"));const background=t.get("intake-confirmation").innerHTML.match(/<details class="intake-context intake-background"[^>]*>([\s\S]*?)<\/details>/);assert(background);assert(!background[0].startsWith('<details class="intake-context intake-background" open'));for(const field of fields)assert(background[1].includes(`intake-context-${field}`));}
+  delete t.state.intake.metadata.acquisition;t.renderExtraction();assert(!t.get("record-summary").innerHTML.includes("信号频带"));assert(!t.get("record-summary").innerHTML.includes("探针型号"));
+});
+check("extracellular directory support does not override the backend rejection of other extracellular recordings",async()=>{
+  let calls=0;const t=harness(async url=>{calls++;assert(url.endsWith("/recommend"));return response({recommendation_id:"unsupported-extracellular",status:"unsupported",can_apply:false,reason:"Only verified SpikeGLX raw AP/LF is supported",qc_config:null,selected_modules:[],missing_fields:[]})},{selected:false});t.state.catalog=fourCatalog("extracellular");t.state.activeModality="extracellular";delete t.state.catalog.inputs[0].metadata.acquisition;await t.selectInput("extracellular-0",{autoPrepare:true});assert.equal(calls,1);assert.equal(t.state.plan,null);assert(t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("Only verified SpikeGLX"));assert.equal(t.state.job,null);
+});
+check("file-declared digital sync channels cannot become neural or physiological analysis roles",()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog();t.state.intake={id:"sync",metadata:{channels:[{index:0,name:"AP0",sampling_rate_hz:30000,unit:"uV",channel_type:"neuropixels",channel_type_source:"file_declared"},{index:1,name:"ECG_named_sync",sampling_rate_hz:30000,unit:"bits",channel_type:"stim",channel_type_source:"file_declared",stream_band:"sync"}]},suggestions:{modality:"extracellular",eeg_indices:[0,1],reference_indices:{ecg:1},modality_evidence:{status:"file_declared"}}};t.renderIntake();assert.equal(t.intakeRole(1,t.state.intake.suggestions),"unused");assert(t.get("intake-confirmation").innerHTML.includes("同步 / 数字通道（不分析）"));
+  const fields={modality:"extracellular",reference_scheme:"unknown",confirmed:true,context_tags:{disease:"unknown",age_group:"unknown",task:"unknown"}};for(const role of ["eeg","ecg","eog","emg"])assert.throws(()=>t.intakeConfirmation([{index:0,role:"eeg"},{index:1,role}],fields),/同步 \/ 数字通道不能/);const request=t.intakeConfirmation([{index:0,role:"eeg"},{index:1,role:"unused"}],fields);assert.deepEqual([...request.eeg_indices],[0]);assert.deepEqual(Object.keys(request.reference_indices),[]);
+});
+check("refreshing generated registered options preserves selection and original labels",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog("scalp_eeg");t.state.records=t.state.catalog.inputs;t.state.records[0].label="原始文件名.flac";await t.selectInput("scalp_eeg-0");const before=t.fingerprint();t.renderRegisteredInputs();assert.equal(t.get("input-select").value,"scalp_eeg-0");assert(t.get("input-select").innerHTML.includes("原始文件名.flac"));assert.equal(t.fingerprint(),before);
+});
+check("unpaired SpikeGLX META and direct BIN failures remain explicit and never retry or plan",async()=>{
+  for(const [name,error] of [["record.ap.meta","SpikeGLX须将同名.ap.bin/.ap.meta或.lf.bin/.lf.meta一起打包ZIP，不能单独提交META。"],["record.ap.bin","请选择已支持格式；SpikeGLX的单流BIN和META必须一起打包ZIP。"],["missing-pair.zip","SpikeGLX配套缺失：META须对应同名AP或LF BIN。"]]){
+    const calls=[],t=harness(async(url,options)=>{calls.push([url,options.method]);return {...response({error}),ok:false,status:400}});t.state.plan=planFixture(t.body());t.state.planKey=t.fingerprint();t.get("intake-file").files=[{name,size:2048}];await t.uploadIntake();assert.deepEqual(calls,[["/api/v1/intakes","POST"]]);assert.equal(t.get("intake-error").textContent,error);assert.equal(t.get("intake-status").textContent,"读取未完成");assert.equal(t.state.intake,null);assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert(t.get("run-button").disabled);assert(!t.state.intakeBusy);assert.equal(t.get("intake-file").files[0].name,name);
+  }
+});
+function nwbIntake(selected = null) {
+  const available_streams=[{stream_id:"/acquisition/raw",name:"Raw",object_type:"ElectricalSeries",status:"available",sample_count:10000,channel_count:2,sampling_rate_hz:1000,duration_seconds:10},{stream_id:"/processing/ecephys/LFP/lfp",name:"LFP",container_type:"LFP",object_type:"ElectricalSeries",status:"available",sample_count:1000,channel_count:1,sampling_rate_hz:100,duration_seconds:10},{stream_id:"/acquisition/irregular",name:"Irregular <signal>",object_type:"ElectricalSeries",status:"unsupported",reason:"Irregular clock"}];
+  return {id:"nwb/intake",status:"needs_confirmation",filename:"sample.nwb",metadata:{format:"NWB",nwb:{version:"2.8.0",units_present:true,units_count:3,electrical_series_count:3},available_streams,selected_stream_id:selected,channels:selected?[{index:7,name:selected.includes("LFP")?"LFP7":"RAW7",unit:"uV",sampling_rate_hz:selected.includes("LFP")?100:1000,channel_type:"ecog",channel_type_source:"file_declared"}]:[],duration_seconds:selected?10:null},suggestions:{modality:selected?"ecog":"unknown",eeg_indices:selected?[7]:[],reference_indices:{},modality_evidence:{status:selected?"file_declared":"unknown"}}};
+}
+check("NWB multistream extraction blocks confirmation and distinguishes unsupported streams and Units",()=>{
+  const t=harness(undefined,{selected:false});t.state.intake=nwbIntake();t.state.filePending=true;t.renderIntake();t.updateActions();const rendered=t.get("record-summary").innerHTML;
+  assert(rendered.includes('id="intake-stream"'));assert(rendered.includes("先选择信号"));assert(rendered.includes("Units 不属于连续电压流"));assert(rendered.includes("Irregular &lt;signal&gt;"));assert(/value="\/acquisition\/irregular"[^>]*disabled/.test(rendered));assert(!rendered.includes('value="Units"'));assert(t.get("intake-confirmation").hidden);assert.equal(t.get("intake-confirmation").innerHTML,"");assert.throws(()=>t.intakeConfirmation([],{modality:"ecog",confirmed:true}),/先选择/);assert(t.get("run-button").disabled);
+});
+check("NWB stream selection resets roles and plans without confirming, recommending or creating jobs",async()=>{
+  const calls=[],t=harness(async(url,options)=>{calls.push([url,options.method,JSON.parse(options.body)]);return response(nwbIntake("/processing/ecephys/LFP/lfp"))});t.state.intake=nwbIntake("/acquisition/raw");t.state.filePending=true;t.state.plan=planFixture(t.body());t.state.planKey=t.fingerprint();t.get("intake-confirmed").checked=true;
+  assert(await t.selectIntakeStream("/processing/ecephys/LFP/lfp"));assert.deepEqual(calls,[["/api/v1/intakes/nwb%2Fintake/stream","POST",{stream_id:"/processing/ecephys/LFP/lfp"}]]);assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);assert.equal(t.state.recommendation,null);assert.equal(t.state.intake.metadata.channels[0].index,7);assert.equal(t.intakeRole(7,t.state.intake.suggestions),"eeg");assert(!t.get("intake-confirmed").checked);assert(!t.state.intakeBusy);assert.equal(t.state.intake.status,"needs_confirmation");assert(t.get("run-button").disabled);
+});
+check("File picker preserves raw names, allows replacement, and never starts processing on selection",()=>{
+  const t=harness(undefined,{selected:false});t.updateActions();assert(t.get("file-picker-name").hidden);
+  t.get("intake-file").files=[{name:"临床记录 <1>.nwb",size:1024}];t.chooseLocalFile();
+  assert.equal(t.get("file-picker-title").textContent,"已选择文件");assert(t.get("file-picker-name").textContent.includes("临床记录 <1>.nwb"));assert(!t.get("file-picker-name").hidden);assert.equal(t.state.intake,null);assert.equal(t.state.job,null);assert(t.get("run-button").disabled);
+  t.get("intake-file").files=[];t.chooseLocalFile();assert.equal(t.get("file-picker-title").textContent,"选择本机文件");assert(t.get("file-picker-name").hidden);assert(t.get("intake-upload-button").disabled);
+});
+check("Header disclosure navigation only reveals its target and preserves the analysis plan",()=>{
+  const t=harness(), before=t.fingerprint();t.state.plan=planFixture(t.body());t.state.planKey=before;const plan=t.state.plan;
+  for(const id of ["toolkit-section","run-history-panel","registered-records"]){t.get(id).open=false;assert(t.revealNavigationTarget("#"+id));assert(t.get(id).open);}
+  assert(!t.revealNavigationTarget("#module-M03"));assert(!t.revealNavigationTarget("/standards/overview"));assert.equal(t.fingerprint(),before);assert.equal(t.state.plan,plan);assert(t.validPlan());
+});
+check("A direct toolkit link opens its disclosure after initial catalog loading",async()=>{
+  const t=harness(async url=>response(url.includes("catalog")?fixtureCatalog():{jobs:[]}),{selected:false,hash:"#toolkit-section"});
+  t.get("toolkit-section").open=false;assert(await t.loadCatalog());assert(t.get("toolkit-section").open);assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert(t.get("run-button").disabled);
+});
+check("NWB stream requests are serialized and late replies cannot overwrite a new file",async()=>{
+  let resolve,calls=0;const t=harness(async()=>{calls++;return new Promise(done=>resolve=done)},{selected:false});t.state.intake=nwbIntake("/acquisition/raw");t.state.filePending=true;const pending=t.selectIntakeStream("/processing/ecephys/LFP/lfp");assert(t.state.intakeBusy);assert(t.needsStreamSelection());assert(t.get("record-summary").innerHTML.includes("待选信号"));assert(!t.get("intake-confirmed").checked);assert.equal(t.state.intake.metadata.channels.length,0);assert(t.get("record-summary").innerHTML.includes('id="intake-stream" disabled'));assert.equal(await t.selectIntakeStream("/acquisition/raw"),false);assert.equal(calls,1);
+  t.get("intake-file").files=[{name:"new.edf",size:10}];t.chooseLocalFile();resolve(response(nwbIntake("/processing/ecephys/LFP/lfp")));assert.equal(await pending,false);assert.equal(t.state.intake,null);assert.equal(t.state.plan,null);assert(t.get("file-picker-name").textContent.includes("new.edf"));assert.equal(t.get("intake-status").textContent,"");assert(!t.state.intakeBusy);
+});
+check("NWB stream failures block stale confirmation and are not automatically retried",async()=>{
+  for(const malformed of [false,true]){let calls=0;const t=harness(async()=>{calls++;return malformed?response(nwbIntake("/acquisition/raw")):{...response({error:"Unavailable stream"}),ok:false,status:400}},{selected:false});t.state.intake=nwbIntake("/acquisition/raw");t.state.filePending=true;assert.equal(await t.selectIntakeStream("/processing/ecephys/LFP/lfp"),false);assert.equal(calls,1);assert(t.needsStreamSelection());assert(!t.get("intake-error").hidden);assert(t.get("intake-confirmation").hidden);assert(!t.state.intakeBusy);assert.equal(t.state.plan,null);}
+});
+check("NWB single streams stay unconfirmed and frozen or revision records cannot change streams",async()=>{
+  const t=harness(undefined,{selected:false});t.state.intake=nwbIntake("/acquisition/raw");t.state.intake.metadata.available_streams=[t.state.intake.metadata.available_streams[0]];t.renderIntake();assert(!t.get("record-summary").innerHTML.includes('id="intake-stream"'));assert(t.get("record-summary").innerHTML.includes("当前信号"));assert(!t.get("intake-confirmed").checked);assert.equal(t.state.input,null);
+  for(const mode of ["registered","revision","job"]){t.state.mode=mode==="job"?"job":"draft";t.state.intake=nwbIntake("/acquisition/raw");t.state.intake.status=mode;t.state.revisionInput=mode==="revision"?{id:"record"}:null;assert.equal(await t.selectIntakeStream("/processing/ecephys/LFP/lfp"),false);const frozen=t.streamSummaryHtml({metadata:t.state.intake.metadata},false);assert(!frozen.includes('id="intake-stream"'));assert(frozen.includes("切换信号需重新读取"));}
+});
+check("NWB confirmation freezes the selected stream and never adds it to ordinary formats or metadata revisions",()=>{
+  const t=harness(undefined,{selected:false}),fields={modality:"ecog",confirmed:true,reference_scheme:"unknown",context_tags:{}};t.state.intake=nwbIntake("/acquisition/raw");const roles=[{index:7,role:"eeg"}];assert.equal(t.intakeConfirmation(roles,fields).selected_stream_id,"/acquisition/raw");t.state.revisionInput={id:"registered"};assert(!Object.hasOwn(t.intakeConfirmation(roles,fields),"selected_stream_id"));t.state.revisionInput=null;t.state.intake.metadata.format="EDF";delete t.state.intake.metadata.available_streams;delete t.state.intake.metadata.selected_stream_id;assert(!Object.hasOwn(t.intakeConfirmation(roles,fields),"selected_stream_id"));
+});
+check("NWB processing container and probe evidence are shown without declaring a raw stream or filter",()=>{
+  const t=harness(undefined,{selected:false});t.state.intake=nwbIntake("/processing/ecephys/LFP/lfp");t.state.intake.metadata.acquisition={system:"NWB",stream_band:"lf",source_container:"processing",probe_model:"Neuropixels 1.0",filtering_declaration:"unknown"};t.renderIntake();const summary=t.get("record-summary").innerHTML;assert(summary.includes("信号频带"));assert(summary.includes("<dd>LF</dd>"));assert(summary.includes("<dd>processing</dd>"));assert(summary.includes("<dd>Neuropixels 1.0</dd>"));assert(!summary.includes("原始数据流"));assert(!summary.includes("已滤波"));
+});
+check("NWB unextracted events are not presented as absent annotations",()=>{
+  const t=harness(undefined,{selected:false});t.state.intake=nwbIntake("/acquisition/raw");t.state.intake.metadata.annotations={extraction_status:"not_extracted",count:null,available:null,time_reference:"not_mapped_to_selected_series"};assert.equal(t.annotationText(t.state.intake.metadata),"尚未提取");t.renderIntake();const summary=t.get("record-summary").innerHTML;assert(summary.includes("尚未提取"));assert(summary.includes("文件可能含事件；尚未映射到所选信号。"));assert(!summary.includes("未检出标注"));const before=JSON.stringify(t.state.intake);assert.equal(t.annotationText({format:"NWB",annotations:{count:0}}),"提取状态未记录");assert.equal(t.annotationText({format:"NWB"}),"提取状态未记录");assert.equal(JSON.stringify(t.state.intake),before);assert.equal(t.annotationText({annotations:{count:0}}),"未检出标注");assert.equal(t.annotationText({annotations:{count:2}}),"2 条记录");
+});
+check("NWB Units-only and unsupported-stream files never create waveform confirmation",()=>{
+  const t=harness(undefined,{selected:false});for(const streams of [[],[nwbIntake().metadata.available_streams[2]]]){t.state.intake=nwbIntake();t.state.intake.metadata.available_streams=streams;t.state.intake.metadata.nwb.units_count=0;t.renderIntake();t.updateActions();assert(t.get("record-summary").innerHTML.includes("未找到可用的连续电压流"));assert(t.get("record-summary").innerHTML.includes("已识别 Units：0"));assert(t.get("intake-confirmation").hidden);assert(t.get("run-button").disabled);assert(!t.get("record-summary").innerHTML.includes('id="intake-stream"'));}
+});
+if(process.env.QC_CATALOG_FIXTURE)check("actual four-route catalogs and registered metadata work without network mutations or planning",async()=>{
+  const fixture=JSON.parse(fs.readFileSync(process.env.QC_CATALOG_FIXTURE,"utf8")),catalogs=fixture.catalogs,records=fixture.inputs,calls=[];
+  const t=harness(async(url,options={})=>{calls.push([url,options.method||"GET"]);assert(!options.method || options.method==="GET");if(url==="/api/v1/inputs")return response({inputs:records});if(url==="/api/v1/jobs")return response({jobs:[]});const requested=new URL(url,"http://localhost");if(requested.pathname==="/api/v1/catalog")return response(catalogs[requested.searchParams.get("modality")||"scalp_eeg"]);throw Error(`Unexpected request ${url}`)},{selected:false,serverInputs:true});t.state.catalog=null;assert(await t.loadCatalog());assert.equal(t.state.input,null);assert.equal(t.visibleInputs().length,records.length);
+  for(const modality of ["scalp_eeg","ecog","seeg","extracellular"]){const subset=records.filter(record=>record.modality===modality);assert(subset.length,`Real registered metadata for ${modality}`);
+    for(const record of subset){await t.selectInput(record.id);assert.equal(t.state.input.id,record.id);assert.equal(t.state.activeModality,modality);assert.equal(t.state.plan,null);assert.equal(t.moduleStandardsUrl("M03"),catalogs[modality].overview_url+"/modules/M03");assert(t.toolkitMethods("all","all").every(method=>(method.implementation==="planned"?method.intended_modalities:method.supported_modalities).includes(modality)));
+      if(modality!=="scalp_eeg")assert(!t.body().selected_modules.includes("M06"));if(record.metadata?.acquisition){const summary=t.get("record-summary").innerHTML,acquisition=record.metadata.acquisition;if(["ap","lf"].includes(acquisition.stream_band))assert(summary.includes(`<dd>${acquisition.stream_band.toUpperCase()}</dd>`));if(acquisition.probe_type!=null || acquisition.probe_model!=null)assert(summary.includes("探针型号"));if(["acquisition","processing"].includes(acquisition.source_container))assert(summary.includes(`<dd>${acquisition.source_container}</dd>`));}if(record.metadata?.available_streams){assert(!t.get("record-summary").innerHTML.includes('id="intake-stream"'));assert(record.metadata.selected_stream_id,"Registered NWB has frozen stream");}
+    }
+  }
+  for(const intake of fixture.intakes||[]){t.clearInputDraft();t.state.intake=intake;t.renderIntake();assert(!t.get("intake-confirmed").checked);assert.equal(t.state.input,null);if(Array.isArray(intake.metadata.available_streams)){const summary=t.get("record-summary").innerHTML;if(intake.metadata.available_streams.length>1)assert(summary.includes('id="intake-stream"'));if(!intake.metadata.selected_stream_id)assert(t.get("intake-confirmation").hidden);if(intake.metadata.nwb?.units_present)assert(summary.includes("Units 不属于连续电压流"));}for(const channel of intake.metadata.channels){if(channel.channel_type_source==="file_declared"&&channel.channel_type==="stim")assert.equal(t.intakeRole(channel.index,intake.suggestions),"unused");}}
+  assert(calls.every(([url,method])=>method==="GET"&&!/recommend|\/plan/.test(url)));assert.equal(t.state.job,null);
+});
+let failures=0;
+for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}
+console.log(`${tests.length-failures}/${tests.length} pure JavaScript checks passed. Visual/browser behavior is not tested.`);
+if(failures)process.exitCode=1;

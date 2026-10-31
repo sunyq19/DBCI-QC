@@ -43,7 +43,8 @@ _SPECS = [
 
 def extension_specs():
     from .extra_methods import extension_specs as additional_specs
-    return copy.deepcopy(_SPECS) + additional_specs()
+    from .research_runtime import extension_specs as research_specs
+    return copy.deepcopy(_SPECS) + additional_specs() + research_specs()
 
 
 def _spec(extension_id):
@@ -92,6 +93,9 @@ def _parameters(extension_id, params):
 
 
 def evaluate_extension(extension_id, facts, params=None):
+    from .research_runtime import IDS, evaluate_extension as research_call
+    if extension_id in IDS:
+        return research_call(extension_id, facts, params)
     if extension_id not in {spec['id'] for spec in _SPECS}:
         from .extra_methods import evaluate_extension as evaluate_extra
         return evaluate_extra(extension_id, facts, params)
@@ -159,6 +163,9 @@ def _source(extension_id, mne):
 
 
 def run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
+    from .research_runtime import IDS, run_extension as research_call
+    if extension_id in IDS:
+        return research_call(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)
     if extension_id not in {spec['id'] for spec in _SPECS}:
         from .extra_methods import run_extension as run_extra
         return run_extra(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)

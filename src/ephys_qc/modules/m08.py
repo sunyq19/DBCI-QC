@@ -22,7 +22,11 @@ def run(context: ModuleContext) -> dict:
         unchanged = None
     row["summary"] = {"score": result["score"], "source_unchanged": unchanged,
                       "module_assessments": [{"id": m["id"], "status": m["status"], "reason": m["reason"], "summary": m["summary"]} for m in result["modules"] if m["id"] != "M08"],
-                      "missing_capabilities": ["空间坏道预测", "local AutoReject", "ICA/ICLabel", "一般重复数据块"],
+                      "missing_capabilities": (["ECoG伪迹分类", "触点空间关系核验", "临床质量准确性验证", "一般重复数据块"]
+                                               if context.record.get('modality') == 'ecog' else
+                                               ['sEEG伪迹分类', '杆内邻接和双极关系核验', '病理与伪迹独立标签'] if context.record.get('modality') == 'seeg' else
+                                               ['spike sorting与单元质量', '探针漂移', '跨流同步和采样相位补偿', '自动坏通道判定'] if context.record.get('modality') == 'extracellular' else
+                                               ["空间坏道预测", "local AutoReject", "ICA/ICLabel", "一般重复数据块"]),
                       "execution_status_is_not_quality": True}
     if any(m["status"] in {"partial", "failed"} for m in result["modules"] if m["id"] != "M08"):
         row.update(status="partial", reason="部分方法未评或执行失败；保留分项结论，不生成总分")

@@ -156,6 +156,8 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
         from ephys_qc.readers import open_reader
         reader_factory = open_reader
     selection = copy.deepcopy(selection if selection is not None else record.get('default_config', {}).get('selection', {}))
+    from ephys_qc.source_selection import validate_frozen_stream
+    validate_frozen_stream(record.get('metadata', {}), selection)
     if channels is not None:
         if channel_indices is not None:
             raise ValueError('Use channel_indices or channels, not both')
@@ -173,7 +175,8 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
         max_points = int(max_points)
     if isinstance(max_points, bool) or not isinstance(max_points, int) or not 8 <= max_points <= MAX_POINTS:
         raise ValueError('max_points must be an integer from 8 to 2000')
-    reader = reader_factory(record['source_path'], str(record['id']))
+    from ephys_qc.source_selection import reader_kwargs
+    reader = reader_factory(record['source_path'], str(record['id']), **reader_kwargs(record.get('metadata', {})))
     try:
         description = reader.describe()
         verified = _verify_sources(record, description, expected_source_files, expected_sha256)
@@ -367,6 +370,11 @@ class ReviewWorkspace:
                     if filename in EXTENSION_ARTIFACTS and payload.get('status') not in {'completed', 'partial'}:
                         continue
                     artifact = f'{window_id}--{filename}' if window_id else filename
+                    budget = payload.get('candidate_evidence', {})
+                    if payload.get('candidate_details_truncated') is True or budget.get('truncated') is True:
+                        warnings.append({'code': 'candidate_details_truncated', 'artifact': artifact,
+                            'reason': '候选详情已截断；当前仅复核已保存的位置，完整计数见模块证据。',
+                            **{key: budget.get(key) for key in ('observed_interval_count', 'stored_interval_count', 'omitted_interval_count')}})
                     normalized = normalize_candidates(payload, module_id=module, method=method, request=request,
                                                       selection_artifact=selection, artifact_name=artifact, window_id=window_id)
                     for item in normalized:

@@ -54,7 +54,7 @@ class RecommendationTests(unittest.TestCase):
         params = result["qc_config"]["method_config"]["extension_parameters"]["mne_amplitude"]
         self.assertIsNone(params["peak_volts"])
         self.assertEqual(params["flat_volts"], 0)
-        self.assertEqual(method_ids(result["optional_methods"]), {"mne_bridge", "mne_lof", "mne_muscle", "autoreject_global"})
+        self.assertEqual(method_ids(result["optional_methods"]), {"mne_bridge", "mne_lof", "mne_muscle", "autoreject_global", "faster_channels", "cleanline", "zapline_plus", "fieldtrip_zvalue"})
         self.assertFalse(result["scope"]["signal_read"])
         self.assertFalse(result["scope"]["job_created"])
 
@@ -217,13 +217,13 @@ class RecommendationTests(unittest.TestCase):
         self.assertTrue(any(m["key"] == "modality" and m["blocking"] for m in result["missing_fields"]))
 
     def test_other_formats_and_modalities_are_explicitly_unsupported(self):
-        for modality in ("seeg", "ecog", "neuropixels"):
+        for modality in ("meg", "other", "neuropixels"):
             r = recording(); r["modality"] = modality
             result = recommend(r)
             self.assertEqual(result["status"], "unsupported")
             self.assertFalse(result["can_apply"])
             self.assertEqual(result["selected_modules"], [])
-        for fmt in ("CSV", "NWB", "unknown-format"):
+        for fmt in ("CSV", "NWB-Zarr", "unknown-format"):
             r = recording(); r["metadata"]["format"] = fmt
             self.assertEqual(recommend(r)["status"], "unsupported")
 

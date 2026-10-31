@@ -22,7 +22,8 @@ def run(context: ModuleContext) -> dict:
     if record.get("expected_sha256") and digest != record["expected_sha256"]:
         raise ValueError("Source SHA-256 disagrees with the registered input")
     from ..readers import open_reader
-    state["reader"] = source_context['reader'] if source_context else open_reader(source, str(record["id"]))
+    from ..source_selection import reader_kwargs
+    state["reader"] = source_context['reader'] if source_context else open_reader(source, str(record["id"]), **reader_kwargs(record.get('metadata', {})))
     state['reader'].assert_unchanged()
     state["description"] = state["reader"].describe()
     manifest = state['description']['source_files']
@@ -37,6 +38,10 @@ def run(context: ModuleContext) -> dict:
         if expected != observed:
             raise ValueError('Source package files/hashes disagree with the inspected metadata')
     result['source_files'] = [{k: v for k, v in item.items() if k != 'path'} for item in manifest]
+    if state['description']['format'] == 'NWB':
+        actual = state['reader'].metadata()
+        result['source_signal'] = {key: actual.get(key) for key in
+                                   ('selected_stream_id', 'nwb', 'capabilities', 'acquisition', 'clock')}
     if state['description']['format'] in {'EDF', 'BDF'}:
         if source_context and 'header' in source_context:
             header = source_context['header']
@@ -57,7 +62,8 @@ def run(context: ModuleContext) -> dict:
                             'backend_version': state['description'].get('backend_version'),
                             'source_files': result['source_files'], 'clock': state['description']['clock'],
                             'annotations': state['description']['annotations'],
-                            "warnings": state["description"]["warnings"]})
+                            "warnings": state["description"]["warnings"],
+                            **({'source_signal': result['source_signal']} if 'source_signal' in result else {})})
     row["summary"] = {"source_sha256": digest, "stream_count": len(state["description"]["streams"]),
                       "header_signal_count": state["description"]["header_channel_count"],
                       "header_status": header["status"],

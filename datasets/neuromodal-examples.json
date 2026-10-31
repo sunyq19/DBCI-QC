@@ -1,0 +1,211 @@
+{
+  "schema_version": "new-voltage-route-examples/1",
+  "date": "2026-10-30",
+  "purpose": "Engineering coverage, not a labeled artifact or channel-quality benchmark",
+  "examples": [
+    {
+      "id": "mne-seeg-misc-fif",
+      "modality": "seeg",
+      "format": "FIF",
+      "duration_seconds": 60.00127418658234,
+      "selected_channel_count": 119,
+      "total_channel_count": 119,
+      "source_sha256": "76b0cfdb5708cc349d1aaf662757f477eb7c26fe396468e6a16f13b84df43ba4",
+      "source_files": [
+        {
+          "name": "MNE_sEEG_sample_ieeg.fif",
+          "role": "main",
+          "size_bytes": 28563876,
+          "sha256": "76b0cfdb5708cc349d1aaf662757f477eb7c26fe396468e6a16f13b84df43ba4"
+        }
+      ],
+      "provenance": {
+        "name": "MNE miscellaneous sEEG sample",
+        "version": "d8ceb830cf0b05191dbde118e05f39a410567a8b",
+        "license": "BSD-3-Clause (repository LICENSE)",
+        "url": "https://mne.tools/stable/auto_tutorials/clinical/20_seeg.html",
+        "download_url": "https://raw.githubusercontent.com/mne-tools/mne-misc-data/d8ceb830cf0b05191dbde118e05f39a410567a8b/seeg/sample_seeg_ieeg.fif"
+      },
+      "clock": {
+        "origin": "first_sample_in_file",
+        "first_sample": 1310640,
+        "first_time_seconds": 1311.4109662125586,
+        "source_xmin_seconds": null,
+        "cross_source_alignment": "unverified"
+      },
+      "acquisition": {},
+      "quality_ground_truth": false
+    },
+    {
+      "id": "neo-neuropixels-noise4sam-lf",
+      "modality": "extracellular",
+      "format": "SpikeGLX",
+      "duration_seconds": 5.2652,
+      "selected_channel_count": 384,
+      "total_channel_count": 385,
+      "source_sha256": "9222e7ce44caa7ec2c3dd514459158f6e351ae0ad1d9c415e197b49adde550a5",
+      "source_files": [
+        {
+          "name": "Noise4Sam_g0_t0.imec0.lf.bin",
+          "role": "main",
+          "size_bytes": 10135510,
+          "sha256": "9222e7ce44caa7ec2c3dd514459158f6e351ae0ad1d9c415e197b49adde550a5"
+        },
+        {
+          "name": "Noise4Sam_g0_t0.imec0.lf.meta",
+          "role": "metadata",
+          "size_bytes": 13997,
+          "sha256": "db7301341a9c1adb6712589984ea981206f50b764492d33684dc8fc364d7e0e1"
+        }
+      ],
+      "provenance": {
+        "name": "neo-ephy-testing-data",
+        "version": "4304c8cdc0d345e8ca70ff7720c1087f911d1d5b",
+        "license": "CC-BY-SA-4.0",
+        "url": "https://gin.g-node.org/NeuralEnsemble/ephy_testing_data/raw/4304c8cdc0d345e8ca70ff7720c1087f911d1d5b/spikeglx/Noise4Sam_g0/Noise4Sam_g0_imec0/Noise4Sam_g0_t0.imec0.lf.bin",
+        "derived": false
+      },
+      "clock": {
+        "origin": "first_sample_in_file",
+        "first_sample": 14782,
+        "first_time_seconds": 5.9128,
+        "time_reference": "recording_start_seconds",
+        "cross_source_alignment": "unverified"
+      },
+      "acquisition": {
+        "system": "SpikeGLX",
+        "stream_band": "lf",
+        "probe_type": 0,
+        "probe_model": "Neuropixels 1.0",
+        "probe_part_number": "PRB_1_4_0480_1",
+        "sampling_rate_hz": 2500.0,
+        "saved_neural_channel_count": 384,
+        "saved_sync_channel_count": 1,
+        "adc_max_integer": 512,
+        "adc_max_integer_source": "supported_probe_specification",
+        "adc_voltage_range_max": 0.6,
+        "channel_gains": [
+          125.0
+        ],
+        "declared_sha1_status": "verified",
+        "geometry": null,
+        "cross_stream_alignment": "unverified",
+        "processing_applied": []
+      },
+      "quality_ground_truth": false
+    },
+    {
+      "id": "paulk-human-pt03-ap-60s-2s",
+      "modality": "extracellular",
+      "format": "SpikeGLX",
+      "duration_seconds": 2.0,
+      "selected_channel_count": 384,
+      "total_channel_count": 385,
+      "source_sha256": "859039ccf67275f8773bd9d9419f776558c348cb6f6b8eb20c860b40a0075c97",
+      "source_files": [
+        {
+          "name": "Pt03_recording60-62s.imec0.ap.bin",
+          "role": "main",
+          "size_bytes": 46200000,
+          "sha256": "859039ccf67275f8773bd9d9419f776558c348cb6f6b8eb20c860b40a0075c97"
+        },
+        {
+          "name": "Pt03_recording60-62s.imec0.ap.meta",
+          "role": "metadata",
+          "size_bytes": 17897,
+          "sha256": "204ee7a648bfd22ee16934c5d2d42461cd24446e3feb8d360f8b53406f5d5f91"
+        }
+      ],
+      "provenance": {
+        "name": "paulk-human-neuropixels-2022",
+        "version": "Zenodo5899237 v1",
+        "license": "CC0-1.0",
+        "url": "https://zenodo.org/records/5899237",
+        "derived": true,
+        "derivation": {
+          "source_url": "https://zenodo.org/records/5899237/files/Pt03.imec0.ap.bin?download=1&slice=60-62",
+          "source_total_bytes": 13543042590,
+          "source_whole_file_md5": "edccc662126063fca131bc982da1cbad",
+          "source_whole_file_downloaded": false,
+          "source_whole_file_md5_verified": false,
+          "source_meta_sha256": "73ecf75bbc26e59290ceb03729817a638d64bc766abc7bf465998ad9d67bb95a",
+          "source_meta_md5_verified": true,
+          "source_file_sample_start": 1800000,
+          "source_file_sample_stop_exclusive": 1860000,
+          "source_recording_seconds": [
+            60,
+            62
+          ],
+          "byte_range_half_open": [
+            1386000000,
+            1432200000
+          ],
+          "sample_frame_bytes": 770,
+          "all_385_saved_channels_retained": true,
+          "derived_sha256": "859039ccf67275f8773bd9d9419f776558c348cb6f6b8eb20c860b40a0075c97",
+          "metadata_changes": {
+            "fileName": {
+              "source": "D://raw/Pt03.imec0.ap.bin",
+              "derived": "Pt03_recording60-62s.imec0.ap.bin"
+            },
+            "fileSizeBytes": {
+              "source": "13543042590",
+              "derived": "46200000"
+            },
+            "fileTimeSecs": {
+              "source": "586.2792",
+              "derived": "2"
+            },
+            "firstSample": {
+              "source": "9026",
+              "derived": "1809026"
+            },
+            "fileSHA1": {
+              "source": null,
+              "derived": "354C77CA0F1FC9AECA1B2C75DE530EE04A5BE4DD"
+            }
+          },
+          "metadata_added": {
+            "dbciDerivedSource": "Zenodo5899237 Pt03 original recording interval [60,62) seconds",
+            "dbciDerivedOperation": "byte_exact_contiguous_sample_range_no_filter_no_resample_no_rereference"
+          },
+          "raw_signal_values_changed": false,
+          "processing_applied": []
+        }
+      },
+      "clock": {
+        "origin": "first_sample_in_file",
+        "first_sample": 1809026,
+        "first_time_seconds": 60.300866666666664,
+        "time_reference": "recording_start_seconds",
+        "cross_source_alignment": "unverified"
+      },
+      "acquisition": {
+        "system": "SpikeGLX",
+        "stream_band": "ap",
+        "probe_type": 0,
+        "probe_model": "Neuropixels 1.0",
+        "probe_part_number": "NP1010",
+        "sampling_rate_hz": 30000.0,
+        "saved_neural_channel_count": 384,
+        "saved_sync_channel_count": 1,
+        "adc_max_integer": 512,
+        "adc_max_integer_source": "file_declared",
+        "adc_voltage_range_max": 0.6,
+        "channel_gains": [
+          500.0
+        ],
+        "declared_sha1_status": "verified",
+        "geometry": "source_grid_indices_not_anatomical_coordinates",
+        "cross_stream_alignment": "unverified",
+        "processing_applied": []
+      },
+      "quality_ground_truth": false
+    }
+  ],
+  "limitations": [
+    "NP2 has synthetic decoding tests only.",
+    "Neuropixels AP and LF examples are distinct observations, not a synchronized pair.",
+    "No spike sorting or unit-quality implementation."
+  ]
+}

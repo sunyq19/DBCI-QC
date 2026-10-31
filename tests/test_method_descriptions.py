@@ -19,6 +19,7 @@ EXPECTED_IDS = {
     "hf_burst", "sleep_timeline", "task_timeline", "clinical_timeline", "aggregate",
     "report", "mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof",
     "autoreject_global", "pyprep_ransac", "autoreject_epochs", "ica_iclabel",
+    "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue",
 }
 TEXT_FIELDS = {
     "purpose", "how_it_works", "interpretation", "when_to_use", "when_not_to_use",
