@@ -23,6 +23,9 @@ DOCUMENT_PAGES = {
     'overview': ('workflow-standards.md', '总则', 'General requirements'),
     'fields': ('metadata-fields.md', '字段字典', 'Field dictionary'),
     'applicability': ('method-applicability.md', '方法适用规则', 'Method applicability'),
+    'eeg-checks': ('eeg-checks.md', 'EEG检查词条', 'EEG check terms'),
+    'eeg-evidence': ('eeg-evidence.md', 'EEG来源依据', 'EEG evidence sources'),
+    'eeg-report': ('eeg-report.md', 'EEG报告要求', 'EEG report requirements'),
     'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
 }
 DOCUMENT_PATHS = {'/standards', '/standards/ecog', '/standards/seeg', '/standards/neuropixels',
@@ -551,6 +554,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
     if lang not in {'en', 'zh', 'zh-CN'}:
         raise ValueError('Unsupported document language')
     common = modality in DOCUMENT_PAGES
+    eeg_document = modality.startswith('eeg-')
     if modality not in {*ROUTES, *DOCUMENT_PAGES} or (common and module_id is not None):
         raise ValueError('Unsupported document modality')
     english = lang == 'en'
@@ -569,11 +573,12 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                   r'\1<p class="document-meta">\2</p>', body, count=1)
     title = next((heading['text'] for heading in markdown.headings if heading['level'] == 1), text('质控技术规范', 'QC technical specification'))
     toc = render_toc(heading_tree(markdown.headings))
+    module_base = ('/en/standards' if english else '/standards') if eeg_document else base
     module_links = ''.join(
-        f'<li><a class="module-nav-item" href="{base}/modules/{identifier}"'
+        f'<li><a class="module-nav-item" href="{module_base}/modules/{identifier}"'
         + (' aria-current="page"' if identifier == module_id else '')
         + f'><code>{identifier}</code>{escape(name)}</a></li>' for identifier, name in titles.items())
-    if common:
+    if common and not eeg_document:
         prefix = '/en' if english else ''
         module_links = (f'<li><a href="{prefix}/standards">{text("头皮EEG适用规则", "Scalp EEG requirements")}</a></li>'
                         f'<li><a href="{prefix}/standards/ecog">{text("ECoG适用规则", "ECoG requirements")}</a></li>'
@@ -582,12 +587,18 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
     download_path = f'{base}/modules/{module_id}.md' if module_id else base + '.md'
     download_name = f'{module_id}.md' if module_id else (DOCUMENT_PAGES[modality][0] if common else 'qc-standards.md')
     prefix = '/en' if english else ''
-    document_links = ''.join(
-        f'<li><a href="{prefix}/standards/{slug}"'
-        + (' aria-current="page"' if slug == modality else '')
-        + f'>{escape(labels[2] if english else labels[1])}</a></li>'
-        for slug, labels in DOCUMENT_PAGES.items())
-    kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality == 'implementation' else
+    def document_link(slug):
+        labels = DOCUMENT_PAGES[slug]
+        return (f'<li><a href="{prefix}/standards/{slug}"'
+                + (' aria-current="page"' if slug == modality else '')
+                + f'>{escape(labels[2] if english else labels[1])}</a></li>')
+    document_links = ('<li>' + text('共同要求', 'Shared requirements') + '<ol>'
+                      + ''.join(document_link(s) for s in ('overview', 'fields', 'applicability')) + '</ol></li>'
+                      + '<li>' + text('头皮 EEG', 'Scalp EEG') + '<ol>'
+                      + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
+                      + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-evidence', 'eeg-report')) + '</ol></li>'
+                      + document_link('implementation'))
+    kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else
             text('模块说明 · 当前实现', 'Module guide · Current implementation') if module_id else
             text('项目技术规范 · 征求意见稿', 'Project technical specification · Consultation draft'))
     breadcrumb = (f'<nav class="breadcrumbs" aria-label="{text("面包屑", "Breadcrumbs")}"><a href="{base}">{text("质控技术规范", "QC technical specification")}</a>'
@@ -620,7 +631,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
 <main class="document-layout"><aside class="document-sidebar" aria-label="{text("规范导航", "Specification navigation")}">
 <details id="specification-navigation" class="module-navigation" open><summary>{text("文档体系", "Document structure")}</summary><nav aria-label="{text("公共规范", "Shared specifications")}"><ol>{document_links}</ol></nav></details>
 <details id="document-toc" class="document-toc" open><summary>{text("目录", "Contents")}</summary><nav aria-label="{text("条款目录", "Clause contents")}"><ol class="toc-tree">{toc}</ol></nav></details>
-<details id="module-navigation" class="module-navigation"><summary>{text("各模态规范", "Modality requirements") if common else text("模块索引", "Module index")}</summary><nav aria-label="{text("模块详情", "Module details")}"><ol>{module_links}</ol></nav></details></aside>
+<details id="module-navigation" class="module-navigation"><summary>{text("各模态规范", "Modality requirements") if common and not eeg_document else text("模块索引", "Module index")}</summary><nav aria-label="{text("模块详情", "Module details")}"><ol>{module_links}</ol></nav></details></aside>
 <article id="document" class="document-body">{breadcrumb}{module_action}{body}{pagination}</article></main>
 <footer class="document-footer"><a href="#document">{text("返回顶部", "Back to top")} ↑</a></footer>
 </body></html>'''

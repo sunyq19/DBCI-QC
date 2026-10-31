@@ -49,6 +49,8 @@ def waveform(state, path, config_dir):
 
 
 def render_report(result, label, path):
+    from ..eeg_assessment import render_eeg_assessment
+    eeg_index = render_eeg_assessment(result)
     escape = lambda value: html.escape(str(value), quote=True)
     number = lambda value: f"{value:g}" if isinstance(value, (int, float)) else "待核对"
     status_names = {"completed": "完成", "partial": "部分可评", "skipped": "跳过", "failed": "失败"}
@@ -145,7 +147,7 @@ def render_report(result, label, path):
     body = f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{escape(label)} — {modality_name} QC</title><style>body{{font:16px/1.65 system-ui,sans-serif;color:#183348;background:#f4f7f8;margin:0}}main{{max-width:1100px;margin:auto;padding:32px}}section,header,figure{{background:white;border:1px solid #d8e3e7;border-radius:12px;padding:22px;margin:18px 0}}h1{{font-size:28px;margin:8px 0 22px}}h2{{font-size:20px;margin:0}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 monospace;background:#f3f6f7;padding:16px;border-radius:8px}}img{{max-width:100%}}a{{color:#126f89}}.status{{background:#fff3d6;padding:12px;border-radius:8px}}.facts{{display:flex;gap:14px;flex-wrap:wrap}}.facts span{{background:#edf5f6;padding:12px 18px;border-radius:8px}}.module-heading{{display:flex;align-items:center;justify-content:space-between;gap:15px}}.module-id,.muted,figcaption{{color:#627780;font-size:13px}}.badge{{font-size:13px;white-space:nowrap;padding:3px 10px;border-radius:20px;background:#ecf2f4}}.completed{{background:#e5f3ee;color:#245d49}}.partial{{background:#fff0cc;color:#78550c}}.failed{{background:#fce5e4;color:#9c3832}}details{{margin:14px 0}}summary{{cursor:pointer;color:#356779}}.note{{border-left:3px solid #d9ae50;padding-left:12px;color:#735a24}}.evidence{{font-size:13px;overflow-wrap:anywhere}}footer{{color:#627780;font-size:13px;padding:12px}}@media(max-width:650px){{main{{padding:12px}}section,header,figure{{padding:16px}}h1{{font-size:23px}}}}</style><main>
 <header><p class="muted">独立模块 {modality_name} 质控 · 本地结果</p><h1>{escape(label)}</h1><div class="facts"><span><b>{escape(recording.get('channel_count', '—'))}</b> 个选中通道</span><span><b>{number(recording.get('sampling_rate_hz'))}</b> Hz</span><span>{time_label} <b>{number(first)}–{number(stop)}</b> 秒</span></div><p class="status">总分未校准 · 待人工复核。各模块的“完成”仅表示计算完成，不表示数据质量合格。</p>{notices}<details><summary>查看来源指纹、选道与运行配置</summary><pre>{escape(identity)}</pre></details></header>
-{image}{''.join(blocks)}<footer>检测仅提供待复核证据；保留原始数据。任务事件与睡眠阶段不是质量标签。人工意见在工作台独立留版本，本检测报告保持不变。</footer></main></html>'''
+{eeg_index}{image}{''.join(blocks)}<footer>检测仅提供待复核证据；保留原始数据。任务事件与睡眠阶段不是质量标签。人工意见在工作台独立留版本，本检测报告保持不变。</footer></main></html>'''
     path.write_text(body, encoding="utf-8")
 
 

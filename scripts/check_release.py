@@ -14,6 +14,7 @@ def main():
     if missing or not shutil.which('node'):
         raise SystemExit('Use the configured scientific Python and Node; missing: ' + ', '.join(missing or ['node']))
     checks = [
+        [sys.executable, "scripts/build_eeg_specification.py", "--check"],
         [sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'],
         ['node', 'apps/workbench/web/check-ui-contract.mjs'],
         ['node', 'tests/check-i18n.mjs'],

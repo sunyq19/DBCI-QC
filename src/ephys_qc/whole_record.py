@@ -332,6 +332,8 @@ def _modules(plan, windows):
 
 
 def render_recording_report(result, path):
+    from .eeg_assessment import render_eeg_assessment
+    eeg_index = render_eeg_assessment(result)
     esc = lambda v: html.escape(str(v), quote=True)
     c = result['coverage']
     rows = []
@@ -350,6 +352,7 @@ def render_recording_report(result, path):
 <style>body{{font:16px/1.7 system-ui,sans-serif;background:#f3f7fc;color:#18334c}}main{{max-width:1100px;margin:auto;padding:24px}}section,header{{background:white;padding:24px;margin:18px 0;border:1px solid #d4dfed;border-radius:10px}}table{{border-collapse:collapse;width:100%;font-size:14px}}th,td{{padding:9px;text-align:left;border-bottom:1px solid #dce5ee;vertical-align:top}}a{{color:#1459ac}}.scroll{{overflow-x:auto}}.note{{border-left:4px solid #d89430;padding-left:16px}}@media print{{body{{background:white}}section,header{{break-inside:avoid}}}}</style><main>
 <header><p>整记录分块质控 · 原生时钟</p><h1>{esc(result.get('label', '记录'))}</h1><p class="note">总分未校准 · 待人工复核。覆盖率是执行范围，不是质量合格率。</p>
 <p>记录 {c['total_seconds']:g} 秒；完成计算 {c['completed_seconds']:g} 秒（{c['execution_percent']:.2f}%）；失败 {c['failed_seconds']:g} 秒；未执行 {c['unexecuted_seconds']:g} 秒；来源缺口 {c['gap_seconds']:g} 秒。</p><p>来源核验：{esc(result.get('source_integrity', 'unverified'))}。可用样本执行覆盖 {c['available_execution_percent']:.2f}%；所有已选模块均计算完成的范围 {c['fully_assessed_percent']:.2f}%，仍不代表质量合格。</p>{source_info}</header>
+{eeg_index}
 <section><h2>窗口与证据</h2><div class="scroll"><table><thead><tr><th>窗口</th><th>原始秒</th><th>状态</th><th>证据</th><th>原因</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div></section>
 <section><h2>模块汇总</h2><div class="scroll"><table><tbody>{module_rows}</tbody></table></div></section>
 <section><h2>覆盖与候选索引</h2><p><a href="coverage.json">覆盖明细</a> · <a href="candidate-index.json">{len(result['candidate_index'])} 个原始候选索引</a> · <a href="plan.json">冻结计划</a></p><ul>{gaps}</ul><p>候选按窗口保留原始时间和源通道身份；尚未自动合并跨窗重复/相邻事件，也不自动删除数据。</p><ul>{warning}</ul></section></main></html>''', encoding='utf-8')
@@ -474,6 +477,8 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     _save(artifacts / 'coverage.json', cov)
     _save(artifacts / 'candidate-index.json', candidate_index)
     _save(artifacts / 'window-results.json', windows)
+    from .eeg_assessment import attach_eeg_assessment
+    attach_eeg_assessment(result, artifacts)
     render_recording_report(result, artifacts / 'report.html')
     result['artifacts'] = [{'name': p.name, 'bytes': p.stat().st_size, 'kind': 'image' if p.suffix == '.png' else 'report' if p.suffix == '.html' else 'json'} for p in sorted(artifacts.iterdir()) if p.is_file()]
     progress['status'] = status; checkpoint()

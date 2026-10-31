@@ -1,6 +1,6 @@
 # 当前实现与验证范围
 
-资料性文件 · 版本 implementation/1 · 2026-10-31 · 软件基线 1.0.0rc3.dev8
+资料性文件 · 版本 implementation/2 · 2026-10-31 · 软件基线 1.0.0rc3.dev9
 
 [总则](/standards/overview) · [字段字典](/standards/fields) · [方法适用规则](/standards/applicability)
 
@@ -51,3 +51,11 @@
 本次字段核对使用真实人类EEG、猴ECoG和小鼠LFP来源，分别保留缺失年龄、实验开始年龄和月龄。小鼠样例使用Neuronexus探针，不能因此获得Neuropixels路线资格。验收说明见仓库docs/metadata-validation-20261031.md。
 
 开发待办保存在仓库TODO.md，不作为本规范的要求或实现证据。后续实现变化应同步修订本页，既有报告保留生成时的版本。
+
+## 5 EEG规则与报告追溯
+
+头皮EEG规范0.7配套12个检查词条、14项资料性来源和独立报告要求。词条与9个现有模块对应，中英文检查页从同一版本化JSON生成。每个新EEG任务保存词条原始快照及SHA-256、实际产物指纹、有效参数、测量摘要和模块执行状态；整记录保存逐窗入口。旧报告保持生成时内容。
+
+此映射不判定规范符合性，conformance保持null。未采集完整物种/位置确认，缺参考、无辅助信号及失败均不算正常；有效参数来自实际方法产物，不从未展开的默认计划推测。FASTER原始特征与桥接实际分界点等未导出量仍未补造。工程回归和公开样例不代替专家标签验证。
+
+本轮工程与真实文件核验详见仓库docs/eeg-standard-validation-20261031.md；冻结样例摘要见examples/validation/eeg-standard-20261031.json。

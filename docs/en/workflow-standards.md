@@ -1,6 +1,6 @@
 # Electrophysiology data QC specification
 
-Project technical specification · Version workflow/3 · 2026-10-31 · Research use
+Project technical specification · Version workflow/4 · 2026-10-31 · Research use
 
 ## 1 Scope and document structure
 
@@ -17,6 +17,9 @@ This specification defines description, applicability, execution, assessment and
 | Implementation | [Current implementation and validation](/standards/implementation) | Integrated capabilities, compatibility layers and evidence limits |
 
 Each modality provides M01–M09 guides with actual entry points, parameters, dependencies and sources. Development plans, discussion and experiment logs are not specification clauses.
+
+
+The scalp EEG procedure comprises the [specification](/standards), [check terms](/standards/eeg-checks), [evidence sources](/standards/eeg-evidence) and [report requirements](/standards/eeg-report). Terms map to existing modules; external evidence, effective parameters and implementation evidence remain distinct.
 
 ## 2 Data description
 

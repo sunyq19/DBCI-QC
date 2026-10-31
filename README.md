@@ -6,9 +6,11 @@
 
 DBCI-QC 以数据为入口，将文件读取、信息确认、方法选择、模块执行和人工复核组织为可追溯的质控流程。当前提供**头皮 EEG**检查，以及 **ECoG、sEEG 和 Neuropixels 连续电压的基础描述检查**。统一工作流程由读取后的模态、通道和采集条件选择适用方法，不要求用户在上传前选择模态。
 
-当前开发版本：**1.0.0rc3.dev8**；上一已标记候选版为 **1.0.0rc2**。核心交付为可独立安装和调用的 Python 工具包；九个模块按文件独立实现，提供 Python 与命令行入口，网页是可选应用。交接与调用见[模块工具包](docs/toolkit.md)，版本变化见 [CHANGELOG](CHANGELOG.md)，实现与验收范围见[运行验收记录](docs/runtime-validation.md)，未完成事项见[待办清单](TODO.md)。
+当前开发版本：**1.0.0rc3.dev9**；上一已标记候选版为 **1.0.0rc2**。核心交付为可独立安装和调用的 Python 工具包；九个模块按文件独立实现，提供 Python 与命令行入口，网页是可选应用。交接与调用见[模块工具包](docs/toolkit.md)，版本变化见 [CHANGELOG](CHANGELOG.md)，实现与验收范围见[运行验收记录](docs/runtime-validation.md)，未完成事项见[待办清单](TODO.md)。
 
 规范入口：[总则](docs/workflow-standards.md) → [字段字典](docs/metadata-fields.md) → [方法适用规则](docs/method-applicability.md)；[实现与验证范围](docs/implementation-status.md)单独说明软件能力。
+
+EEG 评价规程：[技术规范](docs/qc-standards.md) → [12项检查词条](docs/eeg-checks.md) → [来源依据](docs/eeg-evidence.md) → [报告要求](docs/eeg-report.md)。新报告保存词条和有效参数的证据快照；不产生合规认证或校准总分。
 
 ## 工作流程
 

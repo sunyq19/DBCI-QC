@@ -6,9 +6,11 @@
 
 DBCI-QC connects file reading, metadata confirmation, method selection, module execution and independent review through a traceable workflow. Current routes cover **scalp EEG** and **basic descriptive checks for ECoG, sEEG and Neuropixels continuous voltage**. Users upload data first; confirmed metadata determines the analysis route.
 
-Development version: **1.0.0rc3.dev8**. The previous tagged release candidate is **1.0.0rc2**. The main deliverable is an independently installable Python toolkit with Python and CLI interfaces. The website is optional. See the [toolkit contract](docs/toolkit.md), [change log](CHANGELOG.md), [versioned validation records](docs/runtime-validation.md) and [pending work (Chinese)](TODO.md).
+Development version: **1.0.0rc3.dev9**. The previous tagged release candidate is **1.0.0rc2**. The main deliverable is an independently installable Python toolkit with Python and CLI interfaces. The website is optional. See the [toolkit contract](docs/toolkit.md), [change log](CHANGELOG.md), [versioned validation records](docs/runtime-validation.md) and [pending work (Chinese)](TODO.md).
 
 Documentation: [general requirements](docs/en/workflow-standards.md) → [field dictionary](docs/en/metadata-fields.md) → [method applicability](docs/en/method-applicability.md); [current implementation](docs/en/implementation-status.md) separates implemented capability from the design.
+
+EEG assessment procedure: [specification](docs/en/qc-standards.md) → [12 check terms](docs/en/eeg-checks.md) → [evidence sources](docs/en/eeg-evidence.md) → [report requirements](docs/en/eeg-report.md). New reports preserve rule and effective-parameter evidence snapshots; no certification or calibrated score is issued.
 
 ## Workflow
 

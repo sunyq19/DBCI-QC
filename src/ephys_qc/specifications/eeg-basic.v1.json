@@ -1,0 +1,541 @@
+{
+  "schema_version": "eeg-check-catalog/1",
+  "version": "eeg-basic/1",
+  "specification_version": "0.7",
+  "scope": "human_continuous_scalp_eeg_technical_quality",
+  "status": "project_draft_not_published_standard",
+  "checks": [
+    {
+      "id": "EEG-001",
+      "module_id": "M01",
+      "title": {
+        "zh": "文件、来源与标定",
+        "en": "Files, provenance and calibration"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-1833",
+        "SRC-BIDS",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M01_input.json"
+      ],
+      "applicability": {
+        "zh": "所有输入；主文件及必要配套成员应完整。",
+        "en": "All inputs; the primary file and required companions must be available."
+      },
+      "measurement": {
+        "zh": "核对格式结构、源文件SHA-256、各采样流、通道角色、单位和数字到物理量的标定。头记录通道数与数值信号数分别保存。",
+        "en": "Check format structure, SHA-256, streams, channel roles, units and digital-to-physical calibration. Keep header signal count distinct from numeric signal count."
+      },
+      "decision_basis": {
+        "zh": "文件缺失、指纹冲突或不能可靠标定应阻断相应输入；可读不表示信号合格。属于项目工程要求。",
+        "en": "Missing files, fingerprint conflicts or unreliable calibration block the affected input. Readability is not signal acceptance; these are project engineering requirements."
+      },
+      "report_content": {
+        "zh": "来源版本、格式、读取器版本、配套成员指纹、时钟、单位与结构警告。",
+        "en": "Source/version, format, reader version, companion fingerprints, clock, units and structural warnings."
+      },
+      "evidence_fields": [
+        "source_sha256",
+        "source_files",
+        "header",
+        "streams",
+        "clock",
+        "reader_id",
+        "reader_version",
+        "annotations"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-002",
+      "module_id": "M02",
+      "title": {
+        "zh": "信息、参考与检查范围",
+        "en": "Context, reference and assessment scope"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-BIDS",
+        "SRC-CAAE",
+        "SRC-IFCN",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M02_selection.json"
+      ],
+      "applicability": {
+        "zh": "选择已标定的头皮EEG通道和连续范围；物种/位置须有外部来源确认。",
+        "en": "Select calibrated scalp EEG channels and a continuous range; species/site require source confirmation."
+      },
+      "measurement": {
+        "zh": "保存原始通道索引、名称、采样率、样本半开区间、辅助导联、参考和比较组。未知参考不自动确认；疾病和年龄标签不直接调整阈值。",
+        "en": "Retain source indices/names, sampling rate, half-open sample interval, auxiliary roles, reference and comparison groups. Unknown reference remains unconfirmed; disease and age tags do not directly tune thresholds."
+      },
+      "decision_basis": {
+        "zh": "缺少某方法前提只限制该方法。当前运行API尚未采集完整物种/年龄字段，不自动认定本专项范围已确认。",
+        "en": "A missing prerequisite restricts the dependent method. Runtime does not yet capture the full species/age contract; scope confirmation is not inferred."
+      },
+      "report_content": {
+        "zh": "实际选道、起止秒及样本、参考声明、缺项、输入标签及冻结计划。",
+        "en": "Selected channels, time/sample limits, reference declaration, missing context, input tags and frozen plan."
+      },
+      "evidence_fields": [
+        "selection",
+        "recording",
+        "channels",
+        "reference_channels",
+        "comparison_groups",
+        "processing_applied"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-003",
+      "module_id": "M03",
+      "title": {
+        "zh": "非有限值、恒值与端点平台",
+        "en": "Nonfinite values, constant runs and endpoint plateaus"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-BRAINELECQC",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M03_continuity.json"
+      ],
+      "applicability": {
+        "zh": "已标定电压；量程端点分类另需ADC标定。",
+        "en": "Calibrated voltage; endpoint classification additionally requires ADC calibration."
+      },
+      "measurement": {
+        "zh": "所有非有限样本均定位；对相邻有限原始采样严格相等的连续段分类（变化容差0），默认最少max(2,ceil(0.1×fs))点。近零容差max(1e-7 V,半个量化步长并考虑舍入)，仅用于恒值分类；端点容差0.25 LSB并考虑浮点精度。原始样本使用半开区间。",
+        "en": "Locate all nonfinite samples. Classify runs of strictly equal successive finite raw samples (difference tolerance 0), default minimum max(2,ceil(0.1×fs)) samples. Near-zero tolerance max(1e-7 V, half a quantization step with rounding allowance) is only a constant-run classifier; endpoint tolerance is 0.25 LSB with floating-point allowance. Source intervals are half-open."
+      },
+      "decision_basis": {
+        "zh": "这些为BrainElecQC实现设置；near_zero_flatline不是生理低幅活动，端点平台不确认硬件饱和。重复数据块检测未实现。",
+        "en": "These are BrainElecQC implementation settings. near_zero_flatline is not physiological low amplitude; endpoint plateaus do not establish hardware saturation. General repeated-block detection is not implemented."
+      },
+      "report_content": {
+        "zh": "逐道非有限计数、候选类型/位置/值、标定可用性、实际容差及未评原因；不把候选个数当异常时长。",
+        "en": "Per-channel nonfinite count, candidate type/position/value, calibration availability, effective tolerances and non-assessment reasons. Candidate count is not duration."
+      },
+      "evidence_fields": [
+        "parameters",
+        "input_range",
+        "measurements",
+        "candidates",
+        "interval_convention"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-004",
+      "module_id": "M04",
+      "title": {
+        "zh": "功率谱密度",
+        "en": "Power spectral density"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-SCIPY",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M04_spectral.json"
+      ],
+      "applicability": {
+        "zh": "当前核心实现要求所选输入均有限；长度至少能形成2点窗。",
+        "en": "The current core implementation requires finite selected input and at least a two-sample window."
+      },
+      "measurement": {
+        "zh": "Welch单边PSD，单位V²/Hz；Hann窗默认4秒、50%重叠、逐窗去均值、算术平均，nfft=nperseg。nperseg=min(N,max(2,round(4fs)))；频点间距Δf=fs/nperseg（产物字段frequency_resolution_hz）；可分辨能力还受窗函数影响。",
+        "en": "Welch one-sided PSD in V²/Hz; default 4 s Hann windows, 50% overlap, per-window mean removal, arithmetic mean, nfft=nperseg. nperseg=min(N,max(2,round(4fs))); bin spacing Δf=fs/nperseg (artifact field frequency_resolution_hz); resolving ability also depends on the window."
+      },
+      "decision_basis": {
+        "zh": "PSD是描述量，没有统一好坏阈值。先核对参考、滤波史、分辨率和实际覆盖，再比较功率。",
+        "en": "PSD is descriptive with no universal acceptance threshold. Compare reference, filtering history, resolution and actual coverage before comparing power."
+      },
+      "report_content": {
+        "zh": "频率、逐道PSD、有效窗数、窗口及尾部覆盖、单位和实际参数。",
+        "en": "Frequencies, per-channel PSD, valid window count, window/tail coverage, units and effective parameters."
+      },
+      "evidence_fields": [
+        "input",
+        "config",
+        "psd",
+        "software"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-005",
+      "module_id": "M04",
+      "title": {
+        "zh": "工频窄带线索",
+        "en": "Line-frequency narrow-band indicators"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-BRAINELECQC",
+        "SRC-PREP",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M04_spectral.json"
+      ],
+      "applicability": {
+        "zh": "至少完整4秒窗；中心加扫描半宽必须严格低于Nyquist。",
+        "en": "At least one complete 4 s window; center plus scan half-width must be strictly below Nyquist."
+      },
+      "measurement": {
+        "zh": "BrainElecQC的Thomson型DPSS F检验：默认4秒窗/1秒步长、完整带宽2Hz，扫描50/60Hz及可测谐波±2Hz。对实际通道、完整窗和唯一扫描频点作Bonferroni校正；正弦幅值为峰值2|A|，不是RMS。",
+        "en": "BrainElecQC Thomson-type DPSS F test: default 4 s windows/1 s steps, full bandwidth 2 Hz; scan ±2 Hz around measurable 50/60 Hz harmonics. Bonferroni correction spans channels, complete windows and unique bins; sinusoid amplitude is peak 2|A|, not RMS."
+      },
+      "decision_basis": {
+        "zh": "校正p<0.01是统计筛查配置，非行业合格线；显著窄带并不自动证明技术污染。",
+        "en": "Adjusted p<0.01 is a statistical screening setting, not an industry cutoff; a significant narrow band does not itself confirm technical contamination."
+      },
+      "report_content": {
+        "zh": "可测频带、F/p/峰值幅度、命中窗；按通道及目标频率的flagged_union_seconds为去重时长，flagged_union_fraction_of_input以输入时长为分母。不能将多个频率的时长相加当总工频时间，也不能当作已评范围污染率。",
+        "en": "Measurable bands, F/p/peak amplitude and flagged windows; flagged_union_seconds is a union per channel and target frequency, and flagged_union_fraction_of_input uses input duration. Durations across targets are not additive total line-noise time, nor prevalence over assessed time."
+      },
+      "evidence_fields": [
+        "config",
+        "methods.line_noise",
+        "line_noise.status",
+        "line_noise.channel_summary",
+        "line_noise.observations",
+        "line_noise.windows"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-006",
+      "module_id": "M04",
+      "title": {
+        "zh": "背景谱、谱峰与α功率",
+        "en": "Aperiodic spectrum, peaks and alpha power"
+      },
+      "kind": "descriptive",
+      "source_ids": [
+        "SRC-FOOOF",
+        "SRC-SCIPY",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M04_spectral.json"
+      ],
+      "applicability": {
+        "zh": "谱模型默认至少10秒、4个周期图、覆盖2–40Hz、功率为正且峰宽与分辨率相容；各输出单独检查。",
+        "en": "Default spectral fit requires at least 10 s, four periodograms, coverage of 2–40 Hz, positive power and compatible peak width/resolution; outputs are checked separately."
+      },
+      "measurement": {
+        "zh": "FOOOF固定背景模型，默认2–40Hz，全选区和30秒局部窗分别拟合；α功率用边界插值后的PSD梯形积分，绝对8–13Hz，默认相对分母2–40Hz。",
+        "en": "FOOOF fixed background model, default 2–40 Hz, fit full selection and 30 s local windows separately. Alpha power uses trapezoidal PSD integration with interpolated boundaries, 8–13 Hz absolute and default 2–40 Hz relative denominator."
+      },
+      "decision_basis": {
+        "zh": "仅描述，不作合格判据；α能量含非周期背景，不等于谱峰高。年龄、状态和病理会影响谱形。",
+        "en": "Descriptive only; no acceptance criterion. Alpha energy includes background and is not peak height. Age, state and pathology affect spectra."
+      },
+      "report_content": {
+        "zh": "每次拟合状态、指数/峰参数/R²/误差、α绝对µV²和相对百分比、频带及未评原因。",
+        "en": "Per-fit status, exponent/peak parameters/R²/error, absolute alpha µV² and relative percent, bands and non-assessment reasons."
+      },
+      "evidence_fields": [
+        "config",
+        "parameterization",
+        "alpha_power"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-007",
+      "module_id": "M05",
+      "title": {
+        "zh": "通道质量候选",
+        "en": "Channel quality candidates"
+      },
+      "kind": "conditional",
+      "source_ids": [
+        "SRC-BRAINELECQC",
+        "SRC-PREP",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M05_bad_channels.json"
+      ],
+      "applicability": {
+        "zh": "明确参考与比较组；组内阈值至少4条可用通道。混合参考或双极导联不自动放同组。",
+        "en": "Explicit reference/comparison groups; group thresholds need at least four usable channels. Mixed reference or bipolar derivations are not automatically grouped."
+      },
+      "measurement": {
+        "zh": "非空间PREP分项：稳健幅度0.7413×IQR及组内标准分、相对高频MAD比、1秒窗绝对相关的98% Hazen分位数、dropout比例。保留实际滤波、组尺度和已评窗分母。",
+        "en": "Nonspatial PREP components: robust amplitude 0.7413×IQR and group z-score, relative high-frequency MAD ratio, 98th Hazen percentile of absolute correlation in 1 s windows, and dropout fraction. Retain filtering, group scale and assessed-window denominators."
+      },
+      "decision_basis": {
+        "zh": "默认|幅度z|>5、HF z>5；相关<0.4的窗或dropout窗占已评窗比例>0.01。为当前筛查规则，非通用坏道定义；零尺度/缺组条件不制造z值。",
+        "en": "Default |amplitude z|>5, HF z>5; fraction of assessed windows with correlation<0.4 or dropout>0.01. These are screening rules, not universal bad-channel definitions; absent group prerequisites/zero scales do not create z-scores."
+      },
+      "report_content": {
+        "zh": "通道身份、描述值和判据、组门槛是否启用、候选理由、窗分母及尾部未评；来源坏道标签与检测器分开。",
+        "en": "Channel identity, metrics/criteria, active group thresholds, candidate reasons, window denominators and unassessed tail; source bad-channel labels stay separate from detection."
+      },
+      "evidence_fields": [
+        "parameters",
+        "preprocessing",
+        "input_range",
+        "groups",
+        "channels",
+        "window_metrics",
+        "unwindowed_tail",
+        "candidates"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-008",
+      "module_id": "M06",
+      "title": {
+        "zh": "心电与眼电锁时线索",
+        "en": "ECG/EOG time-locked indicators"
+      },
+      "kind": "conditional",
+      "source_ids": [
+        "SRC-BRAINELECQC",
+        "SRC-MNE",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M06_auxiliary_events.json"
+      ],
+      "applicability": {
+        "zh": "已确认且同原生时钟的ECG/EOG辅助通道，信号有限、非恒值并满足完整锁时窗要求。",
+        "en": "Confirmed ECG/EOG auxiliary channels on the same native clock, finite nonconstant input and complete event windows."
+      },
+      "measurement": {
+        "zh": "先检测辅助事件，再计算EEG锁时统计；事件数量和EEG污染程度是不同量。保留检测阈值、滤波、锁时窗、事件抽选及一致性统计设置。",
+        "en": "Detect auxiliary events then compute EEG time-locked statistics. Auxiliary event count and EEG contamination are different quantities. Retain detector thresholds, filters, event window, event subsampling and consistency-statistic settings."
+      },
+      "decision_basis": {
+        "zh": "辅助通道缺失或无完整锁时片段应标记未评，不能记为零污染；事件存在不直接判EEG伪迹。",
+        "en": "Missing auxiliaries/incomplete event windows are unassessed, not zero contamination; event presence does not itself establish EEG artifact."
+      },
+      "report_content": {
+        "zh": "每类辅助通道状态、检测/纳入事件数、原时钟位置、锁时统计、实际参数与未评原因。",
+        "en": "Per-kind auxiliary status, detected/included event counts, source-clock positions, time-locked statistics, effective parameters and limitations."
+      },
+      "evidence_fields": [
+        "config",
+        "start_sample",
+        "stop_sample",
+        "by_kind"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-009",
+      "module_id": "M06",
+      "title": {
+        "zh": "高频突发及肌电支持",
+        "en": "High-frequency bursts and EMG support"
+      },
+      "kind": "conditional",
+      "source_ids": [
+        "SRC-BRAINELECQC",
+        "SRC-MNE",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M06_muscle.json"
+      ],
+      "applicability": {
+        "zh": "频带与Nyquist/滤波长度满足条件，使用M03完整性保护区；确认肌电支持另需合格同步EMG。",
+        "en": "Band, Nyquist and filter-length conditions must hold; use M03 integrity guards. EMG support additionally needs usable synchronous EMG."
+      },
+      "measurement": {
+        "zh": "分析副本中的高频功率/包络突发，保留频带、时间窗、阈值和排除区；没有EMG支持的突发只能作高频线索。",
+        "en": "Analyze high-frequency power/envelope bursts on a copy, preserving band, window, threshold and exclusions; unsupported bursts remain high-frequency indicators."
+      },
+      "decision_basis": {
+        "zh": "当前实现配置不构成临床肌电判据；高频神经/病理活动不得直接删除。",
+        "en": "Current implementation settings are not clinical EMG criteria; high-frequency neural/pathological activity is not automatically removed."
+      },
+      "report_content": {
+        "zh": "候选区间、EMG支持状态、完整性保护范围、有效频带、实际阈值及未评原因。",
+        "en": "Candidate intervals, EMG support, integrity guards, effective band/threshold and non-assessment reasons."
+      },
+      "evidence_fields": [
+        "parameters",
+        "status",
+        "reference",
+        "channels",
+        "candidates"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-010",
+      "module_id": "M07",
+      "title": {
+        "zh": "标注与时间核对",
+        "en": "Annotation and timing checks"
+      },
+      "kind": "conditional",
+      "source_ids": [
+        "SRC-BIDS",
+        "SRC-1833",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M07_annotations.json"
+      ],
+      "applicability": {
+        "zh": "提供来源明确、已支持格式和映射的标注；不把未提取等同于不存在。",
+        "en": "Annotations must have known provenance and a supported format/mapping; unextracted does not mean absent."
+      },
+      "measurement": {
+        "zh": "核对单位、原始时间基准、越界/重叠、选区事件及覆盖；保留来源事件类别，不将任务、睡眠或发作标签改为质量标签。",
+        "en": "Check units, source clock, bounds/overlap, selected events and coverage; preserve source categories without converting task, sleep or seizure labels into QC truth."
+      },
+      "decision_basis": {
+        "zh": "缺标注表示该项未评；事件一致性不能替代硬件同步测量。",
+        "en": "Missing annotations mean non-assessment; event consistency does not replace hardware synchronization measurement."
+      },
+      "report_content": {
+        "zh": "标注来源/格式、原始与映射时间、选中事件、覆盖及问题；quality_ground_truth单独声明。",
+        "en": "Annotation provenance/format, original/mapped times, selected events, coverage and issues; separate quality_ground_truth declaration."
+      },
+      "evidence_fields": [
+        "format",
+        "label_scope",
+        "selected_count",
+        "covered_seconds",
+        "issues",
+        "quality_ground_truth"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-011",
+      "module_id": "M08",
+      "title": {
+        "zh": "分项汇总与可比性",
+        "en": "Domain summary and comparability"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-1833",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "M08_assessment.json"
+      ],
+      "applicability": {
+        "zh": "汇总实际完成、部分、跳过和失败的模块，保留范围与配置。",
+        "en": "Summarize completed, partial, skipped and failed modules with scope/configuration."
+      },
+      "measurement": {
+        "zh": "分项保留原量和来源，执行覆盖按实际检查范围计算；仅比较物种、参考、带宽、状态、处理史与配置相容的数据。",
+        "en": "Retain domain measurements and provenance; execution coverage uses actual assessed scope. Compare data only under compatible species, reference, bandwidth, state, processing and configuration."
+      },
+      "decision_basis": {
+        "zh": "总分未校准时value=null；不把未评算满分，不将运行完成率变成质量分。",
+        "en": "Keep value=null while uncalibrated; unassessed items do not receive full marks and execution percentage is not a quality score."
+      },
+      "report_content": {
+        "zh": "各分项状态、缺项/失败原因、原始数据未变核验、总分状态和比较条件。",
+        "en": "Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions."
+      },
+      "evidence_fields": [
+        "score",
+        "source_unchanged",
+        "module_assessments",
+        "missing_capabilities"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    },
+    {
+      "id": "EEG-012",
+      "module_id": "M09",
+      "title": {
+        "zh": "报告、证据与人工复核",
+        "en": "Report, evidence and human review"
+      },
+      "kind": "required",
+      "source_ids": [
+        "SRC-1833",
+        "SRC-CAAE-QC",
+        "SRC-PROJECT"
+      ],
+      "artifacts": [
+        "environment.json",
+        "waveform_selection.json"
+      ],
+      "applicability": {
+        "zh": "所有输出；即使部分失败也应保留可追溯结果。",
+        "en": "All outputs; retain traceable results even with partial failure."
+      },
+      "measurement": {
+        "zh": "报告呈现来源、检查范围、分项、候选、参数与证据；词条快照关联实际产物指纹。人工意见独立追加并保留版本，旧报告不改写。",
+        "en": "Report identity, scope, domains, candidates, parameters and evidence; a rule snapshot links actual artifact fingerprints. Human reviews are independently appended/versioned; historical reports are not rewritten."
+      },
+      "decision_basis": {
+        "zh": "报告不作临床诊断或合规认证；未经人工复核保持pending。词条映射不是自动证明满足规范。",
+        "en": "Reports are not clinical diagnoses or compliance certificates; retain pending until human review. Rule mapping does not automatically prove conformance."
+      },
+      "report_content": {
+        "zh": "方法与环境版本、源代码指纹、显示范围、词条版本、证据索引和独立复核记录入口。",
+        "en": "Method/environment versions, source hashes, display scope, rule version, evidence index and separate review access."
+      },
+      "evidence_fields": [
+        "implementation",
+        "packages",
+        "actual_executed_sources",
+        "channel_names",
+        "start_seconds",
+        "duration_seconds"
+      ],
+      "validation": {
+        "zh": "工程行为与公开样例执行已有记录；未建立独立专家标签上的通用准确率或行业合格线。",
+        "en": "Engineering behavior and public-file execution are documented; general accuracy against independent expert labels and industry acceptance cutoffs are not established."
+      }
+    }
+  ]
+}

@@ -1,0 +1,921 @@
+{
+  "schema_version": "eeg-standard-baseline/1",
+  "software_version": "1.0.0rc3.dev9",
+  "specification_version": "0.7",
+  "catalog_version": "eeg-basic/1",
+  "checked_at": "2026-10-31",
+  "claim": "Engineering and report consistency; not accuracy, clinical validity or conformance",
+  "cases": [
+    {
+      "input_id": "eegmmidb-s003r01",
+      "job_id": "bb0c8218520043f2823008dd383e8874",
+      "scope": "window",
+      "format": "EDF",
+      "status": "partial",
+      "source_sha256": "2af68afa8d4f158a7ae7f3903b66f0947925880639b7a8b5b6bb13b0c6c50f96",
+      "plan_id": "45f05953547e13672997e38ee6db78c8b577d192a9b03bd5ed45ff89571c013e",
+      "selection": {
+        "eeg_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ],
+        "reference_indices": {},
+        "start_seconds": 0.0,
+        "duration_seconds": 30.0
+      },
+      "catalog_sha256": "d0ef3af80fae758bb614ab3c0e6d9f1e19f6c72607ff1a0f559636ee60a70d23",
+      "modules": {
+        "M01": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M02": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M03": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M04": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M05": {
+          "status": "partial",
+          "reason": "部分比较组不适用队列阈值；描述量仍保留"
+        },
+        "M06": {
+          "status": "partial",
+          "reason": "部分生理伪迹缺少可用辅助证据；一般高频突发不等于已确认肌电"
+        },
+        "M07": {
+          "status": "skipped",
+          "reason": "没有登记事件或状态标注；不推断任务或睡眠状态"
+        },
+        "M08": {
+          "status": "partial",
+          "reason": "部分方法未评或执行失败；保留分项结论，不生成总分"
+        },
+        "M09": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        }
+      },
+      "checks": [
+        {
+          "id": "EEG-001",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-002",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-003",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M03_continuity.json#parameters",
+            "M03_continuity.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-004",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-005",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-006",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-007",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M05_bad_channels.json#parameters",
+            "M05_bad_channels.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-008",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_auxiliary_events.json#config"
+          ]
+        },
+        {
+          "id": "EEG-009",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_muscle.json#parameters"
+          ]
+        },
+        {
+          "id": "EEG-010",
+          "evidence_status": "not_recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-011",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-012",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        }
+      ],
+      "checks_passed": [
+        "rule_fingerprint",
+        "artifact_fingerprints",
+        "effective_parameters",
+        "report_links",
+        "unknown_not_pass",
+        "source_unchanged"
+      ],
+      "engineering_pass": true
+    },
+    {
+      "input_id": "hmc-sn062",
+      "job_id": "8dd8372a21914865bbafa7808bfa8a74",
+      "scope": "window",
+      "format": "EDF",
+      "status": "partial",
+      "source_sha256": "26d5828b41e55ff45b81b8d1f5077900406438d983dc3e98177e6fe3a5b3147a",
+      "plan_id": "a919904c3ae7afddc884ea1d9452dcc1a8264c5d87153a3426e4cc095a027a4c",
+      "selection": {
+        "eeg_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "reference_indices": {
+          "ecg": 7,
+          "eog": 5,
+          "emg": 4
+        },
+        "start_seconds": 100.0,
+        "duration_seconds": 60.0
+      },
+      "catalog_sha256": "d0ef3af80fae758bb614ab3c0e6d9f1e19f6c72607ff1a0f559636ee60a70d23",
+      "modules": {
+        "M01": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M02": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M03": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M04": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M05": {
+          "status": "partial",
+          "reason": "部分比较组不适用队列阈值；描述量仍保留"
+        },
+        "M06": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M07": {
+          "status": "completed",
+          "reason": "按原记录时钟核对事件/状态；未用作信号质量标签或检测输入"
+        },
+        "M08": {
+          "status": "partial",
+          "reason": "部分方法未评或执行失败；保留分项结论，不生成总分"
+        },
+        "M09": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        }
+      },
+      "checks": [
+        {
+          "id": "EEG-001",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-002",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-003",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M03_continuity.json#parameters",
+            "M03_continuity.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-004",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-005",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-006",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-007",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M05_bad_channels.json#parameters",
+            "M05_bad_channels.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-008",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_auxiliary_events.json#config"
+          ]
+        },
+        {
+          "id": "EEG-009",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_muscle.json#parameters"
+          ]
+        },
+        {
+          "id": "EEG-010",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-011",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-012",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        }
+      ],
+      "checks_passed": [
+        "rule_fingerprint",
+        "artifact_fingerprints",
+        "effective_parameters",
+        "report_links",
+        "unknown_not_pass",
+        "source_unchanged"
+      ],
+      "engineering_pass": true
+    },
+    {
+      "input_id": "ds002034-sub01",
+      "job_id": "f1d7c85dee0c4a799dc62e88c7f05217",
+      "scope": "window",
+      "format": "EDF",
+      "status": "partial",
+      "source_sha256": "7edb1d6b813cf0b9c33e1b627f3181f8a9a2fb56603d6be3aca0879281a45f2e",
+      "plan_id": "5a08c02997f065ab208245770b8b15128cbcfd7cb7d068110836c4d4941832a2",
+      "selection": {
+        "eeg_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61
+        ],
+        "reference_indices": {},
+        "start_seconds": 60.0,
+        "duration_seconds": 60.0
+      },
+      "catalog_sha256": "d0ef3af80fae758bb614ab3c0e6d9f1e19f6c72607ff1a0f559636ee60a70d23",
+      "modules": {
+        "M01": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M02": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M03": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M04": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M05": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M06": {
+          "status": "partial",
+          "reason": "部分生理伪迹缺少可用辅助证据；一般高频突发不等于已确认肌电"
+        },
+        "M07": {
+          "status": "completed",
+          "reason": "按原记录时钟核对事件/状态；未用作信号质量标签或检测输入"
+        },
+        "M08": {
+          "status": "partial",
+          "reason": "部分方法未评或执行失败；保留分项结论，不生成总分"
+        },
+        "M09": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        }
+      },
+      "checks": [
+        {
+          "id": "EEG-001",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-002",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-003",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M03_continuity.json#parameters",
+            "M03_continuity.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-004",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-005",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-006",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-007",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M05_bad_channels.json#parameters",
+            "M05_bad_channels.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-008",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_auxiliary_events.json#config"
+          ]
+        },
+        {
+          "id": "EEG-009",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_muscle.json#parameters"
+          ]
+        },
+        {
+          "id": "EEG-010",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-011",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-012",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        }
+      ],
+      "checks_passed": [
+        "rule_fingerprint",
+        "artifact_fingerprints",
+        "effective_parameters",
+        "report_links",
+        "unknown_not_pass",
+        "source_unchanged"
+      ],
+      "engineering_pass": true
+    },
+    {
+      "input_id": "ds004504-sub001",
+      "job_id": "66314702628a4e9e9bf5f35888b1c2d7",
+      "scope": "window",
+      "format": "EEGLAB",
+      "status": "partial",
+      "source_sha256": "98e923d2d4d5682882ef8254da3a1060d305287b26eed9af61cbbce558e885c3",
+      "plan_id": "c4c96b494bb19d285b10beed59ea2d3027487b9b05f2037cd07c7eae17824310",
+      "selection": {
+        "eeg_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18
+        ],
+        "reference_indices": {},
+        "start_seconds": 0.0,
+        "duration_seconds": 40.0
+      },
+      "catalog_sha256": "d0ef3af80fae758bb614ab3c0e6d9f1e19f6c72607ff1a0f559636ee60a70d23",
+      "modules": {
+        "M01": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M02": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M03": {
+          "status": "partial",
+          "reason": "恒值检查已执行；部分格式没有提供 ADC 量程端点，端点平台判定未评。"
+        },
+        "M04": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        },
+        "M05": {
+          "status": "partial",
+          "reason": "部分比较组不适用队列阈值；描述量仍保留"
+        },
+        "M06": {
+          "status": "partial",
+          "reason": "部分生理伪迹缺少可用辅助证据；一般高频突发不等于已确认肌电"
+        },
+        "M07": {
+          "status": "skipped",
+          "reason": "没有登记事件或状态标注；不推断任务或睡眠状态"
+        },
+        "M08": {
+          "status": "partial",
+          "reason": "部分方法未评或执行失败；保留分项结论，不生成总分"
+        },
+        "M09": {
+          "status": "completed",
+          "reason": "符合当前运行入口条件；结果仍待人工复核"
+        }
+      },
+      "checks": [
+        {
+          "id": "EEG-001",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-002",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-003",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M03_continuity.json#parameters",
+            "M03_continuity.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-004",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-005",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-006",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M04_spectral.json#config"
+          ]
+        },
+        {
+          "id": "EEG-007",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M05_bad_channels.json#parameters",
+            "M05_bad_channels.json#preprocessing"
+          ]
+        },
+        {
+          "id": "EEG-008",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_auxiliary_events.json#config"
+          ]
+        },
+        {
+          "id": "EEG-009",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": [
+            "M06_muscle.json#parameters"
+          ]
+        },
+        {
+          "id": "EEG-010",
+          "evidence_status": "not_recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-011",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-012",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        }
+      ],
+      "checks_passed": [
+        "rule_fingerprint",
+        "artifact_fingerprints",
+        "effective_parameters",
+        "report_links",
+        "unknown_not_pass",
+        "source_unchanged"
+      ],
+      "engineering_pass": true
+    },
+    {
+      "input_id": "eegmmidb-s003r01",
+      "job_id": "f481901a9df7423abc10c620929b2bfe",
+      "scope": "recording",
+      "format": "EDF",
+      "status": "partial",
+      "source_sha256": "2af68afa8d4f158a7ae7f3903b66f0947925880639b7a8b5b6bb13b0c6c50f96",
+      "plan_id": "286e2bc47f772a2a160642307dd5688dc4023a3b2e5909fe87803e94e055dc29",
+      "selection": {
+        "eeg_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38,
+          39,
+          40,
+          41,
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          50,
+          51,
+          52,
+          53,
+          54,
+          55,
+          56,
+          57,
+          58,
+          59,
+          60,
+          61,
+          62,
+          63
+        ],
+        "reference_indices": {},
+        "start_seconds": 0.0,
+        "duration_seconds": 61.0
+      },
+      "catalog_sha256": "d0ef3af80fae758bb614ab3c0e6d9f1e19f6c72607ff1a0f559636ee60a70d23",
+      "modules": {
+        "M01": {
+          "status": "completed",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M02": {
+          "status": "completed",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M03": {
+          "status": "completed",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M04": {
+          "status": "partial",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M05": {
+          "status": "partial",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M06": {
+          "status": "partial",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M07": {
+          "status": "skipped",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M08": {
+          "status": "partial",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        },
+        "M09": {
+          "status": "completed",
+          "reason": "逐窗状态汇总；任何缺失或失败不会解释为正常。"
+        }
+      },
+      "checks": [
+        {
+          "id": "EEG-001",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-002",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-003",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-004",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-005",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-006",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-007",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-008",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-009",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-010",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-011",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        },
+        {
+          "id": "EEG-012",
+          "evidence_status": "recorded",
+          "effective_parameter_artifacts": []
+        }
+      ],
+      "checks_passed": [
+        "rule_fingerprint",
+        "artifact_fingerprints",
+        "effective_parameters",
+        "report_links",
+        "unknown_not_pass",
+        "source_unchanged"
+      ],
+      "engineering_pass": true
+    }
+  ]
+}

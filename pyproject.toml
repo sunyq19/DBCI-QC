@@ -27,4 +27,4 @@ version = {attr = "ephys_qc.version.__version__"}
 # separately obtained BrainElecQC package. Third-party source is not vendored.
 
 [tool.setuptools.package-data]
-ephys_qc = ["octave/*.m", "octave/compat/*.m"]
+ephys_qc = ["octave/*.m", "octave/compat/*.m", "specifications/*.json"]

@@ -300,6 +300,8 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     result["status"] = "failed" if any(statuses.get(k) == "failed" for k in ("M01", "M02", "M08")) else "partial" if any(v in {"partial", "failed"} for v in statuses.values()) else "completed"
     result["warnings"] = list(dict.fromkeys(result["warnings"]))
     result = _safe(result)
+    from .eeg_assessment import attach_eeg_assessment
+    attach_eeg_assessment(result, artifacts)
     result["artifacts"] = [{"name": p.name, "bytes": p.stat().st_size,
                             "kind": "image" if p.suffix == ".png" else "json" if p.suffix == ".json" else "report"}
                            for p in sorted(artifacts.iterdir()) if p.is_file() and p.name != "report.html"]

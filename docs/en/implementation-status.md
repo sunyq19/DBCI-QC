@@ -1,6 +1,6 @@
 # Current implementation and validation scope
 
-Informative document · Version implementation/1 · 2026-10-31 · Software baseline 1.0.0rc3.dev8
+Informative document · Version implementation/2 · 2026-10-31 · Software baseline 1.0.0rc3.dev9
 
 [General requirements](/standards/overview) · [Field dictionary](/standards/fields) · [Method applicability](/standards/applicability)
 
@@ -51,3 +51,11 @@ Optional extensions have actual public-file runs across four routes plus synthet
 The metadata exercise uses human EEG, monkey ECoG and mouse LFP sources, preserving missing age, age at experiment start and age in months respectively. The mouse source uses a Neuronexus probe and does not qualify for the Neuropixels route. See repository docs/metadata-validation-20261031.md.
 
 Development tasks remain in repository TODO.md and are neither normative requirements nor implementation evidence. Update this document with implementation changes; existing reports retain their original versions.
+
+## 5 EEG rule and report traceability
+
+Scalp EEG specification 0.7 includes twelve check terms, fourteen informative sources and separate reporting requirements. Terms map to the nine existing modules; bilingual check pages are generated from one versioned JSON. New EEG runs preserve exact rule bytes/SHA-256, evidence fingerprints, effective parameters, measurements and module execution states. Whole-record output retains child-window links. Historical reports remain unchanged.
+
+This mapping does not determine conformance; conformance remains null. Full species/site confirmation is not yet captured. Missing reference, missing auxiliaries and failures do not become normal findings. Effective parameters come from method artifacts rather than unexpanded plan defaults. Unexported FASTER feature values and actual bridge cutoffs remain unavailable. Engineering regression/public-file execution do not replace expert-label validation.
+
+Engineering and real-file acceptance are recorded in docs/eeg-standard-validation-20261031.md; the frozen example summary is examples/validation/eeg-standard-20261031.json.
