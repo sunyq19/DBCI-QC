@@ -1,6 +1,6 @@
 # Electrophysiology data QC specification
 
-Project technical specification · Version workflow/4 · 2026-10-31 · Research use
+Project technical specification · Version workflow/5 · 2026-10-31 · Research use
 
 ## 1 Scope and document structure
 
@@ -100,7 +100,7 @@ Distinguish physiology, pathology, task responses and technical artifacts. Softw
 
 Reports retain identity, metadata provenance/conflicts, selection, methods, parameters, metric units/denominators, coverage, localization, unassessed reasons and review. Comparisons account for species, reference, bandwidth, processing, state and execution scope.
 
-Overall scores require a defined purpose, normalization, weights, missing-data rules and independent validation. Otherwise they remain null; execution success is not a substitute.
+Calibrated overall scores require a defined purpose, equation, weights, missing-data rules and independent validation; otherwise generic totals remain null. Modality-specific project trial indices may retain an explicit equation, version and original evidence, without converting execution progress into quality or assigning unvalidated acceptance grades. EEG currently follows [scoring rules v0.2](/en/standards/eeg-scoring).
 
 ### 6.3 Validation and traceability
 

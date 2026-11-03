@@ -164,6 +164,21 @@ check("unselected modules never advance the selected-module progress",()=>{
 check("result raw JSON stays available and total score stays uncalibrated",()=>{
   const t=harness();t.state.result={score:{value:99},modules:[{id:"M03",status:"completed",example:"raw retained"}]};t.renderResult();const rendered=t.get("result-content").innerHTML;assert(rendered.includes("raw retained"));assert(rendered.includes("总分尚未校准"));assert(!rendered.includes("99"));
 });
+check("versioned EEG report shows trial score, components and real candidate locations",()=>{
+  const t=harness();t.state.job={id:"test-job"};
+  t.state.result={modules:[{id:"M03",status:"completed",retained:true}],report_view:{schema_version:"eeg-report-view/1",score:{value:85.555,components:[{name:"信号完整性",value:100},{name:"工频干扰",value:66.666},{name:"高频突发",value:90}]},headline:"检出待复核线索",summary:"test evidence",priority:"A",recording:{channel_count:2,sampling_rate_hz:100,start_seconds:0,duration_seconds:10},finite:{nonfinite:0,constant:0},line:{hits:1,total:3,affected_channels:1},hf_candidate_count:1,hf_affected_channels:1,hf_candidates:[{channel_name:"<bad>",start_seconds:1,stop_seconds:3}],line_channels:[],checks:[],notes:[]}};
+  t.renderResult();const markup=t.get("result-content").innerHTML;
+  assert(markup.includes("85.56"));assert(markup.includes("66.67"));assert(markup.includes("项目试行 v0.1"));assert(markup.includes("&lt;bad&gt;"));assert(!markup.includes("<bad>"));assert(markup.includes("/jobs/test-job/report"));assert(markup.includes("retained"));assert(!markup.includes("总分尚未校准"));assert.equal(t.get("workflow-panel").open,false);
+  t.state.result.report_view.score.value=null;t.renderResult();assert(!t.get("result-content").innerHTML.includes("85.56"));assert(t.get("result-content").innerHTML.includes(">—</strong>"));
+});
+check("v0.2 score retains its minimum rule, revision marker and standards link",()=>{
+  const t=harness();t.state.job={id:"score-v02"};
+  t.state.result={modules:[],report_view:{schema_version:"eeg-report-view/3",score:{version:"eeg-basic-screen/0.2",value:88.51,components:[{name:"信号完整性",value:100},{name:"工频干扰",value:88.51},{name:"高频突发",value:99.9}]},score_revision:{previous_version:"eeg-basic-screen/0.1",previous_value:99.31},recording:{channel_count:63,sampling_rate_hz:500,start_seconds:0,duration_seconds:281.66},finite:{nonfinite:0,constant:0},line:{hits:353,total:17136,affected_channels:13},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
+  t.renderResult();const markup=t.get("result-content").innerHTML;
+  assert(markup.includes("88.51"));assert(markup.includes("项目试行 v0.2"));assert(markup.includes("取最低分项"));
+  assert(markup.includes("均方根"));assert(markup.includes("/standards/eeg-scoring"));assert(markup.includes("原始评分与证据保留"));
+  assert(!markup.includes("三项等权平均"));assert(!markup.includes("项目试行 v0.1"));
+});
 check("actual extension summary shows status, reason, counts and raw details",()=>{
   const t=harness();t.state.result={extensions:[{id:"mne_amplitude",name:"MNE 相邻采样变化 / 平线",module_id:"M03",status:"completed",reason:"计算完成，不自动删除",candidate_count:1,parameters:{flat_volts:0}},{id:"mne_muscle",name:"MNE 高频线索",module_id:"M06",status:"skipped",reason:"采样率不足"}]};t.renderResult();
   const markup=t.get("result-content").innerHTML;assert(markup.includes("实际扩展结果"));assert(markup.includes("计算完成"));assert(markup.includes("未执行"));assert(markup.includes("采样率不足"));assert(markup.includes("候选总数：1（待复核）"));assert(markup.includes("未区分时间区间与通道建议"));assert(markup.includes("候选数量：未提供（不按 0 处理）"));assert(markup.includes("flat_volts"));
@@ -605,7 +620,7 @@ check("late catalog activation cannot replace a newer record or freshly selected
   }
 });
 check("all-modality latest draft is discoverable and restores through automatic catalog activation",async()=>{
-  const t=harness(async()=>response(modalityCatalog("ecog")),{selected:false});t.state.catalog=modalityCatalog();t.state.records=[...t.state.catalog.inputs,...modalityCatalog("ecog").inputs];await t.selectInput("ecog-0");t.get("start-seconds").value=17;t.saveDraft();t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=modalityCatalog();
+  const t=harness(async()=>response(modalityCatalog("ecog")),{selected:false});t.state.catalog=modalityCatalog();t.state.records=[...t.state.catalog.inputs,...modalityCatalog("ecog").inputs];await t.selectInput("ecog-0");t.setScope("window");t.get("start-seconds").value=17;t.saveDraft();t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=modalityCatalog();
   assert.equal(t.savedDraft().modality,"ecog");await t.restoreDraft();assert.equal(t.state.input.id,"ecog-0");assert.equal(t.state.activeModality,"ecog");assert.equal(t.get("start-seconds").value,"17");assert.equal(t.state.plan,null);assert(t.state.manualDraft);
 });
 check("cloning rejects frozen modality mismatches before changing the record",()=>{
@@ -671,7 +686,7 @@ check("legacy sEEG and extracellular URLs only browse the matching catalog on th
 check("all four modality drafts are discoverable and discarded without changing unrelated session data",async()=>{
   const modalities=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(modalities.map(id=>[id,fourCatalog(id)]));
   const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=modalities.flatMap(id=>catalogs[id].inputs);t.storage.set("unrelated","keep");
-  for(const [index,id] of modalities.entries()){await t.selectInput(`${id}-0`);t.get("start-seconds").value=index+10;t.saveDraft();const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`;const saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));assert.equal(saved.modality,id);}
+  for(const [index,id] of modalities.entries()){await t.selectInput(`${id}-0`);t.setScope("window");t.get("start-seconds").value=index+10;t.saveDraft();const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`;const saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));assert.equal(saved.modality,id);}
   for(const [index,id] of modalities.entries()){const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`,saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));}
   t.storage.delete("ephys-qc.draft.v1.latest");t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=catalogs.scalp_eeg;assert.equal(t.savedDraft().modality,"extracellular");await t.restoreDraft();assert.equal(t.state.input.modality,"extracellular");assert.equal(t.get("start-seconds").value,"13");assert.equal(t.state.plan,null);t.discardDraft();assert.equal(t.savedDraft(),null);assert.equal(t.storage.get("unrelated"),"keep");for(const key of t.storage.keys())assert(!key.startsWith("ephys-qc.draft.v1"));
 });
@@ -759,6 +774,11 @@ if(process.env.QC_CATALOG_FIXTURE)check("actual four-route catalogs and register
   }
   for(const intake of fixture.intakes||[]){t.clearInputDraft();t.state.intake=intake;t.renderIntake();assert(!t.get("intake-confirmed").checked);assert.equal(t.state.input,null);if(Array.isArray(intake.metadata.available_streams)){const summary=t.get("record-summary").innerHTML;if(intake.metadata.available_streams.length>1)assert(summary.includes('id="intake-stream"'));if(!intake.metadata.selected_stream_id)assert(t.get("intake-confirmation").hidden);if(intake.metadata.nwb?.units_present)assert(summary.includes("Units 不属于连续电压流"));}for(const channel of intake.metadata.channels){if(channel.channel_type_source==="file_declared"&&channel.channel_type==="stim")assert.equal(t.intakeRole(channel.index,intake.suggestions),"unused");}}
   assert(calls.every(([url,method])=>method==="GET"&&!/recommend|\/plan/.test(url)));assert.equal(t.state.job,null);
+});
+check("new records default to full background scope while explicit window drafts stay unchanged",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
+  assert.equal(t.currentConfig().scope,"recording");assert.equal(t.state.job,null);
+  t.setScope("window");t.get("start-seconds").value=7;t.saveDraft();await t.restoreDraft();assert.equal(t.currentConfig().scope,"window");assert.equal(t.currentConfig().selection.start_seconds,7);
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

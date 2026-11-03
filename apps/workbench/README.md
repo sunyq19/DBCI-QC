@@ -4,7 +4,7 @@
 
 ## 启动
 
-新安装请先按[仓库安装说明](../../README.md)准备运行环境，再以 [workbench.minimal.json](workbench.minimal.json) 创建 `.local/workbench.json`，填写本机 Python 解释器和仓库外运行目录的绝对路径。最小配置不预登记数据，可直接在界面提交本机文件。`.local/` 由 Git 忽略，克隆仓库不会包含已有配置、样例文件或运行结果。
+新安装按[仓库快速开始](../../README.md#快速开始)执行 `python3.11 scripts/setup_local.py`，自动安装依赖并生成 `.local/workbench.json`。默认运行目录为 `.local/runtime/`，也可[指定仓库外目录](../../docs/installation.md)。已有配置不会覆盖。最小配置不预登记数据，可直接提交本机文件；`.local/` 由 Git 忽略，克隆仓库不会包含已有配置、样例文件或运行结果。
 
 配置完成后，在仓库目录运行 `python3 scripts/run_local.py`。加 `--open` 可以在系统浏览器中打开；`--status` 检查服务，`--stop` 停止本启动器记录的服务进程。停止功能使用 Linux 进程信息；其他系统尚未完成同等验收。
 
@@ -64,6 +64,8 @@
 | `POST /api/v1/jobs/{id}/cancel` | 取消等待或运行中的任务 |
 | `GET /api/v1/jobs/{id}/result` | 完成任务的结构化结果 |
 | `GET /api/v1/jobs/{id}/report` | 完成任务的 HTML 报告 |
+| `GET /api/v1/jobs/{id}/report.pdf` | 头皮 EEG 报告 PDF |
+| `GET /api/v1/jobs/{id}/report-evidence.png` | 头皮 EEG 报告中的候选波形 |
 | `GET /api/v1/jobs/{id}/artifacts/{name}` | 报告登记的证据文件 |
 | `GET /api/v1/jobs/{id}/log` | 执行日志 |
 
@@ -85,7 +87,9 @@
 
 计划保存 `data_tags`、`method_applicability`、`input_provenance`、`input_data_usage`、`input_metadata`、`input_modality`；输入和标注指纹参与 `plan_id` 计算，并随任务输入冻结。结果保存对应冻结来源与实际 `extensions` 状态、原因、候选类型和证据。计划就绪不表示已执行，执行完成也不表示信号正常。历史记录缺少的来源或标签显示未记录，不借用当前目录补全。修改时间窗口、方法或背景标签后，须重新预览计划。
 
-每个任务保存 `request.json`、`job.json`、`result.json`、`run.log` 和 `artifacts/`。模块结果区分完成、部分完成、跳过、失败；界面另外区分“未选择”和“条件不满足而跳过”，跳过不会记成满分。候选摘要分别显示时间区间、通道、通道对和固定分析段；保留原始 JSON 供核对。原始记录保留，算法候选不自动删除数据。未建立校准标准前，总质量分为 `null`。
+每个任务保存 `request.json`、`job.json`、`result.json`、`run.log` 和 `artifacts/`。模块结果区分完成、部分完成、跳过、失败；界面另外区分“未选择”和“条件不满足而跳过”，跳过不会记成满分。候选摘要分别显示时间区间、通道、通道对和固定分析段；保留原始 JSON 供核对。原始记录保留，算法候选不自动删除数据。
+
+头皮 EEG 的选区及整份报告新增 `report_view.score`：项目试行 v0.2 总分、三个分项及计算分母。它与原有未校准的 `result.score` 字段分开，旧字段和历史产物不覆盖；HTML、工作台和 PDF 使用同一报告视图。缺少必要证据时不生成总分。评分定义见[评分规则](../../docs/eeg-scoring.md)。
 
 ## 信息修订、查看与复核
 

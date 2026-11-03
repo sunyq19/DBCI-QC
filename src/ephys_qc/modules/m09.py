@@ -49,6 +49,12 @@ def waveform(state, path, config_dir):
 
 
 def render_report(result, label, path):
+    from ..report_view import build_report_view, render_report_view
+    view = build_report_view(result, path.parent, label)
+    if view is not None:
+        result['report_view'] = view
+        path.write_text(render_report_view(view), encoding='utf-8')
+        return
     from ..eeg_assessment import render_eeg_assessment
     eeg_index = render_eeg_assessment(result)
     escape = lambda value: html.escape(str(value), quote=True)

@@ -1,5 +1,38 @@
 # 变更记录
 
+## 1.0.0rc3.dev14 — 2026-11-03
+
+- 发布新版 EEG 报告与 v0.2 试行评分：总分、三个分项、通道/时段定位、候选波形和 PDF 导出；保留历史证据及评分版本。
+- 增加 `scripts/setup_local.py` 与固定主要依赖的安装清单，自动建立 Python 3.11 虚拟环境及本机配置，已有配置不覆盖。
+- 精简中英文 README，补充独立安装、更新、数据保存与常见问题说明。独立安装与真实文件验收见[记录](docs/validation/local-install-20261103.md)。
+- 本次为开发版更新；试行评分及规范尚待专家审核和校准。
+
+## 1.0.0rc3.dev13 — 2026-10-31
+
+- Define EEG trial score v0.2: pool evidence per channel, use RMS candidate burdens for components, then the minimum component for the total. Detector thresholds are unchanged.
+- Preserve native measurements and frozen v0.1 outputs; revised historical views explicitly identify old scores and new rules.
+- Add bilingual scoring rules, specification 0.8, updated M08/report guidance and score provenance in HTML/PDF.
+- Add scoring property checks, signal-injection sensitivity validation and real-evidence replay. Expert calibration remains pending.
+
+
+## 1.0.0rc3.dev12 — 2026-10-31
+
+- 新读取记录默认整份后台检查，快速选区预检仍可选，历史配置不变。
+- EEG 整份报告按实际分母汇总三项初评分，增加通道分项、局部关注和逐时段结果。
+- 不改变检测阈值与权重；缺失范围、短尾窗及来源未核验时不生成整份总分。
+
+## 1.0.0rc3.dev11 — 2026-10-31
+
+- EEG 选区报告增加结果总表、分项扣分解释与对应候选原始波形。
+- 增加两页 PDF 下载，与页面共享评分结果，保留人工复核栏及规则版本。
+- 批量同条件评分对比记录到 TODO；不修改原始检测结果。
+
+## 1.0.0rc3.dev10 — 2026-10-31
+
+- EEG 选区报告改为评分概览、重点复核、折叠明细与评分依据。工作台完成后在右侧直接显示相同结果，执行详情默认折叠。
+- 新增项目试行 `eeg-basic-screen/0.1`：完整性、工频和高频突发三项等权平均，显示分子分母；缺项不补零、不重新分配权重。该指数未经过专家校准，不是通用质量合格判定。
+- 新任务保存新版报告与结构化报告视图；历史 EEG 任务按冻结证据生成新版显示，不覆盖原报告、算法产物或原有 `score` 字段。其他模态及整记录保持既有报告口径。
+
 ## 1.0.0rc3.dev9 — 2026-10-31
 
 - 沿用M01–M09，新增EEG基础技术质控的12个版本化检查词条；中英文词条从同一JSON生成。

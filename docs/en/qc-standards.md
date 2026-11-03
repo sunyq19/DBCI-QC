@@ -1,6 +1,6 @@
 # Technical specification for scalp EEG data quality control
 
-Project specification · Draft for comment · Version 0.7 · 31 October 2026
+Project specification · Draft for comment · Version 0.8 · 31 October 2026
 
 This document defines project requirements for basic technical QC of human continuous scalp EEG. It is not a published national, industry or association standard. Conformity to the project report format does not establish conformity to an external standard, detection accuracy or clinical validity.
 
@@ -9,6 +9,7 @@ This document defines project requirements for basic technical QC of human conti
 | Shared requirements | [General requirements](/en/standards/overview) · [Field dictionary](/en/standards/fields) · [Method applicability](/en/standards/applicability) | Data description, missing information and applicability |
 | EEG specification | This page | Assessment scope, requirements and validation principles |
 | Check entries | [EEG check rules](/en/standards/eeg-checks) | Definitions, measurement conventions, threshold types and evidence locations for 12 checks |
+| Scoring | [EEG scoring rules](/en/standards/eeg-scoring) | Definition, equations, missingness, examples and versions |
 | Reporting | [EEG QC report requirements](/en/standards/eeg-report) | Report structure, required and conditional fields, status and traceability |
 | Evidence basis | [EEG sources and basis](/en/standards/eeg-evidence) | Locations in external sources, supported claims and limits of use |
 | Implementation | [Current implementation](/en/standards/implementation) | Implemented capabilities, compatibility and validation scope |
@@ -161,7 +162,7 @@ Maps to EEG-010: annotation and time checks.
 Maps to EEG-011: individual evidence and check coverage.
 
 - Actual results, coverage and non-assessment reasons shall be aggregated, retaining individual measurements and assessment configuration. Each finding shall be traceable to a check entry, executed method and artifact.
-- Numeric overall scores or universal acceptance grades shall not be issued without calibration. Unassessed items shall not receive full credit. Execution coverage, candidate counts and numbers of catalogue entries completed shall not become quality or standards-conformity percentages.
+- Without independent calibration, calibrated quality grades and external-standard acceptance claims shall not be issued. An explicitly versioned project trial index may follow the [scoring rules](/en/standards/eeg-scoring). Unassessed items receive no credit; execution coverage is not a quality score.
 
 [Module guide](/en/standards/modules/M08)
 
@@ -186,7 +187,7 @@ Software defaults, statistical significance levels and provisional project param
 
 Comparisons shall check reference, sampling, bandwidth, processing history, state, coverage and configuration version. Shared disease or format does not establish comparability; identically named measurements with different definitions shall not be combined directly.
 
-An overall score shall have a predefined purpose, normalization, weights, missing-item treatment and critical-issue handling, and be evaluated on independent data. Otherwise it shall be marked not established or uncalibrated and stored as null. Reports may present individual measurements, candidates and limitations without a universal score.
+A project trial index shall fix its purpose, equation, channel weighting, missing-data handling and version before use. The [EEG scoring rules](/en/standards/eeg-scoring) use RMS channel burdens and the minimum component. Independent expert validation remains pending. Incomplete required measurements withhold the total. Calibrated grades and industry acceptance thresholds are not established.
 
 ### 6.3 Report contents
 
@@ -197,7 +198,7 @@ An overall score shall have a predefined purpose, normalization, weights, missin
 | Individual evidence | Check entries, execution status, measurements, units, denominators, threshold types and evidence locations |
 | Candidates and waveforms | Candidate types, original coordinates, reasons, displayed ranges and display processing; unavailable localization explicitly identified |
 | Methods and sources | Rule versions, implementations, dependency environment, actual parameters, sources and frozen plan |
-| Review and limitations | Review status, decisions and versions, non-assessment or failure reasons, uncalibrated score and interpretation limits |
+| Review and limitations | Review status, decisions and versions, non-assessment or failure reasons, trial score version, calibration status and interpretation limits |
 
 Detailed fields, conditional requirements and current artifact locations are specified in [EEG QC reports](/en/standards/eeg-report). Unknown values shall be reported as unknown rather than inferred to complete a table.
 

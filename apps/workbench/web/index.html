@@ -62,6 +62,7 @@
     <aside id="pipeline-section" class="panel pipeline-board" aria-labelledby="pipeline-title">
       <div class="board-heading"><h2 id="pipeline-title">数据工作台</h2><span id="pipeline-state" class="tag subtle" role="status">框架预览</span></div>
       <p id="pipeline-caption" class="board-caption">上传文件后，先提取基本信息。</p>
+      <section id="result-content" class="result-content" aria-label="本次质控结果" hidden></section>
       <div id="intake-error" class="notice error" role="alert" hidden></div>
       <section id="record-summary" class="record-summary" aria-label="自动提取的信息" hidden></section>
       <div id="intake-confirmation" class="intake-confirmation" hidden></div>
@@ -118,7 +119,7 @@
             <div id="recommendation-error" class="notice error" role="alert" hidden></div>
             <div id="recommendation-content" aria-live="polite"><p class="small muted">确认文件后，自动准备检查方案。</p></div>
           </section>
-          <fieldset class="scope-picker"><legend>检查范围</legend><label><input type="radio" name="qc-scope" id="scope-window" value="window" checked> 快速预检</label><label><input type="radio" name="qc-scope" id="scope-recording" value="recording"> 整份检查</label><p id="scope-description" class="small muted">快速预检仅检查所选时段，不代表整份记录。</p></fieldset>
+          <fieldset class="scope-picker"><legend>检查范围</legend><label><input type="radio" name="qc-scope" id="scope-window" value="window"> 快速预检</label><label><input type="radio" name="qc-scope" id="scope-recording" value="recording" checked> 整份检查</label><p id="scope-description" class="small muted">整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。</p></fieldset>
           <div id="plan-error" class="notice error" role="alert" hidden></div>
           <div class="action-row primary-action-row"><button id="run-button" class="button primary" disabled><span aria-hidden="true">▶</span> 开始检查</button><p id="action-hint" class="action-hint">方案准备好后即可开始。</p></div>
 
@@ -135,12 +136,11 @@
           <p id="job-message" class="job-message" aria-live="polite"></p>
           <p id="job-progress-label" class="progress-label small muted"></p>
           <div id="job-progress" class="progress-track" role="progressbar" aria-label="已选模块的执行进度，非质量分数" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-          <div id="job-modules" class="job-modules"></div>
+          <details id="job-execution-details" class="execution-details" open><summary>执行详情</summary><div id="job-modules" class="job-modules"></div></details>
           <section id="recording-progress" class="recording-progress" hidden aria-label="整份执行覆盖"></section>
           <div id="job-error" class="notice error" role="alert" hidden></div>
           <div class="job-actions"><button id="cancel-button" class="button secondary small-button" hidden>取消运行</button><a id="report-link" class="button primary small-button" target="_blank" rel="noopener" hidden>打开实际报告 <span aria-hidden="true">↗</span></a><button id="refresh-job-button" class="button ghost small-button">刷新状态</button></div>
           <div class="job-actions"><button id="clone-job-button" class="button secondary small-button">基于本次配置再运行</button><a id="job-permalink" class="text-button">本次运行链接</a><button id="open-review-button" class="button secondary small-button" hidden>复核候选</button></div>
-          <div id="result-content" class="result-content" hidden></div>
         </div>
         <div id="job-load-error" class="notice error" role="alert" hidden></div>
       </section>

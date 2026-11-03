@@ -479,7 +479,14 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     _save(artifacts / 'window-results.json', windows)
     from .eeg_assessment import attach_eeg_assessment
     attach_eeg_assessment(result, artifacts)
-    render_recording_report(result, artifacts / 'report.html')
+    result['artifacts'] = [{'name': p.name, 'bytes': p.stat().st_size} for p in sorted(artifacts.iterdir()) if p.is_file()]
+    from .report_view import build_report_view, render_report_view
+    view = build_report_view(result, artifacts, result['label'])
+    if view is not None:
+        result['report_view'] = view
+        (artifacts / 'report.html').write_text(render_report_view(view), encoding='utf-8')
+    else:
+        render_recording_report(result, artifacts / 'report.html')
     result['artifacts'] = [{'name': p.name, 'bytes': p.stat().st_size, 'kind': 'image' if p.suffix == '.png' else 'report' if p.suffix == '.html' else 'json'} for p in sorted(artifacts.iterdir()) if p.is_file()]
     progress['status'] = status; checkpoint()
     _save(root / 'result.json', result)

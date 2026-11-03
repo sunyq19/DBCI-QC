@@ -29,3 +29,6 @@ dist/
 *.zip
 *.tar*
 *.log
+
+# Generated local presentation/report exports
+output/

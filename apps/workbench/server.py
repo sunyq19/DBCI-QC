@@ -90,6 +90,7 @@ class Store:
             self._availability(item)
             self.inputs[item['id']] = item
         self.jobs, self.processes = {}, {}
+        self.report_views = {}
         self.lock = threading.RLock()
         self.queue = queue.Queue()
         for path in sorted((self.root / 'jobs').glob('*/job.json')):
@@ -329,6 +330,31 @@ class Store:
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')
         data = read_json(self.root / 'jobs' / id_ / 'result.json')
+        if data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
+            from ephys_qc.report_view import build_report_view, VIEW_VERSION
+            root = self.root / 'jobs' / id_
+            names = ['result.json', 'artifacts/M03_continuity.json', 'artifacts/M04_spectral.json',
+                     'artifacts/M05_bad_channels.json', 'artifacts/M06_muscle.json']
+            if data.get('scope') == 'recording':
+                names = ['result.json'] + ['artifacts/' + a['name'] for a in data.get('artifacts',[]) if a['name'].endswith(('result.json','M03_continuity.json','M04_spectral.json','M05_bad_channels.json','M06_muscle.json'))]
+            signature = [VIEW_VERSION]
+            for name in names:
+                try:
+                    stat = (root / name).stat()
+                    signature.append((stat.st_mtime_ns, stat.st_size))
+                except FileNotFoundError:
+                    signature.append(None)
+            with self.lock:
+                cached = self.report_views.get(id_)
+            if not cached or cached[0] != signature:
+                view = build_report_view(data, root / 'artifacts', self.job(id_).get('label', id_))
+                with self.lock:
+                    if len(self.report_views) >= 16:
+                        self.report_views.pop(next(iter(self.report_views)))
+                    self.report_views[id_] = (signature, view)
+            else:
+                view = cached[1]
+            data['report_view'] = copy.deepcopy(view)
         for artifact in data['artifacts']:
             artifact['url'] = f'/api/v1/jobs/{id_}/artifacts/{quote(artifact["name"])}'
         return data
@@ -515,6 +541,30 @@ class Handler(BaseHTTPRequestHandler):
                 from review_workspace import waveform_for_input
                 return self.json(waveform_for_input(record, **self.waveform_query()))
             return self.json(public_input(record))
+        export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png)', path)
+        if export_match:
+            identifier, export_kind = export_match.groups()
+            result = self.store.result(identifier)
+            view = result.get('report_view')
+            if not view:
+                raise ValueError('当前 PDF 导出支持头皮 EEG 报告。')
+            from ephys_qc.report_export import evidence_figure, pdf_bytes
+            try:
+                figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
+            except (OSError, KeyError, ValueError, RuntimeError, ImportError):
+                figure, figure_notes = None, ['对应波形暂不可用；原始检测结果仍保留。']
+            if export_kind == 'report-evidence.png':
+                if not figure:
+                    # Return an accessible text image instead of a broken-image icon.
+                    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="90"><text x="24" y="48" font-size="18" fill="#687b92">候选波形暂不可用，请检查原始文件。</text></svg>'
+                    return self.send_bytes(svg.encode('utf-8'), 'image/svg+xml')
+                return self.send_bytes(figure, 'image/png')
+            try:
+                data = pdf_bytes(view, figure, figure_notes, identifier)
+            except ImportError:
+                return self.json({'error': 'PDF 组件未安装。请在服务环境安装 ephys-qc-workbench[reports]。'}, 503)
+            return self.send_bytes(data, 'application/pdf', headers={
+                'Content-Disposition': f'attachment; filename="DBCI-QC-{identifier[:8]}.pdf"'})
         match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|review|configuration)', path)
         if match:
             identifier, action = match.groups()
@@ -538,10 +588,15 @@ class Handler(BaseHTTPRequestHandler):
                 log = self.store.root / 'jobs' / id_ / 'run.log'
                 return self.send_bytes(log.read_bytes()[-100_000:] if log.exists() else b'', 'text/plain; charset=utf-8')
             if action == 'report':
-                report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
+                result = self.store.result(id_)
+                if result.get('report_view'):
+                    from ephys_qc.report_view import render_report_view
+                    report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf')
+                else:
+                    report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
                 # Keep the standalone report usable both on disk and at the job's /report route.
                 # Use explicit artifact URLs without relaxing the base-uri policy.
-                for a in self.store.result(id_)['artifacts']:
+                for a in result['artifacts']:
                     safe_name = a['name']
                     for attr in ('src', 'href'):
                         report = report.replace(f'{attr}="{safe_name}"', f'{attr}="{a["url"]}"')

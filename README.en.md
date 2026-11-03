@@ -1,152 +1,103 @@
 # DBCI-QC
 
-**A modular electrophysiology quality-control toolkit with an optional local workbench.**
+**A modular electrophysiology quality-control toolkit with a local workbench.**
 
-[中文](README.md)
+[中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-DBCI-QC connects file reading, metadata confirmation, method selection, module execution and independent review through a traceable workflow. Current routes cover **scalp EEG** and **basic descriptive checks for ECoG, sEEG and Neuropixels continuous voltage**. Users upload data first; confirmed metadata determines the analysis route.
+Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev9**. The previous tagged release candidate is **1.0.0rc2**. The main deliverable is an independently installable Python toolkit with Python and CLI interfaces. The website is optional. See the [toolkit contract](docs/toolkit.md), [change log](CHANGELOG.md), [versioned validation records](docs/runtime-validation.md) and [pending work (Chinese)](TODO.md).
+Development version: **1.0.0rc3.dev14**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
 
-Documentation: [general requirements](docs/en/workflow-standards.md) → [field dictionary](docs/en/metadata-fields.md) → [method applicability](docs/en/method-applicability.md); [current implementation](docs/en/implementation-status.md) separates implemented capability from the design.
+## Quick start
 
-EEG assessment procedure: [specification](docs/en/qc-standards.md) → [12 check terms](docs/en/eeg-checks.md) → [evidence sources](docs/en/eeg-evidence.md) → [report requirements](docs/en/eeg-report.md). New reports preserve rule and effective-parameter evidence snapshots; no certification or calibrated score is issued.
+Tested on **Linux with Python 3.11 and Git**. Initial installation needs internet access. No Node.js, frontend build or login is required. Windows and macOS have not undergone equivalent validation.
 
-## Workflow
-
-```text
-Read local files → Confirm channels and acquisition information → Confirm recommended plan
-                                                                          ↓
-Independent review ← Report, candidate locations and waveform evidence ← Run modules
-```
-
-Uploading and requesting recommendations do not start analysis. File-declared channel types can provide a suggestion; defaults, missing fields and conflicts require confirmation. Unknown information stays unknown. Disease and task labels provide context and currently do not select quality thresholds.
-
-Original signals are not deleted, interpolated, re-referenced or overwritten. Reports preserve measurements, actual coverage, unsupported checks and failure reasons.
-
-## Module organization
-
-| Module | Shared responsibility |
-| --- | --- |
-| M01 | Read sources and check structure, units and file identity |
-| M02 | Characterize data and freeze scope, methods and dependencies |
-| M03 | Check signal integrity |
-| M04 | Describe spectra and investigate measurable interference |
-| M05 | Assess channel evidence using methods valid for the route |
-| M06 | Evaluate applicable artifact indicators |
-| M07 | Check registered state and event timing |
-| M08 | Aggregate component evidence, coverage and limitations |
-| M09 | Produce reports and support independent review |
-
-The toolbox groups methods by their purpose. Modality and activation conditions are method attributes. Shared responsibilities do not imply shared thresholds: scalp EEG methods include available PREP-related, MNE and autoreject adaptations, while the descriptive routes below have distinct input gates and configurations.
-
-| Route | Current scope | Limits |
-| --- | --- | --- |
-| scalp-eeg/1 | Confirmed scalp EEG | Each detector has separate prerequisites and validation limits |
-| ecog-basic/1 | Confirmed surface-contact voltages | No inferred grid adjacency or automatic bad-contact classification |
-| seeg-basic/1 | Confirmed depth-contact voltages | No inferred shaft/bipolar topology or pathological-artifact classification |
-| neuropixels-voltage/2 | One SpikeGLX AP/LF stream or a continuous NWB ElectricalSeries with explicit Neuropixels device evidence | Sync words excluded from voltage analysis; no sorting or unit-quality assessment |
-
-ECoG, sEEG and Neuropixels provide M03 integrity observations, M04 Welch/narrow-band descriptions and M05 per-contact statistics. Registered events can enable M07. ECoG/sEEG M06 can explicitly run FieldTrip difference-based interval indicators; Neuropixels M06 remains unimplemented. See [architecture](docs/en/architecture.md) and the [modality integration design](docs/multimodal-extension.md).
-
-## File support
-
-| Format | Upload | Current scope |
-| --- | --- | --- |
-| EDF / EDF+ | One `.edf` | Continuous waveforms |
-| BDF | One `.bdf` | Continuous data with native sampling streams |
-| BrainVision | `.vhdr`, `.vmrk` and `.eeg` together in a ZIP | Complete companion set |
-| EEGLAB | Embedded `.set`, or `.set` and `.fdt` in a ZIP | Continuous data |
-| FIF | One `.fif` | Single-file Raw data |
-| SpikeGLX | One `.ap.bin` / `.ap.meta` or `.lf.bin` / `.lf.meta` pair in a ZIP | Supported Neuropixels raw stream, with neural and sync channels distinguished |
-| NWB 2 / HDF5 | One `.nwb` file | Continuous ElectricalSeries; select and freeze one stream; Units are not continuous channels |
-
-The upload and uncompressed ZIP limits are both **512 MiB**. One package represents one recording or one SpikeGLX stream. EDF+D/BDF+D, epoched EEGLAB, split FIF, NWB-Zarr, compressed `.cbin`, NIDQ and spike/unit inputs are outside the current workflow. File format alone does not determine modality; support depends on the actual channel declarations and reader constraints. See [format contracts](docs/file-formats.md).
-
-Neuropixels reader contracts cover declared probe types 0, 21 and 24. **Real-data validation currently covers NP1 only; NP2 has synthetic decoding tests only.** Raw-recording descriptions do not establish sorting accuracy or unit quality.
-
-NWB is a container, not an anatomical modality. Each ElectricalSeries retains its own electrode mapping, units and clock. The selected stream is frozen with the input revision and execution plan. Other NWB voltage is confirmed as scalp EEG, ECoG or sEEG from source evidence, rather than forced into the Neuropixels route. See [NWB examples and provenance](docs/nwb-testing.md) and the [manifest](datasets/nwb-examples.json) for the real human ECoG excerpt, legacy LFP and synthetic multistream/Units boundaries.
-
-## Installation and local use
-
-The tested scientific environment is Linux with Python 3.11. The workbench has no frontend build step. Node.js is used for development checks. Installing this package does not install external scientific backends automatically.
+### 1. Download and install
 
 ```bash
 git clone https://github.com/sunyq19/DBCI-QC.git
 cd DBCI-QC
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-python -m pip install "brainelecqc[qc,readers,figures] @ git+https://github.com/Jlei61/BrainElecQC.git@f007d829712d1b824cda79409d181a3313d6a78f"
-python -m pip install "mne==1.13.2" "autoreject==0.5.1" "h5io==0.2.5" "pymatreader==1.3.2"
-python -m pip install "pynwb==3.1.3" "hdmf==4.3.1" "h5py==3.16.0"
+python3.11 scripts/setup_local.py
 ```
 
-BrainElecQC is installed separately and is not redistributed in this repository. The [tested environment record](profiles/tested-environment.json) is not a complete dependency lock. See [third-party notices](THIRD_PARTY_NOTICES.md).
+Setup creates `.venv`, installs scientific and PDF dependencies, and generates `.local/workbench.json` with local paths. Existing configuration is preserved. With Conda, activate a Python 3.11 environment and use `python scripts/setup_local.py`.
 
-Use the toolkit without starting the website:
+### 2. Start
 
 ```bash
-dbci-qc catalog
-dbci-qc inspect /path/to/record.edf
-python examples/headless_qc.py --output /path/to/new-demo
+.venv/bin/python apps/workbench/server.py --config .local/workbench.json
 ```
 
-For the local workbench, copy the minimal configuration and set its `python` and `data_dir` fields to absolute local paths. Keep runtime data outside the repository. Preserve any existing configuration.
+### 3. Open
 
-```bash
-mkdir -p .local
-cp -n apps/workbench/workbench.minimal.json .local/workbench.json
-python apps/workbench/server.py --config .local/workbench.json
+Visit **[http://127.0.0.1:8769/](http://127.0.0.1:8769/)**.
+
+```text
+Upload → Confirm metadata → Review recommendation → Run → View report / Download PDF
 ```
 
-Open [http://127.0.0.1:8769/](http://127.0.0.1:8769/). The service listens locally and requires no login. Uploaded copies remain in the configured local runtime directory. On Linux, `python scripts/run_local.py` also supports background startup, `--status` and `--stop`. See the [workbench API documentation](apps/workbench/README.md).
+Keep the terminal open; stop with `Ctrl+C`. Subsequent launches only need step 2. Upload copies, jobs and reports default to `.local/runtime/`, excluded from Git. Original files remain unchanged. The server binds to localhost only.
 
-## Public examples and reproducibility
+For custom directories, ports and upgrades, see the [installation guide](docs/en/installation.md).
 
-```bash
-python scripts/public_examples/prepare_ecog_example.py --output /path/to/ecog-examples
-python scripts/public_examples/prepare_seeg_example.py --output /path/to/seeg-examples
-python scripts/prepare_neuropixels_samples.py --destination /path/to/neuropixels-examples
-```
+## Supported files
 
-These scripts keep sources, provenance, upload samples and registration drafts outside the repository. They do not register records in the workbench or start QC tasks.
-
-- ECoG: original BrainVision and a lossless FIF representation of one public observation; not two independent participants.
-- sEEG: a byte-identical public FIF excerpt, with 119 contacts and 32 task annotations. Original nonzero sample origin is retained.
-- Neuropixels: a declared two-second excerpt from human Pt03 raw AP data, plus a Noise4Sam LF format fixture. The remote full AP file checksum was not verified because only a specified byte range was downloaded.
-- ACSF AP and truncated Noise4Sam AP are retained as rejected source-consistency examples, not runnable registrations. The 0.02-second boundary check selects a window from the verified human AP excerpt.
-
-The earlier scalp EEG coverage set contains seven public datasets and 26 records. Format fixtures, derivative representations, biological observations and quality ground truth are counted separately. Task, sleep and seizure annotations are not artifact ground truth. See [public examples](docs/public-examples.md), [modality-specific scope](docs/multimodal-extension.md) and [validation records](docs/runtime-validation.md).
-
-Each run retains source hashes, input/configuration versions, chosen methods, actual windows, software environment and outputs. Human decisions are separately versioned. Short-window and whole-record checks retain evaluated, failed and unexecuted coverage; windowed execution is not equivalent to fitting a method once to the complete recording.
-
-## Validation and limitations
-
-```bash
-python scripts/check_release.py
-```
-
-Automated checks cover readers, plans, module isolation, revisions, review conflicts, window coverage and UI state. Tests requiring local data may skip in a fresh environment. Real-file acceptance and browser review are separate from unit tests.
-
-**Overall quality scores remain `null` because no unified score has been calibrated.** Independent expert-labelled accuracy has not been established. Current sEEG and Neuropixels routes are descriptive. Spike sorting, unit SNR/ISI metrics, probe drift, cross-stream synchronization, disease-specific classification and Linxi host integration are not implemented. Project specifications are technical drafts, not published industry standards.
-
-## Documentation
-
-| Topic | Entry |
+| Format | Upload |
 | --- | --- |
-| Toolkit handoff | [Python, CLI and package contract](docs/toolkit.md) |
-| Architecture | [English](docs/en/architecture.md) · [中文](docs/architecture.md) · [Modality integration design](docs/multimodal-extension.md) |
-| General workflow | [English specification](docs/en/workflow-standards.md) |
-| Route specifications | [Scalp EEG](docs/en/qc-standards.md) · [ECoG](docs/en/ecog/qc-standards.md) · [sEEG](docs/en/seeg/qc-standards.md) · [Neuropixels](docs/en/neuropixels/qc-standards.md) |
-| Evidence | [Data validation](docs/data-validation.md) · [Runtime acceptance](docs/runtime-validation.md) · [Method sources](docs/toolkit-sources.md) |
-| Research candidates | [Six source-reviewed methods, not executable (Chinese)](docs/qc-methods-review-20261031.md) |
-| Version control | [Versioning](docs/versioning.md) · [Change log](CHANGELOG.md) |
+| EDF / EDF+, BDF | One `.edf` or `.bdf` |
+| BrainVision | `.vhdr`, `.vmrk`, `.eeg` together in a ZIP |
+| EEGLAB | Embedded `.set`, or `.set` + `.fdt` in a ZIP |
+| FIF | One Raw `.fif` |
+| NWB 2 / HDF5 | One `.nwb`; select a continuous ElectricalSeries after reading |
+| SpikeGLX | One AP or LF `.bin` + `.meta` pair in a ZIP |
 
-The workbench serves these versioned specification sources and links each module to its detailed page. Core modules live in `src/ephys_qc/modules/`; sEEG and Neuropixels use distinct entrypoints over shared descriptive kernels in `modules/continuous/`. Source readers, recommendations and plans are independent of `apps/workbench/`.
+Upload and uncompressed ZIP limits are **512 MiB** each. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
+
+To try a generated engineering example:
+
+```bash
+.venv/bin/python examples/headless_qc.py --output .local/demo
+```
+
+This generates `.local/demo/synthetic.edf` and runs an integrity check. You can upload that EDF to the workbench. It verifies the workflow, not accuracy on natural artifacts. The output directory must not already exist. See [public examples](docs/public-examples.md) for real data.
+
+## Modules and reports
+
+| Stage | Modules |
+| --- | --- |
+| Read and confirm | M01 File/structure checks; M02 Metadata and execution plan |
+| Check quality | M03 Integrity; M04 Spectra/interference; M05 Channels; M06 Artifact indicators; M07 Events/timing |
+| Summarize and review | M08 Component assessment; M09 Reporting and manual review |
+
+Implementations are separate files in [`src/ephys_qc/modules/`](src/ephys_qc/modules/). Python and CLI usage is documented in the [toolkit guide](docs/toolkit.md).
+
+EEG reports show an overview, integrity/line-interference/high-frequency-burst components, channel and time results, candidate waveforms and scoring rules. Whole-record processing runs in background chunks and retains coverage and unassessed conditions.
+
+**Score v0.2 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. Other modalities retain descriptive reports. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
+
+## Methods and extensions
+
+Default setup installs BrainElecQC, MNE-Python, autoreject, PyNWB and PDF dependencies. BrainElecQC provides the initial EEG backend; DBCI-QC provides common reading, applicability rules, orchestration and reporting.
+
+Research extensions such as FASTER, SpikeInterface, FieldTrip, ASR, CleanLine and Zapline-plus need separate dependencies or configuration. They do not all run by default. See [optional methods](docs/optional-methods-runtime.md) and [method sources](docs/toolkit-sources.md).
+
+## Documentation and development
+
+- [Install, configure and update](docs/en/installation.md)
+- [Toolkit API](docs/toolkit.md) · [Workbench API](apps/workbench/README.md)
+- [General requirements](docs/en/workflow-standards.md) · [EEG specification](docs/en/qc-standards.md) · [Check terms](docs/en/eeg-checks.md) · [Evidence](docs/en/eeg-evidence.md)
+- [Implementation scope](docs/en/implementation-status.md) · [Installation verification](docs/validation/local-install-20261103.md) · [Pending work](TODO.md)
+
+Development checks additionally require Node.js:
+
+```bash
+.venv/bin/python scripts/check_release.py
+```
+
+Specifications are unreviewed project drafts, not published industry standards. Outputs support research screening and human review, not clinical diagnosis. Full metadata-dictionary integration, cross-record score comparison and Linxi host integration remain pending.
 
 ## Sources and licensing
 
-[BrainElecQC](https://github.com/Jlei61/BrainElecQC) provides the initial scalp EEG backend. DBCI-QC supplies the common contracts, routing, scheduling, evidence reports and review workflow, with additional MNE and autoreject methods. Neuropixels voltage uses SpikeGLX or a supported NWB reader with device evidence; voltage measurements do not invoke spike sorting.
+[DBCI-QC](https://github.com/sunyq19/DBCI-QC) · [Jiaxin Lei / BrainElecQC](https://github.com/Jlei61/BrainElecQC)
 
-This repository has not yet designated a project license. Third-party code and data retain their own terms. Raw recordings, private annotations, runtime reports, machine configuration and installed third-party packages are excluded from version control.
+BrainElecQC is installed at a fixed commit, not vendored. Raw data, local configuration and reports are not distributed with the repository. This project has not yet selected a license; third-party software and data retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md).

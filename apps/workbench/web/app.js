@@ -29,7 +29,7 @@
   const pretty = value => typeof value === "string" ? value : JSON.stringify(value, null, 2);
   const arr = value => Array.isArray(value) ? value : [];
   const state = {catalog:null,input:null,draftConfig:null,selected:new Set(OPTIONAL),extensions:new Set(),contextTags:{disease:"unknown",age_group:"unknown",task:"unknown"},initialContext:{},dialogModule:null,plan:null,planKey:null,planning:false,submitting:false,cancelling:false,job:null,result:null,mode:"draft",history:[],pollTimer:null,jobRequest:0,resultRequest:0,resultJobId:null,pollFailures:0,historyBusy:false,loadingCatalog:false,recommendation:null,recommendationKey:null,recommending:false,recommendationApplied:false,recommendationStale:false,intake:null,intakeBusy:false,draftEpoch:0,planRequest:0,manualDraft:false,parameterDirty:false,filePending:false,intakeRequest:0,catalogRequest:0,boardKey:null};
-  Object.assign(state,{activeModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : "scalp_eeg",modalityChoices:[],scope:"window",parentJobId:null,revisionInput:null,navigationRestored:false,workspace:null,reviewWarnings:[],workspaceRequest:0,waveformRequest:0,waveform:null,candidates:[],candidateId:null,candidateLimit:100,review:null,reviewBusy:false,reviewDrafts:{},cloneBusy:false,uploadAbort:null});
+  Object.assign(state,{activeModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : "scalp_eeg",modalityChoices:[],scope:"recording",parentJobId:null,revisionInput:null,navigationRestored:false,workspace:null,reviewWarnings:[],workspaceRequest:0,waveformRequest:0,waveform:null,candidates:[],candidateId:null,candidateLimit:100,review:null,reviewBusy:false,reviewDrafts:{},cloneBusy:false,uploadAbort:null});
   Object.assign(state,{records:null,catalogCache:{},selectionRequest:0,loadingRecord:false,browseCatalog:null,browseModality:null,browseRequest:0,dialogContext:null,compatModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : null});
   const DRAFT_KEY = "ephys-qc.draft.v1";
   const DRAFT_LAST_KEY = `${DRAFT_KEY}.latest`;
@@ -411,7 +411,7 @@
     state.contextTags = {disease:defaults.disease ?? "unknown",age_group:defaults.age_group ?? "unknown",task:defaults.task ?? sourceTask?.value ?? "unknown"};
     state.initialContext = {...state.contextTags};
     state.selected = new Set(defaultSelectedModules()); state.extensions = new Set(arr(state.draftConfig.method_config?.extensions));
-    state.scope = state.draftConfig.scope === "recording" ? "recording" : "window"; state.parentJobId = null;
+    state.scope = state.draftConfig.scope === "window" ? "window" : "recording"; state.parentJobId = null;
     $("extension-selection-note").hidden = true;
     $("extension-selection-note").textContent = "";
   }
@@ -534,7 +534,7 @@
     $("scope-window").checked = state.scope === "window"; $("scope-recording").checked = state.scope === "recording";
     for (const id of ["scope-window","scope-recording"]) $(id).disabled = !state.input || busy || state.mode !== "draft";
     if (state.scope === "recording") { $("start-seconds").disabled = true; $("duration-seconds").disabled = true; }
-    $("scope-description").textContent = state.scope === "recording" ? "整份检查按有界窗口逐段执行；数据间隙与未完成部分单独报告。" : "快速预检仅检查所选时段，不代表整份记录。";
+    $("scope-description").textContent = state.scope === "recording" ? "整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。" : "快速预检仅检查所选时段，不代表整份记录。";
     renderVisibility();
     renderExtraction();
     renderPipeline();
@@ -671,7 +671,7 @@
     state.recommendation = null; state.recommendationKey = null; state.recommendationApplied = false; state.recommendationStale = false;
     state.selected = new Set(defaultSelectedModules()); state.extensions = new Set();
     state.contextTags = {disease:"unknown",age_group:"unknown",task:"unknown"};
-    state.scope = "window"; state.parentJobId = null; state.revisionInput = null;
+    state.scope = "recording"; state.parentJobId = null; state.revisionInput = null;
     $("input-select").value = ""; $("start-seconds").value = ""; $("duration-seconds").value = "";
     $("extension-parameters").value = "{}"; $("selected-file-name").textContent = "";
     $("input-facts").innerHTML = ""; $("channel-config").innerHTML = "";
@@ -761,7 +761,7 @@
     const frozenModality = state.job?.plan?.input_modality;
     const source = history ? (state.job?.plan?.input_metadata ? {metadata:state.job.plan.input_metadata,label:state.job.label,modality:typeof frozenModality === 'string' ? frozenModality : frozenModality?.value} : null) : state.filePending ? state.intake : state.input || state.intake;
     const box = $("record-summary"), meta = source?.metadata;
-    box.hidden = !meta;
+    box.hidden = !meta || Boolean(history && state.result?.report_view);
     const key = history ? `job:${state.job?.id || "loading"}` : state.input && !state.filePending ? `input:${state.input.id}` : state.intake ? `intake:${state.intake.id}` : "empty";
     if (key !== state.boardKey) { $("workflow-panel").open = !meta || history || Boolean(state.input && !state.filePending); state.boardKey = key; }
     if (!meta) { box.innerHTML = ""; return; }
@@ -1026,7 +1026,7 @@
       if (moduleOrder().includes(focusedId)) $("pipeline").querySelector(`[data-detail="${focusedId}"]`)?.focus({preventScroll:true});
     }
     const historical = state.mode === "job", hasInput = Boolean(state.input) && !state.filePending;
-    $("pipeline-title").textContent = historical ? "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
+    $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
     if (historical) {
       label = state.job ? STATUS[state.job.status] || state.job.status : "状态未载入";
@@ -1047,6 +1047,7 @@
     }
     for (const id of ["pipeline-state","plan-state"]) { $(id).className = `tag ${style}`; $(id).textContent = label; }
     $("pipeline-caption").textContent = caption;
+    if (historical && state.result?.report_view) $("record-summary").hidden = true;
     $("pipeline-legend").hidden = !historical || !state.job;
     $("pipeline-legend").textContent = "图中颜色表示执行状态，质量结论见报告。";
     $("plan-disclosure").hidden = !(historical ? state.job?.plan : validPlan());
@@ -1114,6 +1115,7 @@
     $("job-created").textContent = date(job.created_at);
     $("job-message").textContent = [job.phase,job.message].filter(Boolean).join(" · ") || "服务端暂未提供阶段说明。";
     const modules = arr(job.modules), progress = executionProgress(job);
+    $("job-execution-details").open = ACTIVE.has(job.status);
     $("job-progress").setAttribute("aria-valuenow",progress.percent); $("job-progress").setAttribute("aria-valuetext",`${progress.finished} / ${progress.total} 个已选模块已结束`); $("job-progress").firstElementChild.style.width = `${progress.percent}%`;
     $("job-progress-label").textContent = `已选模块 ${progress.finished} / ${progress.total} 已结束${progress.unselected ? ` · ${progress.unselected} 个未选择` : ""} · 执行进度不代表质量`;
     $("job-modules").innerHTML = modules.length ? modules.map(module => `<div class="job-module"><div class="job-module-head"><code>${escape(module.id)}</code>${statusTag(displayStatus(module,job.plan))}</div><div class="job-module-name">${escape(module.name || module.id)}</div>${module.reason || module.message ? `<p>${escape([module.reason,module.message].filter(Boolean).join(" · "))}</p>` : ""}${displayStatus(module,job.plan) !== "unselected" && numeric(module.duration_seconds) ? `<p>耗时 ${number(module.duration_seconds,2)} 秒</p>` : ""}</div>`).join("") : '<p class="small muted">等待服务端返回模块状态。</p>';
@@ -1133,9 +1135,49 @@
     const result = state.result, container = $("result-content");
     container.hidden = !result;
     if (!result) { container.innerHTML = ""; return; }
+    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3"].includes(result.report_view?.schema_version)) {
+      container.innerHTML = scoredResultHtml(result.report_view, result);
+      $("workflow-panel").open = false;
+      $("record-summary").hidden = true;
+      return;
+    }
     const score = result.score || {};
     container.innerHTML = `<div class="score-card"><div class="score-value" aria-label="无已校准总分">—</div><div><strong>总分尚未校准</strong><p>${escape(score.reason || "当前仅报告分项证据与限制，不生成整体质量分数。")}</p></div></div>${arr(result.warnings).length ? `<ul class="result-warnings">${result.warnings.map(warning => `<li>${escape(pretty(warning))}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<h3>模块结果摘要</h3>${arr(result.modules).length ? result.modules.map(module => `<details class="result-summary"><summary>${escape(module.id || module.module_id || "模块")} · ${escape(module.name || "结果")} ${module.status ? statusTag(displayStatus(module,state.job?.plan)) : ""}</summary><pre>${escape(pretty(module))}</pre></details>`).join("") : '<p class="small muted">服务端未提供模块摘要，请查看实际报告。</p>'}${result.recording ? `<details class="result-summary"><summary>本次记录与分析范围</summary><pre>${escape(pretty(result.recording))}</pre></details>` : ""}${result.artifacts ? `<details class="result-summary"><summary>产物清单</summary><pre>${escape(pretty(result.artifacts))}</pre></details>` : ""}`;
     container.innerHTML = `<p class="coverage-summary">${escape(coverageText(result))}</p>` + container.innerHTML;
+  }
+
+  function scoredResultHtml(view, result) {
+    const score = view.score || {}, parts = arr(score.components);
+    const revised = score.version === "eeg-basic-screen/0.2";
+    const point = value => numeric(value) ? Number(value).toFixed(2) : "—";
+    const rec = view.recording || {}, line = view.line || {}, finite = view.finite || {};
+    const count = value => numeric(value) ? number(value,0) : "—";
+    const descriptions = [
+      `非有限值 ${count(finite.nonfinite)} · 恒值 ${count(finite.constant)} 个样本`,
+      line.total ? `${line.hits}/${line.total} 通道窗命中 · 涉及 ${line.affected_channels} 道` : "暂无有效测量",
+      `${count(view.hf_candidate_count)} 条候选区间 · 涉及 ${count(view.hf_affected_channels)} 道`
+    ];
+    const reportUrl = state.job?.id ? `${API}/jobs/${encodeURIComponent(state.job.id)}/report` : "";
+    const low = view.local_quality?.lowest, whole = view.scope === "recording";
+    const localNote = low?.lowest_component && low.lowest_component.value < 100 ? `<p class="qc-local-focus"><strong>局部关注</strong> <span data-i18n-skip>${escape(low.name)}</span> · ${escape(low.lowest_component.name)} ${point(low.lowest_component.value)} / 100</p>` : "";
+    const channelRows = arr(view.local_quality?.channels).slice(0,100).map(c=>`<tr><th data-i18n-skip>${escape(c.name)}</th>${arr(c.components).map(p=>`<td>${point(p.value)}</td>`).join("")}</tr>`).join("");
+    const timeRows = arr(view.window_scores).slice(0,200).map(w=>`<tr><th>${number(w.start_seconds,2)}–${number(w.start_seconds+w.duration_seconds,2)} s</th><td>${point(w.value)}</td><td>${w.report_artifact ? `<a href="${API}/jobs/${encodeURIComponent(state.job.id)}/artifacts/${encodeURIComponent(w.report_artifact)}" target="_blank" rel="noopener">原始逐窗报告</a>` : "未评"}</td></tr>`).join("");
+    const localDetails = channelRows ? `<details class="result-summary"><summary>按通道查看分项</summary><div class="qc-score-table"><table><thead><tr><th>通道</th><th>完整性</th><th>工频</th><th>高频突发</th></tr></thead><tbody>${channelRows}</tbody></table></div></details>` : "";
+    const timeDetails = timeRows ? `<details class="result-summary"><summary>按时段查看分数</summary><div class="qc-score-table"><table><thead><tr><th>原始时间</th><th>基础初评分</th><th>证据</th></tr></thead><tbody>${timeRows}</tbody></table></div><p class="small muted">分段独立检测，逐通道汇总后评分。窗口链接保留原始报告版本。最多展示 200 窗。</p></details>` : "";
+    const failures = arr(view.failures).length || arr(view.evidence_errors).length;
+    const cards = parts.map((part,index)=>`<article><span>${escape(part.name)}</span><strong>${point(part.value)}<small> / 100</small></strong><div class="qc-score-track"><i style="width:${numeric(part.value) ? Math.max(0,Math.min(100,part.value)) : 0}%"></i></div><p>${escape(descriptions[index] || "")}</p></article>`).join("");
+    const candidates = arr(view.hf_candidates).slice(0,8).map(c=>`<div><strong data-i18n-skip>${escape(c.channel_name)}</strong><span>${number(c.start_seconds,2)}–${number(c.stop_seconds,2)} s</span><span class="small muted">高频突发</span></div>`).join("");
+    const channels = arr(view.line_channels).slice(0,20).map(c=>`<div><strong data-i18n-skip>${escape(c.name)}</strong><span>${c.hits}/${c.total}</span><span class="small muted">命中窗</span></div>`).join("");
+    const checks = arr(view.checks).map(c=>`<div><strong>${escape(c.name)}</strong><span>${escape(c.value)}</span><small>${escape(c.state)}</small></div>`).join("");
+    const range = `${count(rec.channel_count)} 道 · ${number(rec.sampling_rate_hz)} Hz · ${number(rec.start_seconds)}–${number(numeric(rec.start_seconds) && numeric(rec.duration_seconds) ? rec.start_seconds + rec.duration_seconds : null)} s`;
+    return `<div class="qc-report-overview">
+      <div class="qc-score-head"><span class="tag ready">${revised ? "项目试行 v0.2" : "项目试行 v0.1"}</span>${reportUrl ? `<a class="button primary small-button" href="${reportUrl}" target="_blank" rel="noopener">查看完整报告 ↗</a><a class="button small-button" href="${reportUrl}.pdf" download>下载 PDF</a>` : ""}</div>
+      <div class="qc-score-hero"><div class="qc-score-total"><span>${revised ? "EEG 基础质控评分" : "EEG 基础初评分"}</span><strong>${point(score.value)}</strong><small>${revised ? "/ 100 · 取最低分项" : "/ 100 · 三项等权平均"}</small></div><div class="qc-score-conclusion"><h3>${escape(view.headline)}</h3><p>${escape(view.summary)}</p>${view.priority ? `<p class="small muted">${escape(view.priority)}</p>` : ""}</div></div>
+      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}<div class="qc-score-parts">${cards}</div><p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
+    </div><div class="qc-result-findings"><h3>重点复核</h3>${candidates ? `<div class="qc-candidate-list">${candidates}</div>` : '<p class="small muted">暂无可展示的高频候选，检查状态见明细。</p>'}
+      <details class="result-summary"><summary>工频候选通道</summary>${channels ? `<div class="qc-candidate-list">${channels}</div>` : '<p class="small muted">暂无可展示的工频候选，检查状态见明细。</p>'}<p class="small muted">完整位置与证据见报告。</p></details>
+    </div><details class="result-summary"><summary>检查明细与执行说明</summary><div class="qc-check-list">${checks}</div>${arr(view.notes).length ? `<ul>${view.notes.map(n=>`<li>${escape(n)}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<details><summary>模块原始结果</summary><pre>${escape(pretty(result.modules))}</pre></details></details>
+    <details class="result-summary"><summary>评分计算方法</summary><p>${revised ? "每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。" : "信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。"}</p><p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">完整评分规则与算例</a></p><p>三项齐备才计算总分。分数不是可用数据百分比，尚未经过专家校准。</p><pre>${escape(pretty(score))}</pre></details>`;
   }
 
   function extensionResultsHtml(result) {

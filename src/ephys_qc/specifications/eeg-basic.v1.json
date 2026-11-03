@@ -1,7 +1,7 @@
 {
   "schema_version": "eeg-check-catalog/1",
-  "version": "eeg-basic/1",
-  "specification_version": "0.7",
+  "version": "eeg-basic/1.1",
+  "specification_version": "0.8",
   "scope": "human_continuous_scalp_eeg_technical_quality",
   "status": "project_draft_not_published_standard",
   "checks": [
@@ -473,12 +473,12 @@
         "en": "Retain domain measurements and provenance; execution coverage uses actual assessed scope. Compare data only under compatible species, reference, bandwidth, state, processing and configuration."
       },
       "decision_basis": {
-        "zh": "总分未校准时value=null；不把未评算满分，不将运行完成率变成质量分。",
-        "en": "Keep value=null while uncalibrated; unassessed items do not receive full marks and execution percentage is not a quality score."
+        "zh": "通用未校准score.value保持null。EEG项目试行指数按eeg-basic-screen/0.2独立保存在report_view.score；分项为通道异常占比RMS的反向百分制，总分取最低分项，缺项不出总分。无行业合格线。",
+        "en": "Generic uncalibrated score.value remains null. The separate EEG project trial index eeg-basic-screen/0.2 is in report_view.score: components use one minus RMS channel burden, scaled to 100; the total is the minimum. Missing evidence withholds totals; no industry acceptance cutoff."
       },
       "report_content": {
-        "zh": "各分项状态、缺项/失败原因、原始数据未变核验、总分状态和比较条件。",
-        "en": "Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions."
+        "zh": "各分项状态、缺项/失败原因、原始数据未变核验、总分状态和比较条件。 EEG试行评分应另报公式版本、分项、原始分子分母及历史重算标识。",
+        "en": "Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions. Separately retain EEG trial score version, components, native counts and historical recalculation markers."
       },
       "evidence_fields": [
         "score",

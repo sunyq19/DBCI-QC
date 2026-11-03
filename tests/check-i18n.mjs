@@ -95,6 +95,16 @@ check('only exact internal standards routes follow language, including later mod
   assert.equal(main.getAttribute('href'),'/en/standards');assert.equal(moduleLink.getAttribute('href'),'/en/standards/modules/M03');assert.equal(external.getAttribute('href'),'https://example.test/standards');assert.equal(download.getAttribute('href'),'/standards.md');assert.equal(apiPath.getAttribute('href'),'/api/v1/jobs');assert.equal(query.getAttribute('href'),'/standards?download=true');
   moduleLink.setAttribute('href','/standards/modules/M09');h.flush();assert.equal(moduleLink.getAttribute('href'),'/en/standards/modules/M09');api.setLanguage('zh-CN');assert.equal(moduleLink.getAttribute('href'),'/standards/modules/M09');
 });
+check('EEG scoring and related specification links follow language without changing arbitrary paths',()=>{
+  const h=harness({saved:'en'}),api=h.start();
+  for(const slug of ['eeg-scoring','eeg-checks','eeg-report','eeg-evidence']){
+    const a=h.element('a','Document',{href:'/standards/'+slug});h.body.append(a);h.flush();
+    assert.equal(a.getAttribute('href'),'/en/standards/'+slug);
+  }
+  const wrong=h.element('a','Other',{href:'/standards/eeg-scoring-file'});h.body.append(wrong);h.flush();
+  assert.equal(wrong.getAttribute('href'),'/standards/eeg-scoring-file');
+  for(const label of ['项目试行 v0.2','EEG 基础质控评分','/ 100 · 取最低分项','完整评分规则与算例'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')));
+});
 check('standards anchors are retained, with nine known clauses mapped between languages',()=>{
   const h=harness({saved:'en'}),clause=h.element('a','Clause',{href:'/standards#57-m07-状态与事件核对'}),anchor=h.element('a','Anchor',{href:'/standards/modules/M03#2-inputs'}),api=h.start();h.body.append(clause,anchor);h.flush();
   assert.equal(clause.getAttribute('href'),'/en/standards#57-m07-state-and-event-checks');assert.equal(anchor.getAttribute('href'),'/en/standards/modules/M03#2-inputs');

@@ -1,8 +1,8 @@
 # EEG QC report requirements
 
-Project specification · Version eeg-report/1 · 31 October 2026
+Project specification · Version eeg-report/1.4 · 31 October 2026
 
-[Scalp EEG specification](/en/standards) · [Check rules](/en/standards/eeg-checks) · [Sources and basis](/en/standards/eeg-evidence) · [Back to workbench](/)
+[Scalp EEG specification](/en/standards) · [Check rules](/en/standards/eeg-checks) · [Scoring rules](/en/standards/eeg-scoring) · [Sources and basis](/en/standards/eeg-evidence) · [Back to workbench](/)
 
 ## 1 Scope and reporting principles
 
@@ -98,6 +98,18 @@ Zero candidates only means that declared rules produced no candidates within the
 
 ## 5 Candidates and waveforms
 
+### Project trial score
+
+The current version is `eeg-basic-screen/0.2`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
+
+For each channel calculate invalid/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − RMS of channel burdens)`; the total is the minimum of the three components. All selected channels and required components must be assessed. Missing evidence receives no credit or replacement weights.
+
+Retain component numerators, denominators, RMS and mean channel burdens, worst channel and assessed count. Keep the raw pooled unflagged fraction distinct from the score. Additional checks such as ADC limits, reference-group comparisons and auxiliary timing remain separately reported. No industry acceptance threshold or application success probability is assigned.
+
+The score is stored in `report_view.score`, separately from legacy generic `score.value=null`. New runs freeze the current score. A revised view of a historical run shall identify the old score and recalculation version without rewriting evidence. Do not rank different versions together.
+
+### Candidate display
+
 When candidates exist, conditionally required fields are: stable candidate identity, originating check and method, category, reason, original channel identity, localization granularity, evidence reference and review status. Localized intervals shall also retain original sample or second coordinates and endpoint convention.
 
 Whole-window or channel-level outputs shall explicitly state that abnormal onset and offset were not localized. Channel-pair candidates shall retain both members without arbitrarily choosing one as the bad channel. Source seizures, task events and sleep stages shall not directly become artifact candidates.
@@ -119,7 +131,7 @@ New EEG runs save a rule mapping in `result.json.eeg_assessment` and `artifacts/
 | Field | Meaning |
 | --- | --- |
 | `schema_version` | Snapshot schema `eeg-assessment/1` |
-| `catalog_version`, `specification_version` | Check catalogue `eeg-basic/1` and specification `0.7` |
+| `catalog_version`, `specification_version` | Check catalogue `eeg-basic/1.1` and specification `0.8` |
 | `catalog_sha256` | SHA-256 of the corresponding catalogue, distinguishing rule changes from this run |
 | `claim` | `project_rule_traceability_only`: project-rule traceability only |
 | `conformance` | null: no conformity score, certification or item acceptance conclusion |
@@ -140,7 +152,7 @@ Review shall not overwrite `result.json` or method artifacts, automatically edit
 
 ### 7.2 Required limitations
 
-Reports shall state that overall scores are uncalibrated and identify actual missing information, non-assessment, failures, descriptive-only results and unvalidated capabilities. Lack of independent expert-labelled validation shall be disclosed. Successfully processed public records or limited visual review do not establish detection accuracy or validity across diseases.
+Reports shall distinguish the versioned project trial index above from a calibrated universal quality score, and identify actual missing information, non-assessment, failures, descriptive-only results and unvalidated capabilities. Lack of independent expert-labelled validation shall be disclosed. Successfully processed public records or limited visual review do not establish detection accuracy or validity across diseases.
 
 Current snapshots map check definitions to execution evidence. Complete species and age fields are not migrated into runtime, and independent expert validation is not established. Reports shall not claim full field-specification compliance or universal EEG quality acceptance.
 
@@ -149,3 +161,17 @@ Current snapshots map check definitions to execution evidence. Complete species 
 The report package shall retain `result.json`, a readable report, frozen plan, environment, rule snapshot and method evidence actually generated. Human review shall be retained as separately appended versions. Whole-record reports shall provide access to corresponding window evidence. Exported child artifacts use a window ID followed by `--`, preventing identically named files from different windows from overwriting each other.
 
 Before release or handoff, checks shall cover consistent source fingerprints and selection, units and coordinates, correspondence between checks and actual methods, visible skipped/failed items, accurate display ranges, valid evidence links, null values not replaced by zero and traceable rule versions. These are report and engineering consistency checks, not detection-performance validation.
+
+## PDF export and result table
+
+Scalp EEG window and whole-record reports support a two-page PDF using the same score and evidence as the page. Page 1 contains scope, scores, deductions and measurements; page 2 contains candidate locations, original waveform excerpts and a reviewer section. Export does not modify frozen results. Each deduction equals 100 minus the component score. Missing measurements remain unassessed.
+
+The first two high-frequency candidates are illustrated, or line-noise candidates if none exist. Waveform access re-verifies the frozen source. Unavailable sources omit the figure with an explanation. Install `pip install -e ".[reports]"`; `DBCI_QC_PDF_FONT` can specify a Chinese-capable TrueType font.
+
+## Whole-record background execution
+
+New inputs default to full duration of the selected signal stream. Native, non-overlapping windows are processed in the background while the local service runs; closing the page does not cancel the job. Quick precheck remains available.
+
+`eeg-pooling/2` first sums native numerators and denominators within each channel, then computes channel burdens, component RMS and the minimum component. Window scores are not averaged. Detector thresholds remain unchanged. Missing windows, source gaps, incomplete source verification or unassessable tail components withhold the whole-record total, while measurements and coverage remain visible.
+
+Channel components, the lowest component and per-window scores expose local findings without arbitrary extra penalties. Window boundaries and method-specific exclusions remain documented. Compare only matching configurations; this is not a multi-file population score.

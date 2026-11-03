@@ -1830,7 +1830,38 @@ EDF技术头与选道	EDF technical header and channel selection
   ]
 ];
   // END reviewed research methods
-  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs];
+  const reportPairs = [
+    ["整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。","The full recording is processed in the background. You can leave this page while the local service stays running."],
+    ["局部关注","Local findings"],["按通道查看分项","Component scores by channel"],["按时段查看分数","Scores by time window"],
+    ["完整性","Integrity"],["工频","Line noise"],["基础初评分","Basic screening score"],["逐窗报告","Window report"],
+    ["分段独立检测，按实际分母汇总。最多展示 200 窗。","Windows are evaluated independently and pooled by their measurement denominators. Up to 200 windows are displayed."],
+    ["按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。","Aggregated from measurements across the recording. Project trial index; local findings still require review."],
+    ["质控结果","QC results"],["本次质控结果","Results of this QC run"],["执行详情","Execution details"],
+    ["项目试行 v0.2", "Project trial v0.2"],
+    ["EEG 基础质控评分", "EEG basic QC score"],
+    ["/ 100 · 取最低分项", "/ 100 · Lowest component"],
+    ["原始逐窗报告", "Original window report"],
+    ["完整评分规则与算例", "Scoring rules and examples"],
+    ["本页按新规则重算，原始评分与证据保留。", "Recomputed using the new rules; original scores and evidence are preserved."],
+    ["每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。", "For each channel compute the candidate burden. Component = 100 × (1 − RMS of channel burdens). The total is the lowest of the three components."],
+    ["分段独立检测，逐通道汇总后评分。窗口链接保留原始报告版本。最多展示 200 窗。", "Windows are detected independently; evidence is pooled per channel before scoring. Links retain original report versions. Up to 200 windows shown."],
+    ["项目试行 v0.1","Project trial v0.1"],["EEG 基础初评分","EEG basic screening score"],
+    ["/ 100 · 三项等权平均","/ 100 · Equal mean of three checks"],["查看完整报告 ↗","Open full report ↗"],["下载 PDF","Download PDF"],
+    ["检出待复核线索","Findings to review"],["基础检查未检出候选","No candidates in the basic checks"],
+    ["已完成部分检查","Some checks completed"],["部分检查未完成","Some checks did not complete"],
+    ["暂无有效测量","No valid measurements"],["高频突发","High-frequency bursts"],["工频干扰","Line noise"],
+    ["仅评价本次选区。项目试行指标，局部问题仍需复核。","Applies to this selection only. This is a project trial index; localized findings still need review."],
+    ["部分检查未完成，请展开执行说明。","Some checks did not complete. Expand the execution details."],
+    ["重点复核","Priority review"],["工频候选通道","Channels with line-noise candidates"],["命中窗","Flagged windows"],
+    ["完整位置与证据见报告。","See the report for complete locations and evidence."],
+    ["暂无可展示的高频候选，检查状态见明细。","No high-frequency candidates to display; see check details for execution status."],
+    ["暂无可展示的工频候选，检查状态见明细。","No line-noise candidates to display; see check details for execution status."],
+    ["检查明细与执行说明","Check results and execution details"],["模块原始结果","Original module results"],
+    ["评分计算方法","Score calculation"],
+    ["信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。","Integrity uses the finite, nonconstant sample fraction; line noise uses the unflagged channel-window fraction; high-frequency bursts use the noncandidate channel-time fraction. The total is their mean."],
+    ["三项齐备才计算总分。分数不是可用数据百分比，尚未经过专家校准。","All three checks are required for a total. This is not a percentage of usable data and has not been expert-calibrated."]
+  ];
+  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs, ...reportPairs];
   // The descriptive catalogs adapt known ECoG text with these exact route labels.
   // Derive whole-phrase translations only; never replace arbitrary source text.
   const routePairs = explicitPairs.filter(([label])=>label.includes("ECoG")).flatMap(([label,english])=>[["sEEG","sEEG"],["Neuropixels AP/LF","Neuropixels AP/LF"],["Neuropixels 电压","Neuropixels voltage"]].map(([route,translation])=>[label.replaceAll("ECoG",route),english.replaceAll("ECoG",translation)]));
@@ -1848,6 +1879,13 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^非有限值 ([\d,—]+) · 恒值 ([\d,—]+) 个样本$/, (_,a,b) => `Nonfinite ${a} · Constant ${b} samples`],
+    [/^(\d+)\/(\d+) 通道窗命中 · 涉及 (\d+) 道$/, (_,a,b,c) => `${a}/${b} channel-windows flagged · ${c} channels`],
+    [/^([\d,—]+) 条候选区间 · 涉及 ([\d,—]+) 道$/, (_,a,b) => `${a} candidate intervals · ${b} channels`],
+    [/^工频候选涉及 (\d+) 个通道；高频突发有 (\d+) 条候选区间。$/, (_,a,b) => `Line-noise candidates in ${a} channels; ${b} high-frequency candidate intervals.`],
+    [/^工频候选涉及 (\d+) 个通道。$/, (_,a) => `Line-noise candidates in ${a} channels.`],
+    [/^高频突发有 (\d+) 条候选区间。$/, (_,a) => `${a} high-frequency candidate intervals.`],
+    [/^工频优先复核：(.+)。$/, (_,s) => `Priority line-noise review: ${s.replace(/ 命中 (\d+)\/(\d+) 窗/g, ' $1/$2 windows flagged').replaceAll('；', '; ')}.`],
     [/^已识别 Units：([\d,.]+) 个单元。 Units 不属于连续电压流，不进行波形质控。$/, (_,count) => `Units identified: ${count} units. Units are not continuous-voltage streams and do not undergo waveform QC.`],
     [/^SpikeGLX ([A-Za-z0-9_.]+) 必须是非负整数。$/, (_,field) => `SpikeGLX ${field} must be a non-negative integer.`],
     [/^SpikeGLX ([A-Za-z0-9_.]+) 超出支持范围。$/, (_,field) => `SpikeGLX ${field} is outside the supported range.`],
@@ -2024,7 +2062,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

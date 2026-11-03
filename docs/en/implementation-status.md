@@ -1,6 +1,6 @@
 # Current implementation and validation scope
 
-Informative document · Version implementation/2 · 2026-10-31 · Software baseline 1.0.0rc3.dev9
+Informative document · Version implementation/3 · 2026-10-31 · Software baseline 1.0.0rc3.dev13
 
 [General requirements](/standards/overview) · [Field dictionary](/standards/fields) · [Method applicability](/standards/applicability)
 
@@ -44,7 +44,7 @@ These extensions do not enable default cleaning. Temporary copies support impact
 
 ## 4 Reports and evidence
 
-Reports preserve method/configuration identity, metrics, candidates, coverage, unassessed reasons and separate human decisions. The total score remains uncalibrated: score.value is null. Execution coverage is not a quality score.
+Reports preserve method/configuration identity, evidence, coverage and separate review decisions. EEG provides the [v0.2 project trial score](/en/standards/eeg-scoring), channel/window details, PDF and whole-record background execution. This index is in report_view.score; generic score.value remains null. Independent expert calibration is pending; execution coverage is not quality.
 
 Optional extensions have actual public-file runs across four routes plus synthetic and rejection-path tests, documented in repository docs/research-adapter-validation-20261031.md and docs/optional-methods-runtime.md. This evidence establishes bounded engineering behavior, not sensitivity, specificity or signal preservation across species, diseases and tasks.
 
@@ -54,7 +54,7 @@ Development tasks remain in repository TODO.md and are neither normative require
 
 ## 5 EEG rule and report traceability
 
-Scalp EEG specification 0.7 includes twelve check terms, fourteen informative sources and separate reporting requirements. Terms map to the nine existing modules; bilingual check pages are generated from one versioned JSON. New EEG runs preserve exact rule bytes/SHA-256, evidence fingerprints, effective parameters, measurements and module execution states. Whole-record output retains child-window links. Historical reports remain unchanged.
+Scalp EEG specification 0.8 includes twelve check terms, fourteen informative sources and separate reporting requirements. Terms map to the nine existing modules; bilingual check pages are generated from one versioned JSON. New EEG runs preserve exact rule bytes/SHA-256, evidence fingerprints, effective parameters, measurements and module execution states. Whole-record output retains child-window links. Historical reports remain unchanged.
 
 This mapping does not determine conformance; conformance remains null. Full species/site confirmation is not yet captured. Missing reference, missing auxiliaries and failures do not become normal findings. Effective parameters come from method artifacts rather than unexpanded plan defaults. Unexported FASTER feature values and actual bridge cutoffs remain unavailable. Engineering regression/public-file execution do not replace expert-label validation.
 

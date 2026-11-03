@@ -1,6 +1,6 @@
 # EEG check terms and modules
 
-Project implementation procedure · Version eeg-basic/1 · Specification 0.7
+Project implementation procedure · Version eeg-basic/1.1 · Specification 0.8
 
 [EEG specification](/standards) · [Evidence sources](/standards/eeg-evidence) · [Report requirements](/standards/eeg-report) · [Field dictionary](/standards/fields)
 
@@ -297,9 +297,9 @@ Retain domain measurements and provenance; execution coverage uses actual assess
 
 ### Decision basis and reporting
 
-Keep value=null while uncalibrated; unassessed items do not receive full marks and execution percentage is not a quality score.
+Generic uncalibrated score.value remains null. The separate EEG project trial index eeg-basic-screen/0.2 is in report_view.score: components use one minus RMS channel burden, scaled to 100; the total is the minimum. Missing evidence withholds totals; no industry acceptance cutoff.
 
-Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions.
+Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions. Separately retain EEG trial score version, components, native counts and historical recalculation markers.
 
 ### Implementation and evidence
 

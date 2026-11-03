@@ -25,6 +25,7 @@ DOCUMENT_PAGES = {
     'applicability': ('method-applicability.md', '方法适用规则', 'Method applicability'),
     'eeg-checks': ('eeg-checks.md', 'EEG检查词条', 'EEG check terms'),
     'eeg-evidence': ('eeg-evidence.md', 'EEG来源依据', 'EEG evidence sources'),
+    'eeg-scoring': ('eeg-scoring.md', 'EEG评分规则', 'EEG scoring rules'),
     'eeg-report': ('eeg-report.md', 'EEG报告要求', 'EEG report requirements'),
     'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
 }
@@ -596,7 +597,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                       + ''.join(document_link(s) for s in ('overview', 'fields', 'applicability')) + '</ol></li>'
                       + '<li>' + text('头皮 EEG', 'Scalp EEG') + '<ol>'
                       + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
-                      + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-evidence', 'eeg-report')) + '</ol></li>'
+                      + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-scoring', 'eeg-report', 'eeg-evidence')) + '</ol></li>'
                       + document_link('implementation'))
     kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else
             text('模块说明 · 当前实现', 'Module guide · Current implementation') if module_id else
