@@ -4,7 +4,7 @@ export const scopes = ['eeg','ecog','seeg','np','dataset'] as const;
 export type FlowNode = {
   id:string; title:string; summary:string; kind:typeof kinds[number]; status:typeof statuses[number];
   scope:string[]; x:number; y:number; description:string; inputs:string; outputs:string;
-  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support';
+  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';
 };
 export type FlowEdge = {id:string;source:string;target:string;label:string};
 export type FlowDoc = {schemaVersion:1;title:string;subtitle:string;nodes:FlowNode[];edges:FlowEdge[]};
@@ -34,7 +34,7 @@ export function validateDoc(value:unknown):FlowDoc {
     if(!kinds.includes(n.kind as typeof kinds[number])||!statuses.includes(n.status as typeof statuses[number]))throw new Error('节点类型或状态无效');
     if(!Array.isArray(n.scope)||!n.scope.length||n.scope.some(x=>!scopes.includes(x))||new Set(n.scope).size!==n.scope.length)throw new Error('适用范围无效');
     for(const [key,max]of [['x',CANVAS_W-NODE_W-20],['y',CANVAS_H-NODE_H-20]] as const){if(typeof n[key]!=='number'||!Number.isFinite(n[key])||n[key]<20||n[key]>max)throw new Error('节点坐标超出画布');}
-    if(n.entryType!==undefined&&!['method','reader','check','support'].includes(n.entryType as string))throw new Error('子项类型无效');
+    if(n.entryType!==undefined&&!['method','reader','check','support','visualization'].includes(n.entryType as string))throw new Error('子项类型无效');
     if(n.children!==undefined){if(!Array.isArray(n.children))throw new Error('子模块必须是数组');checkNodes(n.children,depth+1);}
   }}
   checkNodes(value.nodes);

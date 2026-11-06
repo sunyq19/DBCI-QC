@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 reports = ["reportlab>=4.4.9,<5"]
+visualization = ["ijson>=3.3,<4"]
 research = ["mne-faster==1.2.2", "spikeinterface==0.104.2"]
 nwb = ["pynwb>=3.1.3,<4", "h5py>=3.8,<4"]
 

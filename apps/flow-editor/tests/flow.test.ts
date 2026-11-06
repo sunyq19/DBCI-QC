@@ -38,9 +38,9 @@ test('hierarchy upgrade covers the registry and preserves every fixed snapshot a
  await Promise.all([ensureHierarchy(db),ensureHierarchy(db)]);const current:any=await readFlow(db);
  assert.equal(current.revision,3);assert.equal(current.doc.nodes[1].title,'成员保留的标题');
  assert.deepEqual((await readFlow(db,{version:'baseline-v1'})as any).doc,seed);
- assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).hash,current.hash);
+ assert.equal((await readFlow(db,{version:'visualization-v13'})as any).hash,current.hash);
  await saveFlow(db,3,{...current.doc,nodes:edited},'继续维护子方法','editor');await ensureHierarchy(db);
- assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).revision,3);
+ assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'visualization-v13'})as any).revision,3);
 });
 test('malformed and excessively deep children cannot enter shared storage',async()=>{
  const {withCatalog}=await import('../lib/catalog');
@@ -48,7 +48,7 @@ test('malformed and excessively deep children cannot enter shared storage',async
  const deep=structuredClone(seed);let n=deep.nodes[0];for(let i=0;i<6;i++){n.children=[{...structuredClone(seed.nodes[0]),id:'deep'+i}];n=n.children[0];}assert.throws(()=>validateDoc(deep),/层级/);
 });
 test('catalog version labels cannot collide with an existing member version',async()=>{
- const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.2 · 灵犀云可选方法','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).version.label,'v1.2 · 灵犀云可选方法 · r2');
+ const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.3 · 统一可视化层','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'visualization-v13'})as any).version.label,'v1.3 · 统一可视化层 · r2');
 });
 
 test('static release files are valid and content hashes match; public publishing cannot save drafts',async()=>{
@@ -57,7 +57,7 @@ test('static release files are valid and content hashes match; public publishing
  const g=globalThis as any;g.window={__FLOW_PUBLICATION__:pub};
  try{
   assert.equal((staticResponse('/api/session') as any).canEdit,false);
-  assert.equal((staticResponse('/api/flow') as any).version.id,'gnosis-v12');
+  assert.equal((staticResponse('/api/flow') as any).version.id,'visualization-v13');
   assert.equal((staticResponse('/api/flow?version=baseline-v1') as any).doc.nodes.length,14);
   assert.throws(()=>staticResponse('/api/flow',{method:'POST'}),/发布版/);
   assert.throws(()=>staticResponse('/api/flow?version=missing'),/尚未发布/);
@@ -75,4 +75,16 @@ test('Gnosis migration preserves the published v1.1 snapshot and member edits',a
  assert.equal((await readFlow(db,{version:fixed.id}) as any).hash,old.hash);
  for(const n of leaves){assert.match(JSON.stringify(n),/https:\/\/github.com\/Gnosis-Neurodynamics\/GnosisNeuroDynamicSE/);assert.deepEqual(n.scope,['eeg']);}
  assert.equal(nodes.filter(n=>n.id.startsWith('group_gnosis_')).length,3);
+});
+
+
+test('visualizations have one separate hierarchy and do not count as QC algorithms',async()=>{
+ const {withCatalog}=await import('../lib/catalog');const {flattenNodes}=await import('../lib/flow');
+ const pub=JSON.parse(readFileSync('content/releases/publication.json','utf8'));const old=pub.releases.find((r:any)=>r.id==='gnosis-v12');
+ const before=JSON.stringify(old);const doc=withCatalog(old.doc);const root=doc.nodes.find(n=>n.id==='VIS')!;
+ assert.equal(root.children?.length,12);assert.equal(root.children?.filter(n=>n.status==='ready').length,10);
+ assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='visualization').length,12);
+ assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,47);
+ assert.ok(doc.edges.some(e=>e.source==='M09'&&e.target==='VIS'));
+ assert.deepEqual(withCatalog(doc),doc);assert.equal(JSON.stringify(old),before);
 });

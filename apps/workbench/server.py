@@ -446,6 +446,9 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = dispatch
 
     def get(self, path):
+        from visualization_page import dispatch_visualizations
+        if dispatch_visualizations(self, path):
+            return
         english = path.startswith('/en/')
         document_path = path[3:] if english else path
         common_document = next((slug for slug in DOCUMENT_PAGES
@@ -591,7 +594,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = self.store.result(id_)
                 if result.get('report_view'):
                     from ephys_qc.report_view import render_report_view
-                    report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf')
+                    report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf', visualization_url=f'/api/v1/jobs/{id_}/visualizations')
                 else:
                     report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
                 # Keep the standalone report usable both on disk and at the job's /report route.

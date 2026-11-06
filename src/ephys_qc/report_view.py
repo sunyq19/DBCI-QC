@@ -215,7 +215,7 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
                 artifacts=[a['name'] for a in result.get('artifacts', [])])
 
 
-def render_report_view(view, evidence_url=None, pdf_url=None):
+def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=None):
     """Standalone report with local artifact links; the server rewrites those links."""
     esc = lambda value: html.escape(str(value), quote=True)
     number = lambda value: '—' if value is None else f'{value:g}'
@@ -261,6 +261,8 @@ def render_report_view(view, evidence_url=None, pdf_url=None):
     score_table = ''.join(f'<tr><th>{esc(r["name"])}</th><td>{points(r["value"])}</td><td>{points(r["deduction"])}</td><td>{esc(r["reason"])}</td></tr>' for r in score_rows(view))
     evidence = f'<h3>对应候选波形</h3><img loading="lazy" src="{esc(evidence_url)}" alt="对应原始信号，阴影为候选区间"><p class="muted">展示前 2 条高频候选；无高频候选时展示工频候选。阴影为候选区间，原始信号未清洗。原文件不可用时保留检测结果，波形暂不可用。</p>' if evidence_url and (view['hf_candidates'] or view['line_channels']) else ''
     download = f'<a class="tag" href="{esc(pdf_url)}" download>下载 PDF</a>' if pdf_url else ''
+    if visualization_url:
+        download += f'<a class="tag" href="{esc(visualization_url)}">选择可视化</a>'
     waveform = ('<details><summary>查看起始波形</summary><p class="muted">前几个选中通道、选区起始最多 15 秒。候选时间以表格为准。</p><img src="waveform.png" alt="原始选区起始波形"></details>') if 'waveform.png' in view['artifacts'] else ''
     raw = esc(json.dumps({k:view[k] for k in ('parameters','source_fingerprints','plan_id','source_sha256','modules','extensions','warnings')}, ensure_ascii=False,indent=2,allow_nan=False))
     revision = view.get('score_revision')
