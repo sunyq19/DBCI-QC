@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "title": "数据质控流程",
+  "subtitle": "统一读入 · 按条件检查 · 定位问题与复核",
+  "nodes": [
+    {
+      "id": "INPUT",
+      "title": "输入数据",
+      "x": 55,
+      "y": 70,
+      "kind": "intake",
+      "summary": "一份记录，或一个数据包",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np",
+        "dataset"
+      ],
+      "description": "记录是信号检查的基本单位。数据集包含个体、会话及记录，文件和信号流是记录的组成部分。",
+      "inputs": "主文件与必要配套文件；数据包可附应有清单、通道表和事件表。",
+      "outputs": "可识别的记录和数据包",
+      "conditions": "格式选择读取器，不能仅凭扩展名确定模态。",
+      "methods": "",
+      "evidence": "",
+      "notes": ""
+    },
+    {
+      "id": "M01",
+      "title": "文件读取",
+      "x": 370,
+      "y": 70,
+      "kind": "intake",
+      "summary": "提取通道、时长、采样率与单位",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np",
+        "dataset"
+      ],
+      "description": "按格式调用读取器，核对文件结构、来源、单位、时钟和通道身份。读取成功不等于数据质量合格。",
+      "inputs": "EDF/EDF+、BDF、BrainVision、连续 EEGLAB、单文件 FIF\nNWB 2/HDF5 连续 ElectricalSeries\n受支持的 Neuropixels SpikeGLX AP/LF 配套文件",
+      "outputs": "通道、单位、采样率、时长；信号流、标注信息与来源指纹。",
+      "conditions": "配套文件完整；所选电压单位和标定可核验。NWB 先选择信号流，不把 Units 表作为连续波形。",
+      "methods": "头皮 EEG 方法：\n多格式读取与来源核验 · 按条件核对\n单位与电压标定 · 按条件核对",
+      "evidence": "https://github.com/Jlei61/BrainElecQC",
+      "notes": "不自动猜测电压单位或补造配套信息。"
+    },
+    {
+      "id": "M02",
+      "title": "信息确认与方案",
+      "x": 685,
+      "y": 70,
+      "kind": "intake",
+      "summary": "确认模态、选道与分析范围",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np",
+        "dataset"
+      ],
+      "description": "模态决定采用的方法，技术条件决定子方法能否执行。确认后保存本次计划、参数、条件和版本。",
+      "inputs": "技术元信息\n显式配置",
+      "outputs": "冻结配置\n原始时钟选区",
+      "conditions": "确认模态、分析通道、信号流和时间范围。\n疾病、年龄标签用于解释，本版不单独改阈值。\n数据包还需明确清单、记录映射与比较组。",
+      "methods": "头皮 EEG 方法：\n数据标签与检查计划 · 按条件核对",
+      "evidence": "",
+      "notes": "当前数据集逐记录确认与启动信号任务；批量启动尚未接入。"
+    },
+    {
+      "id": "M03",
+      "title": "信号完整性",
+      "x": 490,
+      "y": 310,
+      "kind": "base",
+      "summary": "缺失、恒值与异常区间",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "检查非有限样本、恒值与端点平台；可选MNE平线和autoreject全局阈值。",
+      "inputs": "原始电压\n逐道标定",
+      "outputs": "连续性候选\n样本区间\n可选固定段幅度阈值",
+      "conditions": "所有已确认且可标定的连续电压默认推荐。\n端点平台需要标定端点；缺失时只不判端点平台。",
+      "methods": "头皮 EEG 方法：\n缺失、恒值与端点平台 · 按条件核对\nMNE 相邻采样变化 / 平线 · 手动选择\nautoreject 全局阈值估计 · 手动选择\nlocal AutoReject试次质量估计 · 待接入\n\nECoG / sEEG / Neuropixels：非有限值与精确恒值等基础描述。",
+      "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html\nhttps://autoreject.github.io/stable/generated/autoreject.get_rejection_threshold.html\nhttps://autoreject.github.io/stable/index.html",
+      "notes": "异常位置保留原始通道与时间。不自动修补或插值。"
+    },
+    {
+      "id": "M04",
+      "title": "频谱与干扰",
+      "x": 800,
+      "y": 310,
+      "kind": "base",
+      "summary": "PSD 与可测频率的工频观察",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "PSD 描述能量分布；工频方法寻找可测频率附近的窄带成分。PSD 图本身不等于坏道分数。",
+      "inputs": "原始电压\n采样率与分析范围",
+      "outputs": "PSD\n工频候选\n频谱拟合",
+      "conditions": "按目标频率、时长和完整窗口分别核对。\n已陷波的工频高分不证明原始采集质量好。",
+      "methods": "头皮 EEG 方法：\nWelch功率谱 · 按条件核对\n工频及可测谐波 · 按条件核对\n背景谱拟合与α功率 · 按条件核对\nCleanLine 工频处理评估 · 手动选择\nZapline-plus 工频处理评估 · 手动选择\n\nECoG / sEEG / Neuropixels：描述性 PSD 与窄带观察，不使用头皮判坏阈值。",
+      "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://eeglab.org/plugins/cleanline/\nhttps://github.com/MariusKlug/zapline-plus",
+      "notes": "基础方法对滤波史的自动限制尚未完全统一。谱峰与年龄、状态、疾病有关，不直接判为低质量。"
+    },
+    {
+      "id": "M05",
+      "title": "通道质量",
+      "x": 1110,
+      "y": 310,
+      "kind": "base",
+      "summary": "逐道指标与异常通道候选",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "先保留逐道测量，在具备可比较条件时再生成异常候选。候选需结合波形和采集条件复核。",
+      "inputs": "原始电压\n明确比较组\n扩展所需参考构型",
+      "outputs": "通道候选\n分项指标\n可选电极对候选",
+      "conditions": "EEG PREP 相对判坏默认要求有依据的比较组，组内至少 4 道。缺条件保留描述量。\n桥接 / LOF 另要求共同或连接耳参考、单一比较组及足够通道。\n颅内触点不套头皮相似性阈值。",
+      "methods": "头皮 EEG 方法：\nPREP非空间坏道线索 · 按条件核对\nMNE 电极桥接候选 · 手动选择\nMNE LOF 通道离群候选 · 手动选择\nPyPREP空间预测 / RANSAC · 待接入\nFASTER 统计坏道 · 手动选择\n\nECoG / sEEG：逐触点统计。\nNeuropixels：逐道统计；AP 且 shank 条件满足，可手选 SpikeInterface MAD/STD。",
+      "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.compute_bridged_electrodes.html\nhttps://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html\nhttps://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/wmvanvliet/mne-faster",
+      "notes": "PREP 与可选坏道方法未自动纳入现有三项评分。4 道是当前工程门槛，不是行业标准。"
+    },
+    {
+      "id": "M06",
+      "title": "伪迹线索",
+      "x": 570,
+      "y": 535,
+      "kind": "conditional",
+      "summary": "辅助导联锁时与高频突发",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg"
+      ],
+      "description": "按子方法分别报告心电、眼电与高频线索。没有独立 EMG 支持，高频候选不能直接确认为肌电伪迹。",
+      "inputs": "EEG\n可选ECG/EOG/EMG\nM03连续性候选",
+      "outputs": "辅助事件\n高频突发\nEMG支持状态",
+      "conditions": "ECG/EOG：明确配置相应辅助导联，且采样时钟相容。\nEEG 高频：默认至少 10 秒，min(100, 0.45×fs) − 30 ≥ 20 Hz。\nECoG/sEEG：仅手选 FieldTrip 等已接扩展。\nNeuropixels 本版不启用 M06。",
+      "methods": "头皮 EEG 方法：\nECG锁时污染线索 · 按条件核对\nEOG锁时污染线索 · 按条件核对\n高频突发与EMG支持 · 按条件核对\nMNE 跨通道高频线索 · 手动选择\nICA成分 / ICLabel · 待接入\nASR 重建影响评估 · 手动选择\nFieldTrip 差分区间线索 · 手动选择\n\nECoG / sEEG：手选 FieldTrip 差分 z 值，输出候选，不确认生理来源。",
+      "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_muscle_zscore.html\nhttps://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sccn/clean_rawdata\nhttps://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/",
+      "notes": "缺辅助导联只影响对应锁时方法。不自动删除或清洗原始信号。"
+    },
+    {
+      "id": "M07",
+      "title": "事件与时间",
+      "x": 975,
+      "y": 535,
+      "kind": "conditional",
+      "summary": "登记事件表后核对位置与覆盖",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "读取任务、睡眠分期或临床事件表，核对范围并保留记录原始时间。",
+      "inputs": "明确类型的标注文件",
+      "outputs": "选区事件\n阶段覆盖或临床事件时长\n标注指纹",
+      "conditions": "已登记支持格式及路径的任务事件、睡眠分期或临床事件表。\n仅填“睡眠 / 癫痫 / 任务”标签不启用。\n普通 annotation 不自动成为可用任务表。",
+      "methods": "头皮 EEG 方法：\n睡眠分期时间核对 · 按条件核对\n任务事件时间核对 · 按条件核对\n临床事件时间核对 · 按条件核对",
+      "evidence": "",
+      "notes": "发作和病理放电不是质量真值。不含多设备同步准确性验证。"
+    },
+    {
+      "id": "M08",
+      "title": "分项汇总与评分",
+      "x": 790,
+      "y": 780,
+      "kind": "report",
+      "summary": "评分口径待讨论",
+      "status": "review",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "汇总分项、候选、覆盖和未评原因。评分是检测之外的一层；当前只有头皮 EEG 提供三项试行评分，公式尚待专家与数据校准。",
+      "inputs": "各模块实际结果和有效分析范围",
+      "outputs": "分项测量、候选位置、未评说明；满足条件时的 EEG 试行分数。",
+      "conditions": "三项证据完整且可核验时才形成当前总分。\n缺项不计作零负担或满分。\n其他模态与数据集不套用 EEG 总分。",
+      "methods": "当前试行公式 eeg-basic-screen/0.2：\np[j,c] = 候选量 / 有效量\nS[j] = 100 × (1 − sqrt(mean(p[j,c]²)))\nQ = min(S[完整性], S[工频], S[高频突发])",
+      "evidence": "DBCI-QC EEG 基础质控评分规则 v0.2。原始测量与报告层试行分数分开保存。",
+      "notes": "待讨论：\n1. 工频候选强烈影响总分时，分数是否直观。\n2. 已滤波 / 简单清洗后容易高分，如何分层比较。\n3. 命中率不等于严重程度，也不等于数据可用率。\n4. 是否保留总分、计分项目如何选、如何用专家意见与数据校准。\n\n本次讨论算例：完整性 99.92；工频 23.37；高频突发 99.96。按当前最低项规则显示 23.37。该值不是已认可的质量等级。"
+    },
+    {
+      "id": "M09",
+      "title": "报告与复核",
+      "x": 1110,
+      "y": 780,
+      "kind": "report",
+      "summary": "哪里异常、依据是什么",
+      "status": "ready",
+      "scope": [
+        "eeg",
+        "ecog",
+        "seeg",
+        "np"
+      ],
+      "description": "生成本地HTML、波形PNG和结构化证据，等待人工复核。",
+      "inputs": "分项结果\n原始选区",
+      "outputs": "单份 HTML / PDF 报告\n波形与结构化证据\n独立保存的人工复核意见",
+      "conditions": "明确检出问题、未评条件与执行失败。\n分享前核对标识、路径等敏感信息。",
+      "methods": "头皮 EEG 方法：\n证据报告 · 按条件核对",
+      "evidence": "",
+      "notes": "分数不能替代异常通道和时段的定位。"
+    },
+    {
+      "id": "D01",
+      "title": "文件完整性",
+      "x": 65,
+      "y": 310,
+      "kind": "dataset",
+      "summary": "对照应有清单检查缺件",
+      "status": "ready",
+      "scope": [
+        "dataset"
+      ],
+      "description": "核对应到和实到文件，记录大小、指纹及读取结构。",
+      "inputs": "数据包与独立应有清单",
+      "outputs": "应到 / 实到、缺件与结构问题",
+      "conditions": "当前目录已有文件不能反过来充当完整性标准。",
+      "methods": "",
+      "evidence": "华山 SOP-05 的完整性需求；本项目 dataset-consistency/0.1 实现。医院原件不公开。",
+      "notes": ""
+    },
+    {
+      "id": "D02",
+      "title": "个体及文件对应",
+      "x": 65,
+      "y": 535,
+      "kind": "dataset",
+      "summary": "编号、通道、单位与事件",
+      "status": "ready",
+      "scope": [
+        "dataset"
+      ],
+      "description": "核对已声明受试者下的记录和配套表，不做真实身份鉴定。",
+      "inputs": "受试者 / 会话 / 记录映射，通道表、事件表和采集说明。",
+      "outputs": "编号、通道、单位、采样率、时长及事件对应问题。",
+      "conditions": "缺表只影响相关检查。\n个体内重复记录比较需要同一受试者、会话、比较组至少两条记录。",
+      "methods": "",
+      "evidence": "华山 SOP-05 的一致性需求；本项目首版计算口径。",
+      "notes": ""
+    },
+    {
+      "id": "D03",
+      "title": "同组一致性",
+      "x": 65,
+      "y": 780,
+      "kind": "dataset",
+      "summary": "配置、表结构与重复线索",
+      "status": "ready",
+      "scope": [
+        "dataset"
+      ],
+      "description": "按明确比较组核对要求一致的字段，不从多数记录推定正确配置。",
+      "inputs": "比较组，以及通道、采样率、单位、参考是否应一致的声明。",
+      "outputs": "同组配置差异、表结构问题与重复文件线索。",
+      "conditions": "不同模态、原始/派生不能直接混组。\n不同患者的颅内电极位置和通道数可以不同。\n仅一条记录或字段不足时，相应比较未评。",
+      "methods": "",
+      "evidence": "华山 SOP-05 数据集一致性需求；本项目首版计算口径。",
+      "notes": ""
+    },
+    {
+      "id": "OVERVIEW",
+      "title": "数据集总览",
+      "x": 485,
+      "y": 1020,
+      "kind": "report",
+      "summary": "资料问题 + 每份信号报告",
+      "status": "ready",
+      "scope": [
+        "dataset"
+      ],
+      "description": "按数据集、个体、会话和记录汇总结果，关联来源匹配的单份信号报告。",
+      "inputs": "D01–D03 结果；各份信号报告及来源版本。",
+      "outputs": "资料问题、检查覆盖与单份报告链接。",
+      "conditions": "不平均不同模态的质量分。来源不匹配的历史报告不算当前结果。",
+      "methods": "",
+      "evidence": "",
+      "notes": "批量启动信号检查尚未接入。"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "INPUT",
+      "target": "M01",
+      "label": ""
+    },
+    {
+      "id": "edge-2",
+      "source": "M01",
+      "target": "M02",
+      "label": ""
+    },
+    {
+      "id": "edge-3",
+      "source": "M02",
+      "target": "D01",
+      "label": "有核对方案"
+    },
+    {
+      "id": "edge-4",
+      "source": "D01",
+      "target": "D02",
+      "label": ""
+    },
+    {
+      "id": "edge-5",
+      "source": "D02",
+      "target": "D03",
+      "label": ""
+    },
+    {
+      "id": "edge-6",
+      "source": "D03",
+      "target": "OVERVIEW",
+      "label": ""
+    },
+    {
+      "id": "edge-7",
+      "source": "M02",
+      "target": "M03",
+      "label": ""
+    },
+    {
+      "id": "edge-8",
+      "source": "M02",
+      "target": "M04",
+      "label": ""
+    },
+    {
+      "id": "edge-9",
+      "source": "M02",
+      "target": "M05",
+      "label": ""
+    },
+    {
+      "id": "edge-10",
+      "source": "M02",
+      "target": "M07",
+      "label": "有事件表"
+    },
+    {
+      "id": "edge-11",
+      "source": "M03",
+      "target": "M06",
+      "label": "按方法条件"
+    },
+    {
+      "id": "edge-12",
+      "source": "M03",
+      "target": "M08",
+      "label": ""
+    },
+    {
+      "id": "edge-13",
+      "source": "M04",
+      "target": "M08",
+      "label": ""
+    },
+    {
+      "id": "edge-14",
+      "source": "M05",
+      "target": "M08",
+      "label": ""
+    },
+    {
+      "id": "edge-15",
+      "source": "M06",
+      "target": "M08",
+      "label": ""
+    },
+    {
+      "id": "edge-16",
+      "source": "M07",
+      "target": "M08",
+      "label": ""
+    },
+    {
+      "id": "edge-17",
+      "source": "M08",
+      "target": "M09",
+      "label": ""
+    },
+    {
+      "id": "edge-18",
+      "source": "M09",
+      "target": "OVERVIEW",
+      "label": "关联已有报告"
+    }
+  ]
+}

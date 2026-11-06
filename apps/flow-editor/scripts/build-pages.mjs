@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {mkdir,writeFile,copyFile,readFile} from 'node:fs/promises';
+const out='dist-pages';
+await mkdir(`${out}/assets`,{recursive:true});
+await build({entryPoints:['static/main.tsx'],bundle:true,minify:true,format:'esm',target:'es2020',outfile:`${out}/assets/app.js`,define:{'process.env.NODE_ENV':'"production"'},legalComments:'eof'});
+await copyFile('public/favicon.svg',`${out}/favicon.svg`);
+await writeFile(`${out}/.nojekyll`,'');
+await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 质控流程</title><meta name="description" content="模块化脑电数据质控流程、方法目录与启用条件。"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="./assets/app.css"></head><body><div id="root"></div><noscript>请启用 JavaScript 查看交互流程图；完整说明也保存在 GitHub 仓库中。</noscript><script type="module" src="./assets/app.js"></script></body></html>`);
+const metadata=JSON.parse(await readFile('content/releases/publication.json','utf8'));
+await writeFile(`${out}/publication.json`,JSON.stringify({versions:metadata.releases.map(r=>({id:r.id,label:r.label,hash:r.hash})),source_commit:process.env.GITHUB_SHA||'local-preview'},null,2)+'\n');
+console.log(`GitHub Pages output: ${out}/ (${metadata.releases.length} fixed versions)`);

@@ -2,7 +2,7 @@
 
 **模块化电生理数据质控工具集，附本地质控台。**
 
-[English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
+[质控流程网页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 

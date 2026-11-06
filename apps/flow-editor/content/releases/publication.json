@@ -1,0 +1,2171 @@
+{
+  "editorUrl": "https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/",
+  "repositoryUrl": "https://github.com/sunyq19/DBCI-QC/tree/main/apps/flow-editor",
+  "releases": [
+    {
+      "id": "baseline-v1",
+      "label": "v1.0",
+      "revision": 1,
+      "note": "顶层流程基线",
+      "created_at": "2026-11-06T08:36:48.000Z",
+      "doc": {
+        "schemaVersion": 1,
+        "title": "数据质控流程",
+        "subtitle": "统一读入 · 按条件检查 · 定位问题与复核",
+        "nodes": [
+          {
+            "id": "INPUT",
+            "title": "输入数据",
+            "x": 55,
+            "y": 70,
+            "kind": "intake",
+            "summary": "一份记录，或一个数据包",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "记录是信号检查的基本单位。数据集包含个体、会话及记录，文件和信号流是记录的组成部分。",
+            "inputs": "主文件与必要配套文件；数据包可附应有清单、通道表和事件表。",
+            "outputs": "可识别的记录和数据包",
+            "conditions": "格式选择读取器，不能仅凭扩展名确定模态。",
+            "methods": "",
+            "evidence": "",
+            "notes": ""
+          },
+          {
+            "id": "M01",
+            "title": "文件读取",
+            "x": 370,
+            "y": 70,
+            "kind": "intake",
+            "summary": "提取通道、时长、采样率与单位",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "按格式调用读取器，核对文件结构、来源、单位、时钟和通道身份。读取成功不等于数据质量合格。",
+            "inputs": "EDF/EDF+、BDF、BrainVision、连续 EEGLAB、单文件 FIF\nNWB 2/HDF5 连续 ElectricalSeries\n受支持的 Neuropixels SpikeGLX AP/LF 配套文件",
+            "outputs": "通道、单位、采样率、时长；信号流、标注信息与来源指纹。",
+            "conditions": "配套文件完整；所选电压单位和标定可核验。NWB 先选择信号流，不把 Units 表作为连续波形。",
+            "methods": "头皮 EEG 方法：\n多格式读取与来源核验 · 按条件核对\n单位与电压标定 · 按条件核对",
+            "evidence": "https://github.com/Jlei61/BrainElecQC",
+            "notes": "不自动猜测电压单位或补造配套信息。"
+          },
+          {
+            "id": "M02",
+            "title": "信息确认与方案",
+            "x": 685,
+            "y": 70,
+            "kind": "intake",
+            "summary": "确认模态、选道与分析范围",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "模态决定采用的方法，技术条件决定子方法能否执行。确认后保存本次计划、参数、条件和版本。",
+            "inputs": "技术元信息\n显式配置",
+            "outputs": "冻结配置\n原始时钟选区",
+            "conditions": "确认模态、分析通道、信号流和时间范围。\n疾病、年龄标签用于解释，本版不单独改阈值。\n数据包还需明确清单、记录映射与比较组。",
+            "methods": "头皮 EEG 方法：\n数据标签与检查计划 · 按条件核对",
+            "evidence": "",
+            "notes": "当前数据集逐记录确认与启动信号任务；批量启动尚未接入。"
+          },
+          {
+            "id": "M03",
+            "title": "信号完整性",
+            "x": 490,
+            "y": 310,
+            "kind": "base",
+            "summary": "缺失、恒值与异常区间",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "检查非有限样本、恒值与端点平台；可选MNE平线和autoreject全局阈值。",
+            "inputs": "原始电压\n逐道标定",
+            "outputs": "连续性候选\n样本区间\n可选固定段幅度阈值",
+            "conditions": "所有已确认且可标定的连续电压默认推荐。\n端点平台需要标定端点；缺失时只不判端点平台。",
+            "methods": "头皮 EEG 方法：\n缺失、恒值与端点平台 · 按条件核对\nMNE 相邻采样变化 / 平线 · 手动选择\nautoreject 全局阈值估计 · 手动选择\nlocal AutoReject试次质量估计 · 待接入\n\nECoG / sEEG / Neuropixels：非有限值与精确恒值等基础描述。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html\nhttps://autoreject.github.io/stable/generated/autoreject.get_rejection_threshold.html\nhttps://autoreject.github.io/stable/index.html",
+            "notes": "异常位置保留原始通道与时间。不自动修补或插值。"
+          },
+          {
+            "id": "M04",
+            "title": "频谱与干扰",
+            "x": 800,
+            "y": 310,
+            "kind": "base",
+            "summary": "PSD 与可测频率的工频观察",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "PSD 描述能量分布；工频方法寻找可测频率附近的窄带成分。PSD 图本身不等于坏道分数。",
+            "inputs": "原始电压\n采样率与分析范围",
+            "outputs": "PSD\n工频候选\n频谱拟合",
+            "conditions": "按目标频率、时长和完整窗口分别核对。\n已陷波的工频高分不证明原始采集质量好。",
+            "methods": "头皮 EEG 方法：\nWelch功率谱 · 按条件核对\n工频及可测谐波 · 按条件核对\n背景谱拟合与α功率 · 按条件核对\nCleanLine 工频处理评估 · 手动选择\nZapline-plus 工频处理评估 · 手动选择\n\nECoG / sEEG / Neuropixels：描述性 PSD 与窄带观察，不使用头皮判坏阈值。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://eeglab.org/plugins/cleanline/\nhttps://github.com/MariusKlug/zapline-plus",
+            "notes": "基础方法对滤波史的自动限制尚未完全统一。谱峰与年龄、状态、疾病有关，不直接判为低质量。"
+          },
+          {
+            "id": "M05",
+            "title": "通道质量",
+            "x": 1110,
+            "y": 310,
+            "kind": "base",
+            "summary": "逐道指标与异常通道候选",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "先保留逐道测量，在具备可比较条件时再生成异常候选。候选需结合波形和采集条件复核。",
+            "inputs": "原始电压\n明确比较组\n扩展所需参考构型",
+            "outputs": "通道候选\n分项指标\n可选电极对候选",
+            "conditions": "EEG PREP 相对判坏默认要求有依据的比较组，组内至少 4 道。缺条件保留描述量。\n桥接 / LOF 另要求共同或连接耳参考、单一比较组及足够通道。\n颅内触点不套头皮相似性阈值。",
+            "methods": "头皮 EEG 方法：\nPREP非空间坏道线索 · 按条件核对\nMNE 电极桥接候选 · 手动选择\nMNE LOF 通道离群候选 · 手动选择\nPyPREP空间预测 / RANSAC · 待接入\nFASTER 统计坏道 · 手动选择\n\nECoG / sEEG：逐触点统计。\nNeuropixels：逐道统计；AP 且 shank 条件满足，可手选 SpikeInterface MAD/STD。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.compute_bridged_electrodes.html\nhttps://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html\nhttps://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/wmvanvliet/mne-faster",
+            "notes": "PREP 与可选坏道方法未自动纳入现有三项评分。4 道是当前工程门槛，不是行业标准。"
+          },
+          {
+            "id": "M06",
+            "title": "伪迹线索",
+            "x": 570,
+            "y": 535,
+            "kind": "conditional",
+            "summary": "辅助导联锁时与高频突发",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg"
+            ],
+            "description": "按子方法分别报告心电、眼电与高频线索。没有独立 EMG 支持，高频候选不能直接确认为肌电伪迹。",
+            "inputs": "EEG\n可选ECG/EOG/EMG\nM03连续性候选",
+            "outputs": "辅助事件\n高频突发\nEMG支持状态",
+            "conditions": "ECG/EOG：明确配置相应辅助导联，且采样时钟相容。\nEEG 高频：默认至少 10 秒，min(100, 0.45×fs) − 30 ≥ 20 Hz。\nECoG/sEEG：仅手选 FieldTrip 等已接扩展。\nNeuropixels 本版不启用 M06。",
+            "methods": "头皮 EEG 方法：\nECG锁时污染线索 · 按条件核对\nEOG锁时污染线索 · 按条件核对\n高频突发与EMG支持 · 按条件核对\nMNE 跨通道高频线索 · 手动选择\nICA成分 / ICLabel · 待接入\nASR 重建影响评估 · 手动选择\nFieldTrip 差分区间线索 · 手动选择\n\nECoG / sEEG：手选 FieldTrip 差分 z 值，输出候选，不确认生理来源。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_muscle_zscore.html\nhttps://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sccn/clean_rawdata\nhttps://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/",
+            "notes": "缺辅助导联只影响对应锁时方法。不自动删除或清洗原始信号。"
+          },
+          {
+            "id": "M07",
+            "title": "事件与时间",
+            "x": 975,
+            "y": 535,
+            "kind": "conditional",
+            "summary": "登记事件表后核对位置与覆盖",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "读取任务、睡眠分期或临床事件表，核对范围并保留记录原始时间。",
+            "inputs": "明确类型的标注文件",
+            "outputs": "选区事件\n阶段覆盖或临床事件时长\n标注指纹",
+            "conditions": "已登记支持格式及路径的任务事件、睡眠分期或临床事件表。\n仅填“睡眠 / 癫痫 / 任务”标签不启用。\n普通 annotation 不自动成为可用任务表。",
+            "methods": "头皮 EEG 方法：\n睡眠分期时间核对 · 按条件核对\n任务事件时间核对 · 按条件核对\n临床事件时间核对 · 按条件核对",
+            "evidence": "",
+            "notes": "发作和病理放电不是质量真值。不含多设备同步准确性验证。"
+          },
+          {
+            "id": "M08",
+            "title": "分项汇总与评分",
+            "x": 790,
+            "y": 780,
+            "kind": "report",
+            "summary": "评分口径待讨论",
+            "status": "review",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "汇总分项、候选、覆盖和未评原因。评分是检测之外的一层；当前只有头皮 EEG 提供三项试行评分，公式尚待专家与数据校准。",
+            "inputs": "各模块实际结果和有效分析范围",
+            "outputs": "分项测量、候选位置、未评说明；满足条件时的 EEG 试行分数。",
+            "conditions": "三项证据完整且可核验时才形成当前总分。\n缺项不计作零负担或满分。\n其他模态与数据集不套用 EEG 总分。",
+            "methods": "当前试行公式 eeg-basic-screen/0.2：\np[j,c] = 候选量 / 有效量\nS[j] = 100 × (1 − sqrt(mean(p[j,c]²)))\nQ = min(S[完整性], S[工频], S[高频突发])",
+            "evidence": "DBCI-QC EEG 基础质控评分规则 v0.2。原始测量与报告层试行分数分开保存。",
+            "notes": "待讨论：\n1. 工频候选强烈影响总分时，分数是否直观。\n2. 已滤波 / 简单清洗后容易高分，如何分层比较。\n3. 命中率不等于严重程度，也不等于数据可用率。\n4. 是否保留总分、计分项目如何选、如何用专家意见与数据校准。\n\n本次讨论算例：完整性 99.92；工频 23.37；高频突发 99.96。按当前最低项规则显示 23.37。该值不是已认可的质量等级。"
+          },
+          {
+            "id": "M09",
+            "title": "报告与复核",
+            "x": 1110,
+            "y": 780,
+            "kind": "report",
+            "summary": "哪里异常、依据是什么",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "生成本地HTML、波形PNG和结构化证据，等待人工复核。",
+            "inputs": "分项结果\n原始选区",
+            "outputs": "单份 HTML / PDF 报告\n波形与结构化证据\n独立保存的人工复核意见",
+            "conditions": "明确检出问题、未评条件与执行失败。\n分享前核对标识、路径等敏感信息。",
+            "methods": "头皮 EEG 方法：\n证据报告 · 按条件核对",
+            "evidence": "",
+            "notes": "分数不能替代异常通道和时段的定位。"
+          },
+          {
+            "id": "D01",
+            "title": "文件完整性",
+            "x": 65,
+            "y": 310,
+            "kind": "dataset",
+            "summary": "对照应有清单检查缺件",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "核对应到和实到文件，记录大小、指纹及读取结构。",
+            "inputs": "数据包与独立应有清单",
+            "outputs": "应到 / 实到、缺件与结构问题",
+            "conditions": "当前目录已有文件不能反过来充当完整性标准。",
+            "methods": "",
+            "evidence": "华山 SOP-05 的完整性需求；本项目 dataset-consistency/0.1 实现。医院原件不公开。",
+            "notes": ""
+          },
+          {
+            "id": "D02",
+            "title": "个体及文件对应",
+            "x": 65,
+            "y": 535,
+            "kind": "dataset",
+            "summary": "编号、通道、单位与事件",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "核对已声明受试者下的记录和配套表，不做真实身份鉴定。",
+            "inputs": "受试者 / 会话 / 记录映射，通道表、事件表和采集说明。",
+            "outputs": "编号、通道、单位、采样率、时长及事件对应问题。",
+            "conditions": "缺表只影响相关检查。\n个体内重复记录比较需要同一受试者、会话、比较组至少两条记录。",
+            "methods": "",
+            "evidence": "华山 SOP-05 的一致性需求；本项目首版计算口径。",
+            "notes": ""
+          },
+          {
+            "id": "D03",
+            "title": "同组一致性",
+            "x": 65,
+            "y": 780,
+            "kind": "dataset",
+            "summary": "配置、表结构与重复线索",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "按明确比较组核对要求一致的字段，不从多数记录推定正确配置。",
+            "inputs": "比较组，以及通道、采样率、单位、参考是否应一致的声明。",
+            "outputs": "同组配置差异、表结构问题与重复文件线索。",
+            "conditions": "不同模态、原始/派生不能直接混组。\n不同患者的颅内电极位置和通道数可以不同。\n仅一条记录或字段不足时，相应比较未评。",
+            "methods": "",
+            "evidence": "华山 SOP-05 数据集一致性需求；本项目首版计算口径。",
+            "notes": ""
+          },
+          {
+            "id": "OVERVIEW",
+            "title": "数据集总览",
+            "x": 485,
+            "y": 1020,
+            "kind": "report",
+            "summary": "资料问题 + 每份信号报告",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "按数据集、个体、会话和记录汇总结果，关联来源匹配的单份信号报告。",
+            "inputs": "D01–D03 结果；各份信号报告及来源版本。",
+            "outputs": "资料问题、检查覆盖与单份报告链接。",
+            "conditions": "不平均不同模态的质量分。来源不匹配的历史报告不算当前结果。",
+            "methods": "",
+            "evidence": "",
+            "notes": "批量启动信号检查尚未接入。"
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge-1",
+            "source": "INPUT",
+            "target": "M01",
+            "label": ""
+          },
+          {
+            "id": "edge-2",
+            "source": "M01",
+            "target": "M02",
+            "label": ""
+          },
+          {
+            "id": "edge-3",
+            "source": "M02",
+            "target": "D01",
+            "label": "有核对方案"
+          },
+          {
+            "id": "edge-4",
+            "source": "D01",
+            "target": "D02",
+            "label": ""
+          },
+          {
+            "id": "edge-5",
+            "source": "D02",
+            "target": "D03",
+            "label": ""
+          },
+          {
+            "id": "edge-6",
+            "source": "D03",
+            "target": "OVERVIEW",
+            "label": ""
+          },
+          {
+            "id": "edge-7",
+            "source": "M02",
+            "target": "M03",
+            "label": ""
+          },
+          {
+            "id": "edge-8",
+            "source": "M02",
+            "target": "M04",
+            "label": ""
+          },
+          {
+            "id": "edge-9",
+            "source": "M02",
+            "target": "M05",
+            "label": ""
+          },
+          {
+            "id": "edge-10",
+            "source": "M02",
+            "target": "M07",
+            "label": "有事件表"
+          },
+          {
+            "id": "edge-11",
+            "source": "M03",
+            "target": "M06",
+            "label": "按方法条件"
+          },
+          {
+            "id": "edge-12",
+            "source": "M03",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-13",
+            "source": "M04",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-14",
+            "source": "M05",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-15",
+            "source": "M06",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-16",
+            "source": "M07",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-17",
+            "source": "M08",
+            "target": "M09",
+            "label": ""
+          },
+          {
+            "id": "edge-18",
+            "source": "M09",
+            "target": "OVERVIEW",
+            "label": "关联已有报告"
+          }
+        ]
+      },
+      "hash": "d6190796e1cf0cb345f0890590a46277c1516b7868d1afea179c8fbef857b1df"
+    },
+    {
+      "id": "hierarchy-v11",
+      "label": "v1.1 · 模块层级",
+      "revision": 2,
+      "note": "12 个功能模块及已接入方法目录；评分待讨论",
+      "created_at": "2026-11-06T08:36:48.000Z",
+      "doc": {
+        "schemaVersion": 1,
+        "title": "数据质控流程",
+        "subtitle": "统一读入 · 按条件检查 · 定位问题与复核",
+        "nodes": [
+          {
+            "id": "INPUT",
+            "title": "输入数据",
+            "x": 55,
+            "y": 70,
+            "kind": "intake",
+            "summary": "一份记录，或一个数据包",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "记录是信号检查的基本单位。数据集包含个体、会话及记录，文件和信号流是记录的组成部分。",
+            "inputs": "主文件与必要配套文件；数据包可附应有清单、通道表和事件表。",
+            "outputs": "可识别的记录和数据包",
+            "conditions": "格式选择读取器，不能仅凭扩展名确定模态。",
+            "methods": "",
+            "evidence": "",
+            "notes": "",
+            "children": [
+              {
+                "id": "support_admission",
+                "title": "接入范围与大小核验",
+                "summary": "执行与汇总",
+                "kind": "intake",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np",
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "单文件和记录组受限接入；数据集先核验完整目录与方案。",
+                "inputs": "已确认的记录或数据包",
+                "outputs": "接入证据或执行结果",
+                "conditions": "单文件 2 GiB、数据集 10 GiB；记录及配套文件还受组合限额约束。",
+                "methods": "",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/admission.py",
+                "notes": "",
+                "entryType": "support"
+              }
+            ]
+          },
+          {
+            "id": "M01",
+            "title": "文件读取",
+            "x": 370,
+            "y": 70,
+            "kind": "intake",
+            "summary": "提取通道、时长、采样率与单位",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "按格式调用读取器，核对文件结构、来源、单位、时钟和通道身份。读取成功不等于数据质量合格。",
+            "inputs": "EDF/EDF+、BDF、BrainVision、连续 EEGLAB、单文件 FIF\nNWB 2/HDF5 连续 ElectricalSeries\n受支持的 Neuropixels SpikeGLX AP/LF 配套文件",
+            "outputs": "通道、单位、采样率、时长；信号流、标注信息与来源指纹。",
+            "conditions": "配套文件完整；所选电压单位和标定可核验。NWB 先选择信号流，不把 Units 表作为连续波形。",
+            "methods": "头皮 EEG 方法：\n多格式读取与来源核验 · 按条件核对\n单位与电压标定 · 按条件核对",
+            "evidence": "https://github.com/Jlei61/BrainElecQC",
+            "notes": "不自动猜测电压单位或补造配套信息。",
+            "children": [
+              {
+                "id": "f_edf_reader",
+                "title": "多格式读取与来源核验",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "核对文件结构、时钟、索引与来源指纹。",
+                "inputs": "已核验文件及配套文件",
+                "outputs": "结构与来源核验",
+                "conditions": "已核验文件及配套文件\n已被相应读取器核验的连续记录；先确认模态、角色和源索引，再选择同一原生时钟的分析与辅助信号。",
+                "methods": "BrainElecQC 0.1.0\n读取器注册表按实际格式分派EDF/BDF、BrainVision、EEGLAB和FIF适配器；统一返回源通道、原生时钟、电压单位、标注摘要和每个配套文件的指纹。\nephys_qc.readers.inspect_recording / open_reader；EDF/BDF后端为BrainElecQC，其他首批格式使用MNE",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method",
+                "children": [
+                  {
+                    "id": "r_native_edf_bdf",
+                    "title": "EDF/BDF 原生采样流",
+                    "summary": "EDF / BDF",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "eeg",
+                      "ecog",
+                      "seeg",
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".edf、.bdf",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "不支持 EDF+D/BDF+D；不同采样流不能隐式重采样。",
+                    "methods": "native_edf_bdf",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  },
+                  {
+                    "id": "r_mne_brainvision",
+                    "title": "BrainVision",
+                    "summary": "BrainVision",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "eeg",
+                      "ecog",
+                      "seeg",
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".vhdr及配套文件",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "主文件、MarkerFile 和 DataFile 须位于同一目录。\n当前后端对重复通道名明确拒绝，不合并或静默改名。",
+                    "methods": "mne_brainvision",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  },
+                  {
+                    "id": "r_mne_eeglab",
+                    "title": "EEGLAB",
+                    "summary": "EEGLAB",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "eeg",
+                      "ecog",
+                      "seeg",
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".set及配套文件",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "只接入连续记录；外置 FDT 须在同一目录；不执行历史脚本或 ICA。",
+                    "methods": "mne_eeglab",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  },
+                  {
+                    "id": "r_mne_fif",
+                    "title": "FIF",
+                    "summary": "FIF",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "eeg",
+                      "ecog",
+                      "seeg",
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".fif",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "只接入单文件原始记录；split FIF 暂不接入；保留非 EEG 通道类型。",
+                    "methods": "mne_fif",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  },
+                  {
+                    "id": "r_native_spikeglx",
+                    "title": "SpikeGLX · Neuropixels 原始流",
+                    "summary": "SpikeGLX",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".ap.bin、.lf.bin及配套文件",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "单个 AP 或 LF .bin 须配同名 .meta；当前接入 NP1 型号0及 NP2 型号21/24。\n不接入任意二进制、压缩 cbin、跨流自动同步或 spike sorting。",
+                    "methods": "native_spikeglx",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  },
+                  {
+                    "id": "r_pynwb_electrical_series",
+                    "title": "NWB · 连续电压流",
+                    "summary": "NWB",
+                    "kind": "intake",
+                    "status": "ready",
+                    "scope": [
+                      "eeg",
+                      "ecog",
+                      "seeg",
+                      "np"
+                    ],
+                    "x": 20,
+                    "y": 20,
+                    "description": "按文件格式调用独立读取器，保留原生采样时钟。格式本身不确定分析模态。",
+                    "inputs": ".nwb",
+                    "outputs": "通道、原生采样率、时长、单位、可用流与标注信息",
+                    "conditions": "支持自包含 NWB 2 / HDF5 的连续 ElectricalSeries；多个可用流须明确选择。\n核验原生时钟、电压单位及电极映射；不接入不等距时钟、外部链接或 spike/unit 质控。",
+                    "methods": "pynwb_electrical_series",
+                    "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/readers/__init__.py",
+                    "notes": "",
+                    "entryType": "reader"
+                  }
+                ]
+              },
+              {
+                "id": "f_voltage_calibration",
+                "title": "单位与电压标定",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "确认数字值可转换成物理电压。",
+                "inputs": "有效单位及逐道标定",
+                "outputs": "标定信息\n无法评估原因",
+                "conditions": "有效单位及逐道标定\n单位与标定范围明确、选中EEG及辅助通道可换算为V时；端点平台检查还需保留源标定端点。",
+                "methods": "BrainElecQC 0.1.0\n读取逐道digital/physical最小值、最大值和单位，按线性比例及偏移换算；平台只把核验后的V量纲数据交给电压阈值方法。\nbrainelecqc.readers.edf.EdfBdfReader；ephys_qc.runtime._read_window",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M02",
+            "title": "信息确认与方案",
+            "x": 685,
+            "y": 70,
+            "kind": "intake",
+            "summary": "确认模态、选道与分析范围",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np",
+              "dataset"
+            ],
+            "description": "模态决定采用的方法，技术条件决定子方法能否执行。确认后保存本次计划、参数、条件和版本。",
+            "inputs": "技术元信息\n显式配置",
+            "outputs": "冻结配置\n原始时钟选区",
+            "conditions": "确认模态、分析通道、信号流和时间范围。\n疾病、年龄标签用于解释，本版不单独改阈值。\n数据包还需明确清单、记录映射与比较组。",
+            "methods": "头皮 EEG 方法：\n数据标签与检查计划 · 按条件核对",
+            "evidence": "",
+            "notes": "当前数据集逐记录确认与启动信号任务；批量启动尚未接入。",
+            "children": [
+              {
+                "id": "f_qc_plan",
+                "title": "数据标签与检查计划",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "根据已知技术条件选择方法；背景标签用于解释。",
+                "inputs": "通道选择\n技术头\n可选实验背景",
+                "outputs": "冻结计划\n标签与适用性",
+                "conditions": "通道选择\n技术头\n可选实验背景\n每次运行前；更换选道、时间范围、参考构型或方法参数后重新生成计划。",
+                "methods": "本平台\n根据技术头、明确登记的背景与用户参数生成稳定计划标识，补齐必要依赖，逐项记录ready、partial、blocked等适用性和原因。\nephys_qc.planning.build_plan；ephys_qc.tagging.data_facts；ephys_qc.method_registry.evaluate_methods",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "support_whole_record",
+                "title": "整份记录后台检查",
+                "summary": "执行与汇总",
+                "kind": "report",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np",
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按原生时钟分段执行并汇总整份文件结果。",
+                "inputs": "已确认的记录或数据包",
+                "outputs": "接入证据或执行结果",
+                "conditions": "以整份检查方案运行；方法对各窗口分别核对适用性。",
+                "methods": "",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/whole_record.py",
+                "notes": "",
+                "entryType": "support"
+              }
+            ]
+          },
+          {
+            "id": "M03",
+            "title": "信号完整性",
+            "x": 490,
+            "y": 310,
+            "kind": "base",
+            "summary": "缺失、恒值与异常区间",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "检查非有限样本、恒值与端点平台；可选MNE平线和autoreject全局阈值。",
+            "inputs": "原始电压\n逐道标定",
+            "outputs": "连续性候选\n样本区间\n可选固定段幅度阈值",
+            "conditions": "所有已确认且可标定的连续电压默认推荐。\n端点平台需要标定端点；缺失时只不判端点平台。",
+            "methods": "头皮 EEG 方法：\n缺失、恒值与端点平台 · 按条件核对\nMNE 相邻采样变化 / 平线 · 手动选择\nautoreject 全局阈值估计 · 手动选择\nlocal AutoReject试次质量估计 · 待接入\n\nECoG / sEEG / Neuropixels：非有限值与精确恒值等基础描述。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html\nhttps://autoreject.github.io/stable/generated/autoreject.get_rejection_threshold.html\nhttps://autoreject.github.io/stable/index.html",
+            "notes": "异常位置保留原始通道与时间。不自动修补或插值。",
+            "children": [
+              {
+                "id": "f_continuity",
+                "title": "缺失、恒值与端点平台",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "检查非有限样本、恒值区间及标定端点平台。",
+                "inputs": "连续信号\n端点判断需标定",
+                "outputs": "通道和原始时间候选",
+                "conditions": "连续信号\n端点判断需标定\n已知采样率的连续数据；端点平台解释需源标定信息。当前最短恒值段默认0.1秒是筛查配置。",
+                "methods": "BrainElecQC 0.1.0\n在未滤波样本上扫描连续相等值，结合逐道标定端点区分端点平台、近零平线和其他恒值段，保存原始通道及半开时间区间。\nbrainelecqc.eeg.continuity.compute_continuity_qc",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_mne_amplitude",
+                "title": "MNE 相邻采样变化 / 平线",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按相邻采样点差分定位平线/变化候选，分别保留时间标注与通道建议；默认未启用peak阈值。",
+                "inputs": "已标定为V的EEG\n原生采样率\n明确阈值及最短持续时间",
+                "outputs": "跨通道合并时间候选\n通道级候选（可能没有具体时段）",
+                "conditions": "电压单位核实并标定为V\n保留原生采样的EEG\n明确平线/变化阈值及最短持续时间\n已核验电压单位和采样率，理解量化精度、采集与处理历史时；默认设置主要补查精确平线。",
+                "methods": "MNE-Python annotate_amplitude\n直接调用MNE annotate_amplitude，按相邻样本差值判定peak/flat并结合最小时长与坏样本比例；平台默认peak=None、flat=0、min_duration=0.1秒、bad_percent=5。\nmne.preprocessing.annotate_amplitude；ephys_qc.extensions.run_extension('mne_amplitude', ...)",
+                "evidence": "https://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "检查相邻样本差分，不是固定窗峰峰值或通用大振幅/漂移检测。\nflat=0、最短0.1秒为项目研究参数；软件默认值也不代表公认好坏界线。\n默认peak=None，未启用突变阈值；启用时必须明确以V填写。\nMNE可能只返回通道建议而无时间标注；时间标注不提供单道定位。\n阈值依赖采样率、量化精度和处理史；结果不自动排除通道或样本。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_autoreject_global",
+                "title": "autoreject 全局阈值估计",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "把连续片段分成固定长度段，用全局交叉验证估计EEG峰峰值阈值；不执行剔除。",
+                "inputs": "已标定为V的EEG\n至少20个完整固定长度段\n固定交叉验证配置",
+                "outputs": "本片段估计的全局峰峰值阈值（V）\n同片段超阈值固定段候选\n原记录时钟上的分段范围与未使用尾段",
+                "conditions": "本版至少20个完整固定段且不少于4×cv\nautoreject运行依赖\n明确固定段不是任务试次\n当前至少max(20,4×CV折数)个完整段且段长对应整数样本；可用于少通道或双极数据的探索，未使用的尾段必须显示。",
+                "methods": "autoreject get_rejection_threshold\n将分析副本分成不重叠的默认2秒段，直接调用get_rejection_threshold，以默认5折CV和固定随机种子估计一个EEG全局阈值；再报告同一拟合选区中超阈值的段。\nautoreject.get_rejection_threshold(epochs, decim=1, random_state=0, ch_types=['eeg'], cv=5)（默认配置）",
+                "evidence": "https://autoreject.github.io/stable/generated/autoreject.get_rejection_threshold.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "固定连续分段不是已验证独立任务试次；相邻时间段相关，CV结果不能当独立泛化验证。\n分段2秒、随机种子0、至少20段是项目研究配置；cv=5是库默认值，均非通用质量阈值。\n允许双极导联作探索性阈值估计；睡眠慢波、癫痫样活动等可能影响阈值，不能据此称伪迹。\n不执行drop_bad、reject、transform或局部AutoReject；不使用源坏道、事件或疾病标签。\n不足一个完整段的尾部不参与阈值估计并明确报告；不自动降采样或过滤数据。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_autoreject_epochs",
+                "title": "local AutoReject试次质量估计",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "planned",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "在分段数据中估计局部通道阈值和试次建议；与已接入的全局阈值方法不同。",
+                "inputs": "足够的试次/窗口\n明确分段规则\nlocal AutoReject拟合需已核实电极坐标",
+                "outputs": "坏试次与通道建议",
+                "conditions": "足够的试次/窗口\n明确分段规则\nlocal AutoReject拟合需已核实电极坐标\n未来有明确分段规则、足够数据、已核实电极位置及可比较采集条件时；拟合本身也依赖有效位置。",
+                "methods": "autoreject\nlocal AutoReject通过交叉验证联合选择逐通道峰峰值阈值、坏通道共识和插值数量；未来拟合后提取reject log，不默认应用清洗。\n计划调用autoreject.AutoReject.fit及get_reject_log；尚无平台执行调用",
+                "evidence": "https://autoreject.github.io/stable/index.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "尚未接入；有任务事件不等于已有足够且可比的试次。\n后续接入只提取评估结果，不默认删除或插值。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_ecog_continuity",
+                "title": "非有限与精确恒值段",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "ecog"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "定位非有限值及连续完全相等样本。",
+                "inputs": "已确认ECoG电压\n原生时钟和源索引",
+                "outputs": "原时钟样本区间与数量。",
+                "conditions": "已确认ECoG电压\n原生时钟和源索引\n明确确认为ECoG且电压和原生采样时间已核验。",
+                "methods": "本项目\n原时钟样本区间与数量。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "至少2个相邻完全相等样本只是描述，不等于已确认伪迹。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_seeg_continuity",
+                "title": "非有限与精确恒值段",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "seeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "定位非有限值及连续完全相等样本。",
+                "inputs": "已确认sEEG电压\n原生时钟和源索引",
+                "outputs": "原时钟样本区间与数量。",
+                "conditions": "已确认sEEG电压\n原生时钟和源索引\n明确确认为sEEG且电压和原生采样时间已核验。",
+                "methods": "本项目\n原时钟样本区间与数量。 共用描述性数学核，但模态、输入和参数独立核验。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "至少2个相邻完全相等样本只是描述，不等于已确认伪迹。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_neuropixels_continuity",
+                "title": "非有限与精确恒值段",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "定位非有限值及连续完全相等样本。",
+                "inputs": "已确认Neuropixels 电压电压\n原生时钟和源索引",
+                "outputs": "原时钟样本区间与数量。",
+                "conditions": "已确认Neuropixels 电压电压\n原生时钟和源索引\n已核验Neuropixels设备、单个SpikeGLX或NWB连续电压信号、时钟及电极映射。",
+                "methods": "本项目\n原时钟样本区间与数量。 共用描述性数学核，但模态、输入和参数独立核验。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "至少2个相邻完全相等样本只是描述，不等于已确认伪迹。\nAP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M04",
+            "title": "频谱与干扰",
+            "x": 800,
+            "y": 310,
+            "kind": "base",
+            "summary": "PSD 与可测频率的工频观察",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "PSD 描述能量分布；工频方法寻找可测频率附近的窄带成分。PSD 图本身不等于坏道分数。",
+            "inputs": "原始电压\n采样率与分析范围",
+            "outputs": "PSD\n工频候选\n频谱拟合",
+            "conditions": "按目标频率、时长和完整窗口分别核对。\n已陷波的工频高分不证明原始采集质量好。",
+            "methods": "头皮 EEG 方法：\nWelch功率谱 · 按条件核对\n工频及可测谐波 · 按条件核对\n背景谱拟合与α功率 · 按条件核对\nCleanLine 工频处理评估 · 手动选择\nZapline-plus 工频处理评估 · 手动选择\n\nECoG / sEEG / Neuropixels：描述性 PSD 与窄带观察，不使用头皮判坏阈值。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://eeglab.org/plugins/cleanline/\nhttps://github.com/MariusKlug/zapline-plus",
+            "notes": "基础方法对滤波史的自动限制尚未完全统一。谱峰与年龄、状态、疾病有关，不直接判为低质量。",
+            "children": [
+              {
+                "id": "f_welch_psd",
+                "title": "Welch功率谱",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "描述各通道频率能量分布。",
+                "inputs": "电压信号\n采样率",
+                "outputs": "PSD原值与频段",
+                "conditions": "电压信号\n采样率\n电压单位、采样率和实际可测频带明确时；比较记录应对齐估计参数与采集条件。",
+                "methods": "BrainElecQC 0.1.0\nBrainElecQC直接调用SciPy Welch：分段、加Hann窗并平均周期图；当前默认4秒窗、50%重叠、去常数趋势，输出V²/Hz。\nbrainelecqc.eeg.spectral._welch → scipy.signal.welch",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_thomson_line",
+                "title": "工频及可测谐波",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "在实际可测频带内检查窄带干扰。",
+                "inputs": "采样率满足待测频率\n足够的分析窗口",
+                "outputs": "工频观察量与候选",
+                "conditions": "采样率满足待测频率\n足够的分析窗口\n窗口足够、目标频率低于Nyquist且记录频带确实保留该频率时；当前4秒窗、1秒步长和族显著性0.01是可记录的算法配置。",
+                "methods": "BrainElecQC 0.1.0\nBrainElecQC用SciPy DPSS窗自行计算Thomson多窗F统计量，扫描目标频率邻域，并对通道、完整时间窗和被测频率组成的检验族做Bonferroni校正。\nbrainelecqc.eeg.spectral._line_analysis / _thomson_spectrum；scipy.signal.windows.dpss",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_spectral_model",
+                "title": "背景谱拟合与α功率",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "分离背景谱与谱峰，提供研究描述量。",
+                "inputs": "足够时长和可测频带",
+                "outputs": "谱拟合\nα功率",
+                "conditions": "足够时长和可测频带\n拟合频带可测、功率为正、分辨率与时长足够时；当前每次拟合要求至少10秒和4个Welch周期图，短尾窗单独保留未评。",
+                "methods": "BrainElecQC 0.1.0\n在Welch PSD上直接调用FOOOF 1.1.1拟合非周期背景和高于背景的峰，默认固定背景模式、2–40Hz；另以PSD积分计算含背景的α功率及相对α功率。\nbrainelecqc.eeg.spectral.compute_spectral_qc → fooof.FOOOF.fit；brainelecqc.eeg.alpha_power.compute_alpha_power",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "谱形与状态、年龄、疾病有关，不能直接把差异判为低质量。\n不满足拟合时长的尾窗保留未评。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_cleanline",
+                "title": "CleanLine 工频处理评估",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "比较工频处理前后的频谱与变化量。",
+                "inputs": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "outputs": "前后PSD、逐道变化量、输入输出指纹；不导出清洗波形。",
+                "conditions": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。\n满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "methods": "EEGLAB CleanLine\n调用官方cleanLineNoise新实现，仅处理明确指定的一个工频。多窗谱F检验和回归由上游执行；Octave的DPSS接口使用SciPy对称L2归一化窗。\ncleanline/cleanLineNoise; scipy.signal.windows.dpss compatibility bridge",
+                "evidence": "https://eeglab.org/plugins/cleanline/\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "前后PSD与变化量仅描述处理影响，不证明神经信号保留。末尾不足滑窗部分不处理；不自动补谐波，不覆盖原始信号。\n只对副本评估，不默认去工频；谱峰不自动证明电源干扰，尚未声明颅内适用性。依赖包许可需单独核对。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_zapline_plus",
+                "title": "Zapline-plus 工频处理评估",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "固定片段内自适应处理工频，保留前后对照。",
+                "inputs": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "outputs": "前后PSD、逐道变化量、输入输出指纹；不导出清洗波形。",
+                "conditions": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。\n满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "methods": "Zapline-plus\n调用clean_data_with_zapline_plus。明确一个工频，把当前片段作为一个固定chunk；自动选择去除成分并调整sigma，保留配置和analytics。\nclean_data_with_zapline_plus; fixed chunk, adaptiveNremove=1, adaptiveSigma=1",
+                "evidence": "https://github.com/MariusKlug/zapline-plus\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "本版未启用自动分段；至少32秒及8个同参考通道。处理影响不是质量分，生理窄带活动也可能被改变；原始信号不覆盖。\n不默认用于少通道、病理高频或Neuropixels；不能把生理窄带活动自动当作噪声。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_ecog_welch_psd",
+                "title": "ECoG Welch功率谱",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "ecog"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "保留原始ECoG频率能量的描述。",
+                "inputs": "已确认ECoG电压\n原生时钟和源索引",
+                "outputs": "Hann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。",
+                "conditions": "已确认ECoG电压\n原生时钟和源索引\n明确确认为ECoG且电压和原生采样时间已核验。",
+                "methods": "SciPy及本项目\nHann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "不进行α谱模型或高频判坏；去均值只用于PSD估计，不覆盖原始信号。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_ecog_line_description",
+                "title": "ECoG窄带功率描述",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "ecog"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "描述配置频率附近的可测功率及峰值。",
+                "inputs": "已确认ECoG电压\n原生时钟和源索引",
+                "outputs": "在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。",
+                "conditions": "已确认ECoG电压\n原生时钟和源索引\n明确确认为ECoG且电压和原生采样时间已核验。",
+                "methods": "SciPy及本项目\n在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "窄带峰值不证明干扰来源，不排除生理或病理活动；未自动扩展谐波。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_seeg_welch_psd",
+                "title": "sEEG Welch功率谱",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "seeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "保留原始sEEG频率能量的描述。",
+                "inputs": "已确认sEEG电压\n原生时钟和源索引",
+                "outputs": "Hann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。",
+                "conditions": "已确认sEEG电压\n原生时钟和源索引\n明确确认为sEEG且电压和原生采样时间已核验。",
+                "methods": "SciPy及本项目\nHann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。 共用描述性数学核，但模态、输入和参数独立核验。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "不进行α谱模型或高频判坏；去均值只用于PSD估计，不覆盖原始信号。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_seeg_line_description",
+                "title": "sEEG窄带功率描述",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "seeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "描述配置频率附近的可测功率及峰值。",
+                "inputs": "已确认sEEG电压\n原生时钟和源索引",
+                "outputs": "在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。",
+                "conditions": "已确认sEEG电压\n原生时钟和源索引\n明确确认为sEEG且电压和原生采样时间已核验。",
+                "methods": "SciPy及本项目\n在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。 共用描述性数学核，但模态、输入和参数独立核验。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "窄带峰值不证明干扰来源，不排除生理或病理活动；未自动扩展谐波。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_neuropixels_welch_psd",
+                "title": "Neuropixels 电压 Welch功率谱",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "保留原始Neuropixels 电压频率能量的描述。",
+                "inputs": "已确认Neuropixels 电压电压\n原生时钟和源索引",
+                "outputs": "Hann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。",
+                "conditions": "已确认Neuropixels 电压电压\n原生时钟和源索引\n已核验Neuropixels设备、单个SpikeGLX或NWB连续电压信号、时钟及电极映射。",
+                "methods": "SciPy及本项目\nHann窗、50%重叠、常量去均值的Welch密度估计，单位V²/Hz。 共用描述性数学核，但模态、输入和参数独立核验。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "不进行α谱模型或高频判坏；去均值只用于PSD估计，不覆盖原始信号。\nAP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_neuropixels_line_description",
+                "title": "Neuropixels 电压窄带功率描述",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "描述配置频率附近的可测功率及峰值。",
+                "inputs": "已确认Neuropixels 电压电压\n原生时钟和源索引",
+                "outputs": "在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。",
+                "conditions": "已确认Neuropixels 电压电压\n原生时钟和源索引\n已核验Neuropixels设备、单个SpikeGLX或NWB连续电压信号、时钟及电极映射。",
+                "methods": "SciPy及本项目\n在同一PSD的±max(1Hz,频率分辨率)频带测量；不进行阈值分类。 共用描述性数学核，但模态、输入和参数独立核验。\nscipy.signal.welch",
+                "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "窄带峰值不证明干扰来源，不排除生理或病理活动；未自动扩展谐波。\nAP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M05",
+            "title": "通道质量",
+            "x": 1110,
+            "y": 310,
+            "kind": "base",
+            "summary": "逐道指标与异常通道候选",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "先保留逐道测量，在具备可比较条件时再生成异常候选。候选需结合波形和采集条件复核。",
+            "inputs": "原始电压\n明确比较组\n扩展所需参考构型",
+            "outputs": "通道候选\n分项指标\n可选电极对候选",
+            "conditions": "EEG PREP 相对判坏默认要求有依据的比较组，组内至少 4 道。缺条件保留描述量。\n桥接 / LOF 另要求共同或连接耳参考、单一比较组及足够通道。\n颅内触点不套头皮相似性阈值。",
+            "methods": "头皮 EEG 方法：\nPREP非空间坏道线索 · 按条件核对\nMNE 电极桥接候选 · 手动选择\nMNE LOF 通道离群候选 · 手动选择\nPyPREP空间预测 / RANSAC · 待接入\nFASTER 统计坏道 · 手动选择\n\nECoG / sEEG：逐触点统计。\nNeuropixels：逐道统计；AP 且 shank 条件满足，可手选 SpikeInterface MAD/STD。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.compute_bridged_electrodes.html\nhttps://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html\nhttps://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/wmvanvliet/mne-faster",
+            "notes": "PREP 与可选坏道方法未自动纳入现有三项评分。4 道是当前工程门槛，不是行业标准。",
+            "children": [
+              {
+                "id": "f_prep_nonspatial",
+                "title": "PREP非空间坏道线索",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "结合幅度、相关、高频与掉线等分项给出候选。",
+                "inputs": "已声明参考比较组\n每组至少4道为当前实现门槛",
+                "outputs": "分项指标\n通道候选",
+                "conditions": "已声明参考比较组\n每组至少4道为当前实现门槛\n参考方式可比较且显式声明分组时；当前每组至少4个可用通道是实现门槛，必须连同有效窗数和零离散度情况解释。",
+                "methods": "BrainElecQC 0.1.0\nBrainElecQC在分析副本上处理滤波，独立计算稳健幅度、高低频差异、分窗相关和掉线统计，再按声明的比较组应用门控与阈值。\nbrainelecqc.eeg.bad_channels.compute_bad_channels；主流程不调用pyprep.NoisyChannels",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "4道门槛是当前实现条件，不是统一行业阈值。\n既有两份全长ds002034结果与来源坏道标签不一致；尚未证明准确率。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_mne_bridge",
+                "title": "MNE 电极桥接候选",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "用成对电压差的方差和MNE分布拟合识别桥接候选；不等于已确认短接。",
+                "inputs": "已标定为V的同参考EEG\n参考构型和比较组\n连续原生采样片段",
+                "outputs": "通道对候选\n固定时间段的电气距离（μV²）",
+                "conditions": "共同或连接耳参考且仅一个完整比较组\n本版至少8道及10秒\n采样率支持0.5–30 Hz方法滤波\n当前适配要求已核实共同参考或联耳参考、单一完整比较组、至少8道、10秒及5个完整段；硬件和电极信息用于后续解释。",
+                "methods": "MNE-Python compute_bridged_electrodes\n直接调用MNE compute_bridged_electrodes，对分段后的通道差值方差估计电距离分布并寻找桥接候选；默认0.5–30Hz、2秒段、epoch_threshold=0.5。\nmne.preprocessing.compute_bridged_electrodes；ephys_qc.extra_methods.run_extension",
+                "evidence": "https://mne.tools/stable/generated/mne.preprocessing.compute_bridged_electrodes.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "默认参数来自MNE实现，不是公认质量界线；至少8道/10秒是本项目的保守门槛。\nlm_cutoff是分布拟合范围上限，不是最终桥接阈值；MNE未返回拟合的局部极小值。\n双极、混合或未知参考阻断；当前适配不自动拆组或重参考。\n方法不需要坐标，但相近生理信号也会低电气距离；候选仍需原始波形和硬件记录复核。\n完全重复或退化距离分布可能导致KDE失败；失败不得解释为无桥接。\n仅MNE副本上滤波；不插值、不删道，候选不提供已确认的起止时刻。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_mne_lof",
+                "title": "MNE LOF 通道离群候选",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按选中EEG波形之间的局部离群因子提供通道候选；不自动判定信号无效。",
+                "inputs": "已标定为V的同参考EEG\n足够比较通道\n原生采样连续片段",
+                "outputs": "通道候选\n各道原始负LOF及其绝对值",
+                "conditions": "共同或连接耳参考且仅一个完整比较组\n本版至少8道、10秒且通道数大于邻居数\nscikit-learn运行依赖\n当前要求已核实共同或联耳参考、单一完整比较组、至少8道和10秒，通道数还须严格多于配置的邻居数；参数应随评估记录。",
+                "methods": "MNE-Python find_bad_channels_lof\n直接调用MNE find_bad_channels_lof，以通道波形为特征、邻近通道为参照计算Local Outlier Factor；默认20个邻居、Euclidean距离和1.5阈值。\nmne.preprocessing.find_bad_channels_lof；ephys_qc.extra_methods.run_extension",
+                "evidence": "https://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "邻居20和阈值1.5是软件默认值，不是国际共识；少于21道时默认配置阻断。\n比较整个当前片段的波形向量；参考、幅值、选道、片段长度和病理活动均影响离群结果。\n双极、混合或未知参考阻断；不把双极链中的不同导联当普通帽上通道比较。\n没有额外滤波、重参考、归一化或空间插值；不需要电极坐标。\n算法返回通道级候选，不提供单道异常时间；疾病标签不参与计算。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_pyprep_ransac",
+                "title": "PyPREP空间预测 / RANSAC",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "planned",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "比较实际信号与其他电极空间预测的一致性。",
+                "inputs": "已核实电极坐标\n足够多的可用EEG通道\n可比较参考与采集条件",
+                "outputs": "空间坏道候选",
+                "conditions": "已核实电极坐标\n足够多的可用EEG通道\n可比较参考与采集条件\n未来仅在坐标已经核实、通道足够且参考可比较、空间覆盖适合时评估。",
+                "methods": "PyPREP\nPyPREP从其他电极的随机子集按空间信息预测各通道，再比较预测信号与实测信号相关性；未来适配需冻结坐标、参考、随机种子和有效通道规则。\n计划调用pyprep.NoisyChannels.find_bad_by_ransac；尚无平台执行调用",
+                "evidence": "https://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "尚未接入；安装了库不代表平台已具备该功能。\n不凭通道名称自动补坐标；需真实数据验收。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_faster_channels",
+                "title": "FASTER 统计坏道",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "多项统计特征筛查通道离群。",
+                "inputs": "足够多且可比较的头皮EEG通道；明确分段与参考；逐项核对可测频带。",
+                "outputs": "按统计特征列出的通道候选",
+                "conditions": "足够多且可比较的头皮EEG通道；明确分段与参考；逐项核对可测频带。\n足够多且可比较的头皮EEG通道；明确分段与参考；逐项核对可测频带。",
+                "methods": "MNE-FASTER\n调用MNE-FASTER 1.2.2的find_bad_channels。连续数据按固定段组织后参与通道统计；50/60Hz均可测时才启用line_noise。不作距离校正。\nmne_faster.find_bad_channels(return_by_metric=True, eeg_ref_corr=False)",
+                "evidence": "https://github.com/wmvanvliet/mne-faster\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "按特征列出通道候选；固定段不是任务试次，统计离群不等于伪迹。\n不直接用于少通道PSG或颅内记录；不把拼接窗口当任务试次；不自动删道。上游依赖MNE内部接口，接入须做版本兼容测试。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_ecog_channel_description",
+                "title": "ECoG触点描述统计",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "ecog"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "提供原始触点的有限样本统计。",
+                "inputs": "已确认ECoG电压\n原生时钟和源索引",
+                "outputs": "各触点独立均值、标准差、RMS、峰峰值与非有限计数。",
+                "conditions": "已确认ECoG电压\n原生时钟和源索引\n明确确认为ECoG且电压和原生采样时间已核验。",
+                "methods": "本项目\n各触点独立均值、标准差、RMS、峰峰值与非有限计数。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "没有比较组阈值，不凭幅度、相关性、触点名称或病理标签判坏。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_seeg_channel_description",
+                "title": "sEEG触点描述统计",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "seeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "提供原始触点的有限样本统计。",
+                "inputs": "已确认sEEG电压\n原生时钟和源索引",
+                "outputs": "各触点独立均值、标准差、RMS、峰峰值与非有限计数。",
+                "conditions": "已确认sEEG电压\n原生时钟和源索引\n明确确认为sEEG且电压和原生采样时间已核验。",
+                "methods": "本项目\n各触点独立均值、标准差、RMS、峰峰值与非有限计数。 共用描述性数学核，但模态、输入和参数独立核验。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "没有比较组阈值，不凭幅度、相关性、触点名称或病理标签判坏。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_neuropixels_channel_description",
+                "title": "Neuropixels 电压触点描述统计",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "提供原始触点的有限样本统计。",
+                "inputs": "已确认Neuropixels 电压电压\n原生时钟和源索引",
+                "outputs": "各触点独立均值、标准差、RMS、峰峰值与非有限计数。",
+                "conditions": "已确认Neuropixels 电压电压\n原生时钟和源索引\n已核验Neuropixels设备、单个SpikeGLX或NWB连续电压信号、时钟及电极映射。",
+                "methods": "本项目\n各触点独立均值、标准差、RMS、峰峰值与非有限计数。 共用描述性数学核，但模态、输入和参数独立核验。\n本项目描述性实现；不调用头皮检测流水线。",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "没有比较组阈值，不凭幅度、相关性、触点名称或病理标签判坏。\nAP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_spikeinterface_bad_channels",
+                "title": "SpikeInterface AP 通道离群",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按shank分别筛查AP通道离群。",
+                "inputs": "已标定的AP电压；文件声明的shank分组，每组至少8道。std/mad不使用空间坐标。",
+                "outputs": "逐通道候选标签与方法配置",
+                "conditions": "已标定的AP电压；文件声明的shank分组，每组至少8道。std/mad不使用空间坐标。\n已标定的AP电压；文件声明的shank分组，每组至少8道。std/mad不使用空间坐标。",
+                "methods": "SpikeInterface std/mad\n调用SpikeInterface 0.104.2 detect_bad_channels的std/mad路径。输入V显式转为µV，按文件声明的shank分组，高通后固定种子抽样；不混入同步通道。\nspikeinterface.preprocessing.detect_bad_channels(method=\"mad\" or \"std\")",
+                "evidence": "https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "只输出good/noise；good表示未超本阈值，不是通道合格，也不是分选单元质量。coherence+psd、dead/out和LF未接入。\n不把同步字混入；不将AP默认高频阈值套到LF流；未知几何时不运行coherence+psd，不默认删道或插值。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M06",
+            "title": "伪迹线索",
+            "x": 570,
+            "y": 535,
+            "kind": "conditional",
+            "summary": "辅助导联锁时与高频突发",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg"
+            ],
+            "description": "按子方法分别报告心电、眼电与高频线索。没有独立 EMG 支持，高频候选不能直接确认为肌电伪迹。",
+            "inputs": "EEG\n可选ECG/EOG/EMG\nM03连续性候选",
+            "outputs": "辅助事件\n高频突发\nEMG支持状态",
+            "conditions": "ECG/EOG：明确配置相应辅助导联，且采样时钟相容。\nEEG 高频：默认至少 10 秒，min(100, 0.45×fs) − 30 ≥ 20 Hz。\nECoG/sEEG：仅手选 FieldTrip 等已接扩展。\nNeuropixels 本版不启用 M06。",
+            "methods": "头皮 EEG 方法：\nECG锁时污染线索 · 按条件核对\nEOG锁时污染线索 · 按条件核对\n高频突发与EMG支持 · 按条件核对\nMNE 跨通道高频线索 · 手动选择\nICA成分 / ICLabel · 待接入\nASR 重建影响评估 · 手动选择\nFieldTrip 差分区间线索 · 手动选择\n\nECoG / sEEG：手选 FieldTrip 差分 z 值，输出候选，不确认生理来源。",
+            "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://mne.tools/stable/generated/mne.preprocessing.annotate_muscle_zscore.html\nhttps://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sccn/clean_rawdata\nhttps://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/",
+            "notes": "缺辅助导联只影响对应锁时方法。不自动删除或清洗原始信号。",
+            "children": [
+              {
+                "id": "f_ecg_locked",
+                "title": "ECG锁时污染线索",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "利用已确认的心电导联核对EEG中的锁时成分。",
+                "inputs": "已配置ECG辅助导联\n相同采样时钟",
+                "outputs": "ECG事件及支持证据",
+                "conditions": "已配置ECG辅助导联\n相同采样时钟\n辅助导联身份已确认且与EEG同采样时钟、时长足够时；当前ECG检测默认5–35Hz，结果应连同可用事件数复核。",
+                "methods": "BrainElecQC 0.1.0\n直接用MNE find_ecg_events从所配置ECG检测事件；BrainElecQC随后对EEG锁时分段，汇总均值、中位数、标准误和分半一致性，边界不完整事件不参与平均。\nbrainelecqc.eeg.events.compute_event_qc → mne.preprocessing.find_ecg_events；锁时统计由BrainElecQC实现",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_eog_locked",
+                "title": "EOG锁时污染线索",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "利用已确认的眼电导联核对相关事件。",
+                "inputs": "已配置EOG辅助导联\n相同采样时钟",
+                "outputs": "EOG事件及支持证据",
+                "conditions": "已配置EOG辅助导联\n相同采样时钟\n有身份明确、时钟一致且信号可用的EOG时；当前检测默认1–10Hz，只在分析副本上进行。",
+                "methods": "BrainElecQC 0.1.0\n直接用MNE find_eog_events检测辅助EOG事件；BrainElecQC以这些时刻截取EEG并汇总平均形态、离散程度和分半一致性。\nbrainelecqc.eeg.events.compute_event_qc → mne.preprocessing.find_eog_events；锁时统计由BrainElecQC实现",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_hf_burst",
+                "title": "高频突发与EMG支持",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "提取高频突发，再判断是否有独立EMG支持。",
+                "inputs": "足够可测高频带\nM03连续性保护区\nEMG用于确认性支持",
+                "outputs": "高频候选\nEMG支持状态",
+                "conditions": "足够可测高频带\nM03连续性保护区\nEMG用于确认性支持\n当前默认30–min(100,0.45×采样率)Hz有效带宽至少20Hz、选区至少10秒；应同时查看实际频带、连续性保护与参考导联。",
+                "methods": "BrainElecQC 0.1.0\nBrainElecQC复用MNE滤波和Hilbert包络原语，自建包络、相对功率、频谱分散度等多重门控；M03连续性问题形成保护区，有真实EMG时再检查同步支持。\nbrainelecqc.eeg.muscle.compute_muscle_qc；MNE Raw.filter / Raw.apply_hilbert等原语",
+                "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "无EMG时仅是高频线索；不等同于已确认肌电伪迹。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_mne_muscle",
+                "title": "MNE 跨通道高频线索",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "用MNE默认110–140 Hz频带和跨选中EEG通道包络分数，产生探索性时间候选。",
+                "inputs": "已标定为V的EEG\n足够原生采样率\n采集/预处理滤波史",
+                "outputs": "跨通道时间候选\n逐采样聚合z分数及有效性检查",
+                "conditions": "电压单位核实并标定为V\n原生采样率高于280 Hz\n本版至少10秒分析窗口\n采集和滤波史需支持110–140 Hz\n采样率严格大于280Hz、选区至少10秒且该频带可测时；滤波史未知保留partial，已知频带不支持则阻止。",
+                "methods": "MNE-Python annotate_muscle_zscore\n直接调用MNE annotate_muscle_zscore，显式指定EEG及固定110–140Hz；Hilbert包络标准化后跨通道汇总和平滑，当前阈值4、min_length_good=0.1秒。\nmne.preprocessing.annotate_muscle_zscore；ephys_qc.extensions.run_extension('mne_muscle', ...)",
+                "evidence": "https://mne.tools/stable/generated/mne.preprocessing.annotate_muscle_zscore.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "首版固定110–140 Hz；160/256 Hz输入不适用，不降低频带伪装同一方法。\n这是选中EEG通道的聚合时间分数，不提供单通道定位；选道会影响结果。\n120 Hz工频谐波等也可能贡献高频能量；无同步EMG确认，不能诊断肌电。\n未知滤波史时仅作探索性输出；不执行自动剔除、ICA或修复。\n阈值4与间隔合并0.1秒是MNE默认值，不是国际共识阈值。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_ica_iclabel",
+                "title": "ICA成分 / ICLabel",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "planned",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "对独立成分分类，辅助人工判断来源。",
+                "inputs": "足够数据和可用EEG通道\n已核对的坐标、秩、参考与滤波处理\n满足模型训练条件的ICA分解",
+                "outputs": "成分类别与概率",
+                "conditions": "足够数据和可用EEG通道\n已核对的坐标、秩、参考与滤波处理\n满足模型训练条件的ICA分解\n未来核实坐标、秩、参考和处理史，且有足够数据满足平均参考、1–100Hz、extended-infomax等模型适用条件时。",
+                "methods": "MNE-ICALabel\nICLabel用ICA成分头皮图、功率谱和自相关预测七类成分概率；必须先有适当且可复现的ICA分解。\n计划调用mne_icalabel.iclabel.iclabel_label_components；尚无平台执行调用",
+                "evidence": "https://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "尚未接入；平均参考、1–100Hz和extended-infomax等训练条件需要单独核对。\n分类概率不是质量分，不自动移除成分。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_asr_bursts",
+                "title": "ASR 重建影响评估",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "评估明确校准条件下的ASR重建影响。",
+                "inputs": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "outputs": "前后PSD、逐道变化量、输入输出指纹；不导出清洗波形。",
+                "conditions": "满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。\n满足运行规范中的通道、参考、频带与时长条件；已配置固定源码和Octave兼容运行环境。",
+                "methods": "EEGLAB clean_rawdata / ASR\n对副本做明确的1Hz四阶零相位高通，再调用clean_rawdata原版asr_calibrate/asr_process。必须显式确认窗口内至少30秒校准段，保留校准指纹、秩、矩阵和滤波器；lookahead=0。\nclean_rawdata/asr_calibrate + asr_process; Octave subprocess",
+                "evidence": "https://github.com/sccn/clean_rawdata\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "保存相同高通副本之间的变化量与PSD，不把重建差异解释为伪迹比例或质量分。仅单窗口；秩不足、未确认校准或无预置谱滤波器时阻断。原始信号不覆盖。\n不直接迁移至发作期颅内或Neuropixels数据。上游ASR文件另含UC商业使用许可说明，不能仅凭仓库GPL标识认定可直接商用。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_fieldtrip_zvalue",
+                "title": "FieldTrip 差分区间线索",
+                "summary": "手动选择",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按相邻差分z值标记待复核区间。",
+                "inputs": "至少10秒连续EEG/ECoG/sEEG电压及原始时钟；本版无滤波、无空间比较。",
+                "outputs": "候选起止样本与检测配置",
+                "conditions": "至少10秒连续EEG/ECoG/sEEG电压及原始时钟；本版无滤波、无空间比较。\n至少10秒连续EEG/ECoG/sEEG电压及原始时钟；本版无滤波、无空间比较。",
+                "methods": "FieldTrip\n调用ft_artifact_zvalue，特征固定为相邻差分绝对值、cumulative=no；保留最大单道z值。无带通、无边界扩展；从MATLAB一基闭区间映射到原始时钟半开区间。\nft_artifact_zvalue(absdiff=\"yes\", cumulative=\"no\", keepintermediate=\"yes\")",
+                "evidence": "https://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "EEG、ECoG和sEEG共用这一描述性特征，不共享质量结论。病理放电也可能触发；候选不定位单道、不自动剔除。\n不复制官方MEG示例中的110–140Hz或跳变阈值作为EEG/iEEG默认值；不自动调用ft_rejectartifact。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M07",
+            "title": "事件与时间",
+            "x": 975,
+            "y": 535,
+            "kind": "conditional",
+            "summary": "登记事件表后核对位置与覆盖",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "读取任务、睡眠分期或临床事件表，核对范围并保留记录原始时间。",
+            "inputs": "明确类型的标注文件",
+            "outputs": "选区事件\n阶段覆盖或临床事件时长\n标注指纹",
+            "conditions": "已登记支持格式及路径的任务事件、睡眠分期或临床事件表。\n仅填“睡眠 / 癫痫 / 任务”标签不启用。\n普通 annotation 不自动成为可用任务表。",
+            "methods": "头皮 EEG 方法：\n睡眠分期时间核对 · 按条件核对\n任务事件时间核对 · 按条件核对\n临床事件时间核对 · 按条件核对",
+            "evidence": "",
+            "notes": "发作和病理放电不是质量真值。不含多设备同步准确性验证。",
+            "children": [
+              {
+                "id": "f_sleep_timeline",
+                "title": "睡眠分期时间核对",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "将睡眠分期映射到原始时间轴并标出未知覆盖。",
+                "inputs": "已登记睡眠分期",
+                "outputs": "阶段覆盖和未知区间",
+                "conditions": "已登记睡眠分期\n已有来源明确且记录对应关系已核对的sleep_stages_tsv时；HMC或Sleep-EDF配套标注可验证时间映射。",
+                "methods": "本平台\n核验登记标注及来源哈希，按原始onset/duration裁剪交叠区间，并映射到原始样本时钟；保存来源标签、覆盖量和缺口。\nephys_qc.annotations.check_annotations（sleep_stages_tsv）",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_task_timeline",
+                "title": "任务事件时间核对",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "核对本次选区事件与原始记录时间。",
+                "inputs": "已登记任务事件",
+                "outputs": "事件列表及样本定位",
+                "conditions": "已登记任务事件\n记录关联和转换规则明确的event_name事件表，包括当前ds002034及EEGMMIDB适配。",
+                "methods": "本平台\n读取已登记的事件转换表，检查数值、时长与来源哈希，计算事件与选区交叠；原始时间和裁剪后时间分别保存。\nephys_qc.annotations.check_annotations（当前注册的bids_events_tsv适配）",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "适配已登记的event_name事件表，包括ds002034及EEGMMIDB来源转换表；不等于通用BIDS验证。\n事件不是质量真值。",
+                "entryType": "method"
+              },
+              {
+                "id": "f_clinical_timeline",
+                "title": "临床事件时间核对",
+                "summary": "满足条件时运行",
+                "kind": "conditional",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "将来源标注的临床事件映射到原始记录时间。",
+                "inputs": "已登记临床事件表",
+                "outputs": "选区事件和时长",
+                "conditions": "已登记临床事件表\n有官方或经授权来源、清楚的事件定义、同一记录时间轴时；例如CHB-MIT官方summary的发作区间。",
+                "methods": "本平台\n读取clinical_events_tsv的onset_s、duration_s、label和label_type，核对来源哈希并报告交叠事件、样本位置与区间并集时长。\nephys_qc.annotations.check_annotations（clinical_events_tsv）",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "发作等病理信号不是伪迹；事件标签不输入检测器或质量分。\n无标注区间不自动解释为正常。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M08",
+            "title": "分项汇总与评分",
+            "x": 790,
+            "y": 780,
+            "kind": "report",
+            "summary": "评分口径待讨论",
+            "status": "review",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "汇总分项、候选、覆盖和未评原因。评分是检测之外的一层；当前只有头皮 EEG 提供三项试行评分，公式尚待专家与数据校准。",
+            "inputs": "各模块实际结果和有效分析范围",
+            "outputs": "分项测量、候选位置、未评说明；满足条件时的 EEG 试行分数。",
+            "conditions": "三项证据完整且可核验时才形成当前总分。\n缺项不计作零负担或满分。\n其他模态与数据集不套用 EEG 总分。",
+            "methods": "当前试行公式 eeg-basic-screen/0.2：\np[j,c] = 候选量 / 有效量\nS[j] = 100 × (1 − sqrt(mean(p[j,c]²)))\nQ = min(S[完整性], S[工频], S[高频突发])",
+            "evidence": "DBCI-QC EEG 基础质控评分规则 v0.2。原始测量与报告层试行分数分开保存。",
+            "notes": "待讨论：\n1. 工频候选强烈影响总分时，分数是否直观。\n2. 已滤波 / 简单清洗后容易高分，如何分层比较。\n3. 命中率不等于严重程度，也不等于数据可用率。\n4. 是否保留总分、计分项目如何选、如何用专家意见与数据校准。\n\n本次讨论算例：完整性 99.92；工频 23.37；高频突发 99.96。按当前最低项规则显示 23.37。该值不是已认可的质量等级。",
+            "children": [
+              {
+                "id": "f_aggregate",
+                "title": "分项汇总与未评说明",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "汇总实际完成、未评、失败和未选择的方法。",
+                "inputs": "实际模块输出",
+                "outputs": "分项结果\n未校准总分",
+                "conditions": "实际模块输出\n运行结束或部分失败后；先看适用性和实际执行状态，再解释结果。",
+                "methods": "本平台\n汇总实际模块和子方法状态，保留候选、缺失条件、跳过项及运行错误；总分value保持null，注明尚未校准。\nephys_qc.runtime.execute（M08汇总与score.value=null）",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "M09",
+            "title": "报告与复核",
+            "x": 1110,
+            "y": 780,
+            "kind": "report",
+            "summary": "哪里异常、依据是什么",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "description": "生成本地HTML、波形PNG和结构化证据，等待人工复核。",
+            "inputs": "分项结果\n原始选区",
+            "outputs": "单份 HTML / PDF 报告\n波形与结构化证据\n独立保存的人工复核意见",
+            "conditions": "明确检出问题、未评条件与执行失败。\n分享前核对标识、路径等敏感信息。",
+            "methods": "头皮 EEG 方法：\n证据报告 · 按条件核对",
+            "evidence": "",
+            "notes": "分数不能替代异常通道和时段的定位。",
+            "children": [
+              {
+                "id": "f_report",
+                "title": "证据报告",
+                "summary": "随模块运行",
+                "kind": "base",
+                "status": "ready",
+                "scope": [
+                  "eeg",
+                  "ecog",
+                  "seeg",
+                  "np"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "记录方法、参数、来源、范围与人工复核状态。",
+                "inputs": "检查结果及原始选区",
+                "outputs": "HTML报告\nJSON证据\n波形图",
+                "conditions": "检查结果及原始选区\n交付研究记录或复核候选时；必须同时检查报告所载时间范围、所选通道和原始波形。",
+                "methods": "本平台\n将结果写为JSON及HTML，保留来源哈希、计划、原始索引与时间映射、适用性和未评原因；生成有限范围波形预览。\nephys_qc.runtime._report / _waveform；ephys_qc.runtime.execute（M09）",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+                "notes": "计算完成不等于质量合格；候选需复核。",
+                "entryType": "method"
+              }
+            ]
+          },
+          {
+            "id": "D01",
+            "title": "文件完整性",
+            "x": 65,
+            "y": 310,
+            "kind": "dataset",
+            "summary": "对照应有清单检查缺件",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "核对应到和实到文件，记录大小、指纹及读取结构。",
+            "inputs": "数据包与独立应有清单",
+            "outputs": "应到 / 实到、缺件与结构问题",
+            "conditions": "当前目录已有文件不能反过来充当完整性标准。",
+            "methods": "",
+            "evidence": "华山 SOP-05 的完整性需求；本项目 dataset-consistency/0.1 实现。医院原件不公开。",
+            "notes": "",
+            "children": [
+              {
+                "id": "d_D01_1",
+                "title": "文件及结构",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "指定文件存在，大小/指纹与所提供依据一致，读取结构有效",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "指定文件存在，大小/指纹与所提供依据一致，读取结构有效",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "缺件、指纹差异列冲突；读取器不支持列未评；不完整 BrainVision 采样帧列冲突",
+                "entryType": "check"
+              }
+            ]
+          },
+          {
+            "id": "D02",
+            "title": "个体及文件对应",
+            "x": 65,
+            "y": 535,
+            "kind": "dataset",
+            "summary": "编号、通道、单位与事件",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "核对已声明受试者下的记录和配套表，不做真实身份鉴定。",
+            "inputs": "受试者 / 会话 / 记录映射，通道表、事件表和采集说明。",
+            "outputs": "编号、通道、单位、采样率、时长及事件对应问题。",
+            "conditions": "缺表只影响相关检查。\n个体内重复记录比较需要同一受试者、会话、比较组至少两条记录。",
+            "methods": "",
+            "evidence": "华山 SOP-05 的一致性需求；本项目首版计算口径。",
+            "notes": "",
+            "children": [
+              {
+                "id": "d_D02_1",
+                "title": "编号对应",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "文件和表的受试者、会话、任务、采集、运行编号无矛盾；所选对象在对应表中唯一存在",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "文件和表的受试者、会话、任务、采集、运行编号无矛盾；所选对象在对应表中唯一存在",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "缺失/重复编号列冲突；未提供表列未评；全队列表中的未选对象不算本地缺件",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_2",
+                "title": "通道对应",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "通道表有 name/type/units，名称唯一非空；名称集合与文件头一致",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "通道表有 name/type/units，名称唯一非空；名称集合与文件头一致",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "集合不同列冲突；仅顺序不同列复核；按名称配对，不按行号强行对齐",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_3",
+                "title": "物理单位",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "原始文件单位与通道表一致，µV/μV/uV 规范为同一单位",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "原始文件单位与通道表一致，µV/μV/uV 规范为同一单位",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "nV 与 uV 标记为单位标注差异（内部状态 conflict），需核对标定和导出说明；未声明列复核，不静默补单位；辅助非电压通道允许 n/a",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_4",
+                "title": "采样率",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "文件头、通道表及所声明 JSON 的采样率对应",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "文件头、通道表及所声明 JSON 的采样率对应",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "常规容差为相对 1e-7 或绝对 1e-6 Hz；BrainVision 另允许半微秒采样间隔舍入；超出列冲突",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_5",
+                "title": "时长",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "有双时钟时比较表示的样本数，允许约一个样本的端点差",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "有双时钟时比较表示的样本数，允许约一个样本的端点差",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "不可读或未声明列未评；不通过截断数据消除矛盾",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_6",
+                "title": "事件",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "所需列存在，时间为有效数值、时长非负，终点在记录范围内；索引通道存在",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "所需列存在，时间为有效数值、时长非负，终点在记录范围内；索引通道存在",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "负起点复核，重叠允许；n/a 未评；超界冲突；未知索引起点只作宽界检查",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D02_7",
+                "title": "个体内重复记录",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "同一受试者、会话、比较组的通道、单位、采样率、参考一致",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "同一受试者、会话、比较组的通道、单位、采样率、参考一致",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "只有一份记录或字段不足列未评；原始/派生混组停止比较；不同植入期应分组",
+                "entryType": "check"
+              }
+            ]
+          },
+          {
+            "id": "D03",
+            "title": "同组一致性",
+            "x": 65,
+            "y": 780,
+            "kind": "dataset",
+            "summary": "配置、表结构与重复线索",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "按明确比较组核对要求一致的字段，不从多数记录推定正确配置。",
+            "inputs": "比较组，以及通道、采样率、单位、参考是否应一致的声明。",
+            "outputs": "同组配置差异、表结构问题与重复文件线索。",
+            "conditions": "不同模态、原始/派生不能直接混组。\n不同患者的颅内电极位置和通道数可以不同。\n仅一条记录或字段不足时，相应比较未评。",
+            "methods": "",
+            "evidence": "华山 SOP-05 数据集一致性需求；本项目首版计算口径。",
+            "notes": "",
+            "children": [
+              {
+                "id": "d_D03_1",
+                "title": "同组配置",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按组声明决定是否要求通道布局、单位、采样率、参考一致",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "按组声明决定是否要求通道布局、单位、采样率、参考一致",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "合法差异在方案中明确允许；不从多数数据自动推定正确配置",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D03_2",
+                "title": "配套表结构",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "同组通道表列集合一致",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "同组通道表列集合一致",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "可选列差异列复核，缺表未评",
+                "entryType": "check"
+              },
+              {
+                "id": "d_D03_3",
+                "title": "重复记录线索",
+                "summary": "资料核对",
+                "kind": "dataset",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "检查主信号文件 SHA-256 是否重复",
+                "inputs": "已确认的数据包、应有清单及对应配套表",
+                "outputs": "检查状态、受影响记录、测量值及位置",
+                "conditions": "检查主信号文件 SHA-256 是否重复",
+                "methods": "dataset-consistency/0.1",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+                "notes": "相同内容列复核；不据此判定同一受试者或造假",
+                "entryType": "check"
+              }
+            ]
+          },
+          {
+            "id": "OVERVIEW",
+            "title": "数据集总览",
+            "x": 485,
+            "y": 1020,
+            "kind": "report",
+            "summary": "资料问题 + 每份信号报告",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "description": "按数据集、个体、会话和记录汇总结果，关联来源匹配的单份信号报告。",
+            "inputs": "D01–D03 结果；各份信号报告及来源版本。",
+            "outputs": "资料问题、检查覆盖与单份报告链接。",
+            "conditions": "不平均不同模态的质量分。来源不匹配的历史报告不算当前结果。",
+            "methods": "",
+            "evidence": "",
+            "notes": "批量启动信号检查尚未接入。",
+            "children": [
+              {
+                "id": "support_overview",
+                "title": "数据集报告汇总",
+                "summary": "执行与汇总",
+                "kind": "report",
+                "status": "ready",
+                "scope": [
+                  "dataset"
+                ],
+                "x": 20,
+                "y": 20,
+                "description": "按个体和记录汇总资料问题，关联已有单份信号报告。",
+                "inputs": "已确认的记录或数据包",
+                "outputs": "接入证据或执行结果",
+                "conditions": "不会自动启动数据集里每份文件的信号任务，也不平均不同模态分数。",
+                "methods": "",
+                "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/overview.py",
+                "notes": "",
+                "entryType": "support"
+              }
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge-1",
+            "source": "INPUT",
+            "target": "M01",
+            "label": ""
+          },
+          {
+            "id": "edge-2",
+            "source": "M01",
+            "target": "M02",
+            "label": ""
+          },
+          {
+            "id": "edge-3",
+            "source": "M02",
+            "target": "D01",
+            "label": "有核对方案"
+          },
+          {
+            "id": "edge-4",
+            "source": "D01",
+            "target": "D02",
+            "label": ""
+          },
+          {
+            "id": "edge-5",
+            "source": "D02",
+            "target": "D03",
+            "label": ""
+          },
+          {
+            "id": "edge-6",
+            "source": "D03",
+            "target": "OVERVIEW",
+            "label": ""
+          },
+          {
+            "id": "edge-7",
+            "source": "M02",
+            "target": "M03",
+            "label": ""
+          },
+          {
+            "id": "edge-8",
+            "source": "M02",
+            "target": "M04",
+            "label": ""
+          },
+          {
+            "id": "edge-9",
+            "source": "M02",
+            "target": "M05",
+            "label": ""
+          },
+          {
+            "id": "edge-10",
+            "source": "M02",
+            "target": "M07",
+            "label": "有事件表"
+          },
+          {
+            "id": "edge-11",
+            "source": "M03",
+            "target": "M06",
+            "label": "按方法条件"
+          },
+          {
+            "id": "edge-12",
+            "source": "M03",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-13",
+            "source": "M04",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-14",
+            "source": "M05",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-15",
+            "source": "M06",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-16",
+            "source": "M07",
+            "target": "M08",
+            "label": ""
+          },
+          {
+            "id": "edge-17",
+            "source": "M08",
+            "target": "M09",
+            "label": ""
+          },
+          {
+            "id": "edge-18",
+            "source": "M09",
+            "target": "OVERVIEW",
+            "label": "关联已有报告"
+          }
+        ]
+      },
+      "hash": "7f9359b16094b86085de550f098a37e9deb0d0843c71d56e08b06b101261df87"
+    }
+  ]
+}
