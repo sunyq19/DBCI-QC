@@ -1,0 +1,15 @@
+{
+  "versions": [
+    {
+      "id": "baseline-v1",
+      "label": "v1.0",
+      "hash": "d6190796e1cf0cb345f0890590a46277c1516b7868d1afea179c8fbef857b1df"
+    },
+    {
+      "id": "hierarchy-v11",
+      "label": "v1.1 · 模块层级",
+      "hash": "7f9359b16094b86085de550f098a37e9deb0d0843c71d56e08b06b101261df87"
+    }
+  ],
+  "source_commit": "e7c4f73469b6aad1ab0ef0159428c7a4a842fb45"
+}
