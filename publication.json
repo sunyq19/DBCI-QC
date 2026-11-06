@@ -19,7 +19,12 @@
       "id": "visualization-v13",
       "label": "v1.3 · 统一可视化层",
       "hash": "75648ffefbf59096f05db7668d2c6ac25c978df25ec913752872ac8a32622313"
+    },
+    {
+      "id": "workflow-v14",
+      "label": "v1.4 · EEG 检查与复核",
+      "hash": "712763ccd7cfb0d8b205f1465c024b8687e25640646ce9c58624f3d717171158"
     }
   ],
-  "source_commit": "279b4134fbb7086c39e11a6d3fffebefed130336"
+  "source_commit": "local-preview"
 }
