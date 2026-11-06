@@ -26,10 +26,12 @@ from ephys_qc.tagging import describe_data, context_defaults, context_options
 from ephys_qc.readers import inspect_recording, list_readers
 from ephys_qc.source_selection import reader_kwargs
 from ephys_qc.version import __version__, API_VERSION
+from ephys_qc.admission import DEFAULT_INTAKE_LIMITS, POLICIES, LimitExceeded, configured_policy, check_registered_record
 from ephys_qc.modalities import ROUTES, DESCRIPTIVE, route
-from intake import IntakeStore, MAX_UPLOAD_BYTES
+from intake import IntakeStore
 from record_revisions import RecordRevisions, RevisionConflict
 from standards_page import render_standards, NAVIGATION_SCRIPT, DOCUMENT_PAGES
+from package_jobs import PackageJobs
 
 SERVICE = 'ephys-qc-modular-workbench'
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
@@ -61,7 +63,7 @@ def insert_report_navigation(report, navigation):
 
 
 def public_input(item):
-    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability') if key in item}
+    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context') if key in item}
     result.setdefault('record_family', item['id'])
     result.setdefault('record_revision', 1)
     result.setdefault('default_config', {}).setdefault('context_tags', context_defaults(item))
@@ -69,17 +71,26 @@ def public_input(item):
     return result
 
 
+def public_intake(value):
+    result = copy.deepcopy(value)
+    result.pop('linked_root', None)
+    return result
+
+
 class Store:
     def __init__(self, settings):
         self.settings = settings
+        self.admission_policy = configured_policy(settings)
         self.root = Path(settings['data_dir']).resolve()
+        self.packages = PackageJobs(settings)
         (self.root / 'jobs').mkdir(parents=True, exist_ok=True)
         self.inputs = {}
         for item in settings['inputs']:
             item = copy.deepcopy(item)
             self._availability(item, refresh=True)
             self.inputs[item['id']] = item
-        self.intakes = IntakeStore(self.root)
+        self.link_lock = threading.RLock()
+        self.intakes = IntakeStore(self.root, limits=self.admission_policy or DEFAULT_INTAKE_LIMITS)
         for item in self.intakes.registered():
             if item['id'] in self.inputs:
                 raise ValueError('本机提交记录ID与预登记输入冲突。')
@@ -103,6 +114,8 @@ class Store:
                 save_json(path, job)
             self.jobs[job['id']] = job
         threading.Thread(target=self._loop, daemon=True).start()
+        from batch_jobs import BatchJobs
+        self.batches = BatchJobs(self)
 
     @staticmethod
     def _availability(item, refresh=False):
@@ -143,6 +156,36 @@ class Store:
         with self.lock:
             record = copy.deepcopy(self.inputs[identifier])
         return recommend(record, body.get('qc_config'))
+
+    def package_records(self, identifier):
+        result = self.packages.records(identifier)
+        with self.lock:
+            for row in result['records']:
+                inputs = {i['id'] for i in self.inputs.values()
+                          if i.get('dataset_context', {}).get('package_id') == identifier
+                          and i['dataset_context'].get('manifest_hash') == result['manifest_hash']
+                          and i['dataset_context'].get('record_id') == row['id']}
+                runs = sorted((j for j in self.jobs.values() if j['input_id'] in inputs),
+                              key=lambda j: j['created_at'], reverse=True)
+                row['signal_runs'] = [{k: j[k] for k in ('id', 'status', 'created_at', 'input_id')} for j in runs]
+        return result
+
+    def open_package_record(self, body):
+        root, name, context, stream = self.packages.record_source(body)
+        with self.link_lock:
+            value = self.intakes.link_record(root, name, context, stream_id=stream)
+        return self.intake_status(value['id'])
+
+    def intake_status(self, identifier):
+        value = self.intakes.get(identifier)
+        if value.get('status') == 'registered' and value.get('dataset_context'):
+            with self.lock:
+                family = self.inputs.get(value['input_id'], {}).get('record_family', value['input_id'])
+                versions = [i for i in self.inputs.values() if i.get('record_family', i['id']) == family]
+                if versions:
+                    latest = max(versions, key=lambda i: i.get('record_revision', 1))
+                    value.update(input_id=latest['id'], input_modality=latest['modality'])
+        return value
 
     def confirm_intake(self, identifier, body):
         with self.lock:
@@ -186,10 +229,13 @@ class Store:
             except ReviewConflict as exc:
                 raise RevisionConflict(str(exc)) from exc
 
-    def submit(self, body):
+    def submit(self, body, *, batch_id=None):
         item, plan = self.plan_request(body)
         if body.get('plan_id') != plan['plan_id']:
             raise ValueError('检查方案与当前配置不一致，请重新预览方案后运行。')
+        if item.get('linked_intake_id'):
+            self.intakes._verified_source(self.intakes.get(item['linked_intake_id']))
+        admission = check_registered_record(item, limits=self.admission_policy) if self.admission_policy else None
         with self.lock:
             parent = body.get('parent_job_id')
             if parent is not None:
@@ -204,15 +250,16 @@ class Store:
             directory = self.root / 'jobs' / id_
             directory.mkdir()
             request = {'input': item, 'plan': plan, 'qc_config': plan['qc_config'],
-                       'selected_modules': plan['selected_modules'], 'parent_job_id': parent}
+                       'selected_modules': plan['selected_modules'], 'parent_job_id': parent, 'batch_id': batch_id, 'admission': admission}
             save_json(directory / 'request.json', request)
             job = {'id': id_, 'label': item['label'], 'input_id': item['id'], 'status': 'queued',
                    'input_revision': item.get('record_revision', 1), 'record_family': item.get('record_family', item['id']),
-                   'parent_job_id': parent,
+                   'parent_job_id': parent, 'batch_id': batch_id, 'dataset_context': copy.deepcopy(item.get('dataset_context')),
                    'phase': 'queued', 'message': '等待执行', 'created_at': now(), 'plan': plan,
                    'modules': [{'id': n['id'], 'name': n['name'], 'status': 'skipped' if n['status'] == 'skipped' else 'pending',
                                 'reason': n.get('reason', ''), 'message': ''} for n in plan['nodes']]}
             self.jobs[id_] = job
+            job['admission'] = admission
             self.persist(job)
             self.queue.put(id_)
             return copy.deepcopy(job)
@@ -260,6 +307,13 @@ class Store:
                     job = self.jobs[id_]
                     if job['status'] != 'queued':
                         continue
+                    request = read_json(directory / 'request.json')
+                    if request['input'].get('linked_intake_id'):
+                        self.intakes._verified_source(self.intakes.get(request['input']['linked_intake_id']))
+                    if request.get('admission'):
+                        current = check_registered_record(request['input'], limits=self.admission_policy)
+                        if current['snapshot_fingerprint'] != request['admission']['snapshot_fingerprint']:
+                            raise ValueError('来源文件在接入后发生变化，本次任务未执行，请重新提交。')
                     env = dict(os.environ, MPLBACKEND='Agg', OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1',
                                MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1', PYTHONUNBUFFERED='1',
                                MPLCONFIGDIR=str(self.root / 'matplotlib'))
@@ -326,10 +380,32 @@ class Store:
             job['recording_progress'] = read_json(progress)
         return job
 
-    def result(self, id_):
+    def result(self, id_, *, compact=False):
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')
-        data = read_json(self.root / 'jobs' / id_ / 'result.json')
+        result_path = self.root / 'jobs' / id_ / 'result.json'
+        if compact:
+            # Candidate observations can dwarf the report (tens of thousands of
+            # rows). Keep the complete evidence on disk and at /result; summary
+            # consumers need its count and artifact link, not a second copy.
+            stat = result_path.stat()
+            stamp = (stat.st_mtime_ns, stat.st_size)
+            with self.lock:
+                if not hasattr(self, 'result_summaries'): self.result_summaries = {}
+                cached = self.result_summaries.get(id_)
+            if cached and cached[0] == stamp:
+                data = copy.deepcopy(cached[1])
+            else:
+                data = read_json(result_path)
+                if isinstance(data.get('candidate_index'), list):
+                    data['candidate_index_count'] = len(data.pop('candidate_index'))
+                    data['candidate_index_artifact'] = 'candidate-index.json' if any(
+                        a.get('name') == 'candidate-index.json' for a in data.get('artifacts', [])) else None
+                with self.lock:
+                    if len(self.result_summaries) >= 8: self.result_summaries.pop(next(iter(self.result_summaries)))
+                    self.result_summaries[id_] = (stamp, copy.deepcopy(data))
+        else:
+            data = read_json(result_path)
         if data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
             from ephys_qc.report_view import build_report_view, VIEW_VERSION
             root = self.root / 'jobs' / id_
@@ -360,7 +436,7 @@ class Store:
         return data
 
     def artifact(self, id_, name):
-        if Path(name).name != name or name not in {a['name'] for a in self.result(id_)['artifacts']}:
+        if Path(name).name != name or name not in {a['name'] for a in self.result(id_, compact=True)['artifacts']}:
             raise KeyError(name)
         root = (self.root / 'jobs' / id_ / 'artifacts').resolve()
         target = (root / name).resolve()
@@ -395,7 +471,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(data)))
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations", urlsplit(self.path).path) else "none"
+        self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors '{frame_policy}'; base-uri 'none'")
         for name, value in (headers or {}).items():
             self.send_header(name, value)
         self.end_headers()
@@ -432,6 +509,9 @@ class Handler(BaseHTTPRequestHandler):
             self.json({'error': str(exc)}, 403)
         except RevisionConflict as exc:
             self.json({'error': str(exc)}, 409)
+        except LimitExceeded as exc:
+            self.close_connection = True
+            self.json(exc.payload(), 413)
         except KeyError:
             self.json({'error': '请求的数据、任务或结果不存在。'}, 404)
         except (ValueError, TypeError, OverflowError) as exc:
@@ -446,9 +526,45 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = dispatch
 
     def get(self, path):
+        from workflow_api import dispatch as workflow_dispatch
+        if workflow_dispatch(self, path): return
         from visualization_page import dispatch_visualizations
         if dispatch_visualizations(self, path):
             return
+        if path == '/api/v1/data':
+            from data_library import library
+            return self.json(library(self.store))
+        overview_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/overview(?:/(report))?', path)
+        if overview_match:
+            from dataset_overview import build_overview, render_overview
+            package_id, action = overview_match.groups()
+            query = parse_qs(urlsplit(self.path).query)
+            if set(query) - {'job', 'lang', 'download'} or any(len(v) != 1 for v in query.values()):
+                raise ValueError('汇总参数无效。')
+            job_id = query.get('job', [None])[0]
+            if job_id and not re.fullmatch('[a-f0-9]{32}', job_id): raise ValueError('任务标识无效。')
+            data = build_overview(self.store, package_id, job_id)
+            if not action: return self.json(data)
+            language = query.get('lang', ['zh-CN'])[0]
+            headers = {'Content-Disposition': f'attachment; filename="dataset-{package_id}-summary.html"'} if query.get('download') == ['1'] else None
+            return self.send_bytes(render_overview(data, language).encode(), 'text/html; charset=utf-8', headers=headers)
+        records_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/records', path)
+        if records_match: return self.json(self.store.package_records(records_match.group(1)))
+        if path == '/api/v1/packages':
+            return self.json(self.store.packages.catalog())
+        package_match = re.fullmatch(r'/api/v1/package-jobs/([a-f0-9]{32})(?:/(result|report|download|expectations))?', path)
+        if package_match:
+            identifier, action = package_match.groups()
+            if not action: return self.json(self.store.packages.get(identifier))
+            if action in {'result', 'expectations'}:
+                return self.send_bytes(self.store.packages.artifact(identifier, action + '.json').read_bytes())
+            language = parse_qs(urlsplit(self.path).query).get('lang', ['zh-CN'])[0]
+            target = self.store.packages.artifact(identifier, 'report.en.html' if language == 'en' else 'report.html')
+            if action == 'download':
+                return self.send_bytes(target.read_bytes(), 'text/html; charset=utf-8', headers={'Content-Disposition': 'attachment; filename="dataset-qc-report.html"'})
+            back = f'/datasets?job={identifier}' + ('&lang=en' if language == 'en' else '')
+            nav = f'<nav style="padding:12px 24px"><a href="{back}">← {"Dataset workbench" if language == "en" else "返回数据集检查"}</a></nav>'
+            return self.send_bytes(insert_report_navigation(target.read_text(), nav).encode(), 'text/html; charset=utf-8')
         english = path.startswith('/en/')
         document_path = path[3:] if english else path
         common_document = next((slug for slug in DOCUMENT_PAGES
@@ -518,10 +634,13 @@ class Handler(BaseHTTPRequestHandler):
                                                           'readers': list_readers(), 'package_formats': ['ZIP'],
                                                           'modalities': list(ROUTES),
                                                           'inspection_modalities': ['scalp_eeg', 'ecog', 'seeg', 'extracellular', 'other'],
-                                                          'max_upload_bytes': MAX_UPLOAD_BYTES, 'local_only': True},
+                                                          'max_upload_bytes': self.store.intakes.limits.max_file_bytes,
+                                                          'max_record_bytes': self.store.intakes.limits.max_record_bytes,
+                                                          'intake_limit_version': self.store.intakes.limits.version, 'local_only': True},
+                                               'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
-            return self.json({'intakes': self.store.intakes.pending()})
+            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending()]})
         if path == '/api/v1/inputs':
             if urlsplit(self.path).query:
                 raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
@@ -530,7 +649,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
-            return self.json(self.store.intakes.get(match.group(1)))
+            return self.json(public_intake(self.store.intake_status(match.group(1))))
         if path == '/api/v1/jobs':
             with self.store.lock:
                 jobs = sorted(copy.deepcopy(list(self.store.jobs.values())), key=lambda j: j['created_at'], reverse=True)
@@ -547,7 +666,7 @@ class Handler(BaseHTTPRequestHandler):
         export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png)', path)
         if export_match:
             identifier, export_kind = export_match.groups()
-            result = self.store.result(identifier)
+            result = self.store.result(identifier, compact=True)
             view = result.get('report_view')
             if not view:
                 raise ValueError('当前 PDF 导出支持头皮 EEG 报告。')
@@ -579,19 +698,21 @@ class Handler(BaseHTTPRequestHandler):
             if action == 'candidates':
                 return self.json(workspace.candidates())
             return self.json(workspace.review())
-        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})(?:/(result|report|log|artifacts/(.+)))?', path)
+        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})(?:/(result|summary|report|log|artifacts/(.+)))?', path)
         if match:
             id_, action, filename = match.groups()
             job = self.store.job(id_)
             if action is None:
                 return self.json(job)
             if action == 'result':
-                return self.json(self.store.result(id_))
+                return self.json(self.store.result(id_, compact=parse_qs(urlsplit(self.path).query).get('view') == ['summary']))
+            if action == 'summary':
+                return self.json(self.store.result(id_, compact=True))
             if action == 'log':
                 log = self.store.root / 'jobs' / id_ / 'run.log'
                 return self.send_bytes(log.read_bytes()[-100_000:] if log.exists() else b'', 'text/plain; charset=utf-8')
             if action == 'report':
-                result = self.store.result(id_)
+                result = self.store.result(id_, compact=True)
                 if result.get('report_view'):
                     from ephys_qc.report_view import render_report_view
                     report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf', visualization_url=f'/api/v1/jobs/{id_}/visualizations')
@@ -621,13 +742,20 @@ class Handler(BaseHTTPRequestHandler):
                 if target.suffix in {'.html', '.json', '.txt', '.csv', '.tsv'}:
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
-        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/favicon.svg': 'favicon.svg'}
+        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/favicon.svg': 'favicon.svg',
+                  '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css'}
         if path in static:
             target = ROOT / 'web' / static[path]
             return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
         raise KeyError(path)
 
     def post(self, path):
+        from workflow_api import dispatch as workflow_dispatch
+        if workflow_dispatch(self, path): return
+        if path == '/api/v1/package-record-intakes':
+            return self.json(public_intake(self.store.open_package_record(self.body())), 201)
+        if path == '/api/v1/package-jobs':
+            return self.json(self.store.packages.submit(self.body()), 202)
         if path == '/api/v1/intakes':
             if self.headers.get_content_type() != 'application/octet-stream' or self.headers.get('Transfer-Encoding'):
                 raise ValueError('请提交带长度的本机文件或ZIP包，不接受远程路径。')
@@ -640,7 +768,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(self.store.confirm_intake(match.group(1), self.body()))
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/stream', path)
         if match:
-            return self.json(self.store.select_intake_stream(match.group(1), self.body()))
+            return self.json(public_intake(self.store.select_intake_stream(match.group(1), self.body())))
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)/revisions', path)
         if match:
             return self.json(self.store.revise_input(match.group(1), self.body()), 201)
@@ -665,8 +793,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=Path, default=REPO / '.local' / 'workbench.json')
     parser.add_argument('--port', type=int)
+    parser.add_argument('--admission-policy', choices=['local', *POLICIES],
+                        help='Validate cloud intake limits locally; does not enable cloud hosting or authentication')
     args = parser.parse_args()
     settings = read_json(args.config)
+    if args.admission_policy:
+        settings['admission_policy'] = args.admission_policy
     if not Path(settings['python']).is_file():
         raise SystemExit('请在本机配置中填写已安装 BrainElecQC 的 Python 路径。')
     # Bind first: a duplicate launch must not mark a live process's jobs interrupted.

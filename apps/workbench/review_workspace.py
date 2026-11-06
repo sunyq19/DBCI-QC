@@ -36,6 +36,9 @@ EXTENSION_ARTIFACTS = {
     'M05_mne_bridge.json': ('M05', 'mne_bridge'),
     'M05_mne_lof.json': ('M05', 'mne_lof'),
     'M06_mne_muscle.json': ('M06', 'mne_muscle'),
+    **{f'{module}_gnosis_{key}.json': (module, 'gnosis_' + key) for module, key in [
+        ('M05', 'line_length'), ('M05', 'psd_deviation'), ('M06', 'artifact'),
+        ('M06', 'low_band'), ('M06', 'high_band')]},
 }
 
 
@@ -214,8 +217,17 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
             # lossless scaling; arbitrary physical units are never relabeled V.
             physical_unit = channel.get('unit') or channel.get('physical_unit') or 'unknown'
             scale = 1e6 if physical_unit == 'V' else 1.0
+            psd = None
+            if physical_unit == 'V' and np.all(np.isfinite(data)) and len(data) >= 4:
+                from scipy.signal import welch
+                nperseg = min(len(data), max(4, round(2 * fs)), 8192)
+                frequencies, density = welch(data, fs=fs, nperseg=nperseg, noverlap=nperseg // 2,
+                                              window='hann', detrend='constant', scaling='density')
+                psd = {'frequencies_hz': frequencies.tolist(), 'power_uv2_hz': (density * 1e12).tolist(),
+                       'method': 'Welch', 'nperseg': nperseg, 'unit': 'µV²/Hz',
+                       'basis': 'native_samples_before_display_envelope'}
             rows.append({'source_index': channel['source_index'], 'name': channel['raw_name'],
-                         'channel_id': channel['channel_id'], 'physical_unit': physical_unit,
+                         'channel_id': channel['channel_id'], 'physical_unit': physical_unit, 'psd': psd,
                          'unit': 'µV' if physical_unit == 'V' else physical_unit, 'display_scale': scale,
                          'times_seconds': [actual_start + i / fs for i in offsets],
                          'source_samples': [first + i for i in offsets],
@@ -270,7 +282,7 @@ def normalize_candidates(payload, *, module_id, method, request, selection_artif
     duration = recording.get('duration_seconds', selection.get('duration_seconds'))
     whole = [left, left + duration] if _finite(left) and _finite(duration) else [None, None]
     if method == 'line_noise':
-        raw_candidates = [(i, row) for i, row in enumerate(payload.get('line_noise', {}).get('observations', [])) if row.get('flagged') is True]
+        raw_candidates = [(i, row) for i, row in enumerate(payload.get('line_noise', {}).get('observations', [])) if row.get('flagged') is True and row.get('status', 'computed') == 'computed']
         pointer = '/line_noise/observations/'
     else:
         raw_candidates = list(enumerate(payload.get('candidates', [])))

@@ -19,8 +19,10 @@ from ephys_qc.modalities import ROUTES, DESCRIPTIVE, default_methods, validate_a
 from ephys_qc.source_selection import reader_kwargs, require_selected_voltage
 from uploads import prepare_source, source_manifest
 from ephys_qc.tagging import validate_context
+from ephys_qc.admission import DEFAULT_INTAKE_LIMITS, check_record_paths
+from ephys_qc.dataset_qc.inventory import _safe_file, _relative
 
-MAX_UPLOAD_BYTES = 512 * 1024 * 1024
+MAX_UPLOAD_BYTES = DEFAULT_INTAKE_LIMITS.max_file_bytes
 MODALITIES = {'unknown', 'scalp_eeg', 'ecog', 'seeg', 'extracellular', 'other'}
 REFERENCE_SCHEMES = {'unknown', 'common_reference', 'linked_ears', 'bipolar', 'mixed'}
 
@@ -213,7 +215,8 @@ def suggestions(metadata):
 
 
 class IntakeStore:
-    def __init__(self, runtime_root):
+    def __init__(self, runtime_root, *, limits=DEFAULT_INTAKE_LIMITS):
+        self.limits = limits
         self.root = Path(runtime_root).resolve() / 'intakes'
         self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
 
@@ -228,9 +231,70 @@ class IntakeStore:
             raise KeyError(identifier)
         return _load(path)
 
+    def link_record(self, root, name, context, *, stream_id=None):
+        """Server-only registered-package adapter; no upload or waveform copy."""
+        root = Path(root)
+        if root.is_symlink() or not root.is_dir():
+            raise ValueError('数据包目录不可用。')
+        root = root.resolve()
+        source = _safe_file(root, _relative(name))
+        if source is None or not source.is_file():
+            raise ValueError('记录缺失或路径不可用，请先核对数据集报告。')
+        check_record_paths([source], limits=self.limits)
+        before = source.stat()
+        metadata = inspect_recording(source, **({'stream_id': stream_id} if stream_id else {}))
+        # Check companions before resolving paths or hashing outside the package.
+        for item in metadata.get('source_files', []):
+            relative = (Path(name).parent / item['name']).as_posix()
+            member = _safe_file(root, _relative(relative))
+            if member is None or not member.is_file():
+                raise ValueError('配套文件缺失或包含链接。')
+        files = source_manifest(source, metadata, limits=self.limits)
+        source_files = [{'name': Path(f['path']).relative_to(root).as_posix(), 'sha256': f['sha256']} for f in files]
+        source_hash = next(f['sha256'] for f in files if Path(f['path']) == source)
+        after = source.stat()
+        if (before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+            raise ValueError('读取期间来源文件发生变化，请重新打开记录。')
+        # Same source snapshot reopens its existing confirmation and history.
+        for path in self.root.glob('*/intake.json'):
+            old = _load(path)
+            if (old.get('linked_root') == str(root) and old.get('entry_file') == name
+                    and old.get('dataset_context') == context and old.get('source_files') == source_files
+                    and old.get('metadata', {}).get('selected_stream_id') == metadata.get('selected_stream_id')):
+                self._verified_source(old)
+                return old
+        proposal, warnings = suggestions(metadata)
+        warnings.append('从已登记数据集关联原文件，不复制、不修改；模态及通道仍须确认。')
+        identifier = uuid.uuid4().hex
+        value = {'id': identifier, 'status': 'needs_confirmation', 'filename': Path(name).name,
+                 'linked_root': str(root), 'entry_file': name, 'dataset_context': copy.deepcopy(context),
+                 'sha256': source_hash, 'source_sha256': source_hash, 'source_files': source_files,
+                 'metadata': metadata, 'suggestions': proposal, 'warnings': warnings, 'selection_revision': 0,
+                 'received_at': datetime.now(timezone.utc).isoformat()}
+        self._verified_source(value)
+        directory = self._directory(identifier); directory.mkdir(mode=0o700)
+        _save(directory / 'intake.json', value)
+        return value
+
+    def _verified_source(self, intake):
+        directory = self._directory(intake['id'])
+        base = Path(intake.get('linked_root', directory))
+        if base.is_symlink() or not base.is_dir():
+            raise ValueError('来源目录不可用。')
+        base = base.resolve()
+        source = _safe_file(base, _relative(intake.get('entry_file', 'source.edf')))
+        if source is None or not source.is_file() or _hash(source) != intake.get('source_sha256', intake['sha256']):
+            raise ValueError('来源文件或指纹发生变化，请重新打开记录。')
+        for item in intake.get('source_files', []):
+            member = _safe_file(base, _relative(item['name']))
+            if member is None or not member.is_file() or _hash(member) != item['sha256']:
+                raise ValueError('本地配套文件的指纹发生变化，请重新打开记录。')
+        return source
+
     def receive(self, filename, length, stream):
-        if type(length) is not int or not 0 < length <= MAX_UPLOAD_BYTES:
-            raise ValueError('单个文件须大于0字节且不超过512 MiB；文件只保存到本机。')
+        if type(length) is not int or length <= 0:
+            raise ValueError('请选择非空数据文件。')
+        self.limits.check('file_bytes', length, '上传文件大小')
         if not isinstance(filename, str) or not filename or len(filename) > 240 or any(ord(c) < 32 for c in filename):
             raise ValueError('文件名无效。')
         # The original display name never forms a filesystem path.
@@ -249,12 +313,14 @@ class IntakeStore:
                     block = stream.read(min(1024 * 1024, remaining))
                     if not block:
                         raise ValueError('文件上传未完成，请重新选择文件；未登记部分内容。')
+                    if len(block) > remaining:
+                        raise ValueError('实际读取字节超过声明长度，未登记文件。')
                     output.write(block)
                     digest.update(block)
                     remaining -= len(block)
-            source = prepare_source(pending, filename, directory)
+            source = prepare_source(pending, filename, directory, limits=self.limits)
             metadata = inspect_recording(source)
-            files = source_manifest(source, metadata)
+            files = source_manifest(source, metadata, limits=self.limits)
             proposal, warnings = suggestions(metadata)
             value = {'id': identifier, 'status': 'needs_confirmation', 'filename': filename,
                      'sha256': digest.hexdigest(), 'metadata': metadata,
@@ -265,7 +331,9 @@ class IntakeStore:
                      'received_at': datetime.now(timezone.utc).isoformat(),
                      'capabilities': {'supported_modality': 'scalp_eeg', 'supported_modalities': list(ROUTES), 'inspection_modalities': sorted(MODALITIES),
                                       'readers': list_readers(), 'max_window_seconds': 120,
-                                      'max_upload_bytes': MAX_UPLOAD_BYTES}}
+                                      'max_upload_bytes': self.limits.max_file_bytes,
+                                      'max_record_bytes': self.limits.max_record_bytes,
+                                      'intake_limit_version': self.limits.version}}
             _save(directory / 'intake.json', value)
             return value
         except Exception as error:
@@ -281,15 +349,16 @@ class IntakeStore:
         intake = self.get(identifier)
         if intake['status'] != 'needs_confirmation':
             raise ValueError('已登记记录的NWB信号不可覆盖；请重新提交文件以检查其他信号。')
+        declared = intake.get('dataset_context', {}).get('declared_stream_id')
+        if declared and body['stream_id'] != declared:
+            raise ValueError('此记录在数据集清单中绑定了指定信号流，请更新清单后重新打开。')
         metadata = intake['metadata']
         streams = {item['stream_id']: item for item in metadata.get('available_streams', [])}
         selected = streams.get(body['stream_id'])
         if metadata.get('format') != 'NWB' or not selected or selected.get('status') != 'available':
             raise ValueError('所选NWB信号不可读取，或不属于这份文件。')
         directory = self._directory(identifier)
-        source = (directory / intake['entry_file']).resolve()
-        if not source.is_relative_to(directory.resolve()) or _hash(source) != intake['source_sha256']:
-            raise ValueError('本地接收副本的指纹发生变化，请重新提交原文件。')
+        source = self._verified_source(intake)
         metadata = inspect_recording(source, stream_id=body['stream_id'])
         require_selected_voltage(metadata)
         proposal, warnings = suggestions(metadata)
@@ -300,12 +369,13 @@ class IntakeStore:
 
     def confirm(self, identifier, body):
         allowed = {'modality', 'reference_scheme', 'eeg_indices', 'reference_indices',
-                   'context_tags', 'label', 'source_note', 'confirmed', 'selected_stream_id'}
+                   'context_tags', 'label', 'source_note', 'confirmed', 'selected_stream_id', 'preprocessing'}
         if not isinstance(body, dict) or set(body) - allowed or body.get('confirmed') is not True:
             raise ValueError('请明确确认模态、通道角色和参考信息；不接受其他登记字段。')
         directory = self._directory(identifier)
         intake = self.get(identifier)
         if intake['status'] == 'registered':
+            if intake.get('linked_root'): self._verified_source(intake)
             # Retrying an identical confirmation is safe; changed metadata needs a new intake.
             existing = _load(directory / 'confirmation.json')
             if existing != body:
@@ -325,17 +395,9 @@ class IntakeStore:
             raise ValueError('请选择参考构型；不清楚时选择未知。')
         eeg = body.get('eeg_indices')
         refs = body.get('reference_indices', {})
-        source = (directory / intake.get('entry_file', 'source.edf')).resolve()
-        if not source.is_relative_to(directory.resolve()):
-            raise ValueError('主文件路径不在当前接收目录中。')
-        if _hash(source) != intake.get('source_sha256', intake['sha256']):
-            raise ValueError('本地接收副本的指纹发生变化，请重新提交原文件。')
-        for item in intake.get('source_files', []):
-            member = (directory / item['name']).resolve()
-            if not member.is_relative_to(directory.resolve()) or not member.is_file() or _hash(member) != item['sha256']:
-                raise ValueError('本地配套文件的指纹发生变化，请重新提交原记录。')
+        source = self._verified_source(intake)
         metadata = inspect_recording(source, **reader_kwargs(intake['metadata']))
-        files = source_manifest(source, metadata)
+        files = source_manifest(source, metadata, limits=self.limits)
         by_index = {c['index']: c for c in metadata['channels']}
         if not isinstance(eeg, list) or not eeg or any(type(i) is not int or i not in by_index for i in eeg) or len(set(eeg)) != len(eeg):
             raise ValueError('请明确选择至少一道不同的EEG通道。')
@@ -372,11 +434,19 @@ class IntakeStore:
                   'intake_confirmation': {'confirmed': True, 'technical_header_automatic': True,
                                           'roles_reference_modality': 'user_confirmed',
                                           'automatic_cleaning': False}}
+        if intake.get('dataset_context'):
+            record['dataset_context'] = copy.deepcopy(intake['dataset_context'])
+            record['dataset_id'] = 'package-' + intake['dataset_context']['package_id']
+            record['linked_intake_id'] = identifier
+            record['description'] = '来自已登记数据集；原文件就地读取，模态与通道由用户确认。'
         filters = metadata.get('declared_filters') or {}
         if filters.get('verified_declaration') is True:
             record['preprocessing'] = {'verified': True, 'source': 'file_header_declaration',
                 'highpass_hz': filters.get('highpass_hz'), 'lowpass_hz': filters.get('lowpass_hz'),
                 'note': '保留文件声明；未独立测量实际滤波传递函数。'}
+        if 'preprocessing' in body:
+            from ephys_qc.processing_history import validate_declaration
+            record['preprocessing'] = validate_declaration(body['preprocessing'])
         _save(directory / 'record.json', record)
         _save(directory / 'confirmation.json', copy.deepcopy(body))
         intake.update(status='registered', input_id=record['id'])

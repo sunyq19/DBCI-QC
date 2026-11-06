@@ -67,6 +67,35 @@ class ReportViewTests(unittest.TestCase):
         self.assertEqual(new['report_view']['score'],response['report_view']['score'])
         self.assertIn('64.64',(self.artifacts / 'new-report.html').read_text())
 
+    def test_compact_summary_preserves_scores_and_complete_evidence(self):
+        row = copy.deepcopy(self.result)
+        row['candidate_index'] = [{'observation': 'x' * 1000, 'id': i} for i in range(100)]
+        row['artifacts'].append({'name': 'candidate-index.json'})
+        evidence = self.artifacts / 'candidate-index.json'
+        evidence.write_text(json.dumps(row['candidate_index']))
+        path = self.job / 'result.json'; path.write_text(json.dumps(row))
+        frozen = path.read_bytes()
+        store = Store.__new__(Store)
+        store.root, store.lock, store.report_views = self.root, threading.RLock(), {}
+        store.jobs = {self.jid: dict(id=self.jid, status='completed', label='example')}
+        summary = store.result(self.jid, compact=True)
+        full = store.result(self.jid)
+        self.assertEqual(summary['report_view'], full['report_view'])
+        self.assertNotIn('candidate_index', summary)
+        self.assertEqual(summary['candidate_index_count'], 100)
+        self.assertEqual(summary['candidate_index_artifact'], 'candidate-index.json')
+        self.assertEqual(full['candidate_index'], row['candidate_index'])
+        self.assertEqual(path.read_bytes(), frozen)
+        self.assertEqual(json.loads(evidence.read_text()), row['candidate_index'])
+        # Returned summaries cannot mutate the cache; changed evidence is not stale.
+        summary['modules'].clear()
+        self.assertTrue(store.result(self.jid, compact=True)['modules'])
+        (self.artifacts / 'M04_spectral.json').unlink()
+        self.assertIsNone(store.result(self.jid, compact=True)['report_view']['score']['value'])
+        row['candidate_index'].append({'id': 100})
+        path.write_text(json.dumps(row))
+        self.assertEqual(store.result(self.jid, compact=True)['candidate_index_count'], 101)
+
     def test_missing_or_failed_evidence_never_produces_a_total(self):
         for change in ('failed','undeclared','missing'):
             with self.subTest(change=change):

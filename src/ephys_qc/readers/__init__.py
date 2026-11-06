@@ -85,6 +85,9 @@ def open_reader(path, record_id='inspection', *, stream_id=None):
         message = str(error).replace(str(source.resolve()), source.name)
         if str(source.resolve().parent) != '/':
             message = message.replace(str(source.resolve().parent), '[package]')
+        from .common import ReaderStructureError
+        if isinstance(error, ReaderStructureError):
+            raise ReaderStructureError(error.code, message) from error
         raise ValueError(message or 'Unable to decode recording structure') from error
 
 

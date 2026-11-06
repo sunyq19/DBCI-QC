@@ -1,5 +1,5 @@
 {
-  "catalogVersion": "2026-11-06.3",
+  "catalogVersion": "2026-11-06.4",
   "roots": [
     {
       "id": "VIS",
@@ -25,14 +25,18 @@
   "sourceFiles": {
     "src/ephys_qc/visualizations/catalog.py": "eeb8a237413308f1d1f36e151f61595838839c9e7eb79029e2632d7c63c89e8d",
     "src/ephys_qc/visualizations/render.py": "782a62733bcec1419564327447302001d50c9ed266c94a47603c89d684037740",
-    "src/ephys_qc/method_registry.py": "d3702644126415da2b4260df4c269c0935cbce5c1bb307f06517708558b4ce8c",
+    "src/ephys_qc/method_registry.py": "674494c96b2c8b2ebef4959eb52460d384c45b9f77dda8782bfad34d3a258f56",
     "src/ephys_qc/readers/__init__.py": "22ef0b06571e3b3f0abb1c5125c4dc78183eb1187f61fea285ae02c273f3351e",
     "src/ephys_qc/research_runtime.py": "c0c33b9f1624ee7b71be02d7bf49fc8848faab7fa7034bafa15bd6eb1b6ea2b8",
     "src/ephys_qc/descriptive_catalog.py": "66ac6ebee912987bc5c301b2cfbea21f43c771b9d2eec43196d5b3e7f4c8b5ef",
     "src/ephys_qc/gnosis_catalog.py": "148ca23bb0b375d5f7e771897b9072dd5db82985e517d75e0113f418785b634c",
     "src/ephys_qc/gnosis_runtime.py": "7c0c0d25d97c2de7ea2b6b98ea93d754b5fc09141128a71b38cefbc6e03dbac6",
     "src/ephys_qc/gnosis_worker.py": "c71802a17a4d2dbcde5b9fa9f479758784ded320237f64f6f515d06515f60450",
-    "docs/dataset-checks.md": "43626b69ea1dd84d12f8e9978887615a2fe96bdfbd6a63822ed06c845ae6b875"
+    "docs/dataset-checks.md": "43626b69ea1dd84d12f8e9978887615a2fe96bdfbd6a63822ed06c845ae6b875",
+    "src/ephys_qc/processing_history.py": "009da338d9ad9a3ee6978722e3c34661da635bad406debef90bb72815d346963",
+    "src/ephys_qc/comparison.py": "8c58ee057abcbbf085488bc23acba0dd5b2c1ca54c39484e5df0b8a2e9ec9cc1",
+    "apps/workbench/batch_jobs.py": "154196c949c3cb124ecf34464553ce092230f248c7c2dd7882c1a7d5e30dac40",
+    "apps/workbench/review_workspace.py": "d7894591a4cdd4201d7d718d5585e8292402da40283e39a8366fea2097dc8f0b"
   },
   "modules": {
     "M01": [
@@ -265,6 +269,27 @@
         "conditions": "以整份检查方案运行；方法对各窗口分别核对适用性。",
         "methods": "",
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/whole_record.py",
+        "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_processing_scope",
+        "title": "处理史与检查范围",
+        "summary": "2026-11-06 接入",
+        "kind": "intake",
+        "status": "ready",
+        "scope": [
+          "eeg",
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "首次读入可确认高通、低通和陷波声明；未知保持未知。",
+        "inputs": "已确认的记录或已保存的结果",
+        "outputs": "范围说明、可追溯结果或复核记录",
+        "conditions": "已声明滤除的目标频率未评；当前信号结果不能证明清洗前质量。",
+        "methods": "",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/processing_history.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/eeg-workflow-v1.md",
         "notes": "",
         "entryType": "support"
       },
@@ -1299,6 +1324,27 @@
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
         "notes": "计算完成不等于质量合格；候选需复核。",
         "entryType": "method"
+      },
+      {
+        "id": "support_comparison",
+        "title": "同条件报告比较",
+        "summary": "2026-11-06 接入",
+        "kind": "report",
+        "status": "ready",
+        "scope": [
+          "eeg",
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "并排查看分项、有效测量量及试行总分；按配置和版本分组。",
+        "inputs": "已确认的记录或已保存的结果",
+        "outputs": "范围说明、可追溯结果或复核记录",
+        "conditions": "当前支持EEG；核对模态、通道、参考、处理史、范围、参数及执行版本。未知不声称可比，不做跨组排名。",
+        "methods": "",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/comparison.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/eeg-workflow-v1.md",
+        "notes": "",
+        "entryType": "support"
       }
     ],
     "M09": [
@@ -1324,6 +1370,27 @@
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
         "notes": "计算完成不等于质量合格；候选需复核。",
         "entryType": "method"
+      },
+      {
+        "id": "support_review_workspace",
+        "title": "候选复核与局部PSD",
+        "summary": "2026-11-06 接入",
+        "kind": "report",
+        "status": "ready",
+        "scope": [
+          "eeg",
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "选择候选查看原始时段的波形及Welch PSD，记录接受、驳回或待定。",
+        "inputs": "已确认的记录或已保存的结果",
+        "outputs": "范围说明、可追溯结果或复核记录",
+        "conditions": "涵盖基础方法及灵犀云候选；PSD在原生采样上计算，人工决定不覆盖算法证据。",
+        "methods": "",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/apps/workbench/review_workspace.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/eeg-workflow-v1.md",
+        "notes": "",
+        "entryType": "support"
       }
     ],
     "D01": [
@@ -1596,6 +1663,27 @@
         "conditions": "不会自动启动数据集里每份文件的信号任务，也不平均不同模态分数。",
         "methods": "",
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/overview.py",
+        "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_signal_batch",
+        "title": "批量后台信号检查",
+        "summary": "2026-11-06 接入",
+        "kind": "report",
+        "status": "ready",
+        "scope": [
+          "eeg",
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "勾选记录、预览方案、确认后依次运行；批次关联各记录报告，可停止。",
+        "inputs": "已确认的记录或已保存的结果",
+        "outputs": "范围说明、可追溯结果或复核记录",
+        "conditions": "仅运行已确认的记录；缺信息逐份说明。服务中断保留历史，需重新预览后启动。",
+        "methods": "",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/apps/workbench/batch_jobs.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/eeg-workflow-v1.md",
         "notes": "",
         "entryType": "support"
       }

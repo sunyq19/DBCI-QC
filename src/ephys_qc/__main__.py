@@ -33,6 +33,15 @@ def main(argv=None):
     inspect = commands.add_parser('inspect', help='Inspect technical metadata without QC')
     inspect.add_argument('source')
     inspect.add_argument('--stream', help='NWB ElectricalSeries path returned by inspect')
+    package = commands.add_parser('package-inspect', help='D01: compare a dataset directory with explicit expected files')
+    package.add_argument('source')
+    package.add_argument('--expectations', required=True, help='package-expectations/1 JSON, prepared before inspection')
+    package.add_argument('--output', required=True, help='New report directory outside the source package')
+    package.add_argument('--skip-readers', action='store_true', help='Inventory and fingerprints only; record headers remain unassessed')
+    dataset = commands.add_parser('dataset-check', help='D01-D03: file completeness, individual and cohort consistency')
+    dataset.add_argument('source')
+    dataset.add_argument('--expectations', required=True, help='Expected-files manifest with an explicit consistency plan')
+    dataset.add_argument('--output', required=True, help='New report directory outside the source package')
     prepare = commands.add_parser('prepare', help='Freeze source metadata and explicitly confirmed selection')
     prepare.add_argument('source')
     prepare.add_argument('--stream', help='NWB ElectricalSeries path returned by inspect')
@@ -56,6 +65,13 @@ def main(argv=None):
                 result = catalog(args.modality)
             elif args.command == 'inspect':
                 result = inspect_recording(args.source, **({'stream_id': args.stream} if args.stream else {}))
+            elif args.command == 'package-inspect':
+                from .dataset_qc import run_package_inventory
+                result = run_package_inventory(args.source, _read(args.expectations), args.output,
+                                               read_headers=not args.skip_readers)
+            elif args.command == 'dataset-check':
+                from .dataset_qc import run_dataset_qc
+                result = run_dataset_qc(args.source, _read(args.expectations), args.output)
             elif args.command == 'prepare':
                 result = prepare_recording(args.source, record_id=args.id, modality=args.modality,
                                            qc_config=_read(args.config), reference_scheme=args.reference_scheme, stream_id=args.stream)
@@ -70,6 +86,10 @@ def main(argv=None):
                     result = run_modules(record, args.output, args.modules, qc_config=config)
         print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
         if args.command == 'run' and _execution_failed(result):
+            return 1
+        if args.command == 'package-inspect' and (result['inventory_status'] != 'complete' or result['header_status'] == 'needs_attention'):
+            return 1
+        if args.command == 'dataset-check' and result['status'] != 'checked':
             return 1
         return 0
     except (OSError, ValueError, TypeError, KeyError, ImportError) as error:

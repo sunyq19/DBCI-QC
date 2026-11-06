@@ -40,7 +40,7 @@ class DocumentLinkTests(unittest.TestCase):
         for origin, page in pages.items():
             for href in page.links:
                 parsed = urlsplit(href)
-                if parsed.scheme or parsed.netloc or parsed.path == '/':
+                if parsed.scheme or parsed.netloc or parsed.path in {'/', '/datasets'}:
                     continue
                 target = parsed.path or origin
                 if target.endswith('.md'):

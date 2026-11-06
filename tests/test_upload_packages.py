@@ -1,5 +1,6 @@
 """Archive intake boundaries and frozen companion files."""
 import io
+from dataclasses import replace
 from pathlib import Path
 import stat
 import sys
@@ -62,7 +63,7 @@ class PackageTests(unittest.TestCase):
         self.rejected([('a.edf', recording()), ('b.edf', recording())])
         self.rejected([('notes.txt', b'no recording')])
         self.rejected([(f'{i}.txt', b'') for i in range(65)])
-        with patch('uploads.MAX_BYTES', 10):
+        with patch.object(self.store, 'limits', replace(self.store.limits, max_record_bytes=10)):
             self.rejected([('a.edf', recording())])
 
     def test_missing_brainvision_companion_and_external_reference_are_rejected(self):

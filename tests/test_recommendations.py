@@ -54,7 +54,7 @@ class RecommendationTests(unittest.TestCase):
         params = result["qc_config"]["method_config"]["extension_parameters"]["mne_amplitude"]
         self.assertIsNone(params["peak_volts"])
         self.assertEqual(params["flat_volts"], 0)
-        self.assertEqual(method_ids(result["optional_methods"]), {"mne_bridge", "mne_lof", "mne_muscle", "autoreject_global", "faster_channels", "cleanline", "zapline_plus", "fieldtrip_zvalue"})
+        self.assertEqual(method_ids(result["optional_methods"]), {"mne_bridge", "mne_lof", "mne_muscle", "autoreject_global", "faster_channels", "cleanline", "zapline_plus", "fieldtrip_zvalue", "gnosis_line_length", "gnosis_psd_deviation", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band", "gnosis_band_power", "gnosis_band_amplitude", "gnosis_reference_ranges"})
         self.assertFalse(result["scope"]["signal_read"])
         self.assertFalse(result["scope"]["job_created"])
 

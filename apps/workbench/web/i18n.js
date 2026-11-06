@@ -8,7 +8,39 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `读取本机文件，生成检查报告。	Read a local recording and generate a QC report.
+  const pairs = `概览	Overview
+问题复核	Review candidates
+可视化	Visualizations
+检查结果	Check results
+本次结果可视化	Result visualizations
+滤波与处理史	Filtering and processing history
+影响可检查项目	Affects available checks
+不知道可保留未知。已滤除的频带不计为合格。	Leave unknown if unsure. Removed bands are not counted as clean.
+已确认处理声明	Processing declaration confirmed
+高通 Hz	High-pass Hz
+低通 Hz	Low-pass Hz
+陷波 Hz	Notch Hz
+例如 50, 100	For example 50, 100
+来源依据	Source evidence
+部分项目可用	Some checks available
+已完成部分检查	Some checks completed
+局部功率谱密度 · Welch	Local power spectral density · Welch
+示例报告	Example reports
+先看一份已完成的结果。	Explore a completed result.
+上传数据，确认信息，查看报告。	Upload data, confirm information, view the report.
+记录与数据集	Recordings and datasets
+验证样例	Validation examples
+数据目录分类	Data library categories
+读取文件或打开已有数据，生成检查报告。	Read a file or open existing data to generate a QC report.
+刷新	Refresh
+已有数据	Your data
+搜索数据名称	Search data
+正在加载数据…	Loading data…
+显示更多	Show more
+返回数据集	Return to dataset
+单份记录	Single recording
+数据集	Dataset
+读取本机文件，生成检查报告。	Read a local recording and generate a QC report.
 选择本机文件	Choose a local file
 已选择文件	File selected
 单个记录，或包含配套文件的 ZIP	A single recording or a ZIP with companion files
@@ -208,6 +240,8 @@ EEGLAB：连续记录 .set 可直接上传；有外置 .fdt 时一起打包 ZIP�
 FIF：仅支持单文件 Raw 记录；暂不支持拆分 FIF 或 epochs。	FIF: single-file Raw recordings only; split FIF and epochs are not supported.
 EDF/BDF：暂不支持不连续记录 EDF+D / BDF+D。	EDF/BDF: discontinuous EDF+D / BDF+D recordings are not supported.
 ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 512 MiB。	ZIP: one recording with one primary file per archive; both upload and extracted size must be within 512 MiB.
+ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 1 GiB。	ZIP: one recording with one primary file per archive; both upload and extracted size must be within 1 GiB.
+ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 2 GiB。	ZIP: one recording with one primary file per archive; both upload and extracted size must be within 2 GiB.
 sEEG、细胞外记录尚未接入质控；格式可读取不代表该模态可分析。	sEEG and extracellular QC are not yet available; a readable format does not imply QC support for its modality.
 NWB、Neuropixels 原生格式暂不支持读取；单独 .eeg 不能上传。	NWB and native Neuropixels formats cannot yet be read; a standalone .eeg file cannot be uploaded.
 候选	Candidate
@@ -759,6 +793,9 @@ EMG 辅助	EMG auxiliary
 请根据采集资料确认分析模态。	Confirm the analysis modality using the acquisition documentation.
 请至少选择一条分析信号。	Select at least one analysis signal.
 请选择非空数据文件或 ZIP，最大 512 MiB。	Select a nonempty data file or ZIP archive no larger than 512 MiB.
+请选择非空数据文件或 ZIP，最大 1 GiB。	Select a nonempty data file or ZIP archive no larger than 1 GiB.
+请选择非空数据文件或 ZIP，最大 2 GiB。	Select a nonempty data file or ZIP archive no larger than 2 GiB.
+尚未取得上传限额，请刷新后重试。	Upload limits are unavailable. Refresh and try again.
 读取电生理文件、核对信息并生成质控方案。	Read electrophysiology files, review metadata and prepare a QC plan.
 采样率未知	Sampling rate unknown
 未指定分析配置	No analysis profile specified
@@ -886,6 +923,8 @@ EEG 质控工作台	QC Workbench
 读取本机文件	Read a local file
 本机 EDF	Local EDF file
 仅在本机处理 · 最大 512 MiB	Processed locally · Maximum 512 MiB
+仅在本机处理 · 最大 1 GiB	Processed locally · Maximum 1 GiB
+仅在本机处理 · 最大 2 GiB	Processed locally · Maximum 2 GiB
 继续确认	Resume confirmation
 框架预览	Workflow preview
 上传 EDF 后，流程将按数据更新。	Upload an EDF file to adapt the workflow to your data.
@@ -1879,6 +1918,8 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^(\d+) 项可检查(?: · (\d+) 项缺条件)?$/, (_,a,b) => `${a} checks available${b ? ` · ${b} missing prerequisites` : ""}`],
+    [/^(\d+) 项缺条件$/, (_,a) => `${a} missing prerequisites`],
     [/^非有限值 ([\d,—]+) · 恒值 ([\d,—]+) 个样本$/, (_,a,b) => `Nonfinite ${a} · Constant ${b} samples`],
     [/^(\d+)\/(\d+) 通道窗命中 · 涉及 (\d+) 道$/, (_,a,b,c) => `${a}/${b} channel-windows flagged · ${c} channels`],
     [/^([\d,—]+) 条候选区间 · 涉及 ([\d,—]+) 道$/, (_,a,b) => `${a} candidate intervals · ${b} channels`],

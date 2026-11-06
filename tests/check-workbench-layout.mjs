@@ -89,6 +89,18 @@ check('single IDs and three distinct studio regions',()=>{
   assert(layout,'studio-layout exists');assert(upload);assert(pipeline);assert(controls);
   for(const area of [upload,pipeline,controls])assert.equal(area.parent,layout,'Each studio region is a direct layout child');
 });
+check('one data entry retains upload first and a shared data library',()=>{
+  assert(!html.includes('qc-mode-switch'));assert(byId('data-library'));assert(upload.offset<byId('data-library').offset);
+  assert(containing(byId('data-library'),controls));assert(Object.hasOwn(byId('registered-records').attrs,'hidden'));
+  assert(html.includes('data-library.js'));
+});
+check('landing exposes upload and reports, with inventory and execution details opt-in',()=>{
+  assert.equal(byId('data-library').tag,'details');assert(!Object.hasOwn(byId('data-library').attrs,'open'));
+  assert(byId('demo-reports'));assert(upload.offset<byId('demo-reports').offset);
+  assert(containing(byId('pending-intakes-button'),byId('data-library')));
+  assert(!Object.hasOwn(byId('job-execution-details').attrs,'open'));
+  assert(!source.includes('if (historical) $("run-history-panel").open = true'));
+});
 check('pipeline is an independent permanently visible aside',()=>{
   assert.equal(pipeline.tag,'aside');assert(!containing(pipeline,byId('analysis-workspace')));assert(!containing(pipeline,controls));
   for(const node of [pipeline,...ancestors(pipeline)]){assert.notEqual(node.tag,'details');assert(!Object.hasOwn(node.attrs,'hidden'))}
@@ -143,7 +155,7 @@ check('unified landing has no modality navigation and toolbox scope remains seco
 });
 
 check('four-modality upload remains unified and raw SpikeGLX companion requirements are explicit',()=>{
-  assert(!byId('modality-tabs'));const accept=byId('intake-file').attrs.accept.split(',');assert(accept.includes('.meta'));assert(accept.includes('.zip'));assert(!accept.includes('.bin'));assert(html.includes('SpikeGLX (.bin + .meta ZIP)'));assert(html.includes('每包仅一个 AP 或 LF 原始流'));assert(html.includes('不评估已分选单元'));assert(accept.includes('.nwb'));assert(html.includes('NWB 2 / HDF5'));assert(html.includes('Units 仅识别，不做波形质控'));assert(!html.includes('NWB 暂不支持读取'));assert(!html.includes('sEEG、细胞外记录尚未接入质控'));
+  assert(!byId('modality-tabs'));const accept=byId('intake-file').attrs.accept.split(',');assert(accept.includes('.meta'));assert(accept.includes('.zip'));assert(!accept.includes('.bin'));assert(html.includes('<span>SpikeGLX</span>'));assert(html.includes('同名 .bin 与 .meta 打包 ZIP'));assert(html.includes('每包仅一个 AP 或 LF 原始流'));assert(html.includes('不评估已分选单元'));assert(accept.includes('.nwb'));assert(html.includes('NWB 2 / HDF5'));assert(html.includes('Units 仅识别，不做波形质控'));assert(!html.includes('NWB 暂不支持读取'));assert(!html.includes('sEEG、细胞外记录尚未接入质控'));
 });
 for(const[name,run]of tests){run();console.log(`PASS ${name}`)}
 console.log(`${tests.length} static layout contracts passed. This is not browser geometry, keyboard, or visual validation.`);

@@ -15,7 +15,7 @@ import math
 import re
 import warnings
 from .common import (SourceGuard, companion, source_manifest, public_manifest,
-                     annotation_summary)
+                     annotation_summary, ReaderStructureError)
 
 
 def _configuration(path):
@@ -47,6 +47,15 @@ def _brainvision_files(path):
     n = int(header['Common Infos']['NumberOfChannels'])
     if not 1 <= n <= 4096:
         raise ValueError('BrainVision 通道数超出当前限制。')
+    if header['Common Infos'].get('DataFormat', '').upper() == 'BINARY':
+        # MNE floors byte_count / (channel_count * sample_width), silently
+        # discarding a partial trailing frame. Reject that loss before opening.
+        widths = {'INT_16': 2, 'INT_32': 4, 'IEEE_FLOAT_32': 4}
+        width = widths.get(header.get('Binary Infos', 'BinaryFormat', fallback='').upper())
+        if width is None:
+            raise ValueError('BrainVision 二进制样本类型未支持。')
+        if data.stat().st_size == 0 or data.stat().st_size % (n * width):
+            raise ReaderStructureError('incomplete_sample_frame', 'BrainVision 二进制长度不是完整通道采样帧，拒绝静默丢弃尾部数据。')
     names, units = [], []
     for i in range(1, n + 1):
         fields = header['Channel Infos'][f'Ch{i}'].split(',')

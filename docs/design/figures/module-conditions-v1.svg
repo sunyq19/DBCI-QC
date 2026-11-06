@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+<title>数据条件与启用方法</title><desc>基础方法随模态切换；辅助导联、参考比较组与事件表，决定增加哪些检查。</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#7894b5" stroke-width="1.4"/></marker></defs>
+<rect width="1920" height="1080" fill="#f7f9fc"/>
+<g font-family="Noto Sans CJK SC, sans-serif">
+<text x="80" y="68" font-size="20" fill="#245bd6" font-weight="600">DBCI-QC  /  模块化设计</text>
+<text x="80" y="128" font-size="42" fill="#152f50" font-weight="700">数据条件与启用方法</text>
+<text x="80" y="166" font-size="24" fill="#58718d" font-weight="400">基础方法随模态切换；辅助导联、参考比较组与事件表，决定增加哪些检查。</text>
+<rect x="80" y="215" width="1760" height="610" rx="18" fill="white" stroke="#d8e3ef" stroke-width="1.5"/>
+<rect x="80" y="215" width="1760" height="65" rx="16" fill="#eaf1ff" stroke="#eaf1ff" stroke-width="1.5"/>
+<text x="108" y="258" font-size="25" fill="#245bd6" font-weight="600">输入数据</text>
+<text x="445" y="258" font-size="25" fill="#245bd6" font-weight="600">默认检查</text>
+<text x="975" y="258" font-size="25" fill="#245bd6" font-weight="600">按条件增加</text>
+<text x="1510" y="258" font-size="25" fill="#245bd6" font-weight="600">结果</text>
+<text x="108" y="332" font-size="24" fill="#152f50" font-weight="600">人类连续头皮 EEG</text>
+<text x="445" y="332" font-size="24" fill="#152f50" font-weight="400">M03 完整性 · M04 PSD / 工频</text>
+<text x="445" y="370" font-size="24" fill="#58718d" font-weight="400">M05 PREP 非空间分项</text>
+<text x="975" y="332" font-size="24" fill="#152f50" font-weight="400">M06 辅助导联 / 高频线索</text>
+<text x="975" y="370" font-size="24" fill="#58718d" font-weight="400">M07 已登记事件 / 分期</text>
+<text x="1510" y="332" font-size="22" fill="#152f50" font-weight="400">分项与候选</text>
+<text x="1510" y="370" font-size="22" fill="#58718d" font-weight="400">符合条件时试行评分</text>
+<path d="M108 416H1812" stroke="#d8e3ef"/>
+<text x="108" y="468" font-size="24" fill="#152f50" font-weight="600">连续 ECoG / sEEG</text>
+<text x="445" y="468" font-size="24" fill="#152f50" font-weight="400">M03 完整性 · M04 描述性频谱</text>
+<text x="445" y="506" font-size="24" fill="#58718d" font-weight="400">M05 逐触点统计</text>
+<text x="975" y="468" font-size="24" fill="#152f50" font-weight="400">M07 已登记事件</text>
+<text x="975" y="506" font-size="24" fill="#58718d" font-weight="400">FieldTrip 差分候选（手选）</text>
+<text x="1510" y="468" font-size="22" fill="#152f50" font-weight="400">基础描述报告</text>
+<text x="1510" y="506" font-size="22" fill="#58718d" font-weight="400">不套头皮判坏与评分</text>
+<path d="M108 552H1812" stroke="#d8e3ef"/>
+<text x="108" y="604" font-size="24" fill="#152f50" font-weight="600">Neuropixels 电压</text>
+<text x="108" y="642" font-size="24" fill="#58718d" font-weight="400">连续 AP / LF 单流</text>
+<text x="445" y="604" font-size="24" fill="#152f50" font-weight="400">M03 完整性 · M04 描述性频谱</text>
+<text x="445" y="642" font-size="24" fill="#58718d" font-weight="400">M05 逐通道统计</text>
+<text x="975" y="604" font-size="24" fill="#152f50" font-weight="400">AP：SpikeInterface（手选）</text>
+<text x="975" y="642" font-size="24" fill="#58718d" font-weight="400">M07 已登记事件</text>
+<text x="1510" y="604" font-size="22" fill="#152f50" font-weight="400">电压层报告</text>
+<text x="1510" y="642" font-size="22" fill="#58718d" font-weight="400">不含分选单元质控</text>
+<path d="M108 688H1812" stroke="#d8e3ef"/>
+<text x="108" y="740" font-size="24" fill="#152f50" font-weight="600">数据集</text>
+<text x="445" y="740" font-size="24" fill="#152f50" font-weight="400">D01 文件 · D02 个体对应</text>
+<text x="445" y="778" font-size="24" fill="#58718d" font-weight="400">D03 同组配置与重复线索</text>
+<text x="975" y="740" font-size="24" fill="#152f50" font-weight="400">各记录按已确认模态运行</text>
+<text x="975" y="778" font-size="24" fill="#58718d" font-weight="400">需要清单、映射与比较组</text>
+<text x="1510" y="740" font-size="22" fill="#152f50" font-weight="400">总览 + 单份报告</text>
+<text x="1510" y="778" font-size="22" fill="#58718d" font-weight="400">不平均不同模态分数</text>
+<text x="80" y="876" font-size="27" fill="#152f50" font-weight="600">三个最直观的触发条件</text>
+<rect x="80" y="899" width="560" height="102" rx="14" fill="#f0f9f9" stroke="#c5e3e4" stroke-width="1.5"/>
+<text x="102" y="937" font-size="25" fill="#147d83" font-weight="600">比较组有依据、默认 ≥4 道</text>
+<text x="102" y="975" font-size="24" fill="#58718d" font-weight="400">启用 PREP 组内相对判坏</text>
+<rect x="680" y="899" width="560" height="102" rx="14" fill="#f0f9f9" stroke="#c5e3e4" stroke-width="1.5"/>
+<text x="702" y="937" font-size="25" fill="#147d83" font-weight="600">ECG / EOG 已确认且同钟</text>
+<text x="702" y="975" font-size="24" fill="#58718d" font-weight="400">启用相应导联锁时检查</text>
+<rect x="1280" y="899" width="560" height="102" rx="14" fill="#f0f9f9" stroke="#c5e3e4" stroke-width="1.5"/>
+<text x="1302" y="937" font-size="25" fill="#147d83" font-weight="600">事件 / 分期表已登记</text>
+<text x="1302" y="975" font-size="24" fill="#58718d" font-weight="400">启用 M07 时间与覆盖核对</text>
+<text x="930" y="1044" font-size="18" fill="#58718d" font-weight="400">疾病标签不单独改阈值；缺条件仅影响对应方法，未评不记作满分</text>
+<text x="80" y="1044" font-size="18" fill="#58718d" font-weight="400">模块路由 v1.0  ·  2026-11-06  ·  工程设计基线</text>
+</g></svg>

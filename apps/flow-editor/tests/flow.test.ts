@@ -38,9 +38,9 @@ test('hierarchy upgrade covers the registry and preserves every fixed snapshot a
  await Promise.all([ensureHierarchy(db),ensureHierarchy(db)]);const current:any=await readFlow(db);
  assert.equal(current.revision,3);assert.equal(current.doc.nodes[1].title,'成员保留的标题');
  assert.deepEqual((await readFlow(db,{version:'baseline-v1'})as any).doc,seed);
- assert.equal((await readFlow(db,{version:'visualization-v13'})as any).hash,current.hash);
+ assert.equal((await readFlow(db,{version:'workflow-v14'})as any).hash,current.hash);
  await saveFlow(db,3,{...current.doc,nodes:edited},'继续维护子方法','editor');await ensureHierarchy(db);
- assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'visualization-v13'})as any).revision,3);
+ assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'workflow-v14'})as any).revision,3);
 });
 test('malformed and excessively deep children cannot enter shared storage',async()=>{
  const {withCatalog}=await import('../lib/catalog');
@@ -48,7 +48,7 @@ test('malformed and excessively deep children cannot enter shared storage',async
  const deep=structuredClone(seed);let n=deep.nodes[0];for(let i=0;i<6;i++){n.children=[{...structuredClone(seed.nodes[0]),id:'deep'+i}];n=n.children[0];}assert.throws(()=>validateDoc(deep),/层级/);
 });
 test('catalog version labels cannot collide with an existing member version',async()=>{
- const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.3 · 统一可视化层','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'visualization-v13'})as any).version.label,'v1.3 · 统一可视化层 · r2');
+ const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.4 · EEG 检查与复核','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'workflow-v14'})as any).version.label,'v1.4 · EEG 检查与复核 · r2');
 });
 
 test('static release files are valid and content hashes match; public publishing cannot save drafts',async()=>{
@@ -57,7 +57,7 @@ test('static release files are valid and content hashes match; public publishing
  const g=globalThis as any;g.window={__FLOW_PUBLICATION__:pub};
  try{
   assert.equal((staticResponse('/api/session') as any).canEdit,false);
-  assert.equal((staticResponse('/api/flow') as any).version.id,'visualization-v13');
+  assert.equal((staticResponse('/api/flow') as any).version.id,'workflow-v14');
   assert.equal((staticResponse('/api/flow?version=baseline-v1') as any).doc.nodes.length,14);
   assert.throws(()=>staticResponse('/api/flow',{method:'POST'}),/发布版/);
   assert.throws(()=>staticResponse('/api/flow?version=missing'),/尚未发布/);

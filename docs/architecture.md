@@ -1,5 +1,9 @@
 # 平台顶层流程
 
+下周展示与模块交接使用[模块与启用规则 v1.0](design/module-routing-v1.md)：一张总图、一张数据条件表，固定 M01–M09 与 D01–D03 的职责、默认推荐和条件启用边界。
+
+2026-11-06 补充：后续产品结构与云端改造以[顶层设计 v1.0](design/platform-v1.md)为固定基线。本页保留现有 M 系列模块、适用条件和执行依赖说明；D01–D03 见[数据集检查规则](dataset-checks.md)。统一总览/详情与云端执行属于后续阶段，现有本机入口继续保留。
+
 状态：目标架构与当前执行边界。更新：2026年10月31日。当前路线：头皮 EEG，以及 ECoG、sEEG、Neuropixels连续电压基础描述检查。当前运行与测试范围见 [验收记录](runtime-validation.md)。
 
 [English](en/architecture.md)

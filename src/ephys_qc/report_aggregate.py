@@ -19,7 +19,7 @@ def channel_evidence(continuity, line, muscle):
             n = item.get('nonfinite_sample_count')
             if all(isinstance(x, (int, float)) and math.isfinite(x) for x in (a,b,n)) and 0 <= a <= b and n >= 0:
                 r['components']['integrity'] = {'numerator': a, 'denominator': b+n}
-    for item in line.get('channels', []):
+    for item in line.get('channels', []) if line.get('score_eligible', True) else []:
         r = row(item)
         if r is not None:
             r['components']['line_noise'] = {'numerator': item['total']-item['hits'], 'denominator': item['total']}
@@ -165,6 +165,7 @@ def build_recording_view(result, artifacts, label=''):
     base['notes']=['逐通道累加各窗分子分母，再计算异常占比的均方根；总分取最低分项。不平均窗口分数。',
                    '各窗口独立检测，阈值与边缘剔除逐窗计算；边界可能影响候选。',
                    '通道与辅助导联的额外检查保留在逐窗报告中，未并入三项基础评分。']
+    base['notes'].extend(dict.fromkeys(note for v in present if v.get('processing_scope') for note in v['notes'] if '滤波' in note or '输入信号' in note or '频带未完整' in note))
     if not base['scoring_complete']:base['notes'].append('部分范围或基础分项未完成，不给整份总分；已有证据仍展示。')
     line=base['line'];base['headline']='检出待复核线索' if line['hits'] or hf_count or base['finite']['nonfinite'] or base['finite']['constant'] else '基础检查未检出候选'
     if not base['scoring_complete']:base['headline']='已完成部分检查'

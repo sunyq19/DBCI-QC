@@ -36,6 +36,13 @@ extras=[
  ('OVERVIEW','overview','数据集报告汇总','按个体和记录汇总资料问题，关联已有单份信号报告。','不会自动启动数据集里每份文件的信号任务，也不平均不同模态分数。','src/ephys_qc/dataset_qc/overview.py')]
 for parent,key,title,desc,condition,path in extras:
  catalog.setdefault(parent,[]).append(node('support_'+key,title,['dataset'] if parent=='OVERVIEW' else list(modes.values())+['dataset'],kind='intake' if parent=='INPUT' else 'report',entry='support',summary='执行与汇总',description=desc,inputs='已确认的记录或数据包',outputs='接入证据或执行结果',conditions=condition,evidence=base+path))
+workflow_support=[
+ ('M02','processing_scope','处理史与检查范围','首次读入可确认高通、低通和陷波声明；未知保持未知。','已声明滤除的目标频率未评；当前信号结果不能证明清洗前质量。','src/ephys_qc/processing_history.py'),
+ ('M09','review_workspace','候选复核与局部PSD','选择候选查看原始时段的波形及Welch PSD，记录接受、驳回或待定。','涵盖基础方法及灵犀云候选；PSD在原生采样上计算，人工决定不覆盖算法证据。','apps/workbench/review_workspace.py'),
+ ('OVERVIEW','signal_batch','批量后台信号检查','勾选记录、预览方案、确认后依次运行；批次关联各记录报告，可停止。','仅运行已确认的记录；缺信息逐份说明。服务中断保留历史，需重新预览后启动。','apps/workbench/batch_jobs.py'),
+ ('M08','comparison','同条件报告比较','并排查看分项、有效测量量及试行总分；按配置和版本分组。','当前支持EEG；核对模态、通道、参考、处理史、范围、参数及执行版本。未知不声称可比，不做跨组排名。','src/ephys_qc/comparison.py')]
+for parent,key,title,description,condition,path in workflow_support:
+ catalog.setdefault(parent,[]).append(node('support_'+key,title,['eeg','dataset'],kind='report' if parent in ['M08','M09','OVERVIEW'] else 'intake',entry='support',summary='2026-11-06 接入',description=description,inputs='已确认的记录或已保存的结果',outputs='范围说明、可追溯结果或复核记录',conditions=condition,evidence=base+path+'\n'+base+'docs/design/eeg-workflow-v1.md'))
 gnosis_url='https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE'
 for parent in ['M04','M05','M06']:
  leaves=[n for n in catalog[parent] if n['id'].startswith('f_gnosis_')]
@@ -48,7 +55,7 @@ for v in visualization_specs():
  catalog['VIS'].append(node(v['id'],v['name'],v['scope'],kind='report',entry='visualization',status='planned' if v['status']=='planned' else 'ready',summary='独立选择图表',description=v['description'],inputs='已保存的检查结果；依赖 '+ '、'.join(v['dependencies']),outputs='统一配色的可选图表；保留单位、时间范围和缺测状态',conditions=v['conditions'],methods=v['implementation'],evidence='\n'.join(v['sources']+[base+'docs/visualizations.md']),notes='选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。'))
 visual_root=node('VIS','结果可视化',['eeg'],kind='report',entry='support',summary='统一展示层 · 按需要选图',description='雷佳欣路线与灵犀云路线的图表集中在同一层级。按图的用途选择；来源保留在详情里。',inputs='已保存的单份或分窗质控结果',outputs='波形、频谱、通道指标、候选时间与频带图',conditions='仅渲染已有证据；缺少依赖时提示先运行对应检查。当前图表适配头皮EEG。',methods='DBCI-QC 可视化插件登记与SVG渲染；无需重新计算QC。',evidence=base+'docs/visualizations.md',notes='地形图待坐标接入，雷达图待尺度规则确认。当前不伪造坐标和参考分布。')
 visual_root.update(x=1110,y=1020)
-files=['src/ephys_qc/visualizations/catalog.py','src/ephys_qc/visualizations/render.py','src/ephys_qc/method_registry.py','src/ephys_qc/readers/__init__.py','src/ephys_qc/research_runtime.py','src/ephys_qc/descriptive_catalog.py','src/ephys_qc/gnosis_catalog.py','src/ephys_qc/gnosis_runtime.py','src/ephys_qc/gnosis_worker.py','docs/dataset-checks.md']
-out={'catalogVersion':'2026-11-06.3','roots':[visual_root],'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
+files=['src/ephys_qc/visualizations/catalog.py','src/ephys_qc/visualizations/render.py','src/ephys_qc/method_registry.py','src/ephys_qc/readers/__init__.py','src/ephys_qc/research_runtime.py','src/ephys_qc/descriptive_catalog.py','src/ephys_qc/gnosis_catalog.py','src/ephys_qc/gnosis_runtime.py','src/ephys_qc/gnosis_worker.py','docs/dataset-checks.md','src/ephys_qc/processing_history.py','src/ephys_qc/comparison.py','apps/workbench/batch_jobs.py','apps/workbench/review_workspace.py']
+out={'catalogVersion':'2026-11-06.4','roots':[visual_root],'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
 Path('content/module-catalog.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('Methods:',len(collected),'implemented:',sum(n['status']!='planned' for n in collected.values()),'readers:',len(reader_parent['children']),'dataset checks:',sum(len(catalog[k]) for k in ['D01','D02','D03']))

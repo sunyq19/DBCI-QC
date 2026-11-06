@@ -15,8 +15,16 @@ def run(context: ModuleContext) -> dict:
     aux = {"references": state["references"], "reference_channels": state["reference_channels"]}
     events = compute_event_qc(*_args(state), **_origin(state), **aux, config=methods.get("events"))
     save("M06_auxiliary_events.json", events)
-    payload = compute_muscle_qc(*_args(state), **_origin(state), **aux, config=methods.get("muscle"),
-                                excluded_intervals=state["continuity_candidates"])
+    from ..processing_history import scope
+    assessment = scope(context.record, context.config, state['fs'])
+    if assessment['hf_limited_by_history']:
+        payload = {'status': 'not_assessed_preprocessing', 'channels': [], 'windows': [], 'candidates': [],
+                   'reference': {'status': 'not_assessed'}, 'processing_scope': assessment,
+                   'reason': '已声明滤波范围未保留当前高频检查频带；不计为满分。'}
+    else:
+        payload = compute_muscle_qc(*_args(state), **_origin(state), **aux, config=methods.get("muscle"),
+                                    excluded_intervals=state["continuity_candidates"])
+        payload['processing_scope'] = assessment
     save("M06_muscle.json", payload)
     row["summary"] = {"events": {k: {"status": b["status"], "event_count": b["detected_event_count"]} for k, b in events["by_kind"].items()},
                       "muscle_status": payload["status"], "emg_reference_status": payload["reference"]["status"],

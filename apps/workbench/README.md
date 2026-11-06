@@ -18,12 +18,29 @@
 
 - `web/`：浏览器界面；向接口提交配置，显示服务返回的计划和状态。
 - `server.py`：本机 API、任务队列、状态持久化、取消、结果访问。
+- `package_jobs.py`：已登记数据包的后台队列与历史；调用独立 D01–D03 核心。
+- `data_library.py`、`web/data-library.js`：单记录/数据集统一目录。
+- `dataset_overview.py`、`web/datasets.*`：数据集总览、记录分项与来源匹配、HTML 汇总。汇总核心位于 `src/ephys_qc/dataset_qc/overview.py`。
 - `worker.py`：每个任务独立运行，读取冻结请求，发送逐模块事件。
 - `input_config.py`：兼容已有EDF技术头检查入口。
 - `intake.py` / `uploads.py`：本机文件接收、受限ZIP配套包、信息提取和明确确认。
 - `../../src/ephys_qc/readers/`：统一读取器注册、元数据、原生时间窗与单位接口；扩展格式不必重写HTTP或检测模块。
 - `standards_page.py`：只读呈现技术规范及九个模块文档，提供层级目录、模块导航、下载和打印；只支持有限 Markdown 语法，转义原始 HTML，不引入额外依赖。
 - `../../src/ephys_qc/`：适用性判断、依赖调度、计算适配与报告。
+
+## 云端限额的本地验证
+
+`admission_policy` 默认是 `local`，本机登记目录及独立 CLI 不受云端数据集限额约束；网页单记录上传默认上限为 2 GiB。配置中设为 `cloud-intake/1.3` 后，登记目录提交和记录任务均执行服务端硬判定：单文件/记录 2 GiB，数据集 10 GiB、100 记录、5,000 文件。也可在启动 `server.py` 时传入 `--admission-policy cloud-intake/1.3`。配置未知策略时拒绝启动，不静默回退。
+
+此开关仅验证接入规则，服务仍监听本机。它不提供云端登录、OSS 或断点续传。测试实例应使用独立的 `data_dir`，不要让两个服务共用运行目录。
+
+显式配置 `cloud-intake/1.0` 或 `cloud-intake/1.1` 时分别保留 512 MiB 或 1 GiB 上限，不静默升级；需要新上限时配置 `cloud-intake/1.3`。旧 `cloud-intake/1.2` 保留 2 GiB/5 GiB。未指定云端策略的本地网页上传默认采用 2 GiB，目录/CLI 不增加云端数据集限制。调整依据见[多模态体积与验证](../../docs/validation/cloud-intake-v1.3-20261106.md)。
+
+规则核心位于 [`admission.py`](../../src/ephys_qc/admission.py)，目录适配位于 [`dataset_qc/admission.py`](../../src/ephys_qc/dataset_qc/admission.py)。API 通过 `catalog.capabilities.admission_policy` 和 `GET /api/v1/packages` 的 `admission_policy` 返回生效限额；未启用云端限额时为 `null`。单记录上传上限由 `capabilities.intake.max_upload_bytes` 返回，前端取得后才允许上传。
+
+超限返回 HTTP **413**，包括 `code=intake_limit_exceeded`、`policy_version`、`field`、`observed` 和 `limit`，不创建任务。服务端扫描全部实际文件（包含清单外及隐藏目录文件），核验读取器声明及清单绑定的配套文件合计，保存 `admission` 证据；执行前复查文件状态，数据变化则停止。没有可读取结构的记录按同目录文件总大小作保守上界；缺件仍留给 D01 输出质量问题，不伪装成接入成功即质量合格。嵌套压缩包、链接及超过 20,000 个目录/文件条目的遍历被拒绝；单记录 ZIP 保留现有 64 条目限制。
+
+当前适配基于可访问的本机目录，并非不可变云对象快照。未来 OSS 完成上传时，仍须由服务端核对全部对象、实际上传量和对象版本，再调用共用规则；不能把本地验证当成云端多租户验收。见[验收记录](../../docs/validation/cloud-intake-20261106.md)。
 
 ## 质控标准文档
 
@@ -37,7 +54,7 @@
 
 当前实现：1.0.0rc3.dev4。NWB 2/HDF5支持范围、真实来源和边界例见[NWB接入样例](../../docs/nwb-testing.md)。单位表只展示其存在，不能计作连续通道或声称已完成unit质控。
 
-首页选择本机文件，初次加载不选择登记记录、不推荐、不规划。支持连续EDF/EDF+、BDF、BrainVision、连续EEGLAB、单文件FIF、NWB 2/HDF5连续ElectricalSeries，以及已支持探针的SpikeGLX AP/LF单流。后者须将同名`.ap.bin/.ap.meta`或`.lf.bin/.lf.meta`打包ZIP；一次不同时提交AP和LF。服务复制到仓库外`intakes/<id>/`，保存原始上传和实际读取主/配套文件的SHA256。配套文件须同目录打包ZIP，一包仅一份记录，至多64个条目；上传与解压后总大小均不超过512 MiB。ZIP不得含越界路径、链接、重复文件名或加密内容。读取器复核真实文件结构，不接受服务器路径或URL。
+首页选择本机文件，初次加载不选择登记记录、不推荐、不规划。支持连续EDF/EDF+、BDF、BrainVision、连续EEGLAB、单文件FIF、NWB 2/HDF5连续ElectricalSeries，以及已支持探针的SpikeGLX AP/LF单流。后者须将同名`.ap.bin/.ap.meta`或`.lf.bin/.lf.meta`打包ZIP；一次不同时提交AP和LF。服务复制到仓库外`intakes/<id>/`，保存原始上传和实际读取主/配套文件的SHA256。配套文件须同目录打包ZIP，一包仅一份记录，至多64个条目；默认上传与解压后总大小均不超过 2 GiB。ZIP不得含越界路径、链接、重复文件名或加密内容。读取器复核真实文件结构，不接受服务器路径或URL。
 
 右侧展示格式、通道数、时长、采样率、待确认模态、标注数及原始标签；保留通道名、索引、单位和文件声明。随后明确确认分析模态与通道角色，疾病、年龄、任务、参考及来源未知时保留未知。建议角色来自文件通道类型及名称线索，不证明电极位置。所选分析与辅助信号须有可换算电压单位、共用原生采样率，禁止自动上采样或按重名合并；BrainVision重名因当前后端限制明确拒绝。辅助导联每类最多一条。共同/联耳参考按用户声明建比较组；未知、混合或双极构型不自动成组。已接入模态按已确认信息进入各自路线，其他信号仅保留读取信息，不生成错配计划。NWB多流须先选择一个ElectricalSeries，流选择与输入版本、计划及报告一起冻结；NWB不自动证明电极位置。
 
@@ -124,3 +141,75 @@
 sEEG规范位于`/standards/seeg`，Neuropixels规范位于`/standards/neuropixels`；模块与英文页沿用相同子路径结构。Neuropixels内部使用`extracellular`标识，当前支持已核验SpikeGLX AP/LF或有明确Neuropixels设备证据的NWB连续ElectricalSeries，不等于支持所有细胞外数据。路线标识为`neuropixels-voltage/2`，标签为“Neuropixels 电压”。
 
 SpikeGLX读取器严格核验保存通道映射、探针与IMRO、逐道标定、原生时钟和声明文件长度/哈希；数字同步字保留为bits，不参与电压质控。NP1公开AP/LF已独立读回；NP2 type21/24仅有合成测试。新路线的M03–M05复用描述量计算核；M06不开放。数据准备与验收入口见[多模态接入设计](../../docs/multimodal-extension.md)。
+
+
+## 数据集入口与 API
+
+在主页面“已有数据”打开数据集，或访问 `/datasets`。本机 `packages` 配置登记目录和应有清单；配置示例、CLI 和真实数据复现见[数据包说明](../../docs/dataset-inventory.md)。标准入口 `/standards/dataset-checks`。
+
+| 请求 | 用途 |
+| --- | --- |
+| `GET /api/v1/packages` | 已登记包、范围、清单标识及历史任务，不返回本机绝对目录 |
+| `POST /api/v1/package-jobs` | `{package_id, manifest_hash, confirmed:true}`，核对清单后排队 |
+| `GET /api/v1/package-jobs/{id}` | 任务状态和 D01–D03 进度 |
+| `GET /api/v1/package-jobs/{id}/result` | 结构化结果与逐项证据 |
+| `GET /api/v1/package-jobs/{id}/expectations` | 本次冻结的应有清单与比较方案 |
+| `GET /api/v1/package-jobs/{id}/report` | HTML 报告；`?lang=en` 切换标签语言 |
+| `GET /api/v1/package-jobs/{id}/download` | 下载独立 HTML 报告 |
+
+只接受配置中的包 ID，不接受 HTTP 任意本机路径。队列顺序执行；重启后未结束任务标为中断，旧报告保留。目录必须存在，清单变更后须重新确认。完成状态只表示执行结束，有冲突的结果同样会生成报告。数据集页面未接入整包上传、取消任务或 PDF 导出；单记录信号质控的既有功能不受影响。
+
+### 数据集记录关联 API
+
+- `GET /api/v1/packages/{id}/records`：当前清单、个体/会话/记录列表及关联的信号任务历史。返回相对来源，不返回主机根目录。
+- `POST /api/v1/package-record-intakes`：仅接受 `package_id`、`record_id`、`manifest_hash`，从已登记目录读取并返回待确认记录；不接受任意路径。清单过期、文件缺失或结构不可读时拒绝。
+- `/?intake={id}`：恢复记录信息确认；确认后复用现有推荐、计划和任务接口。数据归属 `dataset_context` 随记录和任务保存，修订保留归属。
+- `/datasets?package={id}&subject={subject}`：返回所属数据集与个体。旧 `?job=` 链接保持可用。
+
+此适配只读关联原文件，保存主文件及配套指纹；确认、排队前与执行前复核。源数据变化不会覆盖已有结果。云端权限隔离和对象存储接入仍待实现。
+
+### 统一目录与汇总 API
+
+`GET /api/v1/data` 返回共享目录；`/?input={id}` 打开最新登记记录。`GET /api/v1/packages/{id}/overview` 汇总保存结果，`/overview/report` 返回可打印 HTML，`?download=1` 下载；`?job={id}` 选择历史清单。汇总不重新读取整库数据、不提交计算任务，不计算跨个体总分。来源和覆盖口径见[汇总契约](../../docs/design/dataset-overview-v1.md)。
+
+## 示例报告与验证目录
+
+首页仍以本机文件上传为入口。可在本机配置中显式指定已完成的示例，供首次使用者直接查看报告：
+
+```json
+{
+  "demo_examples": [
+    {"id": "record-demo", "kind": "record", "label": "单份 EEG 报告", "label_en": "Single EEG report", "job_id": "ACTUAL_COMPLETED_JOB_ID", "input_id": "MATCHING_INPUT_ID"},
+    {"id": "dataset-demo", "kind": "dataset", "label": "双个体 EEG 汇总", "label_en": "Two-subject EEG summary", "package_id": "REGISTERED_PACKAGE_ID"}
+  ],
+  "validation_library_ids": ["dataset:CONTROLLED_CASE_ID"]
+}
+```
+
+上述 ID 是占位符。记录示例核对完成状态、实际报告和输入归属；数据集示例使用当前清单的最新运行汇总。缺少实际报告时不显示示例卡；不自动启动计算。分数来自现有报告，不能填预设分数。配置最多展示四个示例；本机当前使用两个。
+
+验证目录只移动显式列出的记录/数据集，支持 `record:ID`、`dataset:ID`；普通失败或有问题的数据不会被自动移入。旧数据和原始报告保留。
+
+已下载 ds002034 v1.0.3 双个体 pilot 时，可用以下命令创建独立演示副本和一致性清单。目标必须是新目录，脚本对照下载清单校验 SHA-256 后复制，不修改源通道表：
+
+```bash
+python scripts/public_examples/prepare_attention_demo.py /path/to/ds002034-v1.0.3-pilot /path/to/new-demo
+```
+
+将目标目录及 `.qc/consistency-plan.json` 按数据集登记配置接入，然后执行资料检查与各记录的信号检查。此子集仅两名受试者各一份记录，不代表原研究全库，也不足以演示同一个体多次采集的比较。原始表中 REF 重名等发现会保留；明确确认 EEG 通道后仍可生成记录级信号报告。来源和使用边界同时写入目标目录的 `演示说明.txt`。
+
+### 报告摘要接口
+
+`GET /api/v1/jobs/{id}/summary`（或 `/result?view=summary`）返回页面使用的结果：评分、分项、范围、模块、产物链接均保留；大体积 `candidate_index` 仅提供数量与原始证据文件名。工作台、数据集汇总及示例卡使用该摘要。完整 `/result` 和 `candidate-index.json` 保持可访问，原始结果文件不改写。
+
+摘要缓存限八份，结果文件变化后重新加载；评分显示仍对证据文件版本进行核对，缺失证据不沿用旧分数。首次打开仍需要读取和整理证据，后续读取复用缓存。摘要传输量与信号质量无关。
+
+## 批次与比较接口（signal-batch/1）
+
+- `POST /api/v1/batch-previews`：`package_id`、`manifest_hash`、`record_ids`（1–100）及 `scope`（默认 `recording`）。仅采用已确认记录的推荐方案，返回可运行项、缺项及冻结计划。
+- `POST /api/v1/batches`：`preview_id`、`preview_hash`、`confirmed:true`；同一预览幂等。
+- `GET /api/v1/batches?package=...`、`GET /api/v1/batches/{id}`：批次、子任务及完成报告。
+- `POST /api/v1/batches/{id}/cancel`：停止本批次。服务重启保留中断记录，不自动重新分析。
+- `GET /comparisons?jobs=id,id`：2–100 份 EEG 报告比较；`/api/v1/comparisons` 返回同一内容的 JSON。条件未知或不一致时只展示，不声称可比。
+
+具体启用条件见 [EEG 使用流程](../../docs/design/eeg-workflow-v1.md)。

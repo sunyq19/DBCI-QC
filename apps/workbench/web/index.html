@@ -8,8 +8,10 @@
   <title>质控台</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232563eb'/%3E%3Cpath d='M5 17h5l3-9 5 17 3-8h6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./datasets.css">
   <script src="./i18n.js" defer></script>
   <script src="./app.js" defer></script>
+  <script src="./data-library.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到工作台</a>
@@ -21,7 +23,8 @@
     </div>
   </header>
   <main id="main" class="page-shell upload-first">
-    <section class="intro"><h1>数据质控</h1><p>读取本机文件，生成检查报告。</p></section>
+    <nav id="dataset-record-context" class="dataset-record-context" aria-label="数据归属" hidden></nav>
+    <section class="intro"><h1>数据质控</h1><p>上传数据，确认信息，查看报告。</p></section>
     <div id="catalog-error" class="notice error" role="alert" hidden></div>
     <div id="draft-recovery" class="draft-recovery" hidden><span>有尚未运行的配置</span><button id="restore-draft-button" class="button secondary small-button">恢复草稿</button><button id="discard-draft-button" class="button ghost small-button">丢弃草稿</button></div>
     <div class="studio-layout">
@@ -37,22 +40,20 @@
         </label>
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
-      <div class="upload-meta"><p class="small muted">仅在本机处理 · 最大 512 MiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
+      <div class="upload-meta"><p id="upload-limit-note" class="small muted">仅在本机处理 · 最大 2 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
       <p id="intake-status" class="small muted" role="status"></p>
-      <button id="pending-intakes-button" class="text-button">恢复已读取文件</button><div id="pending-intakes" class="pending-intakes" hidden></div>
       <div id="upload-support" class="upload-support">
         <dl id="upload-capabilities" class="upload-capabilities">
           <div><dt>质控模态</dt><dd>头皮 EEG · ECoG / sEEG · Neuropixels 电压</dd></div>
-          <div><dt>读取格式</dt><dd class="upload-format-list" data-i18n-skip><span>EDF / EDF+ (.edf)</span><span>BDF (.bdf)</span><span>BrainVision (.vhdr)</span><span>EEGLAB (.set)</span><span>FIF (.fif)</span><span>NWB 2 / HDF5 (.nwb)</span><span>SpikeGLX (.bin + .meta ZIP)</span></dd></div>
+          <div><dt>读取格式</dt><dd class="upload-format-list" data-i18n-skip><span>EDF / EDF+</span><span>BDF</span><span>BrainVision</span><span>EEGLAB</span><span>FIF</span><span>NWB</span><span>SpikeGLX</span></dd></div>
         </dl>
-        <p class="upload-support-note">读取后确认模态与通道，无需预选。</p>
         <details class="upload-requirements"><summary>文件要求与支持范围</summary>
           <ul>
             <li>BrainVision：将 .vhdr、.vmrk 和头文件指定的数据文件（通常为 .eeg）一起打包 ZIP。</li>
             <li>EEGLAB：连续记录 .set 可直接上传；有外置 .fdt 时一起打包 ZIP。</li>
             <li>FIF：仅支持单文件 Raw 记录；暂不支持拆分 FIF 或 epochs。</li>
             <li>EDF/BDF：暂不支持不连续记录 EDF+D / BDF+D。</li>
-            <li>ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 512 MiB。</li>
+            <li id="zip-limit-note">ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 2 GiB。</li>
             <li>ECoG / sEEG 与 Neuropixels 仅提供基础质控，不套用头皮 EEG 判坏阈值。</li>
             <li>SpikeGLX：每包仅一个 AP 或 LF 原始流，将同名 .bin 与 .meta 打包 ZIP；两类流不拼接、不混选。</li><li>NWB：仅接入 NWB 2 / HDF5 中受支持的连续电压 ElectricalSeries；多流须选择一条，不拼接。Units 仅识别，不做波形质控。</li><li>Neuropixels 接入受支持的 SpikeGLX AP/LF 与具明确设备证据的 NWB 连续电压，不评估已分选单元。单独 .eeg 不能上传。</li>
           </ul>
@@ -62,6 +63,9 @@
     <aside id="pipeline-section" class="panel pipeline-board" aria-labelledby="pipeline-title">
       <div class="board-heading"><h2 id="pipeline-title">数据工作台</h2><span id="pipeline-state" class="tag subtle" role="status">框架预览</span></div>
       <p id="pipeline-caption" class="board-caption">上传文件后，先提取基本信息。</p>
+      <nav id="result-tabs" class="result-tabs" role="tablist" aria-label="检查结果" hidden><button data-result-tab="overview" role="tab" aria-selected="true">概览</button><button data-result-tab="review" role="tab" aria-selected="false">问题复核</button><button data-result-tab="visuals" role="tab" aria-selected="false">可视化</button></nav>
+      <section id="result-review" hidden></section>
+      <section id="result-visuals" hidden><iframe id="result-visual-frame" title="本次结果可视化" loading="lazy"></iframe></section>
       <section id="result-content" class="result-content" aria-label="本次质控结果" hidden></section>
       <div id="intake-error" class="notice error" role="alert" hidden></div>
       <section id="record-summary" class="record-summary" aria-label="自动提取的信息" hidden></section>
@@ -74,7 +78,7 @@
       <details id="plan-disclosure" class="plan-disclosure" hidden><summary>配置与适用条件</summary><div id="plan-details" class="plan-details" aria-live="polite"></div></details>
     </aside>
     <div class="studio-controls">
-    <details id="registered-records" class="panel supporting-panel landing-secondary"><summary>已读取记录</summary><div class="disclosure-content">
+    <details id="registered-records" class="panel supporting-panel landing-secondary legacy-record-selector" hidden><summary>已读取记录</summary><div class="disclosure-content">
       <div id="example-presets" class="example-presets" hidden></div>
       <label class="field-label" for="input-select">记录</label>
       <select id="input-select" disabled><option value="">选择已登记记录</option></select>
@@ -126,6 +130,18 @@
         </section>
       </div>
     </div>
+    <section id="demo-reports" class="panel demo-reports" aria-label="示例报告" hidden data-i18n-skip>
+      <h2 id="demo-reports-title">示例报告</h2><p id="demo-reports-caption" class="small muted">先看一份已完成的结果。</p><div id="demo-report-list"></div>
+    </section>
+    <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="已有数据">
+      <summary><span>已有数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
+      <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs"><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
+      <p id="library-category-note" class="small muted" hidden></p>
+      <label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off">
+      <p id="data-library-error" class="small field-error" hidden></p><div id="data-library-list"><p class="small muted">正在加载数据…</p></div>
+      <button id="data-library-more" type="button" class="text-button" hidden>显示更多</button>
+      <div class="pending-recovery"><button id="pending-intakes-button" class="text-button">恢复已读取文件</button><div id="pending-intakes" class="pending-intakes" hidden></div></div>
+    </div></details>
     <details id="run-history-panel" class="panel supporting-panel landing-secondary"><summary>检查记录</summary><div class="disclosure-content">
     <section id="runs-section" class="runs-grid">
       <section class="panel current-run-panel" aria-labelledby="current-run-title">
@@ -136,7 +152,7 @@
           <p id="job-message" class="job-message" aria-live="polite"></p>
           <p id="job-progress-label" class="progress-label small muted"></p>
           <div id="job-progress" class="progress-track" role="progressbar" aria-label="已选模块的执行进度，非质量分数" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-          <details id="job-execution-details" class="execution-details" open><summary>执行详情</summary><div id="job-modules" class="job-modules"></div></details>
+          <details id="job-execution-details" class="execution-details"><summary>执行详情</summary><div id="job-modules" class="job-modules"></div></details>
           <section id="recording-progress" class="recording-progress" hidden aria-label="整份执行覆盖"></section>
           <div id="job-error" class="notice error" role="alert" hidden></div>
           <div class="job-actions"><button id="cancel-button" class="button secondary small-button" hidden>取消运行</button><a id="report-link" class="button primary small-button" target="_blank" rel="noopener" hidden>打开实际报告 <span aria-hidden="true">↗</span></a><button id="refresh-job-button" class="button ghost small-button">刷新状态</button></div>
@@ -155,6 +171,7 @@
 <div class="toolkit-filters"><label>适用模态 <select id="toolkit-modality-filter"><option value="current">当前记录 / 默认目录</option></select></label><label>检查目的 <select id="toolkit-category"><option value="all">全部目的</option><option value="data_intake">数据与元信息</option><option value="signal_integrity">信号完整性</option><option value="spectrum_interference">频谱与干扰</option><option value="channel_quality">通道质量</option><option value="artifacts">伪迹线索</option><option value="events_sync">事件与时间</option><option value="reporting">结果与报告</option></select></label><label>接入状态 <select id="toolkit-implementation"><option value="available">已接入</option><option value="all">全部状态</option><option value="planned">待接入</option></select></label></div><div id="toolkit-methods" class="toolkit-methods"><p class="small muted">连接本地服务后显示方法目录。</p></div>    </div></details>
     </div>
     </div>
+    <div id="review-home"></div>
     <section id="review-workspace" class="panel review-workspace" hidden aria-labelledby="review-title">
       <div class="panel-title-row"><div><h2 id="review-title">波形与候选复核</h2><p id="review-source" class="small muted" data-i18n-skip></p></div><button id="close-review-button" class="button ghost small-button">收起复核</button></div>
       <p id="coverage-summary" class="coverage-summary"></p>

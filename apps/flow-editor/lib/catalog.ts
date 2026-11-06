@@ -1,8 +1,8 @@
 import catalog from '../content/module-catalog.json';
 import {type FlowDoc,type FlowNode,validateDoc} from './flow';
-export const CATALOG_ID='visualization-v13';
-export const CATALOG_LABEL='v1.3 · 统一可视化层';
-export const CATALOG_NOTE='加入独立可视化层，按用途选择图表并标注来源 · 2026-11-06.3';
+export const CATALOG_ID='workflow-v14';
+export const CATALOG_LABEL='v1.4 · EEG 检查与复核';
+export const CATALOG_NOTE='加入处理史确认、候选复核、批量后台检查和同条件报告比较 · 2026-11-06.4';
 export function withCatalog(doc:FlowDoc):FlowDoc{
  const groups=catalog.modules as unknown as Record<string,FlowNode[]>;
  // Existing node descriptions and member edits survive; only missing child IDs are added.

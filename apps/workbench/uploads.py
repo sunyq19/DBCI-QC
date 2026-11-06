@@ -3,8 +3,8 @@ from pathlib import Path, PurePosixPath
 import hashlib
 import stat
 import zipfile
+from ephys_qc.admission import DEFAULT_INTAKE_LIMITS, check_record_paths
 
-MAX_BYTES = 512 * 1024 * 1024
 MAX_MEMBERS = 64
 ENTRY_SUFFIXES = {'.edf', '.bdf', '.vhdr', '.set', '.fif', '.meta', '.nwb'}
 
@@ -17,9 +17,10 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def prepare_source(upload, filename, directory):
+def prepare_source(upload, filename, directory, *, limits=DEFAULT_INTAKE_LIMITS):
     """Return the one recording entry, preserving safe paired-file references."""
     upload, directory = Path(upload), Path(directory)
+    limits.check('file_bytes', upload.stat().st_size, '上传文件大小')
     if zipfile.is_zipfile(upload):
         payload = directory / 'payload'
         payload.mkdir(mode=0o700)
@@ -48,8 +49,9 @@ def prepare_source(upload, filename, directory):
                 if info.file_size < 0:
                     raise ValueError('ZIP文件大小无效。')
                 total += info.file_size
-                if total > MAX_BYTES:
-                    raise ValueError('ZIP解压后的总大小不得超过512 MiB。')
+                limits.check('record_bytes', total, 'ZIP解压后总大小')
+                if name.lower().endswith(('.zip', '.7z', '.tar', '.tgz', '.tar.gz')):
+                    raise ValueError('记录包内不接受嵌套压缩包，请提交展开后的配套文件。')
                 planned.append((info, payload.joinpath(*path.parts)))
             for info, target in planned:
                 target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -90,10 +92,17 @@ def prepare_source(upload, filename, directory):
     return target
 
 
-def source_manifest(source, metadata):
+def source_manifest(source, metadata, *, limits=DEFAULT_INTAKE_LIMITS):
     """Freeze every file the selected reader declares as part of the recording."""
     source = Path(source).resolve()
     names = [item['name'] for item in metadata.get('source_files', [])] or [source.name]
+    bounded = []
+    for name in names:
+        path = (source.parent / name).resolve()
+        if not path.is_relative_to(source.parent) or not path.is_file():
+            raise ValueError('读取模块声明了包外或缺失的配套文件。')
+        bounded.append(path)
+    check_record_paths(bounded, limits=limits)
     files = []
     for name in names:
         path = (source.parent / name).resolve()

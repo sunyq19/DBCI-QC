@@ -6,6 +6,7 @@ import re
 
 from .core import build_plan as _build_plan, catalog, run_job
 from .readers import inspect_recording, list_readers, open_reader
+from .dataset_qc import inspect_package, run_package_inventory, evaluate_dataset, run_dataset_qc
 from .recommendations import recommend
 from .workflow import workflow
 
@@ -153,4 +154,5 @@ def run_module(module_id, record, output_dir, *, qc_config=None, emit=None):
 
 
 __all__ = ['catalog', 'workflow', 'list_readers', 'inspect_recording', 'prepare_recording',
-           'recommend', 'build_plan', 'run_modules', 'run_module']
+           'recommend', 'build_plan', 'run_modules', 'run_module',
+           'inspect_package', 'run_package_inventory', 'evaluate_dataset', 'run_dataset_qc']

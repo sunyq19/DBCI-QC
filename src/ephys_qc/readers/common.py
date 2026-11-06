@@ -3,6 +3,13 @@ from pathlib import Path
 import hashlib
 
 
+class ReaderStructureError(ValueError):
+    """A structural failure with a stable, non-identifying reason code."""
+    def __init__(self, code, message):
+        self.code = code
+        super().__init__(message)
+
+
 def sha256(path):
     digest = hashlib.sha256()
     with Path(path).open('rb') as source:

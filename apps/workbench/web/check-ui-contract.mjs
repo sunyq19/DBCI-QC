@@ -16,12 +16,12 @@ function fixtureCatalog() {
   modules.find(m=>m.id==="M03").methods=[rawMethod("basic_check","basic"),rawMethod("mne_amplitude","optional",{optional_extension:true,defaults:{flat:0}})];
   modules.find(m=>m.id==="M06").methods=[rawMethod("conditional_check","conditional"),rawMethod("mne_muscle","optional",{optional_extension:true}),rawMethod("future_check","optional",{implementation:"planned",optional_extension:true})];
   const inputs = ["rest","attention"].map((task,index) => ({id:`input-${index}`,label:`输入 ${index}`,profile_id:"profile",metadata:{duration_seconds:300,channels:[{index:0,name:"EEG",sampling_rate_hz:160,unit:"uV"}],size_bytes:100},description:"fixture",data_tags:[{key:"sampling_rate_hz",label:"采样率",value:160,display:"160 Hz",kind:"technical",source:"技术头",status:"known"},{key:"coordinates",label:"坐标",value:null,display:"位置未核实",kind:"technical",source:"来源未提供",status:"unknown"},{key:"task",label:"任务",value:task,display:task,kind:"context",source:"来源任务",status:"known"}],default_config:{selection:{eeg_indices:[0],reference_indices:{},start_seconds:0,duration_seconds:30},context_tags:{disease:"unknown",age_group:"unknown",task},method_config:{comparison_groups:["ref"],preserved_option:{a:1}}}}));
-  return {modules,inputs,profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
+  return {modules,inputs,capabilities:{intake:{max_upload_bytes:2147483648}},profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
 }
 function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = "", search = "", serverInputs = false} = {}) {
   const elements = new Map();
   const get = id => {
-    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
+    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},getAttribute(key){return this.attrs[key]??null},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
     return elements.get(id);
   };
   ids.forEach(get);
@@ -30,7 +30,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
@@ -66,6 +66,25 @@ function fourCatalog(modality="scalp_eeg") {
 }
 const tests = [];
 function check(name,run) { tests.push([name,run]); }
+check("dataset record context returns to its scoped subject and survives historical runs",()=>{
+  const t=harness();t.state.input={...fixtureCatalog().inputs[0],dataset_context:{package_id:'pilot',subject:'sub-01',session:'none',package_label:'<unsafe>'}};
+  t.updateActions();assert.equal(t.get('dataset-record-context').hidden,false);
+  assert.match(t.get('dataset-record-context').innerHTML,/package=pilot&amp;subject=sub-01/);
+  assert.match(t.get('dataset-record-context').innerHTML,/&lt;unsafe&gt;/);
+  t.state.mode='job';t.state.job={id:'j',status:'completed',dataset_context:{package_id:'second',subject:'sub-02',session:'s1',package_label:'B'}};
+  t.updateActions();assert.match(t.get('dataset-record-context').innerHTML,/package=second&amp;subject=sub-02/);
+  t.state.job={id:'old',status:'completed'};t.updateActions();assert.equal(t.get('dataset-record-context').hidden,true);
+});
+
+check("upload admission uses server limit and fails closed without capabilities",async()=>{
+  let calls=0;const t=harness(async()=>{calls++;throw new Error("Unexpected upload")},{selected:false});
+  t.state.catalog.capabilities.intake.max_upload_bytes=10;
+  t.get("intake-file").files=[{name:"sample.edf",size:11}];
+  await t.uploadIntake();assert.equal(calls,0);assert(t.get("intake-error").textContent.includes("最大"));
+  delete t.state.catalog.capabilities;
+  t.get("intake-file").files=[{name:"sample.edf",size:1}];
+  await t.uploadIntake();assert.equal(calls,0);assert(t.get("intake-error").textContent.includes("尚未取得"));
+});
 check("complete config copied; background defaults and extensions explicit",()=>{
   const t=harness(), config=t.currentConfig();
   assert.equal(JSON.stringify(config.context_tags),'\u007b"disease":"unknown","age_group":"unknown","task":"rest"}');
@@ -326,7 +345,7 @@ check("selecting an input automatically recommends, adopts, and plans, but never
 });
 check("initial catalog leaves a file-first landing and makes only catalog and history requests",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/catalog"))return response(fixtureCatalog());if(url.endsWith("/jobs")&&!options.method)return response({jobs:[{id:"older-running",status:"running"}]});throw new Error(`Unexpected ${url}`)},{selected:false});
-  assert(await t.loadCatalog());assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert.equal(t.state.recommendation,null);assert.equal(t.state.mode,"draft");assert.equal(t.state.job,null);assert.equal(t.get("input-select").value,"");assert(t.get("analysis-workspace").hidden);assert(t.get("input-metadata").hidden);assert(!t.get("run-history-panel").open);assert(t.get("run-button").disabled);assert.deepEqual(calls.map(([url])=>url),["/api/v1/catalog","/api/v1/jobs"]);
+  assert(await t.loadCatalog());assert.equal(t.state.input,null);assert.equal(t.state.plan,null);assert.equal(t.state.recommendation,null);assert.equal(t.state.mode,"draft");assert.equal(t.state.job,null);assert.equal(t.get("input-select").value,"");assert.equal(t.get("main").attrs["data-active-record"],"false");assert(t.get("analysis-workspace").hidden);assert(t.get("input-metadata").hidden);assert(!t.get("run-history-panel").open);assert(t.get("run-button").disabled);assert.deepEqual(calls.map(([url])=>url),["/api/v1/catalog","/api/v1/jobs"]);
 });
 check("A to B to A rejects older recommendation responses using an epoch even when fingerprints match",async()=>{
   const pending=[];let t;t=harness((url,options)=>{if(url.endsWith("/recommend")){const d=deferred();pending.push({d,rec:recommendationFixture(t)});return d.promise}if(url.endsWith("/plan"))return Promise.resolve(response(planFixture(JSON.parse(options.body))));throw new Error("Unexpected job")});
@@ -423,8 +442,16 @@ check("an unrecognized local filename follows read-confirm-recommend-plan withou
 check("a late catalog response cannot choose a previously confirmed file after a new selection",async()=>{
   const wait=deferred();const t=harness(async(url)=>url.endsWith("/catalog")?wait.promise:response({jobs:[]}));t.state.intakeRequest=1;t.state.intakeBusy=true;t.state.intake={id:"a",status:"registered"};const pending=t.loadCatalog("input-0",{intakeRequest:1});t.get("intake-file").files=[{name:"next.edf",size:100}];t.chooseLocalFile();wait.resolve(response(fixtureCatalog()));await pending;assert.equal(t.state.input,null);assert(t.state.filePending);assert(t.get("analysis-workspace").hidden);assert(t.get("run-button").disabled);
 });
+check("result tabs switch presentation without launching analysis and reset on another record",async()=>{
+  let calls=0;const t=harness(async()=>{calls++;throw Error("No analysis request expected")});
+  t.state.mode="job";t.state.job={id:"a".repeat(32)};t.state.result={};t.state.resultJobId=t.state.job.id;
+  await t.selectResultTab("visuals");assert.equal(t.get("result-content").hidden,true);assert.equal(t.get("result-visuals").hidden,false);
+  assert.equal(t.get("result-visual-frame").attrs.src,`/api/v1/jobs/${t.state.job.id}/visualizations`);
+  await t.selectResultTab("overview");assert.equal(t.get("result-content").hidden,false);assert.equal(t.get("result-visuals").hidden,true);assert.equal(calls,0);
+  t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
+});
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -734,8 +761,14 @@ check("File picker preserves raw names, allows replacement, and never starts pro
 });
 check("Header disclosure navigation only reveals its target and preserves the analysis plan",()=>{
   const t=harness(), before=t.fingerprint();t.state.plan=planFixture(t.body());t.state.planKey=before;const plan=t.state.plan;
-  for(const id of ["toolkit-section","run-history-panel","registered-records"]){t.get(id).open=false;assert(t.revealNavigationTarget("#"+id));assert(t.get(id).open);}
+  for(const id of ["toolkit-section","run-history-panel"]){t.get(id).open=false;assert(t.revealNavigationTarget("#"+id));assert(t.get(id).open);}
+  t.get("registered-records").open=false;assert(t.revealNavigationTarget("#registered-records"));assert(!t.get("registered-records").open);
   assert(!t.revealNavigationTarget("#module-M03"));assert(!t.revealNavigationTarget("/standards/overview"));assert.equal(t.fingerprint(),before);assert.equal(t.state.plan,plan);assert(t.validPlan());
+});
+check("Shared data library record URLs restore a record without submitting a job",async()=>{
+  const record={...fixtureCatalog().inputs[0],modality:"unknown"},calls=[];
+  const t=harness(async(url,options)=>{calls.push([url,options?.method]);assert.equal(url,"/api/v1/inputs/input-0");return response(record)},{selected:false,search:"?input=input-0"});
+  await t.restoreNavigation();assert.equal(t.state.input.id,"input-0");assert.equal(t.state.job,null);assert.equal(calls.length,1);
 });
 check("A direct toolkit link opens its disclosure after initial catalog loading",async()=>{
   const t=harness(async url=>response(url.includes("catalog")?fixtureCatalog():{jobs:[]}),{selected:false,hash:"#toolkit-section"});

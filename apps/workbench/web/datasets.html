@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>数据集总览 · 质控台</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/datasets.css"><script src="/datasets.js" defer></script></head>
+<body><header class="site-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h6l4-10 5 19 4-12 3 3h4"/></svg></span><strong data-text="brand">质控台</strong></a>
+<div class="header-actions"><nav><a href="/standards/dataset-checks" id="dataset-standard" data-text="standards">质控标准</a></nav><div class="language-switch"><button type="button" data-lang="zh-CN" aria-pressed="true">中文</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div></div></header>
+<main class="page-shell dataset-page"><nav class="data-breadcrumb"><a href="/" data-text="backData">返回数据</a><span id="dataset-breadcrumb"></span></nav>
+<section class="intro"><h1 data-text="title">数据集总览</h1><p data-text="intro">核对多份记录的完整性与一致性。</p></section>
+<p id="dataset-error" class="notice error" role="alert" hidden></p>
+<div class="dataset-layout"><aside class="dataset-controls">
+<section class="panel"><h2 data-text="source">本地数据包</h2><label class="field-label" for="package-select" data-text="choose">选择数据包</label><select id="package-select" disabled><option>正在加载…</option></select>
+<div id="package-facts" class="package-facts"></div><p id="package-description" class="small muted"></p>
+<p id="package-admission-limits" class="small muted" hidden></p>
+<details class="package-scope"><summary data-text="scope">检查设置</summary><p id="package-scope" class="small"></p><div id="package-groups"></div></details>
+<label class="package-confirm"><input type="checkbox" id="package-confirm"><span data-text="confirm">确认检查以上记录</span></label>
+<button type="button" id="package-run" class="button primary" disabled data-text="run">检查资料</button><p class="small muted" data-text="local">本机后台计算，保留原始文件。</p>
+</section><details class="panel dataset-history"><summary data-text="history">资料检查历史</summary><label class="field-label" for="package-history" data-text="historyLabel">打开已有结果</label><select id="package-history"><option value="">—</option></select><p class="small muted" data-text="registered">信号报告在对应记录处查看。</p></details></aside>
+<div class="dataset-main"><div id="dataset-result" hidden></div><section class="panel dataset-flow-panel"><div class="section-heading"><h2 data-text="workflow">检查流程</h2><span class="tag subtle" id="package-status">未开始</span></div><div class="dataset-flow" id="dataset-flow"></div><p class="small muted" data-text="boundary">先核对资料是否齐全，再比较同一人及同组记录。</p></section>
+<section id="package-record-browser" class="panel dataset-record-browser" hidden><div class="section-heading"><h2 data-text="recordsTitle">个体与记录</h2><span class="tag subtle" data-text="noUpload">无需重新上传</span></div><label for="package-subject" class="field-label" data-text="subject">个体</label><select id="package-subject"></select><p id="record-browser-note" class="small muted"></p><div id="batch-controls" hidden></div><div id="package-records" class="dataset-scroll"></div></section>
+<section id="dataset-empty" class="panel dataset-empty"><div class="empty-icon" aria-hidden="true">▦</div><h2 data-text="emptyTitle">确认范围后开始检查</h2><p data-text="emptyText">结果按个体汇总，并标出冲突所在的文件。</p><div class="empty-columns"><span data-text="d01">文件完整性</span><span data-text="d02">个体一致性</span><span data-text="d03">数据集一致性</span></div></section>
+<details id="dataset-details" class="panel technical-disclosure" hidden><summary data-text="checkDetails">检查依据与未完成项</summary><p id="dataset-detail-note" class="small muted"></p><div id="dataset-filters" class="dataset-filters"></div><div id="dataset-checks" class="dataset-scroll"></div></details></div></div></main><footer class="site-footer"><span data-text="footer">质控台 · 本地数据集检查</span><span id="dataset-version">dataset-consistency/0.1</span></footer></body></html>

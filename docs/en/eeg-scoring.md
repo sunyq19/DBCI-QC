@@ -85,3 +85,7 @@ Recomputed historical views shall identify previous and current versions through
 Tests shall cover clean/extreme cases, nonincreasing scores with increasing detected burden, concentration, order invariance, missingness, unequal windows, overlap and preservation of frozen evidence. Signal-injection checks shall be distinguished from arithmetic tests: monotonic scoring does not prove that adaptive detectors respond monotonically to raw noise amplitude.
 
 Independent expert agreement, detection sensitivity/specificity and application relevance remain to be validated. This is a reproducible project trial index, not a calibrated universal EEG quality standard.
+
+## Processing history amendment (2026-11-06)
+
+Confirmed filter declarations restrict assessment: excluded line-frequency targets and incomplete high-frequency bands remain unassessed, never clean or 100 by default. Any excluded originally measurable target makes the line component score unassessed, while remaining target measurements are retained. Unknown history permits descriptions of the supplied signal only. The v0.2 formula is unchanged; processing-scope/1.0 and execution versions record eligibility.

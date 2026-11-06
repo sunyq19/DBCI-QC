@@ -101,6 +101,11 @@
   }
   function activateCatalog(catalog, modality) {
     state.catalog = catalog; state.activeModality = modality;
+    const limit = catalog.capabilities?.intake?.max_upload_bytes;
+    if (Number.isSafeInteger(limit) && limit > 0) {
+      $("upload-limit-note").textContent = `仅在本机处理 · 最大 ${size(limit)}`;
+      $("zip-limit-note").textContent = `ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 ${size(catalog.capabilities.intake.max_record_bytes || limit)}。`;
+    }
     if (Array.isArray(catalog.modalities)) state.modalityChoices = catalog.modalities;
     renderModalityNavigation(); renderModuleOptions(); renderToolkit();
   }
@@ -125,7 +130,7 @@
 
   function numeric(value) { return typeof value === "number" && Number.isFinite(value); }
   function number(value, decimals = 1) { return numeric(value) ? value.toLocaleString(window.QCI18n?.getLanguage() || "zh-CN", {maximumFractionDigits:decimals}) : "未提供"; }
-  function size(value) { if (!numeric(value)) return "大小未提供"; return value < 1024 * 1024 ? `${number(value / 1024)} KiB` : `${number(value / 1024 / 1024)} MiB`; }
+  function size(value) { if (!numeric(value)) return "大小未提供"; return value >= 1024**3 ? `${number(value / 1024**3)} GiB` : value < 1024 * 1024 ? `${number(value / 1024)} KiB` : `${number(value / 1024 / 1024)} MiB`; }
   function date(value) { const d = new Date(value); return Number.isNaN(d.valueOf()) ? String(value || "时间未提供") : d.toLocaleString(window.QCI18n?.getLanguage() || "zh-CN", {month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}); }
   function statusTag(status) { const known = Object.hasOwn(STATUS, status); return `<span class="tag ${known ? escape(status) : "subtle"}">${escape(STATUS[status] || status || "未提供")}</span>`; }
   function setError(id, message) { $(id).textContent = message || ""; $(id).hidden = !message; }
@@ -318,7 +323,9 @@
     const selectedModules = arr(recommendation.selected_modules).filter(id => optionalModules().includes(id)).map(id => arr(state.catalog?.modules).find(module => module.id === id)?.name || id);
     const enhanced = arr(recommendation.qc_config?.method_config?.extensions).map(id => allMethods().find(method => method.id === id)?.name || id);
     const focus = Array.isArray(recommendation.review_focus) ? recommendation.review_focus : recommendation.review_focus ? [recommendation.review_focus] : [];
-    container.innerHTML = `${facts}<p class="recommendation-summary">${recommendation.can_apply ? state.recommendationApplied ? validPlan() ? "推荐方案已就绪" : state.planning || state.recommending ? "正在核对推荐方案" : "方案核对未完成" : "推荐已生成，尚未采用" : "需要补充信息"}</p>${state.recommendationApplied && !validPlan() && !state.planning && !state.recommending ? '<button class="text-button" data-reset-recommend>重新准备推荐方案</button>' : ""}${recommendation.can_apply ? '<p class="small muted">保留原始数据，报告候选与待复核项。</p>' : `<div class="notice warning">${escape(recommendation.reason || recommendation.summary || "请先补充必需字段，或确认输入条件。")}</div>`}${blocking.length ? `<section class="recommendation-list missing-fields"><h3>必须先补充 · ${blocking.length} 项</h3>${missingHtml(blocking)}</section>` : ""}<details class="recommendation-fold"><summary>推荐理由与方法详情</summary>${selectedModules.length || enhanced.length ? `<div class="recommendation-combination">${selectedModules.length ? `<p><span>检查模块</span>${escape(selectedModules.join(" · "))}</p>` : ""}${enhanced.length ? `<p><span>默认增强</span>${escape(enhanced.join(" · "))}</p>` : ""}</div>` : ""}<p>${escape(pretty(recommendation.summary || recommendation.reason || "未提供摘要"))}</p>${focus.length ? `<section class="recommendation-focus"><h3>复核重点</h3><ul>${focus.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></section>` : ""}${recommendationList("建议采用的方法与理由",recommendation.recommended_methods)}${recommendationList("可按需添加的方法",recommendation.optional_methods)}${recommendationList("当前不可用的方法",recommendation.blocked_methods)}${optionalMissing.length ? `<details class="recommendation-list recommendation-fold missing-fields"><summary>可补充字段 <span class="tag subtle">${optionalMissing.length} 项</span></summary>${missingHtml(optionalMissing)}</details>` : ""}${arr(recommendation.cautions).length ? `<details class="recommendation-fold recommendation-cautions"><summary>解释与使用边界 <span class="tag subtle">${recommendation.cautions.length} 项</span></summary><ul>${recommendation.cautions.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></details>` : ""}<details class="result-summary"><summary>推荐配置与原始依据</summary><pre>${escape(pretty(recommendation))}</pre></details></details>`;
+    const gates=arr(recommendation.method_applicability).filter(m=>m.selected),ready=gates.filter(m=>["ready","partial"].includes(m.status)).length,blocked=gates.filter(m=>m.status==="blocked").length;
+    const availability=`<div class="method-availability"><strong>${ready} 项可检查</strong>${blocked?`<span>${blocked} 项缺条件</span>`:''}</div>`;
+    container.innerHTML = `${facts}${availability}<p class="recommendation-summary">${recommendation.can_apply ? state.recommendationApplied ? validPlan() ? "推荐方案已就绪" : state.planning || state.recommending ? "正在核对推荐方案" : "方案核对未完成" : "推荐已生成，尚未采用" : "需要补充信息"}</p>${state.recommendationApplied && !validPlan() && !state.planning && !state.recommending ? '<button class="text-button" data-reset-recommend>重新准备推荐方案</button>' : ""}${recommendation.can_apply ? '<p class="small muted">保留原始数据，报告候选与待复核项。</p>' : `<div class="notice warning">${escape(recommendation.reason || recommendation.summary || "请先补充必需字段，或确认输入条件。")}</div>`}${blocking.length ? `<section class="recommendation-list missing-fields"><h3>必须先补充 · ${blocking.length} 项</h3>${missingHtml(blocking)}</section>` : ""}<details class="recommendation-fold"><summary>推荐理由与方法详情</summary>${selectedModules.length || enhanced.length ? `<div class="recommendation-combination">${selectedModules.length ? `<p><span>检查模块</span>${escape(selectedModules.join(" · "))}</p>` : ""}${enhanced.length ? `<p><span>默认增强</span>${escape(enhanced.join(" · "))}</p>` : ""}</div>` : ""}<p>${escape(pretty(recommendation.summary || recommendation.reason || "未提供摘要"))}</p>${focus.length ? `<section class="recommendation-focus"><h3>复核重点</h3><ul>${focus.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></section>` : ""}${recommendationList("建议采用的方法与理由",recommendation.recommended_methods)}${recommendationList("可按需添加的方法",recommendation.optional_methods)}${recommendationList("当前不可用的方法",recommendation.blocked_methods)}${optionalMissing.length ? `<details class="recommendation-list recommendation-fold missing-fields"><summary>可补充字段 <span class="tag subtle">${optionalMissing.length} 项</span></summary>${missingHtml(optionalMissing)}</details>` : ""}${arr(recommendation.cautions).length ? `<details class="recommendation-fold recommendation-cautions"><summary>解释与使用边界 <span class="tag subtle">${recommendation.cautions.length} 项</span></summary><ul>${recommendation.cautions.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></details>` : ""}<details class="result-summary"><summary>推荐配置与原始依据</summary><pre>${escape(pretty(recommendation))}</pre></details></details>`;
   }
 
   // Every draft change advances an epoch, including A → B → A input switches.
@@ -505,7 +512,15 @@
     state.contextTags[field] = value; invalidatePlan();
   }
 
+  function renderDatasetContext() {
+    const context=state.mode==='job'?state.job?.dataset_context:(state.input?.dataset_context||state.intake?.dataset_context);
+    const el=$('dataset-record-context');el.hidden=!context;if(!context){el.innerHTML='';return;}
+    const url='/datasets?package='+encodeURIComponent(context.package_id)+'&subject='+encodeURIComponent(context.subject)+'&lang='+(window.QCI18n?.getLanguage?.()||'zh-CN');
+    el.innerHTML=`<a href="${escape(url)}">返回数据集</a><span data-i18n-skip>${escape(context.package_label)} / ${escape(context.subject)} / ${escape(context.session==='none'?'—':context.session)}</span>`;
+  }
+
   function updateActions() {
+    renderDatasetContext();
     const invalid = validation(), busy = state.planning || state.submitting || state.recommending || state.intakeBusy || state.loadingCatalog || state.loadingRecord;
     $("plan-button").disabled = Boolean(invalid || busy || !state.catalog || unsupportedInput());
     $("run-button").disabled = Boolean(invalid || busy || unsupportedInput() || state.filePending || (!validPlan() && !state.manualDraft) || state.mode !== "draft");
@@ -645,11 +660,12 @@
   }
 
   function revealNavigationTarget(hash = location.hash) {
-    const targets = {"#upload-panel":"upload-panel","#pipeline-section":"pipeline-section","#registered-records":"registered-records","#run-history-panel":"run-history-panel","#toolkit-section":"toolkit-section"};
+    const targets = {"#upload-panel":"upload-panel","#pipeline-section":"pipeline-section","#registered-records":"data-library","#run-history-panel":"run-history-panel","#toolkit-section":"toolkit-section"};
     const id = targets[hash];
     if (!id) return false;
     const target = $(id);
-    if (["registered-records","run-history-panel","toolkit-section"].includes(id)) target.open = true;
+    if (["data-library","registered-records","run-history-panel","toolkit-section"].includes(id)) target.open = true;
+    if (hash === "#registered-records") target.scrollIntoView({block:"start"});
     return true;
   }
 
@@ -658,7 +674,8 @@
     $("analysis-workspace").hidden = !historical && !selected;
     $("input-metadata").hidden = historical || !selected;
     $("run-history-panel").hidden = false;
-    if (historical) $("run-history-panel").open = true;
+    if (historical && ACTIVE.has(state.job?.status)) $("run-history-panel").open = true;
+    $("main").setAttribute("data-active-record", String(Boolean(historical || selected || state.intake || state.filePending)));
     $("example-presets").hidden = true;
     $("intake-confirmation").hidden = historical || !state.intake || state.intake.status === "registered" || needsStreamSelection();
   }
@@ -782,6 +799,15 @@
     if (box.innerHTML !== markup) box.innerHTML = markup;
   }
 
+  function initialProcessing() {
+    if (state.revisionInput) return state.revisionInput.preprocessing || {};
+    const f=state.intake?.metadata?.declared_filters || {};
+    return f.verified_declaration ? {verified:true,highpass_hz:f.highpass_hz,lowpass_hz:f.lowpass_hz,note:"文件头声明；未独立测量滤波效果。"} : {};
+  }
+  function processingFields() {
+    const p=initialProcessing();
+    return `<details class="intake-context"><summary>滤波与处理史 <span class="small muted">影响可检查项目</span></summary><p class="small muted">不知道可保留未知。已滤除的频带不计为合格。</p><label class="intake-consent"><input id="revision-verified" type="checkbox" ${p.verified===true?'checked':''}> 已确认处理声明</label><div class="metadata-fields"><label>高通 Hz<input id="revision-highpass" type="number" min="0" step="any" value="${numeric(p.highpass_hz)?p.highpass_hz:''}"></label><label>低通 Hz<input id="revision-lowpass" type="number" min="0" step="any" value="${numeric(p.lowpass_hz)?p.lowpass_hz:''}"></label><label>陷波 Hz<input id="revision-notch" placeholder="例如 50, 100" value="${escape(arr(p.notch_hz).join(', '))}"></label></div><label class="field-label" for="revision-processing-note">来源依据</label><textarea id="revision-processing-note" rows="2" maxlength="2000">${escape(p.note||'')}</textarea></details>`;
+  }
   function renderIntake() {
     const intake = state.intake, container = $("intake-confirmation");
     $("intake-restore-button").hidden = !pendingIntakeId();
@@ -797,7 +823,7 @@
     const modalityEvidence = suggestions.modality_evidence || {};
     const proposedModality = modalityEvidence.status === "file_declared" && Object.hasOwn(MODALITY_LABELS,suggestions.modality) ? suggestions.modality : "unknown";
     const fields = Object.entries(CONTEXT_FIELDS).map(([field,label])=>`<label class="metadata-field"><span>${label}</span><select id="intake-context-${field}">${selectOptions(arr(state.catalog?.context_tag_options?.[field]).map(option=>[option.value,option.label]),suggestions.context_tags?.[field] || "unknown")}</select></label>`).join("");
-    container.innerHTML = `<div class="confirmation-heading"><h3>补充信息</h3><span class="small muted">背景可留未知</span></div><div class="metadata-fields"><label class="metadata-field"><span>分析模态 <b>*</b></span><select id="intake-modality">${selectOptions(Object.entries(MODALITY_LABELS),proposedModality)}</select></label></div><details class="intake-context intake-background"><summary>背景（可选）</summary><div class="metadata-fields">${fields}</div><p class="small muted context-note">疾病标签用于背景与复核，不自动改变质量阈值。</p></details>${modalityEvidence.reason ? `<details class="intake-modality-evidence"><summary>${modalityEvidence.status === "file_declared" ? "模态建议来自文件声明，待核对" : modalityEvidence.status === "mixed" ? "含混合通道，请选择分析组" : "模态待确认"}</summary><p class="small muted">${escape(modalityEvidence.reason)}</p></details>` : ""}<details class="intake-context" ${correction ? "open" : ""}><summary id="intake-channel-summary">核对通道 · 建议 ${count} 道分析信号</summary><p class="small muted">以下角色为待确认建议。分析与辅助信号须共享采样率。</p>${correction ? '<div class="notice warning">请核对通道角色与原生采样率。</div>' : ""}<div class="intake-channel-table"><table><thead><tr><th>原始信号</th><th>技术字段</th><th>建议角色</th></tr></thead><tbody>${channels.map(channel=>`<tr><td data-i18n-skip><strong>#${escape(channel.index)} ${escape(channel.name)}</strong></td><td data-i18n-skip>${number(channel.sampling_rate_hz)} Hz<br>${escape(channel.unit || "?")}</td><td><select data-intake-channel="${escape(channel.index)}" aria-label="确认通道角色">${selectOptions(isDigitalChannel(channel) ? [["unused","同步 / 数字通道（不分析）"]] : roles,intakeRole(channel.index,suggestions))}</select></td></tr>`).join("")}</tbody></table></div></details><details class="intake-context"><summary>参考与来源（可选）</summary><label class="field-label" for="intake-reference">参考构型</label><select id="intake-reference">${selectOptions(references,suggestions.reference_scheme || "unknown")}</select><label class="field-label" for="intake-label">记录名称</label><input id="intake-label" type="text" value="${escape(intake.filename || "")}" maxlength="160"><label class="field-label" for="intake-source-note">来源与背景补充</label><textarea id="intake-source-note" rows="3" maxlength="2000" placeholder="已知实验或来源，可留空"></textarea></details><label class="intake-consent"><input id="intake-confirmed" type="checkbox"><span>已核对分析模态和通道角色。</span></label><p id="intake-modality-note" class="small muted"></p><button id="intake-confirm-button" class="button primary">确认并推荐</button><details class="result-summary"><summary>读取详情</summary><p class="small muted">确认不会启动检查。</p>${arr(intake.warnings).length?`<ul>${intake.warnings.map(item=>`<li>${escape(pretty(item))}</li>`).join("")}</ul>`:""}<pre data-i18n-skip>${escape(pretty(intake))}</pre></details>`;
+    container.innerHTML = `<div class="confirmation-heading"><h3>补充信息</h3><span class="small muted">背景可留未知</span></div><div class="metadata-fields"><label class="metadata-field"><span>分析模态 <b>*</b></span><select id="intake-modality">${selectOptions(Object.entries(MODALITY_LABELS),proposedModality)}</select></label></div><details class="intake-context intake-background"><summary>背景（可选）</summary><div class="metadata-fields">${fields}</div><p class="small muted context-note">疾病标签用于背景与复核，不自动改变质量阈值。</p></details>${modalityEvidence.reason ? `<details class="intake-modality-evidence"><summary>${modalityEvidence.status === "file_declared" ? "模态建议来自文件声明，待核对" : modalityEvidence.status === "mixed" ? "含混合通道，请选择分析组" : "模态待确认"}</summary><p class="small muted">${escape(modalityEvidence.reason)}</p></details>` : ""}<details class="intake-context" ${correction ? "open" : ""}><summary id="intake-channel-summary">核对通道 · 建议 ${count} 道分析信号</summary><p class="small muted">以下角色为待确认建议。分析与辅助信号须共享采样率。</p>${correction ? '<div class="notice warning">请核对通道角色与原生采样率。</div>' : ""}<div class="intake-channel-table"><table><thead><tr><th>原始信号</th><th>技术字段</th><th>建议角色</th></tr></thead><tbody>${channels.map(channel=>`<tr><td data-i18n-skip><strong>#${escape(channel.index)} ${escape(channel.name)}</strong></td><td data-i18n-skip>${number(channel.sampling_rate_hz)} Hz<br>${escape(channel.unit || "?")}</td><td><select data-intake-channel="${escape(channel.index)}" aria-label="确认通道角色">${selectOptions(isDigitalChannel(channel) ? [["unused","同步 / 数字通道（不分析）"]] : roles,intakeRole(channel.index,suggestions))}</select></td></tr>`).join("")}</tbody></table></div></details><details class="intake-context"><summary>参考与来源（可选）</summary><label class="field-label" for="intake-reference">参考构型</label><select id="intake-reference">${selectOptions(references,suggestions.reference_scheme || "unknown")}</select><label class="field-label" for="intake-label">记录名称</label><input id="intake-label" type="text" value="${escape(intake.filename || "")}" maxlength="160"><label class="field-label" for="intake-source-note">来源与背景补充</label><textarea id="intake-source-note" rows="3" maxlength="2000" placeholder="已知实验或来源，可留空"></textarea></details>${processingFields()}<label class="intake-consent"><input id="intake-confirmed" type="checkbox"><span>已核对分析模态和通道角色。</span></label><p id="intake-modality-note" class="small muted"></p><button id="intake-confirm-button" class="button primary">确认并推荐</button><details class="result-summary"><summary>读取详情</summary><p class="small muted">确认不会启动检查。</p>${arr(intake.warnings).length?`<ul>${intake.warnings.map(item=>`<li>${escape(pretty(item))}</li>`).join("")}</ul>`:""}<pre data-i18n-skip>${escape(pretty(intake))}</pre></details>`;
     renderRevisionFields(); if (!state.revisionInput) applyIntakeModalitySuggestion(proposedModality); renderExtraction();
   }
 
@@ -855,7 +881,7 @@
     const preprocessing=input.preprocessing || {}, mapping=input.annotation_mapping;
     $("intake-modality").value=input.modality || "unknown";
     $("intake-source-note").value=input.description || "";
-    $("intake-confirmation").innerHTML += `<details class="intake-context"><summary>预处理与标注映射</summary><p class="small muted">只填写有来源证据的信息；未知值留空。保存为新版本，不改写历史运行。</p><label class="intake-consent"><input id="revision-verified" type="checkbox" ${preprocessing.verified === true ? "checked" : ""}> 已核实滤波声明</label><div class="metadata-fields"><label class="metadata-field"><span>高通（Hz）</span><input id="revision-highpass" type="number" min="0" step="any" value="${numeric(preprocessing.highpass_hz)?preprocessing.highpass_hz:""}"></label><label class="metadata-field"><span>低通（Hz）</span><input id="revision-lowpass" type="number" min="0" step="any" value="${numeric(preprocessing.lowpass_hz)?preprocessing.lowpass_hz:""}"></label></div><label class="field-label" for="revision-processing-note">处理史与证据</label><textarea id="revision-processing-note" rows="2" data-i18n-skip>${escape(preprocessing.note || "")}</textarea><label class="field-label" for="revision-annotation">标注映射 JSON（可留空）</label><p class="small muted">kind 为 task、sleep_stage 或 clinical_event；labels 将原标签映射到确认含义，confirmed 必须为 true。标签不是质量真值。</p><textarea id="revision-annotation" rows="4" spellcheck="false" data-i18n-skip>${mapping?escape(pretty(mapping)):""}</textarea></details><button id="cancel-revision-button" class="button ghost small-button">取消更正</button>`;
+    $("intake-confirmation").innerHTML += `<details class="intake-context"><summary>标注映射</summary><p class="small muted">保存为新版本，保留历史运行。标签不作为质量真值。</p><textarea id="revision-annotation" rows="4" spellcheck="false">${mapping?escape(pretty(mapping)):""}</textarea></details><button id="cancel-revision-button" class="button ghost small-button">取消更正</button>`;
     // Replacing markup above rebuilds the form; restore the explicit source values.
     $("intake-modality").value=input.modality || "unknown";
     $("intake-source-note").value=input.description || "";
@@ -867,8 +893,9 @@
     // Only an explicit edit may replace these independent metadata fields.
     const changes = {}, original = input.preprocessing || {};
     const frequency = text => { text=String(text || "").trim(); if(!text)return null; const value=Number(text); if(!Number.isFinite(value)||value<0)throw new Error("滤波频率必须是非负数或留空。"); return value; };
-    const preprocessing = {verified:fields.verified === true,highpass_hz:frequency(fields.highpass),lowpass_hz:frequency(fields.lowpass),note:String(fields.note || "").trim()};
-    const initial = {verified:original.verified === true,highpass_hz:numeric(original.highpass_hz)?original.highpass_hz:null,lowpass_hz:numeric(original.lowpass_hz)?original.lowpass_hz:null,note:String(original.note || "").trim()};
+    const preprocessing = {verified:fields.verified === true,highpass_hz:frequency(fields.highpass),lowpass_hz:frequency(fields.lowpass),notch_hz:String(fields.notch || "").split(/[,，\s]+/).filter(Boolean).map(Number).sort((a,b)=>a-b),note:String(fields.note || "").trim()};
+    const initial = {verified:original.verified === true,highpass_hz:numeric(original.highpass_hz)?original.highpass_hz:null,lowpass_hz:numeric(original.lowpass_hz)?original.lowpass_hz:null,notch_hz:arr(original.notch_hz).slice().sort((a,b)=>a-b),note:String(original.note || "").trim()};
+    if(preprocessing.notch_hz.some(x=>!Number.isFinite(x)||x<=0))throw new Error("陷波频率应为正数，用逗号分隔。");
     if(JSON.stringify(preprocessing)!==JSON.stringify(initial))changes.preprocessing=preprocessing;
     const mapping = String(fields.annotation || "").trim(), initialMapping = input.annotation_mapping ? pretty(input.annotation_mapping).trim() : "";
     if(mapping!==initialMapping) { try { const value=mapping?JSON.parse(mapping):null; if(value!==null || initialMapping)changes.annotation_mapping=value; } catch { throw new Error("标注映射必须是合法 JSON，或留空。"); } }
@@ -879,13 +906,15 @@
     const file = $("intake-file").files?.[0];
     if (!file || state.intakeBusy || state.submitting) return;
     chooseLocalFile(); const request = state.intakeRequest;
-    if (!file.size || file.size > 512 * 1024 * 1024) { setError("intake-error","请选择非空数据文件或 ZIP，最大 512 MiB。"); return; }
+    const limit = state.catalog?.capabilities?.intake?.max_upload_bytes;
+    if (!Number.isSafeInteger(limit) || limit <= 0) { setError("intake-error","尚未取得上传限额，请刷新后重试。"); return; }
+    if (!file.size || file.size > limit) { setError("intake-error",`请选择非空数据文件或 ZIP，最大 ${size(limit)}。`); return; }
     state.intakeBusy = true; $("intake-status").textContent = "正在读取…"; updateActions();
     try {
       const intake = await receiveFile(file,request);
       if (request !== state.intakeRequest) return;
       if (!intake.id || !intake.metadata || !Array.isArray(intake.metadata.channels)) throw new Error("读取结果不完整，请重试。");
-      state.intake = intake; pendingIntakeId(intake.id); renderIntake();
+      state.intake = intake; pendingIntakeId(intake.id); renderIntake(); window.QCDataLibrary?.refresh();
       $("intake-status").textContent = "读取完成";
     } catch(error) { if (request === state.intakeRequest) { setError("intake-error",error.message); $("intake-status").textContent = "读取未完成"; } }
     finally { if (request === state.intakeRequest) { state.intakeBusy = false; state.uploadAbort=null; $("cancel-read-button").hidden=true; updateActions(); } }
@@ -942,10 +971,11 @@
       const roles = [...$("intake-confirmation").querySelectorAll("[data-intake-channel]")].map(select => ({index:Number(select.dataset.intakeChannel),role:select.value}));
       const context = Object.fromEntries(Object.keys(CONTEXT_FIELDS).map(field => [field,$(`intake-context-${field}`).value || "unknown"]));
       request = intakeConfirmation(roles,{modality:$("intake-modality").value,reference_scheme:$("intake-reference").value,confirmed:$("intake-confirmed").checked,context_tags:context,label:$("intake-label").value.trim(),source_note:$("intake-source-note").value.trim()});
+      const fields={verified:$("revision-verified").checked,highpass:$("revision-highpass").value,lowpass:$("revision-lowpass").value,notch:$("revision-notch").value,note:$("revision-processing-note").value,annotation:$("revision-annotation")?.value || ""};
       if (state.revisionInput) {
-        request.base_revision = state.revisionInput.record_revision || 1;
-        Object.assign(request,revisionMetadataChanges(state.revisionInput,{verified:$("revision-verified").checked,highpass:$("revision-highpass").value,lowpass:$("revision-lowpass").value,note:$("revision-processing-note").value,annotation:$("revision-annotation").value}));
-      }
+        request.base_revision=state.revisionInput.record_revision || 1;
+        Object.assign(request,revisionMetadataChanges(state.revisionInput,fields));
+      } else Object.assign(request,revisionMetadataChanges({preprocessing:initialProcessing()},fields));
     } catch(error) { setError("intake-error",error.message); return; }
     const intakeRequest = state.intakeRequest, intakeId = state.intake.id;
     state.intakeBusy = true; $("intake-confirm-button").disabled = true; setError("intake-error",null); $("intake-status").textContent = "正在准备…"; updateActions();
@@ -953,7 +983,7 @@
       const response = await api(state.revisionInput ? `/inputs/${encodeURIComponent(state.revisionInput.id)}/revisions` : `/intakes/${encodeURIComponent(intakeId)}/confirm`,{method:"POST",body:JSON.stringify(request)});
       if (intakeRequest !== state.intakeRequest) return;
       if (response.status !== "registered" || !response.input?.id) throw new Error("服务未确认登记成功，请恢复读取状态后核对。");
-      state.intake = {...state.intake,status:"registered"}; pendingIntakeId(null); renderIntake();
+      state.intake = {...state.intake,status:"registered"}; pendingIntakeId(null); renderIntake(); window.QCDataLibrary?.refresh();
       const modality = inputModality(response.input);
       let loaded;
       rememberInput(response.input); await selectInput(response.input.id,{autoPrepare:supportedModality(modality),fromIntake:true}); loaded = state.input?.id === response.input.id;
@@ -1013,7 +1043,11 @@
     const module = displayedModules().find(item => item.id === id);
     const node = nodes.find(item => item.id === id) || {...module,status:"unselected"};
     const status = node.status || "pending", css = status === "unselected" ? "skipped" : status;
-    return `<button class="pipeline-node ${escape(css)}" data-detail="${escape(id)}" ${module ? "" : "disabled"} aria-label="${escape(id)} ${escape(node.name || module?.name || moduleLabel(id))}，${escape(STATUS[status] || status)}，查看详情" title="${escape(node.reason || "查看模块详情")}"><span class="node-top"><span class="node-id">${escape(id)}</span>${status === "framework" ? "" : `<span class="node-state">${escape(STATUS[status] || status)}</span>`}</span><span class="node-name">${escape(moduleLabel(id))}</span>${arr(module?.dependencies).some(dependency => optionalModules().includes(dependency)) ? `<span class="node-dependency">${escape("依赖 " + module.dependencies.filter(dependency => optionalModules().includes(dependency)).join(" · "))}</span>` : ""}</button>`;
+    const methodRows=arr((state.mode==="job"?state.job?.plan:state.plan)?.method_applicability).filter(m=>m.module_id===id&&m.selected);
+    const can=methodRows.filter(m=>["ready","partial"].includes(m.status)).length, missing=methodRows.filter(m=>m.status==="blocked").length;
+    const availability=methodRows.length ? `${can} 项可检查${missing?` · ${missing} 项缺条件`:''}` : '';
+    const stateLabel=status==="partial" ? (state.mode==="job"?"已完成部分检查":"部分项目可用") : STATUS[status]||status;
+    return `<button class="pipeline-node ${escape(css)}" data-detail="${escape(id)}" ${module ? "" : "disabled"} aria-label="${escape(id)} ${escape(node.name || module?.name || moduleLabel(id))}，${escape(stateLabel)}，查看详情" title="${escape(node.reason || "查看模块详情")}"><span class="node-top"><span class="node-id">${escape(id)}</span>${status === "framework" ? "" : `<span class="node-state">${escape(stateLabel)}</span>`}</span><span class="node-name">${escape(moduleLabel(id))}</span>${availability?`<span class="node-dependency">${escape(availability)}</span>`:""}${arr(module?.dependencies).some(dependency => optionalModules().includes(dependency)) ? `<span class="node-dependency">${escape("依赖 " + module.dependencies.filter(dependency => optionalModules().includes(dependency)).join(" · "))}</span>` : ""}</button>`;
   }
 
   function renderPipeline() {
@@ -1115,7 +1149,7 @@
     $("job-created").textContent = date(job.created_at);
     $("job-message").textContent = [job.phase,job.message].filter(Boolean).join(" · ") || "服务端暂未提供阶段说明。";
     const modules = arr(job.modules), progress = executionProgress(job);
-    $("job-execution-details").open = ACTIVE.has(job.status);
+    // Execution evidence stays opt-in; polling must not reopen it.
     $("job-progress").setAttribute("aria-valuenow",progress.percent); $("job-progress").setAttribute("aria-valuetext",`${progress.finished} / ${progress.total} 个已选模块已结束`); $("job-progress").firstElementChild.style.width = `${progress.percent}%`;
     $("job-progress-label").textContent = `已选模块 ${progress.finished} / ${progress.total} 已结束${progress.unselected ? ` · ${progress.unselected} 个未选择` : ""} · 执行进度不代表质量`;
     $("job-modules").innerHTML = modules.length ? modules.map(module => `<div class="job-module"><div class="job-module-head"><code>${escape(module.id)}</code>${statusTag(displayStatus(module,job.plan))}</div><div class="job-module-name">${escape(module.name || module.id)}</div>${module.reason || module.message ? `<p>${escape([module.reason,module.message].filter(Boolean).join(" · "))}</p>` : ""}${displayStatus(module,job.plan) !== "unselected" && numeric(module.duration_seconds) ? `<p>耗时 ${number(module.duration_seconds,2)} 秒</p>` : ""}</div>`).join("") : '<p class="small muted">等待服务端返回模块状态。</p>';
@@ -1131,11 +1165,33 @@
     renderPipeline(); renderPlan(); updateActions();
   }
 
-  function renderResult() {
+  function renderResult() { renderResultContent(); renderResultTabs(); }
+  function renderResultTabs() {
+    const available=state.mode==="job"&&state.result&&state.job&&state.resultJobId===state.job.id;
+    const nav=$("result-tabs"); if(!nav)return;
+    nav.hidden=!available; $("result-visuals").hidden=true; $("result-review").hidden=true;
+    if(!available){state.resultTab="overview";return;}
+    const tab=state.resultTab||"overview";
+    nav.querySelectorAll('[data-result-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.resultTab===tab)));
+    $("result-content").hidden=tab!=="overview";
+    $("result-review").hidden=tab!=="review";
+    if(tab==="visuals"){
+      const frame=$("result-visual-frame"),url=`/api/v1/jobs/${encodeURIComponent(state.job.id)}/visualizations`;
+      if(frame.getAttribute('src')!==url)frame.setAttribute('src',url);
+      $("result-visuals").hidden=false;
+    }
+  }
+  async function selectResultTab(tab){
+    if(!['overview','review','visuals'].includes(tab)||!state.result)return;
+    state.resultTab=tab;renderResultTabs();
+    if(tab==='review')await openReviewWorkspace('job');else resetReviewWorkspace();
+  }
+
+  function renderResultContent() {
     const result = state.result, container = $("result-content");
     container.hidden = !result;
     if (!result) { container.innerHTML = ""; return; }
-    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3"].includes(result.report_view?.schema_version)) {
+    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3","eeg-report-view/4"].includes(result.report_view?.schema_version)) {
       container.innerHTML = scoredResultHtml(result.report_view, result);
       $("workflow-panel").open = false;
       $("record-summary").hidden = true;
@@ -1250,6 +1306,8 @@
   function jobLocation(id) {
     const url = new URL(`${location.pathname || "/"}${location.search || ""}`,"http://localhost");
     url.searchParams.delete("modality");
+    url.searchParams.delete("intake");
+    url.searchParams.delete("input");
     if (id) url.searchParams.set("job",id); else url.searchParams.delete("job");
     return `${url.pathname}${url.search}${location.hash || ""}`;
   }
@@ -1258,6 +1316,13 @@
     if (state.navigationRestored) return; state.navigationRestored = true;
     const id = new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("job");
     if (id && /^[a-zA-Z0-9_-]{1,120}$/.test(id)) { await selectJob(id); return; }
+    const inputId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("input");
+    if(inputId&&/^[a-zA-Z0-9_-]{1,160}$/.test(inputId)){
+      try {const record=await api(`/inputs/${encodeURIComponent(inputId)}`);rememberInput(record);await selectInput(inputId,{autoPrepare:supportedModality(inputModality(record))});}
+      catch(error){setError("catalog-error",error.message);}return;
+    }
+    const intakeId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("intake");
+    if(intakeId&&/^[a-f0-9]{32}$/.test(intakeId)){await restoreIntake(intakeId);return;}
     $("draft-recovery").hidden = !savedDraft();
   }
   async function cloneJobConfiguration() {
@@ -1285,6 +1350,7 @@
   function resetReviewWorkspace() {
     stashReviewDraft();
     ++state.workspaceRequest; ++state.waveformRequest; state.workspace = null; state.waveform = null; state.candidates = []; state.candidateId = null; state.review = null; state.reviewWarnings = []; renderReviewEvidenceNotice();
+    if($("review-psd"))$("review-psd").hidden=true;
     $("review-workspace").hidden = true; $("candidate-detail").hidden = true; $("waveform-plot").innerHTML = "";
   }
   function mergeReviewEvidenceWarnings(...sources) {
@@ -1329,7 +1395,10 @@
   async function openReviewWorkspace(kind = "job") {
     const source = kind === "job" ? state.job : state.input;
     if (!source || state.submitting) return;
-    resetReviewWorkspace(); const request = ++state.workspaceRequest;
+    resetReviewWorkspace();
+    if(kind==="job"&&state.result){state.resultTab="review";$("result-review").appendChild?.($("review-workspace"));renderResultTabs();}
+    else $("review-home").appendChild?.($("review-workspace"));
+    const request = ++state.workspaceRequest;
     const meta = kind === "job" ? source.plan?.input_metadata || {} : source.metadata || {};
     const selection = kind === "job" ? source.plan?.qc_config?.selection || {} : currentConfig()?.selection || {};
     state.workspace = {kind,id:source.id,label:source.label || source.id,channels:arr(meta.channels),total_seconds:meta.duration_seconds,segments:arr(meta.continuous_segments)};
@@ -1392,7 +1461,7 @@
       const data = await api(`/${route}/${encodeURIComponent(workspace.id)}/waveform?start_seconds=${encodeURIComponent(start)}&duration_seconds=${encodeURIComponent(bounded)}&channel_indices=${indices.join(",")}&max_points=1600`);
       if (request !== state.waveformRequest || workspaceRequest !== state.workspaceRequest) return;
       state.waveform = data; $("waveform-start").value=data.start_seconds; renderWaveform();
-    } catch(error) { if (request === state.waveformRequest && workspaceRequest === state.workspaceRequest) { state.waveform = null; $("waveform-plot").innerHTML = ""; setError("review-error",error.message); $("waveform-status").textContent = "波形读取未完成"; } }
+    } catch(error) { if (request === state.waveformRequest && workspaceRequest === state.workspaceRequest) { state.waveform = null; $("waveform-plot").innerHTML = ""; setError("review-error",error.message); $("waveform-status").textContent = "波形读取未完成"; if($("review-psd"))$("review-psd").hidden=true; } }
     finally { if (request === state.waveformRequest) $("waveform-load-button").disabled = false; }
   }
   function renderWaveform() {
@@ -1418,7 +1487,20 @@
     const ticks = Array.from({length:6},(_,i)=>{const t=start+(stop-start)*i/5;return `<text x="${x(t)}" y="${height-5}" text-anchor="middle" class="waveform-unit">${t.toFixed(2)} s</text>`;}).join("");
     $("waveform-plot").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(window.QCI18n?.translate("原始信号波形") || "原始信号波形")}">${mark}${paths}${ticks}</svg>`;
     $("waveform-status").textContent = `${number(start,3)}–${number(stop,3)} s · ${channels.length} 道 · ${data.display_method || "显示方法未提供"} · 同单位共用幅度标尺 · 以零为中心`;
+    renderReviewSpectrum(channels);
   }
+  function renderReviewSpectrum(channels) {
+    let box=$("review-psd"); if(!box){box=document.createElement("details");box.id="review-psd";box.open=true;$("waveform-plot").after(box);}
+    const curves=channels.filter(c=>Array.isArray(c.psd?.power_uv2_hz)).map(c=>({name:c.name,points:c.psd.frequencies_hz.map((f,i)=>[f,10*Math.log10(c.psd.power_uv2_hz[i])]).filter(([f,p])=>f>0&&Number.isFinite(p))})).filter(c=>c.points.length>1);
+    if(!curves.length){box.innerHTML='<summary>同一片段的 PSD</summary><p class="small muted">当前片段无法计算 PSD；未补零。</p>';return;}
+    const ys=curves.flatMap(c=>c.points.map(p=>p[1])),ymin=Math.min(...ys),ymax=Math.max(...ys),xmax=Math.max(...curves.map(c=>c.points.at(-1)[0]));
+    const sx=x=>60+x/xmax*880,sy=y=>250-(y-ymin)/(ymax-ymin||1)*210;
+    const colors=['#2563eb','#0d9488','#7c3aed','#c77913'];
+    const paths=curves.map((c,i)=>`<polyline points="${c.points.map(([x,y])=>`${sx(x).toFixed(1)},${sy(y).toFixed(1)}`).join(' ')}" fill="none" stroke="${colors[i%4]}" stroke-width="1.3" opacity=".75"><title>${escape(c.name)}</title></polyline>`).join('');
+    const ticks=Array.from({length:5},(_,i)=>{const x=xmax*i/4,y=ymin+(ymax-ymin)*i/4;return `<line x1="60" x2="940" y1="${sy(y)}" y2="${sy(y)}" stroke="#e2e8f0"/><text x="52" y="${sy(y)+4}" text-anchor="end">${y.toFixed(0)}</text><text x="${sx(x)}" y="275" text-anchor="middle">${x.toFixed(1)}</text>`;}).join('');
+    box.innerHTML=`<summary>同一片段的 PSD</summary><p class="small muted">原生采样计算 · dB re μV²/Hz · 横轴 Hz；用于复核，不改变评分。</p><svg viewBox="0 0 1000 300" role="img" aria-label="当前片段功率谱密度">${ticks}${paths}</svg><p class="small muted">${curves.map(c=>escape(c.name)).join(' · ')}</p>`;
+  }
+
   function shiftWaveform(direction) { if (!state.workspace) return; const duration=Number($("waveform-duration").value)||5; const max=numeric(state.workspace.total_seconds)?Math.max(0,state.workspace.total_seconds-duration):Infinity; $("waveform-start").value=Math.max(0,Math.min(max,(Number($("waveform-start").value)||0)+direction*duration)); return loadWaveform(); }
   async function saveReview() {
     const workspace=state.workspace,candidate=candidateById(state.candidateId); if (!workspace || workspace.kind !== "job" || !candidate || state.reviewBusy || !state.review) return;
@@ -1448,7 +1530,7 @@
   async function loadResult(id) {
     const request = ++state.resultRequest;
     try {
-      const result = await api(`/jobs/${encodeURIComponent(id)}/result`);
+      const result = await api(`/jobs/${encodeURIComponent(id)}/result?view=summary`);
       if (request !== state.resultRequest || state.job?.id !== id) return;
       state.result = result; state.resultJobId = id;
       renderResult(); renderJob();
@@ -1672,8 +1754,10 @@
   $("scope-window").addEventListener("change",()=>setScope("window"));
   $("scope-recording").addEventListener("change",()=>setScope("recording"));
   $("clone-job-button").addEventListener("click",cloneJobConfiguration);
+  $("result-tabs").addEventListener("keydown",event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;const tabs=[...$("result-tabs").querySelectorAll("[data-result-tab]")],i=tabs.indexOf(event.target);if(i<0)return;event.preventDefault();const next=tabs[(i+(event.key==="ArrowRight"?1:2))%3];next.focus();selectResultTab(next.dataset.resultTab);});
+  document.addEventListener("click",event=>{const b=event.target.closest("[data-result-tab]");if(b)selectResultTab(b.dataset.resultTab);});
   $("open-review-button").addEventListener("click",()=>openReviewWorkspace("job"));
-  $("close-review-button").addEventListener("click",resetReviewWorkspace);
+  $("close-review-button").addEventListener("click",()=>selectResultTab("overview"));
   $("candidate-filter").addEventListener("change",()=>{state.candidateLimit=100;renderCandidateList();});
   $("candidate-module").addEventListener("change",()=>{state.candidateLimit=100;renderCandidateList();});
   $("waveform-load-button").addEventListener("click",loadWaveform);

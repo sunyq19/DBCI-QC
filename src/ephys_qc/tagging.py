@@ -70,6 +70,9 @@ def data_facts(record, config=None):
             raise ValueError('滤波史频率必须是有效非负数；低通频率须大于0。')
     if preprocessing.get('highpass_hz') is not None and preprocessing.get('lowpass_hz') is not None and preprocessing['highpass_hz'] >= preprocessing['lowpass_hz']:
         raise ValueError('滤波史高通频率须低于低通频率。')
+    notches = preprocessing.get('notch_hz', [])
+    if not isinstance(notches, list) or any(type(x) not in (int, float) or not math.isfinite(x) or x <= 0 for x in notches):
+        raise ValueError('陷波频率必须是有效正数列表。')
     for key in ('verified_electrode_coordinates', 'verified_epochs'):
         if key in record and type(record[key]) is not bool:
             raise ValueError(key + '需为明确的布尔值。')
@@ -90,6 +93,7 @@ def data_facts(record, config=None):
             'has_epochs': bool(record.get('verified_epochs')),
             'preprocessing_highpass_hz': preprocessing.get('highpass_hz') if preprocessing.get('verified') is True else None,
             'preprocessing_lowpass_hz': preprocessing.get('lowpass_hz') if preprocessing.get('verified') is True else None,
+            'preprocessing_notch_hz': sorted(set(notches)) if preprocessing.get('verified') is True else [],
             'preprocessing_verified': preprocessing.get('verified') is True, 'context': context}
 
 

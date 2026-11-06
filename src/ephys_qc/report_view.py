@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 
-VIEW_VERSION = 'eeg-report-view/3'
+VIEW_VERSION = 'eeg-report-view/4'
 
 def ratio(numerator, denominator):
     return 100 * numerator / denominator if denominator else None
@@ -55,6 +55,7 @@ def line_summary(payload):
                 for key, v in by_channel.items()]
     channels.sort(key=lambda r: (-r['hits'], r['name']))
     return dict(total=len(seen), hits=len(hits), percent=ratio(len(hits), len(seen)),
+                score_eligible=not bool(payload.get('processing_exclusions')),
                 observed_frequency_rows=len(valid), flagged_frequency_rows=sum(bool(r.get('flagged')) for r in valid),
                 assessed_channels=len(channels), affected_channels=sum(bool(c['hits']) for c in channels), channels=channels)
 
@@ -191,6 +192,13 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
     check('文件标注', f'{annotations.get("count", "未知")} 条 · {", ".join(annotations.get("kinds", [])) or "未登记类型"}',
           '已读取' if annotations.get('available') else '未提供', 'M01_input.json')
     extra = []
+    processing = spectral.get("processing_scope") or muscle.get("processing_scope")
+    if processing:
+        extra.append(processing["interpretation"])
+        if processing.get("line_excluded"):
+            extra.append("已声明滤波影响的工频目标未评：" + "、".join(str(r["frequency_hz"]) + " Hz" for r in processing["line_excluded"]))
+        if processing.get("hf_limited_by_history"):
+            extra.append("高频检查所需频带未完整保留，该分项未评，不计为满分。")
     if len(eligible) < recording.get('channel_count', 0):
         extra.append('部分参考分组待确认；已保留通道描述量，未启用分组不能据空列表认定无坏道。')
     if adc < finite['measured_channels']:
@@ -203,7 +211,7 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
     return dict(channel_evidence=per_channel, local_quality=local_summary(per_channel),score_revision=score_revision(result,score),schema_version=VIEW_VERSION, label=label, headline=headline, summary=summary,
                 priority=f'工频优先复核：{priority}。' if priority else '', scope='window',
                 recording=recording, format=meta.get('format'), input_duration_seconds=meta.get('duration_seconds'),
-                score=score, checks=checks, notes=extra, failures=failed,
+                score=score, checks=checks, notes=extra, processing_scope=processing, failures=failed,
                 finite=finite, line={k:v for k,v in line.items() if k != 'channels'},
                 line_channels=[c for c in line['channels'] if c['hits']][:100],
                 hf_candidates=(hf_candidates or [])[:100], hf_candidate_count=hf_count, hf_affected_channels=hf_channels,

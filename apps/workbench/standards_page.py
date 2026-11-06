@@ -23,6 +23,7 @@ DOCUMENT_PAGES = {
     'overview': ('workflow-standards.md', '总则', 'General requirements'),
     'fields': ('metadata-fields.md', '字段字典', 'Field dictionary'),
     'applicability': ('method-applicability.md', '方法适用规则', 'Method applicability'),
+    'dataset-checks': ('dataset-checks.md', '完整性与一致性', 'Completeness and consistency'),
     'eeg-checks': ('eeg-checks.md', 'EEG检查词条', 'EEG check terms'),
     'eeg-evidence': ('eeg-evidence.md', 'EEG来源依据', 'EEG evidence sources'),
     'eeg-scoring': ('eeg-scoring.md', 'EEG评分规则', 'EEG scoring rules'),
@@ -434,13 +435,13 @@ NAVIGATION_SCRIPT = r""""use strict";
   let fromWorkbench = false;
   try {
     const from = new URL(document.referrer);
-    fromWorkbench = from.origin === location.origin && from.pathname === "/" && history.length > 1;
+    fromWorkbench = from.origin === location.origin && ["/", "/datasets"].includes(from.pathname) && history.length > 1;
   } catch { /* Direct visits use the reliable root URL. */ }
   function returnToWorkbench() {
     if (fromWorkbench && location.href === entryHref && history.length === entryLength) history.back();
     else {
       const fallback = back.getAttribute?.("href");
-      location.assign(["/", "/?lang=en", "/?modality=ecog", "/?modality=ecog&lang=en", "/?modality=seeg", "/?modality=seeg&lang=en", "/?modality=extracellular", "/?modality=extracellular&lang=en"].includes(fallback) ? fallback : "/");
+      location.assign(["/", "/?lang=en", "/datasets", "/datasets?lang=en", "/?modality=ecog", "/?modality=ecog&lang=en", "/?modality=seeg", "/?modality=seeg&lang=en", "/?modality=extracellular", "/?modality=extracellular&lang=en"].includes(fallback) ? fallback : "/");
     }
   }
   back.addEventListener("click", event => {
@@ -564,6 +565,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
     modality_suffix = '/' + modality if common else ('/' + route(modality)['slug'] if route(modality)['slug'] else '')
     base = ('/en/standards' if english else '/standards') + modality_suffix
     workbench_href = ('/?modality=' + modality + ('&lang=en' if english else '')) if modality in DESCRIPTIVE else ('/?lang=en' if english else '/')
+    if modality == 'dataset-checks': workbench_href = '/datasets' + ('?lang=en' if english else '')
     text = lambda chinese, english_text: english_text if english else chinese
     markdown = Markdown(source)
     body = _localized_document_links(markdown.render(), lang, modality)
@@ -598,6 +600,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                       + '<li>' + text('头皮 EEG', 'Scalp EEG') + '<ol>'
                       + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
                       + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-scoring', 'eeg-report', 'eeg-evidence')) + '</ol></li>'
+                      + '<li>' + text('数据集', 'Dataset') + '<ol>' + document_link('dataset-checks') + '</ol></li>'
                       + document_link('implementation'))
     kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else
             text('模块说明 · 当前实现', 'Module guide · Current implementation') if module_id else

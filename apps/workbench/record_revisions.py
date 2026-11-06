@@ -76,14 +76,8 @@ class RecordRevisions:
                       reference_evidence='用户在记录修订中明确声明；未自动重参考。')
         record.setdefault('provenance', {})['note'] = note
         if 'preprocessing' in body:
-            prep = body['preprocessing']
-            if not isinstance(prep, dict) or set(prep) - {'verified', 'highpass_hz', 'lowpass_hz', 'note'} or type(prep.get('verified')) is not bool:
-                raise ValueError('处理史需明确 verified，并提供可选高通、低通频率与说明。')
-            if not isinstance(prep.get('note', ''), str) or len(prep.get('note', '')) > 2000:
-                raise ValueError('处理史说明最多2000字。')
-            if prep['verified'] and not prep.get('note', '').strip():
-                raise ValueError('确认处理史时，请注明资料依据。')
-            record['preprocessing'] = {**prep, 'source': 'user_declaration_not_independent_measurement'}
+            from ephys_qc.processing_history import validate_declaration
+            record['preprocessing'] = validate_declaration(body['preprocessing'])
         data_facts(record, config)  # Frequency bounds and context types.
         identifier = 'revision-' + uuid.uuid4().hex
         record.update(id=identifier, record_family=original.get('record_family', original['id']),

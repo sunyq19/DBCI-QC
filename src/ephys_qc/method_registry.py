@@ -175,6 +175,8 @@ def _hf_applicability(facts, config):
 
 def evaluate_methods(record, config, selected_modules):
     facts = data_facts(record, config)
+    from .processing_history import scope
+    frequency_scope = scope(record, config, facts['sampling_rate_hz'])
     selected = set(selected_modules)
     extensions = set(config.get('method_config', {}).get('extensions', []))
     extension_params = config.get('method_config', {}).get('extension_parameters', {})
@@ -199,6 +201,15 @@ def evaluate_methods(record, config, selected_modules):
             status, reason = 'blocked', '没有确认并配置EOG导联。'
         elif id_ == 'hf_burst':
             status, reason = _hf_applicability(facts, config)
+            if frequency_scope['hf_limited_by_history']:
+                status, reason = 'blocked', '已声明滤波范围未保留当前高频方法的完整频带；该分项未评。'
+        elif id_ == 'thomson_line':
+            if not frequency_scope['line_evaluable_hz']:
+                status, reason = 'blocked', '没有可评价的工频目标：采样带宽不足，或目标已被声明滤波/陷波。'
+            elif frequency_scope['line_excluded']:
+                status, reason = 'partial', '只评价未被声明滤波/陷波影响的目标频率；其余不计为合格。'
+            elif facts['sampling_rate_hz'] <= 120:
+                status, reason = 'partial', '仅评价采样带宽内可测的工频目标。'
         elif id_ == 'prep_nonspatial' and (not facts['min_group_channels'] or facts['min_group_channels'] < config.get('method_config', {}).get('bad_channels', {}).get('min_group_channels', 4)):
             minimum = config.get('method_config', {}).get('bad_channels', {}).get('min_group_channels', 4)
             status, reason = 'partial', f'比较组未声明或不足本次设定的{minimum}道，保留描述量，相关组阈值不启用。'
@@ -210,10 +221,9 @@ def evaluate_methods(record, config, selected_modules):
             status, reason = 'blocked', '未登记临床事件文件；疾病背景标签不能替代原始事件标注。'
         elif id_ == 'spectral_model':
             status, reason = 'partial', '全段与每个窗口分别核验频带和时长，短尾窗可能未评。'
-        elif id_ == 'thomson_line' and facts['sampling_rate_hz'] and facts['sampling_rate_hz'] <= 120:
-            status, reason = 'partial', '采样率不足以覆盖全部50/60Hz及其谐波；仅评估可测频率。'
         elif id_ == 'voltage_calibration' and not facts['verified_voltage']:
             status, reason = 'partial', '技术头未确认全部选中通道单位；执行时必须核验物理标定。'
         result.append({'id': id_, 'module_id': mid, 'name': method['name'], 'status': status,
-                       'reason': reason, 'selected': chosen, 'parameters': parameters})
+                       'reason': reason, 'selected': chosen, 'parameters': parameters,
+                       **({'processing_scope': frequency_scope} if id_ in {'thomson_line', 'hf_burst', 'welch_psd'} else {})})
     return result

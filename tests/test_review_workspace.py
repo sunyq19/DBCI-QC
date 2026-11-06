@@ -232,6 +232,20 @@ class ReviewLogContracts(unittest.TestCase):
         self.assertEqual(result['count'], 0)
         self.assertTrue(result['warnings'])
 
+    def test_gnosis_candidates_keep_source_mapping_and_reviews_separate(self):
+        payload={**candidate_fixture(),'status':'completed'}
+        payload['candidates'][0]['localization']='channel_interval'
+        self.write(self.root / 'artifacts/M06_gnosis_artifact.json',payload)
+        candidates=self.workspace.candidates()['candidates']
+        chosen=next(c for c in candidates if c['method']=='gnosis_artifact')
+        self.assertEqual(chosen['channel_indices'],[2])
+        self.assertEqual((chosen['start_seconds'],chosen['stop_seconds']),(1.25,1.5))
+        payload['candidates'][0].update(localization='channel_only',start_seconds=None,stop_seconds=None)
+        self.write(self.root / 'artifacts/M05_gnosis_line_length.json',payload)
+        whole=next(c for c in self.workspace.candidates()['candidates'] if c['method']=='gnosis_line_length')
+        self.assertEqual(whole['localization'],'whole_window')
+        self.assertFalse(whole['interval_is_detection'])
+
     def test_failed_extension_and_auxiliary_events_do_not_become_candidates(self):
         self.write(self.root / 'artifacts/M06_auxiliary_events.json', {'events': [{'kind': 'ecg'}]})
         self.write(self.root / 'artifacts/M05_mne_lof.json', {**candidate_fixture(), 'status': 'failed'})
@@ -277,6 +291,19 @@ class WaveformContracts(unittest.TestCase):
         request = request_fixture()
         return waveform_for_input(request['input'], selection=request['qc_config']['selection'],
                                   reader_factory=self.factory, **kwargs)
+
+    def test_local_psd_uses_native_signal_before_display_envelope(self):
+        import numpy as np
+        self.data[0] = 20e-6 * np.sin(2*np.pi*10*np.arange(6000)/1000)
+        before=self.data.copy()
+        result=self.waveform(channel_indices=[7],max_points=20)
+        psd=result['channels'][0]['psd']
+        self.assertEqual(psd['frequencies_hz'][np.argmax(psd['power_uv2_hz'])],10)
+        self.assertAlmostEqual(np.trapezoid(psd['power_uv2_hz'],psd['frequencies_hz']),200,places=4)
+        self.assertEqual(psd['basis'],'native_samples_before_display_envelope')
+        np.testing.assert_array_equal(self.data,before)
+        self.data[0,1100]=np.nan
+        self.assertIsNone(self.waveform(channel_indices=[7])['channels'][0]['psd'])
 
     def test_positive_and_negative_spikes_survive_envelope_with_time_order(self):
         result = self.waveform(channel_indices=[7], max_points=20)

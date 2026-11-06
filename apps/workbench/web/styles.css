@@ -636,3 +636,8 @@ input[type=number], select, textarea { font-size:14px; }
 }
 
 .qc-local-focus{padding:12px 15px;background:#fff7e8;border-left:3px solid #d7a14b;border-radius:6px;font-size:14px}.qc-score-table{overflow:auto}.qc-score-table table{width:100%;border-collapse:collapse;font-size:12px}.qc-score-table th,.qc-score-table td{text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
+
+/* Unified result navigation and concise method availability. */
+.result-tabs{display:flex;gap:6px;border-bottom:1px solid #dbe5f3;margin:16px 0;padding-bottom:10px}.result-tabs[hidden]{display:none}.result-tabs button{border:0;border-radius:8px;padding:10px 18px;background:transparent;color:#62748d;font:inherit;cursor:pointer}.result-tabs button[aria-selected=true]{background:#edf3ff;color:#245ad3;font-weight:650}#result-visual-frame{width:100%;height:950px;border:0;border-radius:12px;background:#f4f7fc}.method-availability{display:flex;align-items:center;gap:14px;margin:12px 0;color:#245ad3}.method-availability span{font-size:13px;color:#68788e}#review-psd{margin-top:20px;padding-top:16px;border-top:1px solid #dbe5f3}#review-psd svg{width:100%;font-size:13px;fill:#64748b}.node-dependency{line-height:1.5}
+
+#result-review .review-workspace{margin:0;padding:12px 0;border:0;box-shadow:none}#result-review .review-layout{grid-template-columns:minmax(0,1fr)}#result-review .candidate-sidebar{border:0;padding:0}#result-review .candidate-list{max-height:240px}#result-review .waveform-controls{flex-wrap:wrap}#result-review .waveform-plot{min-width:0}

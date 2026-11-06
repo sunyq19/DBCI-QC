@@ -12,6 +12,8 @@ def run(context: ModuleContext) -> dict:
     save = context.save
     from brainelecqc.eeg.spectral import compute_spectral_qc
     payload = compute_spectral_qc(*_args(state), **_origin(state), config=methods.get("spectral"))
+    from ..processing_history import scope, restrict_line_evidence
+    restrict_line_evidence(payload, scope(context.record, context.config, state['fs']))
     save("M04_spectral.json", payload)
     line = payload["line_noise"]
     row["summary"] = {"line_status": line["status"], "line_observation_count": len(line["observations"]),

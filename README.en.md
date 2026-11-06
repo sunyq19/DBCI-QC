@@ -51,7 +51,7 @@ For custom directories, ports and upgrades, see the [installation guide](docs/en
 | NWB 2 / HDF5 | One `.nwb`; select a continuous ElectricalSeries after reading |
 | SpikeGLX | One AP or LF `.bin` + `.meta` pair in a ZIP |
 
-Upload and uncompressed ZIP limits are **512 MiB** each. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
+Upload and uncompressed ZIP limits are **2 GiB** each. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
 
 To try a generated engineering example:
 
@@ -81,6 +81,8 @@ Default setup installs BrainElecQC, MNE-Python, autoreject, PyNWB and PDF depend
 
 Research extensions such as FASTER, SpikeInterface, FieldTrip, ASR, CleanLine and Zapline-plus need separate dependencies or configuration. They do not all run by default. See [optional methods](docs/optional-methods-runtime.md) and [method sources](docs/toolkit-sources.md).
 
+From a registered dataset, open a subject/session recording directly for signal QC without re-uploading; dataset membership, source fingerprints and run history are retained.
+
 ## Documentation and development
 
 - [Install, configure and update](docs/en/installation.md)
@@ -101,3 +103,9 @@ Specifications are unreviewed project drafts, not published industry standards. 
 [DBCI-QC](https://github.com/sunyq19/DBCI-QC) · [Jiaxin Lei / BrainElecQC](https://github.com/Jlei61/BrainElecQC)
 
 BrainElecQC is installed at a fixed commit, not vendored. Raw data, local configuration and reports are not distributed with the repository. This project has not yet selected a license; third-party software and data retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Dataset checks
+
+The workbench also provides **Dataset** mode: D01 file completeness → D02 individual consistency → D03 cohort consistency. Register local package roots and explicit expectations in the local configuration, confirm scope, then run checks in the background. Reports include subjects, groups, conflicts and evidence; no signal-quality score is assigned. Whole-package browser upload is not implemented. Core functions are independent of the UI. See [rules](docs/en/dataset-checks.md) and [configuration](docs/dataset-inventory.md).
+
+Confirmed dataset recordings can be queued as a reviewed sequential batch, cancelled and traced to their reports. EEG results offer overview, candidate review with native-window PSD, and selectable visualizations. Report comparisons group matching configurations; unknown history and excluded frequency bands never become clean scores.
