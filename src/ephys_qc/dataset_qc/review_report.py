@@ -1,146 +1,198 @@
-"""Readable D04 HTML and PDF exports from the same frozen review case."""
+"""D04 presentation model and HTML report. Check evidence is never rewritten."""
+from collections import Counter
+from datetime import datetime
 import html
-from io import BytesIO
-import os
-from pathlib import Path
-import threading
+import json
+import re
+
 from .review import LABELS
 
-_PDF_LOCK = threading.RLock()
+LAYOUT_VERSION = 'dataset-review-layout/2'
 
 
 def report_content(case, language='zh-CN'):
     en = language == 'en'
     t = lambda zh, eng: eng if en else zh
     label = lambda key: LABELS.get(key, (key, key))[int(en)]
-    final = case.get('final')
     previous = case.get('previous')
-    cards = [(case['dataset_summary']['records'], t('份记录', 'recordings')),
-             (case['summary']['pending'], t('项待处理', 'pending decisions')),
-             (case['summary']['needs_fix'], t('项需整改', 'corrections required')),
-             ((previous or {}).get('counts', {}).get('resolved', 0), t('项复验消除', 'resolved on retest'))]
-    rows = []
+    final = case.get('final')
+    summary = case['dataset_summary']
+    counts = Counter(r['status'] for r in case['rows'])
+    checks = summary.get('status_counts', {})
+    # Aliases are local to this report; the complete identifiers remain in its appendix.
+    record_ids = sorted({rid for r in case['rows'] + (previous or {}).get('rows', [])
+                         for rid in r.get('records', [])})
+    aliases = {rid: f'R{i:02}' for i, rid in enumerate(record_ids, 1)}
+    def target_name(target):
+        return aliases.get(target, target)
+    suggestions = {
+        'read': t('核对配套文件是否完整，并重新读取该记录。', 'Verify companion files and read the recording again.'),
+        'units': t('核对源文件标定与通道表中的物理单位。', 'Reconcile source calibration with the channel-table units.'),
+        'rates': t('核对文件头、通道表与配套说明中的采样率。', 'Reconcile sampling rates in the header, channel table and metadata.'),
+    }
     priorities = {'needs_fix': 0, 'restricted_use': 1, 'pending': 2, 'follow_up': 3, 'acceptable_difference': 4}
-    machine = {'conflict': t('资料不符', 'Mismatch'), 'review': t('待核对', 'Review'), 'unassessed': t('未评', 'Unassessed')}
-    for row in sorted(case['rows'], key=lambda r: (priorities[r['disposition']], r['status'] == 'unassessed', r['module'], r['target'])):
+    machine = {'conflict': t('资料不符', 'Mismatch'), 'review': t('待核对', 'Check needed'),
+               'unassessed': t('未评', 'Unassessed'), 'pass': t('通过', 'Pass'),
+               'not_applicable': t('不适用', 'Not applicable')}
+    rows = []
+    groups = {}
+    for row in sorted(case['rows'], key=lambda r: (r['status'] == 'unassessed', priorities[r['disposition']], r['module'], r['code'], r['target'])):
         d = row.get('decision') or {}
-        rows.append({'title': row['label_en'] if en else row['label'], 'target': row['target'],
-                     'module': row['module'], 'machine': machine[row['status']], 'disposition': label(row['disposition']),
-                     'message': row['message'], 'files': row.get('files', []), 'observed': row.get('observed'),
-                     'impact': d.get('impact') or t('待确认', 'To confirm'),
-                     'action': d.get('action') or t('核对来源资料并记录处理依据。', 'Verify the source and record the decision basis.'),
-                     'owner': d.get('owner') or t('未指定', 'Unassigned'), 'note': d.get('note') or '',
-                     'reviewer': d.get('reviewer') or '', 'disposition_key': row['disposition']})
+        item = {**row, 'title': row['label_en'] if en else row['label'], 'short_target': target_name(row['target']),
+                'machine': machine[row['status']], 'disposition_label': label(row['disposition']),
+                'impact': d.get('impact') or t('尚未登记', 'Not recorded'),
+                'action': d.get('action') or suggestions.get(row['code'], t('核对来源资料后记录处理意见。', 'Verify the source and record a decision.')),
+                'owner': d.get('owner') or t('未指定', 'Unassigned'), 'note': d.get('note') or '',
+                'reviewer': d.get('reviewer') or ''}
+        rows.append(item)
+        # Same labels alone are insufficient: keep different evidence messages and decisions separate.
+        key = (row['module'], row['code'], row['status'], row['message'], row['disposition'])
+        group = groups.setdefault(key, {'title': item['title'], 'module': row['module'], 'status': row['status'],
+              'machine': item['machine'], 'message': row['message'], 'disposition': item['disposition_label'],
+              'action': suggestions.get(row['code'], t('核对来源资料后记录处理意见。', 'Verify the source and record a decision.')),
+              'rows': []})
+        group['rows'].append(item)
+    grouped = list(groups.values())
+    for index, group in enumerate(grouped, 1):
+        group['ref'] = f'F{index:02}'
+        group['targets'] = list(dict.fromkeys(r['short_target'] for r in group['rows']))
+    conflict = counts['conflict']; review = counts['review']; unknown = counts['unassessed']
+    if conflict:
+        headline = t(f'发现 {conflict} 项资料不一致', f'{conflict} metadata mismatches found')
+        description = t('先核对原始资料，再确认使用范围。', 'Reconcile the source metadata before confirming the intended use.')
+    elif review:
+        headline = t(f'{review} 项检查需要核对', f'{review} checks need review')
+        description = t('请结合原始资料确认检查结果。', 'Review these findings against the source records.')
+    elif unknown:
+        headline = t(f'{unknown} 项检查尚未评定', f'{unknown} checks remain unassessed')
+        description = t('补齐所需信息或确认适用条件后复查。', 'Complete the required information or confirm applicability, then rerun.')
+    else:
+        headline = t('本次未发现待处理问题', 'No open findings in this run')
+        description = t('人工审核结论单独记录。', 'The human review outcome is recorded separately.')
     delta = []
-    if previous:
-        delta = [{**r, 'title': r['label_en'] if en else r['label'], 'change_label': label(r['change'])}
-                 for r in previous['rows'] if r['change'] != 'unchanged']
-    return {'title': t('数据集审核与复验报告', 'Dataset review and retest report'), 'label': case['label'],
-            'outcome': label(case['outcome']), 'cards': cards, 'rows': rows, 'delta': delta,
-            'status_note': (t('尚未确认本次审核结论。', 'The review outcome has not been confirmed.') if not final else
-                            f"{final['reviewer']} · {final['recorded_at']} · {final['purpose']}"),
-            'demo': t('工程演示 · 使用公开数据副本及模拟处理记录', 'Engineering demo: public-data copy and simulated review entries') if case.get('engineering_demo') else '',
-            'boundary': t('程序检查、人工处理与信号评分分别保留。这里的审核仅针对声明范围，不代表医院验收或真实身份认证。',
-                          'Machine checks, human decisions and signal scores remain separate. This local review is scope-specific, not hospital acceptance or verified identity.'),
-            'unassessed_note': t(f"仍有 {case['summary']['unassessed']} 项程序检查未评；登记用途或跟踪意见不会把它们改成通过。",
-                                f"{case['summary']['unassessed']} machine checks remain unassessed; review notes do not turn them into passes.")}
+    for r in (previous or {}).get('rows', []):
+        if r['change'] != 'unchanged':
+            delta.append({**r, 'title': r['label_en'] if en else r['label'], 'short_target': target_name(r['target']),
+                          'change_label': label(r['change']), 'before_label': machine.get(r['before'], t('无记录', 'Not recorded')),
+                          'after_label': machine.get(r['after'], t('无记录', 'Not recorded'))})
+    delta.sort(key=lambda r: ({'resolved': 0, 'new': 1, 'changed': 2}.get(r['change'], 3), r['module'], r['target']))
+    stamp = str(case.get('checked_at', ''))
+    try:
+        parsed = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+        offset = parsed.utcoffset()
+        stamp = parsed.strftime('%Y-%m-%d %H:%M') + (' UTC' if offset is not None and offset.total_seconds() == 0 else parsed.strftime(' %z').rstrip())
+    except ValueError:
+        pass
+    records = []
+    for rid, alias in aliases.items():
+        entities = dict(re.findall(r'(?:^|_)(sub|ses|task|acq|run)-([^_]+)', rid))
+        records.append({'alias': alias, 'id': rid, 'subject': entities.get('sub', '—'),
+                        'context': ' / '.join(entities[k] for k in ('ses', 'task', 'acq', 'run') if k in entities) or rid})
+    status_note = t(f"{case['summary']['reviewed']} 项已登记意见，{case['summary']['pending']} 项待处理。",
+                    f"{case['summary']['reviewed']} decisions recorded; {case['summary']['pending']} pending.")
+    if final:
+        status_note = f"{final['reviewer']} · {final['purpose']}"
+    return {'title': t('数据集质控报告', 'Dataset quality control report'),
+            'subtitle': t('审核与复验', 'Dataset review and retest report'),
+            'label': case['label'], 'headline': headline, 'description': description, 'outcome': label(case['outcome']),
+            'status_note': status_note, 'rows': rows, 'groups': grouped, 'delta': delta, 'records': records,
+            'priority_groups': [g for g in grouped if g['status'] != 'unassessed'],
+            'unknown_groups': [g for g in grouped if g['status'] == 'unassessed'],
+            'counts': {'conflict': conflict, 'review': review, 'unassessed': unknown, 'pass': checks.get('pass'),
+                       'not_applicable': checks.get('not_applicable'), 'total': sum(checks.values()) if checks else None},
+            'checked_at': stamp, 'layout_version': LAYOUT_VERSION,
+            'demo': t('工程演示 · 公开数据副本', 'Engineering demo · Public-data copy') if case.get('engineering_demo') else '',
+            'boundary': t('本报告检查数据资料的一致性与完整性，人工审核仅针对声明范围。工程演示不代表医院验收。',
+                          'This report covers dataset metadata consistency and completeness. Human review is scope-specific; an engineering demo is not hospital acceptance.'),
+            'count_note': t('数量按检查项统计；同一记录可能对应多项检查。未评不等于不合格。',
+                            'Counts refer to checks, not recordings. One recording can have several checks. Unassessed does not mean failed.')}
+
+
+STYLE = '''
+:root{color-scheme:light;--blue:#245cd5;--ink:#152b46;--muted:#65758c;--line:#dce4ee;--pale:#f4f7fc}
+*{box-sizing:border-box}body{margin:0;background:#edf1f6;color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC",sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}button,summary,a{touch-action:manipulation}a:focus-visible,summary:focus-visible{outline:3px solid #9dbaff;outline-offset:4px}
+.toolbar{max-width:1120px;margin:auto;padding:20px 28px;display:flex;justify-content:space-between;gap:16px}.download{background:var(--blue);color:white;border-radius:8px;padding:8px 18px;font-weight:600}
+.sheet{max-width:1120px;margin:0 auto 40px;background:#fff;border:1px solid var(--line);box-shadow:0 12px 40px #1b33540a;border-radius:12px;overflow:hidden}
+.brandline{height:5px;background:var(--blue)}.masthead{padding:28px 44px 0;display:flex;justify-content:space-between;gap:20px;font-size:12px;color:var(--muted);letter-spacing:.05em}.brand{font-weight:750;color:var(--blue);font-size:15px}
+.intro{padding:25px 44px 26px}h1{font-size:32px;line-height:1.25;letter-spacing:-.02em;margin:0 0 8px}h2{font-size:21px;line-height:1.4;margin:0}h3{font-size:16px;line-height:1.5;margin:0}p{margin:0 0 8px}.subheading{font-size:14px;color:var(--muted)}.dataset-name{margin:24px 0 12px;font-weight:650;font-size:16px;overflow-wrap:anywhere}
+.metadata{display:flex;gap:12px 28px;flex-wrap:wrap;color:var(--muted);font-size:13px}.metadata b{color:var(--ink);font-weight:650;margin-right:5px}.demo{display:inline-block;background:#f1f5fc;color:#496586;padding:4px 9px;border-radius:5px;font-size:11px;letter-spacing:0}
+.overview{margin:0 44px 30px;background:#f4f7fd;border:1px solid #dce7fa;border-radius:10px;padding:26px 28px}.headline{font-size:25px;line-height:1.4;font-weight:700;margin:0 0 8px}.review-state{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-top:1px solid #dce4f2;margin-top:20px;padding-top:14px;font-size:13px}.review-state strong{color:var(--blue)}
+.metrics{display:grid;grid-template-columns:repeat(var(--metric-count,3),minmax(0,1fr));gap:20px;margin:24px 0 16px}.metric{border-right:1px solid #dce4f2}.metric:last-child{border:0}.metric b{display:block;font-size:36px;font-weight:650;line-height:1.2;font-variant-numeric:tabular-nums;letter-spacing:-.04em}.metric span{display:block;font-size:12px;margin-top:6px;color:var(--muted)}.metric.warn b{color:#a56223}.metric.pass b{color:#315b92}.metric.unknown b{color:#65758c}
+.note{font-size:12px;color:var(--muted);line-height:1.6}.section{padding:30px 44px;border-top:1px solid var(--line)}.section-head{display:flex;gap:14px;align-items:baseline;margin-bottom:18px}.section-no{font-size:13px;color:var(--blue);font-weight:650;font-variant-numeric:tabular-nums}.section-lead{color:var(--muted);font-size:13px;margin:-8px 0 18px}
+.priority{display:grid;grid-template-columns:1fr 1fr;gap:16px}.priority article{padding:20px;border:1px solid var(--line);border-left:3px solid #c18b43;border-radius:8px}.priority .target{margin:8px 0 12px}.priority .count{float:right;color:#9b611f;font-size:13px;font-weight:650}.ref{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;margin-right:8px}.target{overflow-wrap:anywhere;font-size:12px;color:var(--muted)}.action{font-size:14px}.empty{padding:20px;background:var(--pale);border-radius:8px;color:var(--muted)}
+.retest-summary{display:flex;gap:14px 28px;flex-wrap:wrap;padding:16px 20px;background:#f2f7f6;border-radius:8px;font-size:13px;margin-bottom:14px}.retest-summary b{font-size:20px;margin-right:6px;color:#276459}.warning{background:#fff7eb;color:#875a23;padding:12px 16px;border-radius:6px;font-size:13px;margin-bottom:14px}
+.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}th{color:var(--muted);font-weight:550;background:var(--pale);font-size:12px}th,td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}th:first-child,td:first-child{padding-left:12px}.nowrap{white-space:nowrap}.status{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;background:#f0f3f7;color:#62738a}.status.conflict{color:#955b1e;background:#fff3e1}.status.resolved,.status.pass{color:#276459;background:#edf6f2}
+details{border:1px solid var(--line);border-radius:8px;margin-top:12px;overflow:hidden}summary{padding:16px 18px;cursor:pointer;font-size:14px;font-weight:600;list-style-position:inside}summary .note{font-weight:400;margin-left:10px}details[open]>summary{border-bottom:1px solid var(--line);background:#f8fafd}.detail-body{padding:16px 20px}.finding{padding:16px 0;border-bottom:1px solid var(--line)}.finding:last-child{border-bottom:0}.finding-title{display:flex;gap:14px;justify-content:space-between;align-items:baseline;margin-bottom:8px}.finding details{border:0;margin:4px 0}.finding summary{padding:8px 0;font-size:12px;font-weight:450;color:var(--blue)}.finding details[open]>summary{background:none}.finding pre{padding:14px;background:var(--pale);white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}.decision{padding:18px 20px;background:#f6f8fc;border-radius:8px;margin-top:16px}.decision dl,.trace{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px 16px;font-size:13px;margin:12px 0}.decision dt,.trace dt{color:var(--muted)}.decision dd,.trace dd{margin:0;overflow-wrap:anywhere}.footer{padding:22px 44px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}.print-note{display:none}
+@media(max-width:720px){.toolbar{padding:15px}.sheet{border-radius:0;border-left:0;border-right:0;margin:0}.masthead,.intro,.section,.footer{padding-left:22px;padding-right:22px}.masthead{align-items:flex-start}.overview{margin-left:22px;margin-right:22px;padding:20px}h1{font-size:27px}.headline{font-size:21px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.metric:nth-child(2){border:0}.metric b{font-size:31px}.priority{grid-template-columns:1fr}.review-state{display:block}.review-state>span{display:block;margin-top:6px}.decision dl,.trace{grid-template-columns:1fr;gap:3px}.decision dd,.trace dd{margin-bottom:8px}.metadata{gap:8px 18px}.section{padding-top:25px;padding-bottom:25px}}
+@media print{body{background:white;font-size:11px}.toolbar{display:none}.sheet{max-width:none;box-shadow:none;border:0;margin:0}.masthead,.intro,.section,.footer{padding-left:0;padding-right:0}.overview{margin-left:0;margin-right:0}.section,.overview,.priority article{break-inside:avoid}.section:has(table){break-inside:auto}thead{display:table-header-group}tr{break-inside:avoid}.print-note{display:block}.brandline{height:3px}}
+'''
 
 
 def render_review_report(case, language='zh-CN'):
-    import json
     c = report_content(case, language); en = language == 'en'
     t = lambda zh, eng: eng if en else zh
-    e = lambda x: html.escape(str(x), quote=True)
+    e = lambda value: html.escape(str(value), quote=True)
+    number = lambda value: '—' if value is None else str(value)
     base = '/api/v1/package-jobs/' + case['job_id'] + '/review'
-    cards = ''.join(f'<div><b>{e(value)}</b><span>{e(name)}</span></div>' for value, name in c['cards'])
-    rows = ''.join(f'''<article class="finding"><div class="finding-head"><h3>{e(r['title'])}</h3><span class="badge {e(r['disposition_key'])}">{e(r['disposition'])}</span></div>
-<p class="target">{e(r['module'])} · {e(r['target'])} · {e(r['machine'])}</p>
-<dl><dt>{t('影响 / 允许用途','Impact / permitted use')}</dt><dd>{e(r['impact'])}</dd><dt>{t('下一步','Next step')}</dt><dd>{e(r['action'])}</dd><dt>{t('负责人','Owner')}</dt><dd>{e(r['owner'])}</dd></dl>
-{('<p class="note">'+e(r['note'])+'</p>') if r['note'] else ''}
-<details><summary>{t('程序证据','Machine evidence')}</summary><p>{e(r['message'])}</p><p class="target">{e('; '.join(r['files']))}</p><pre>{e(json.dumps(r['observed'], ensure_ascii=False, indent=2))}</pre></details></article>''' for r in c['rows'])
-    prev = case.get('previous'); delta = ''
+    ds = case['dataset_summary']; counts = c['counts']; prev = case.get('previous')
+    def section(number, title, body, lead=''):
+        return f'<section class="section"><div class="section-head"><span class="section-no">{number}</span><h2>{e(title)}</h2></div>' + (f'<p class="section-lead">{e(lead)}</p>' if lead else '') + body + '</section>'
+    def table(headers, rows):
+        return '<div class="table-scroll"><table><thead><tr>' + ''.join(f'<th>{e(h)}</th>' for h in headers) + '</tr></thead><tbody>' + ''.join('<tr>'+''.join(f'<td>{v}</td>' for v in row)+'</tr>' for row in rows) + '</tbody></table></div>'
+    metadata = ''.join(f'<span><b>{e(number(ds.get(key)))}</b>{e(name)}</span>' for key, name in [
+        ('subjects', t('个体', 'subjects')), ('records', t('份记录', 'recordings')), ('groups', t('比较组', 'comparison groups'))])
+    if 'expected_files' in ds:
+        metadata += f'<span><b>{e(number(ds.get("present_files")))}/{e(ds["expected_files"])}</b>{t("文件已找到","files present")}</span>'
+    metrics = [(counts['conflict'], t('资料不符', 'Mismatches'), 'warn'),
+               (counts['unassessed'], t('未评', 'Unassessed'), 'unknown'), (counts['pass'], t('检查通过', 'Checks passed'), 'pass')]
+    if counts['review']:
+        metrics.insert(1,(counts['review'],t('待核对', 'Check needed'),'warn'))
+    metrics_html = ''.join(f'<div class="metric {tone}"><b>{e(number(v))}</b><span>{e(name)}</span></div>' for v,name,tone in metrics)
+    priorities = ''.join(f'<article><span class="count">{len(g["rows"])} {t("项","checks")}</span><h3><span class="ref">{g["ref"]}</span>{e(g["title"])}</h3><p class="target">{e(", ".join(g["targets"]))}</p><p class="action">{e(g["action"])}</p></article>' for g in c['priority_groups'])
+    priority_section = section('01', t('优先核对', 'Priority checks'), '<div class="priority">'+priorities+'</div>' if priorities else '<p class="empty">'+t('本次没有资料不符或待核对项。','No metadata mismatches or review flags in this run.')+'</p>', t('同类发现合并展示；编号可在下方明细中定位。','Similar findings are grouped. References link them to the detailed register.'))
+    retest = ''
     if prev:
-        changes = ''.join(f'<tr><td>{e(r["title"])}</td><td>{e(r["target"])}</td><td>{e(r["change_label"])}</td><td>{e(r["before"])} → {e(r["after"])}</td></tr>' for r in c['delta'])
-        counts = ' · '.join(f'{LABELS[k][int(en)]} {v}' for k, v in prev['counts'].items())
-        delta = f'<section><h2>{t("复验变化","Retest changes")}</h2><p>{e(counts)}</p><p class="muted">{t("未复查或范围改变，不计为问题消除。","Missing checks or a changed scope do not count as resolved.")}</p><div class="table-scroll"><table><thead><tr><th>{t("检查项","Check")}</th><th>{t("对象","Target")}</th><th>{t("变化","Change")}</th><th>{t("程序状态","Machine status")}</th></tr></thead><tbody>{changes or "<tr><td>—</td></tr>"}</tbody></table></div></section>'
+        stats = ''.join(f'<span><b>{v}</b>{e(LABELS[k][int(en)])}</span>' for k,v in prev['counts'].items())
+        warning = '' if prev.get('compatible') else '<p class="warning">'+t('比较范围或规则已改变，不能据此认定问题消除。','Scope or rules changed. This comparison cannot establish resolution.')+'</p>'
+        changes = table([t('检查项','Check'),t('对象','Target'),t('复验变化','Change'),t('前后状态','Before / after')], [
+            [e(r['title']), e(r['short_target']), f'<span class="status {e(r["change"])}">{e(r["change_label"])}</span>', e(r['before_label']+' → '+r['after_label'])] for r in c['delta']])
+        retest = section('02', t('复验结果', 'Retest results'), warning+'<div class="retest-summary">'+stats+'</div>'+changes+'<p class="note" style="margin-top:12px">'+t('仅列出变化项。范围改变或未复查，不计为问题消除。','Only changed items are listed. Changed scope or omitted checks do not count as resolved.')+'</p>')
+    sections = []
+    for title, groups in [(t('资料不符与待核对', 'Mismatches and review flags'), c['priority_groups']), (t('未评项目', 'Unassessed checks'), c['unknown_groups'])]:
+        details = []
+        for g in groups:
+            children = []
+            for r in g['rows']:
+                decision = ''
+                if r['decision']:
+                    decision = '<div class="decision"><dl>'+''.join(f'<dt>{e(k)}</dt><dd>{e(v)}</dd>' for k,v in [
+                        (t('影响 / 用途','Impact / use'),r['impact']), (t('下一步','Next step'),r['action']), (t('负责人','Owner'),r['owner']),
+                        (t('处理依据','Decision basis'),r['note']), (t('审核人','Reviewer'),r['reviewer'])])+'</dl></div>'
+                evidence = e(json.dumps(r.get('observed'), ensure_ascii=False, indent=2))
+                children.append(f'<article class="finding"><div class="finding-title"><strong>{e(r["short_target"])}</strong><span class="status">{e(r["disposition_label"])}</span></div>{decision}<details><summary>{t("查看原始证据","Source evidence")}</summary><p>{e(r["message"])}</p><p class="target">{e(r["target"])}</p><p class="target">{e("; ".join(r.get("files",[])))}</p><pre>{evidence}</pre><p class="note">{e(r["id"])}</p></details></article>')
+            details.append(f'<details><summary><span class="ref">{g["ref"]}</span>{e(g["title"])}<span class="note">{len(g["rows"])} {t("项","checks")} · {e(g["machine"])}</span></summary><div class="detail-body"><p class="note">{e(g["message"])}</p>{"".join(children)}</div></details>')
+        if groups:
+            sections.append('<h3>'+e(title)+'</h3>'+''.join(details))
+    register = section('03' if prev else '02', t('检查明细', 'Finding register'), '<div style="display:grid;gap:22px">'+''.join('<div>'+s+'</div>' for s in sections)+'</div>' if sections else '<p class="empty">'+t('没有待处理发现。','No open findings.')+'</p>', t('按问题类型展开，查看涉及记录、处理意见与原始证据。','Expand a finding type to see affected records, decisions and source evidence.'))
+    record_table = table([t('简称','Alias'),t('个体','Subject'),t('完整记录标识','Full recording identifier')], [[e(r['alias']),e(r['subject']),'<span class="target">'+e(r['id'])+'</span>'] for r in c['records']])
+    trace_items = [(t('检查时间','Checked at'),c['checked_at']), (t('审核状态','Review outcome'),c['outcome']),
+                  (t('规则 / 审核版本','Rules / review revision'),f'{case["rule_version"]} / r{case["revision"]}'),
+                  (t('运行编号','Run ID'),case['job_id']), (t('结果指纹','Result fingerprint'),case['result_hash']),
+                  (t('报告版式','Report layout'),LAYOUT_VERSION)]
+    trace = '<dl class="trace">'+''.join(f'<dt>{e(k)}</dt><dd>{e(v)}</dd>' for k,v in trace_items)+'</dl>'
     history = ''.join(f'<li>r{r["revision"]} · {e(r["reviewer"])} · {e(r["recorded_at"])}</li>' for r in case.get('history', []))
-    return f'''<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(c['title'])}</title>
-<style>body{{margin:0;background:#f4f7fc;color:#203650;font:15px/1.65 system-ui,sans-serif}}main{{max-width:1040px;margin:32px auto;padding:0 24px 40px}}nav{{display:flex;justify-content:space-between;gap:16px;margin-bottom:26px}}a{{color:#245cd5;text-decoration:none}}section{{background:white;border:1px solid #dfe7f2;border-radius:18px;padding:30px;margin-bottom:22px}}h1{{font-size:28px;margin:8px 0}}h2{{font-size:20px;margin:0 0 16px}}h3{{font-size:16px;margin:0}}p{{margin:8px 0}}.eyebrow,.muted,.target{{color:#708099;font-size:13px}}.target{{overflow-wrap:anywhere}}.outcome{{font-size:24px;font-weight:650;color:#245cd5;margin:22px 0 8px}}.cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;border-top:1px solid #e5ebf4;margin-top:24px;padding-top:24px}}.cards b{{font-size:30px;display:block;font-variant-numeric:tabular-nums}}.cards span{{font-size:13px;color:#708099}}.demo{{background:#edf3ff;color:#245cd5;border-radius:7px;padding:8px 12px;font-size:13px}}.finding{{padding:22px 0;border-top:1px solid #e5ebf4}}.finding-head{{display:flex;justify-content:space-between;gap:16px}}.badge{{padding:3px 8px;background:#eff3f8;color:#526985;border-radius:6px;white-space:nowrap;font-size:12px}}.needs_fix{{background:#fff0eb;color:#ad4b27}}.restricted_use{{background:#fff7e5;color:#96631b}}.note{{background:#f5f8fc;padding:10px 14px;border-radius:7px;font-size:13px}}dl{{display:grid;grid-template-columns:135px 1fr;gap:6px 16px;font-size:14px}}dt{{color:#708099}}dd{{margin:0;overflow-wrap:anywhere}}summary{{color:#315a90;cursor:pointer}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;background:#f5f8fc;padding:12px}}table{{border-collapse:collapse;width:100%;font-size:13px}}td,th{{padding:10px;border-bottom:1px solid #e1e9f3;text-align:left;overflow-wrap:anywhere}}.table-scroll{{overflow:auto}}@media(max-width:640px){{main{{padding:0 14px}}section{{padding:20px}}.cards{{grid-template-columns:repeat(2,1fr)}}dl{{grid-template-columns:1fr}}h1{{font-size:23px}}}}@media print{{body{{background:white}}nav{{display:none}}main{{margin:0;padding:0}}section{{border:0;padding:12px 0}}h2,h3{{break-after:avoid}}thead{{display:table-header-group}}}}</style></head><body><main>
-<nav><a href="/datasets?job={case['job_id']}&tab=review">← {t('返回数据集','Back to dataset')}</a><a href="{base}/pdf?lang={language}">{t('下载 PDF','Download PDF')}</a></nav>
-<section><p class="eyebrow">DBCI-QC · D04</p><h1>{e(c['title'])}</h1><p>{e(c['label'])}</p>{('<p class="demo">'+e(c['demo'])+'</p>') if c['demo'] else ''}<div class="outcome">{e(c['outcome'])}</div><p>{e(c['status_note'])}</p><p class="muted">{e(case['scope'])}</p><div class="cards">{cards}</div></section>
-{delta}<section><h2>{t('处理清单','Action register')}</h2><p class="muted">{e(c['unassessed_note'])}</p>{rows or '<p>'+t('本次范围内没有待处理的程序发现。','No machine findings need a decision within this scope.')+'</p>'}</section>
-<section><h2>{t('范围与追溯','Scope and traceability')}</h2><p>{e(c['boundary'])}</p><p class="target">{e(case['schema_version'])} · {e(case['rule_version'])} · r{case['revision']}<br>{case['job_id']}<br>{e(case['checked_at'])}</p><details><summary>{t('审核历史','Review history')}</summary><ul>{history}</ul></details></section></main></body></html>'''
+    appendix = section('04' if prev else '03', t('范围与追溯', 'Scope and traceability'), '<p>'+e(case['scope'])+'</p>'+trace+
+                       '<details><summary>'+t('记录标识对照','Recording identifiers')+'</summary>'+record_table+'</details>'+
+                       '<details><summary>'+t('审核历史','Review history')+'</summary><div class="detail-body">'+('<ul>'+history+'</ul>' if history else t('尚未登记人工审核记录。','No human review entries recorded.'))+'</div></details>')
+    demo = '<span class="demo">'+e(c['demo'])+'</span>' if c['demo'] else ''
+    return f'''<!doctype html><html lang="{language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{e(c['title'])}</title><style>{STYLE}</style></head><body>
+<nav class="toolbar" aria-label="{t('报告导航','Report navigation')}"><a href="/datasets?job={e(case['job_id'])}&tab=review">← {t('返回质控台','Back to workbench')}</a><a class="download" href="{base}/pdf?lang={language}">{t('下载 PDF','Download PDF')}</a></nav>
+<main class="sheet"><div class="brandline"></div><header class="masthead"><span class="brand">DBCI-QC</span>{demo}</header><div class="intro"><h1>{e(c['title'])}</h1><p class="subheading">{e(c['subtitle'])} · {e(c['checked_at'])}</p><p class="dataset-name">{e(c['label'])}</p><div class="metadata">{metadata}</div></div>
+<section class="overview" aria-label="{t('结果概览','Result overview')}"><p class="headline">{e(c['headline'])}</p><p class="subheading">{e(c['description'])}</p><div class="metrics" style="--metric-count:{len(metrics)}">{metrics_html}</div><p class="note">{e(c['count_note'])}</p><div class="review-state"><strong>{t('人工审核','Human review')} · {e(c['outcome'])}</strong><span>{e(c['status_note'])}</span></div></section>
+{priority_section}{retest}{register}{appendix}<footer class="footer">{e(c['boundary'])}</footer></main></body></html>'''
 
 
 def review_pdf(case, language='zh-CN'):
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-    from reportlab.lib import colors
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
-    c = report_content(case, language); en = language == 'en'; t = lambda a,b: b if en else a
-    with _PDF_LOCK:
-        font = 'DatasetQC-CJK'
-        if font not in pdfmetrics.getRegisteredFontNames():
-            for filename in [os.environ.get('DBCI_QC_PDF_FONT', ''), '/usr/share/fonts/fonts-gb/GB_HT_GB18030.ttf', 'C:/Windows/Fonts/msyh.ttc']:
-                if filename and Path(filename).is_file():
-                    try: pdfmetrics.registerFont(TTFont(font, filename)); break
-                    except Exception: continue
-            else:
-                font = 'STSong-Light'
-                if font not in pdfmetrics.getRegisteredFontNames(): pdfmetrics.registerFont(UnicodeCIDFont(font))
-        blue = colors.HexColor('#245cd5'); ink = colors.HexColor('#203650'); muted = colors.HexColor('#687c96')
-        body = ParagraphStyle('body', fontName=font, fontSize=10, leading=16, textColor=ink, wordWrap='CJK', spaceAfter=7)
-        small = ParagraphStyle('small', parent=body, fontSize=8, leading=12, textColor=muted)
-        h1 = ParagraphStyle('h1', parent=body, fontSize=22, leading=31, spaceAfter=16)
-        h2 = ParagraphStyle('h2', parent=body, fontSize=14, leading=21, spaceBefore=14, spaceAfter=10, keepWithNext=True)
-        def p(value, style=body): return Paragraph(html.escape(str(value)), style)
-        output = BytesIO()
-        doc = SimpleDocTemplate(output, pagesize=(595.28,841.89), leftMargin=42, rightMargin=42, topMargin=54, bottomMargin=48,
-                                title=c['title'], author='DBCI-QC')
-        story = [p(c['title'], h1), p(c['label']), p(c['demo'], small) if c['demo'] else Spacer(1,1),
-                 p(c['outcome'], h2), p(c['status_note']), p(case['scope'], small)]
-        cards = Table([[p(f'{v}  {name}') for v,name in c['cards']]], colWidths=[127.8]*4)
-        cards.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.HexColor('#edf3ff')),('VALIGN',(0,0),(-1,-1),'TOP'),
-                                  ('TOPPADDING',(0,0),(-1,-1),12),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
-        story.extend([Spacer(1,10), cards, Spacer(1,10), p(c['unassessed_note'], small)])
-        prev = case.get('previous')
-        if prev:
-            story.append(p(t('复验变化','Retest changes'),h2))
-            story.append(p(' · '.join(f'{LABELS[k][int(en)]} {v}' for k,v in prev['counts'].items())))
-            for r in c['delta'][:12]:
-                story.append(p(f"{r['title']} / {r['target']} / {r['change_label']}",small))
-            if len(c['delta']) > 12: story.append(p(t('其余变化见完整 HTML 报告。','Additional changes are available in the full HTML report.'), small))
-            story.append(p(t('范围改变或未复查，不计为问题消除。','Changed scopes or omitted checks do not count as resolved.'), small))
-        reviewed = [r for r in c['rows'] if r['note']]
-        if reviewed:
-            story.append(p(t('已登记的处理意见','Recorded decisions'),h2))
-        for r in reviewed:
-            story.append(KeepTogether([p(r['title']+' / '+r['disposition'],h2),p(r['target'],small)]))
-            story.extend([p(t('影响：','Impact: ')+r['impact']),p(t('下一步：','Next step: ')+r['action']),
-                          p(t('负责人：','Owner: ')+r['owner'],small),p(r['note'],small)])
-        story.append(p(t('全部待处理事项','All findings'),h2))
-        if c['rows']:
-            import re
-            story.append(p(t('对象显示个体及运行编号；完整路径与测量值见配套 HTML。未评项表示证据不足。',
-                             'Targets show subject and run identifiers; full paths and measurements are in the HTML. Unassessed means insufficient evidence.'),small))
-            head = [t('检查项','Check'),t('对象','Target'),t('程序结果','Machine result'),t('人工处理','Decision')]
-            data = [[p(v,small) for v in head]]
-            for r in c['rows']:
-                short = re.sub(r'_ses-[^_ /]+_task-[^_ /]+_acq-', ' / ', r['target']).replace('_run-', ' / run-')
-                short = short.removesuffix('-raw').removesuffix('-derived')
-                data.append([p(r['module']+' '+r['title'],small),p(short,small),p(r['machine'],small),p(r['disposition'],small)])
-            table = Table(data, colWidths=[115,240,77,79], repeatRows=1, hAlign='LEFT')
-            table.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#edf3ff')),
-                ('LINEBELOW',(0,0),(-1,-1),.4,colors.HexColor('#dfe7f2')),('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7)]))
-            story.append(table)
-        else: story.append(p(t('本次范围内没有待处理的程序发现。','No machine findings need a decision in this scope.')))
-        story.append(KeepTogether([p(t('范围与追溯','Scope and traceability'),h2),p(c['boundary'],small),
-                      p(f"{case['schema_version']} / {case['rule_version']} / r{case['revision']}",small),
-                      p(case['job_id']+' / '+case['checked_at'],small)]))
-        def page(canvas, document):
-            canvas.saveState();canvas.setFillColor(blue);canvas.rect(0,833,595.28,9,fill=1,stroke=0)
-            canvas.setFillColor(muted);canvas.setFont(font,8);canvas.drawString(42,28,'DBCI-QC / D04');canvas.drawRightString(553,28,str(document.page));canvas.restoreState()
-        doc.build(story,onFirstPage=page,onLaterPages=page)
-        return output.getvalue()
+    from .review_report_pdf import render_pdf
+    return render_pdf(case, report_content(case, language), language)
