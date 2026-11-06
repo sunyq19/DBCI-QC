@@ -720,6 +720,9 @@ class Handler(BaseHTTPRequestHandler):
                 if result.get('report_view'):
                     from ephys_qc.report_view import render_report_view
                     report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf', visualization_url=f'/api/v1/jobs/{id_}/visualizations')
+                    # Presentation only: the live workbench theme never edits saved reports.
+                    report = report.replace('</head>', '<link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css"></head>', 1)
+                    report = report.replace('<body>', '<body class="qc-signal-report">', 1)
                 else:
                     report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
                 # Keep the standalone report usable both on disk and at the job's /report route.
@@ -737,7 +740,7 @@ class Handler(BaseHTTPRequestHandler):
                 language = parse_qs(urlsplit(self.path).query).get('lang', ['zh-CN'])[0]
                 back = f'/?modality={modality}&job={id_}' + ('&lang=en' if language == 'en' else '')
                 label = 'Return to this QC run' if language == 'en' else '返回本次质控'
-                navigation = f'<nav aria-label="QC navigation" style="padding:14px 24px;background:#eff6ff;border-bottom:1px solid #dbeafe"><a href="{escape(back, quote=True)}">← {label}</a></nav>'
+                navigation = f'<nav aria-label="QC navigation" style="padding:14px 24px;background:#fff;border-bottom:1px solid #e4e7ec"><a href="{escape(back, quote=True)}">← {label}</a></nav>'
                 report = insert_report_navigation(report, navigation)
                 return self.send_bytes(report.encode('utf-8'), 'text/html; charset=utf-8')
             if filename:
@@ -746,7 +749,7 @@ class Handler(BaseHTTPRequestHandler):
                 if target.suffix in {'.html', '.json', '.txt', '.csv', '.tsv'}:
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
-        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/favicon.svg': 'favicon.svg',
+        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
                   '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:

@@ -626,7 +626,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
     return f'''<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><title>{escape(title)} · {text("质控台", "QC Workbench")}</title>
-<style>{STYLES}</style><script src="/standards-navigation.js" defer></script></head><body>
+<style>{STYLES}</style><link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css"><script src="/standards-navigation.js" defer></script></head><body class="qc-document">
 <a class="skip-link" href="#document">{text("跳到正文", "Skip to document")}</a>
 <header class="document-header"><nav class="document-toolbar" aria-label="{text("文档操作", "Document actions")}">
 <a id="return-workbench" class="workbench-return" href="{workbench_href}" aria-keyshortcuts="Alt+Q" title="{text("返回质控台（Alt+Q）", "Return to QC Workbench (Alt+Q)")}">← {text("返回质控台", "QC Workbench")} <kbd>Alt+Q</kbd></a>

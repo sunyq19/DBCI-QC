@@ -1658,7 +1658,7 @@
     $("module-dialog-title").textContent = module.name;
     if (detailsUrl) $("module-details-link").setAttribute("href",detailsUrl); else $("module-details-link").removeAttribute("href");
     $("module-details-link").hidden = !detailsUrl;
-    $("module-dialog-content").innerHTML = `<p>${escape(module.description || "暂无说明")}</p>${node ? `<section class="dialog-section"><h3>当前状态</h3>${statusTag(node.status)}${node.source_status && node.source_status !== node.status ? `<p class="small muted">服务原始状态：${escape(node.source_status)}；此处按实际选择集合区分显示。</p>` : ""}${node.reason ? `<p>${escape(node.reason)}</p>` : ""}${node.message ? `<p>${escape(node.message)}</p>` : ""}</section>` : ""}<div class="module-contract">${listSection("输入",module.inputs)}${listSection("输出",module.outputs)}${listSection("依赖模块",module.dependencies)}</div><details class="dialog-section dialog-evidence"><summary>依据、证据与适用边界</summary><h3>依据与证据</h3><p>${escape(pretty(module.evidence || "目录未提供证据；不能据此推断已经验证。"))}</p><section class="dialog-section dialog-limitations"><h3>适用边界与限制</h3>${arr(module.limitations).length ? `<ul>${module.limitations.map(limit => `<li>${escape(pretty(limit))}</li>`).join("")}</ul>` : '<p>目录暂未列出限制；这不表示模块没有适用条件。</p>'}</section></details>`;
+    $("module-dialog-content").innerHTML = `<p class="module-summary">${escape(module.description || "暂无说明")}</p>${node ? `<section class="dialog-section"><h3>当前状态</h3>${statusTag(node.status)}${node.source_status && node.source_status !== node.status ? `<p class="small muted">服务原始状态：${escape(node.source_status)}；此处按实际选择集合区分显示。</p>` : ""}${node.reason ? `<p>${escape(node.reason)}</p>` : ""}${node.message ? `<p>${escape(node.message)}</p>` : ""}</section>` : ""}<div class="module-contract">${listSection("输入",module.inputs)}${listSection("输出",module.outputs)}${listSection("依赖模块",module.dependencies)}</div><details class="dialog-section dialog-evidence"><summary>依据、证据与适用边界</summary><h3>依据与证据</h3><p>${escape(pretty(module.evidence || "目录未提供证据；不能据此推断已经验证。"))}</p><section class="dialog-section dialog-limitations"><h3>适用边界与限制</h3>${arr(module.limitations).length ? `<ul>${module.limitations.map(limit => `<li>${escape(pretty(limit))}</li>`).join("")}</ul>` : '<p>目录暂未列出限制；这不表示模块没有适用条件。</p>'}</section></details>`;
     if (id === "M01") {
       const readers = arr(catalog?.capabilities?.intake?.readers);
       $("module-dialog-content").innerHTML += `<section class="dialog-section"><h3>独立读取模块</h3><div class="reader-cards">${readers.map(reader=>`<article class="reader-card"><strong>${escape(reader.name || reader.id)}</strong><p data-i18n-skip>${escape(arr(reader.extensions).join(" · "))}</p><p>${reader.multifile ? "支持配套文件包" : "单文件读取"}</p>${arr(reader.limitations).length ? `<details><summary>读取范围</summary><ul>${reader.limitations.map(limit=>`<li>${escape(limit)}</li>`).join("")}</ul></details>`:""}</article>`).join("")}</div></section>`;
@@ -1676,6 +1676,7 @@
       $("module-dialog-id").textContent = `${module.id} / ${module.name}`;
       $("module-dialog-content").innerHTML = `<button class="text-button" data-method-parent="${escape(module.id)}">← 查看所属模块</button>${methodCardsHtml(module,{modality,browsing,methodId:focusedMethod.id})}`;
     }
+    $("module-dialog").setAttribute("data-view", focusedMethod ? "method" : "module");
     if (!$("module-dialog").open) $("module-dialog").showModal();
   }
 

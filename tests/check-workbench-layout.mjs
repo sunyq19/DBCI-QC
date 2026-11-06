@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'apps/workbench/web/index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'apps/workbench/web/styles.css'), 'utf8');
+const css = ['styles.css', 'datasets.css', 'ui-tokens.css', 'workbench-ui.css']
+  .map(file => fs.readFileSync(path.join(root, 'apps/workbench/web', file), 'utf8')).join('\n');
 const source = fs.readFileSync(path.join(root, 'apps/workbench/web/app.js'), 'utf8');
 const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
 const document = {tag:'document',attrs:{},parent:null,children:[]};
