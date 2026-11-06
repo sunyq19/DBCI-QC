@@ -36,7 +36,13 @@ extras=[
  ('OVERVIEW','overview','数据集报告汇总','按个体和记录汇总资料问题，关联已有单份信号报告。','不会自动启动数据集里每份文件的信号任务，也不平均不同模态分数。','src/ephys_qc/dataset_qc/overview.py')]
 for parent,key,title,desc,condition,path in extras:
  catalog.setdefault(parent,[]).append(node('support_'+key,title,['dataset'] if parent=='OVERVIEW' else list(modes.values())+['dataset'],kind='intake' if parent=='INPUT' else 'report',entry='support',summary='执行与汇总',description=desc,inputs='已确认的记录或数据包',outputs='接入证据或执行结果',conditions=condition,evidence=base+path))
-files=['src/ephys_qc/method_registry.py','src/ephys_qc/readers/__init__.py','src/ephys_qc/research_runtime.py','src/ephys_qc/descriptive_catalog.py','docs/dataset-checks.md']
-out={'catalogVersion':'2026-11-06.1','sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
+gnosis_url='https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE'
+for parent in ['M04','M05','M06']:
+ leaves=[n for n in catalog[parent] if n['id'].startswith('f_gnosis_')]
+ catalog[parent]=[n for n in catalog[parent] if n not in leaves]
+ catalog[parent].append(node('group_gnosis_'+parent,'灵犀云 · 可选方法',['eeg'],kind='conditional',entry='support',summary='逐项勾选 · 不并入基础评分',description='每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。',inputs='已确认的头皮EEG及单一比较组',outputs='子方法测量和候选；保留原始输入',conditions='原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。',methods='原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。',evidence=gnosis_url+'\n'+base+'docs/gnosis-methods.md',notes='网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。',children=leaves))
+catalog['M02'].append(node('support_gnosis_prepare','灵犀云 · 分析副本准备',['eeg'],kind='conditional',entry='support',summary='选择灵犀云子方法时按参数执行',description='为被选方法准备自己的副本：最高256Hz、1–70Hz及平均参考。原始信号和PREP等其他路线的输入保持不变。',inputs='原始V信号；已确认参考比较组',outputs='只供本方法使用的分析副本及处理记录',conditions='子方法prepare_copy=true时内部执行；关闭需已核实输入频带和采样率。ICA不在这一准备步骤中。',methods='SignalQualityEval.tools.utils.preprocess_raw',evidence=gnosis_url,notes='默认不执行Notebook中的自动ICA和线长候选删道；两者改变后续判断，需另外确认。'))
+files=['src/ephys_qc/method_registry.py','src/ephys_qc/readers/__init__.py','src/ephys_qc/research_runtime.py','src/ephys_qc/descriptive_catalog.py','src/ephys_qc/gnosis_catalog.py','src/ephys_qc/gnosis_runtime.py','src/ephys_qc/gnosis_worker.py','docs/dataset-checks.md']
+out={'catalogVersion':'2026-11-06.2','sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
 Path('content/module-catalog.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('Methods:',len(collected),'implemented:',sum(n['status']!='planned' for n in collected.values()),'readers:',len(reader_parent['children']),'dataset checks:',sum(len(catalog[k]) for k in ['D01','D02','D03']))

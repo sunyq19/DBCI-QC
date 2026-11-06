@@ -68,3 +68,8 @@ ACSF AP和截短Noise4Sam AP因源文件声明不一致保留作拒绝负例，�
 ## 2026-10-31 可选研究运行环境
 
 新增MNE-FASTER 1.2.2（BSD-3-Clause）、SpikeInterface 0.104.2（MIT）适配，以及对外部固定版本clean_rawdata、CleanLine、Zapline-plus、FieldTrip和Octave signal的调用。源码不随本仓库分发；许可、文件级ASR UC使用说明、运行依赖及兼容层边界见[研究扩展运行规范](docs/optional-methods-runtime.md#6-来源与许可)。不要仅凭本仓库许可证推定依赖具有相同商用或再分发条件。
+
+
+## 灵犀云原版可选方法
+
+[GnosisNeuroDynamicSE](https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE)，固定提交 `3547548bb81e1e1e2bc90226add5574437921c0c`。本仓库仅提供独立调用适配器与方法说明。上游 Notebook/文档采用 MIT；`SignalQualityEval 3.0.0`、`eegaux 2.0.9`、`eegext 2.1.9` 二进制 wheel 按提供方授权使用，未随本仓库再分发。安装、条件和验证范围见[灵犀云方法](docs/gnosis-methods.md)。

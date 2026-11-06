@@ -1,10 +1,13 @@
 {
-  "catalogVersion": "2026-11-06.1",
+  "catalogVersion": "2026-11-06.2",
   "sourceFiles": {
     "src/ephys_qc/method_registry.py": "d3702644126415da2b4260df4c269c0935cbce5c1bb307f06517708558b4ce8c",
     "src/ephys_qc/readers/__init__.py": "22ef0b06571e3b3f0abb1c5125c4dc78183eb1187f61fea285ae02c273f3351e",
     "src/ephys_qc/research_runtime.py": "c0c33b9f1624ee7b71be02d7bf49fc8848faab7fa7034bafa15bd6eb1b6ea2b8",
     "src/ephys_qc/descriptive_catalog.py": "66ac6ebee912987bc5c301b2cfbea21f43c771b9d2eec43196d5b3e7f4c8b5ef",
+    "src/ephys_qc/gnosis_catalog.py": "148ca23bb0b375d5f7e771897b9072dd5db82985e517d75e0113f418785b634c",
+    "src/ephys_qc/gnosis_runtime.py": "7c0c0d25d97c2de7ea2b6b98ea93d754b5fc09141128a71b38cefbc6e03dbac6",
+    "src/ephys_qc/gnosis_worker.py": "c71802a17a4d2dbcde5b9fa9f479758784ded320237f64f6f515d06515f60450",
     "docs/dataset-checks.md": "43626b69ea1dd84d12f8e9978887615a2fe96bdfbd6a63822ed06c845ae6b875"
   },
   "modules": {
@@ -239,6 +242,26 @@
         "methods": "",
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/whole_record.py",
         "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_gnosis_prepare",
+        "title": "灵犀云 · 分析副本准备",
+        "summary": "选择灵犀云子方法时按参数执行",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "eeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "为被选方法准备自己的副本：最高256Hz、1–70Hz及平均参考。原始信号和PREP等其他路线的输入保持不变。",
+        "inputs": "原始V信号；已确认参考比较组",
+        "outputs": "只供本方法使用的分析副本及处理记录",
+        "conditions": "子方法prepare_copy=true时内部执行；关闭需已核实输入频带和采样率。ICA不在这一准备步骤中。",
+        "methods": "SignalQualityEval.tools.utils.preprocess_raw",
+        "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE",
+        "notes": "默认不执行Notebook中的自动ICA和线长候选删道；两者改变后续判断，需另外确认。",
         "entryType": "support"
       }
     ],
@@ -604,6 +627,88 @@
         "evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
         "notes": "窄带峰值不证明干扰来源，不排除生理或病理活动；未自动扩展谐波。\nAP高频包含神经放电；原始RMS和PSD不直接称为噪声。没有分选，不计算单元指标。",
         "entryType": "method"
+      },
+      {
+        "id": "group_gnosis_M04",
+        "title": "灵犀云 · 可选方法",
+        "summary": "逐项勾选 · 不并入基础评分",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "eeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。",
+        "inputs": "已确认的头皮EEG及单一比较组",
+        "outputs": "子方法测量和候选；保留原始输入",
+        "conditions": "原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。",
+        "methods": "原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。",
+        "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/gnosis-methods.md",
+        "notes": "网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。",
+        "entryType": "support",
+        "children": [
+          {
+            "id": "f_gnosis_band_power",
+            "title": "灵犀云 · 相对频带功率",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "输出δ、θ、α、β、γ五个频带的相对功率。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "outputs": "通道×五频带功率比例\nPSD及有效统计时长",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口；默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n原版2秒Hamming Welch窗、1秒重叠；各频带积分除以1–40 Hz总功率。\nSignalQualityEval 3.0.0: cal_psd_freq → bands_repower",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n筛选后的片段按原示例拼接计算；接缝会影响滤波/PSD，结果没有连续时间定位。",
+            "entryType": "method"
+          },
+          {
+            "id": "f_gnosis_band_amplitude",
+            "title": "灵犀云 · 频带平均幅值",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "输出五个频带滤波后的平均绝对幅值，单位μV。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "outputs": "通道×五频带幅值\n有效统计时长",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口；默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n原版分别带通后计算平均绝对幅值；不是峰峰值或通用质量分。\nSignalQualityEval 3.0.0: bands_amp",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n筛选后的片段按原示例拼接计算；接缝会影响滤波/PSD，结果没有连续时间定位。",
+            "entryType": "method"
+          },
+          {
+            "id": "f_gnosis_reference_ranges",
+            "title": "灵犀云 · 参考分布对照",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "把频带功率、幅值及频谱差异与包内参考上下界并列展示。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "outputs": "三类特征的参考范围对照\n参考表SHA-256",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口；默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n读取原版Standard阈值表，逐道逐频带标记低于/范围内/高于；保留数值与阈值来源，不转成0–100总分。\nSignalQualityEval 3.0.0: bands_repower / bands_amp / detect_bad_channels_psd → Standard",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n筛选后的片段按原示例拼接计算；接缝会影响滤波/PSD，结果没有连续时间定位。",
+            "entryType": "method"
+          }
+        ]
       }
     ],
     "M05": [
@@ -786,6 +891,68 @@
         "evidence": "https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
         "notes": "只输出good/noise；good表示未超本阈值，不是通道合格，也不是分选单元质量。coherence+psd、dead/out和LF未接入。\n不把同步字混入；不将AP默认高频阈值套到LF流；未知几何时不运行coherence+psd，不默认删道或插值。",
         "entryType": "method"
+      },
+      {
+        "id": "group_gnosis_M05",
+        "title": "灵犀云 · 可选方法",
+        "summary": "逐项勾选 · 不并入基础评分",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "eeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。",
+        "inputs": "已确认的头皮EEG及单一比较组",
+        "outputs": "子方法测量和候选；保留原始输入",
+        "conditions": "原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。",
+        "methods": "原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。",
+        "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/gnosis-methods.md",
+        "notes": "网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。",
+        "entryType": "support",
+        "children": [
+          {
+            "id": "f_gnosis_line_length",
+            "title": "灵犀云 · 线长坏道候选",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "平均参考后比较通道线长总量；保留通道候选。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "outputs": "候选通道\n逐道平滑线长总量",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n256采样点平滑线长；按IQR与标准差双侧阈值的交集筛查，系数默认4.5。\nSignalQualityEval 3.0.0: get_bad_channels",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n双阈值交集可能对少通道不敏感；空候选不证明信号良好。",
+            "entryType": "method"
+          },
+          {
+            "id": "f_gnosis_psd_deviation",
+            "title": "灵犀云 · PSD通道差异",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "比较每个通道与其他通道的对数频谱距离，提出异常通道。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "outputs": "逐道六频段距离\nPSD异常通道候选",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口；默认先检出伪差并取补集，只用持续时间>10秒的片段；可显式关闭该筛选",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n五频带及1–40 Hz全频段的log10 PSD平均绝对距离；全频段使用Q1−3IQR、Q3+3IQR双侧界限。\nSignalQualityEval 3.0.0: cal_psd_freq → detect_bad_channels_psd",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n筛选后的片段按原示例拼接计算；接缝会影响滤波/PSD，结果没有连续时间定位。",
+            "entryType": "method"
+          }
+        ]
       }
     ],
     "M06": [
@@ -930,6 +1097,88 @@
         "evidence": "https://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
         "notes": "EEG、ECoG和sEEG共用这一描述性特征，不共享质量结论。病理放电也可能触发；候选不定位单道、不自动剔除。\n不复制官方MEG示例中的110–140Hz或跳变阈值作为EEG/iEEG默认值；不自动调用ft_rejectartifact。",
         "entryType": "method"
+      },
+      {
+        "id": "group_gnosis_M06",
+        "title": "灵犀云 · 可选方法",
+        "summary": "逐项勾选 · 不并入基础评分",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "eeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。",
+        "inputs": "已确认的头皮EEG及单一比较组",
+        "outputs": "子方法测量和候选；保留原始输入",
+        "conditions": "原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。",
+        "methods": "原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。",
+        "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/gnosis-methods.md",
+        "notes": "网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。",
+        "entryType": "support",
+        "children": [
+          {
+            "id": "f_gnosis_artifact",
+            "title": "灵犀云 · 伪差区间与占比",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "定位振幅和高频线长异常区间，计算逐道及全局时间占比。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "outputs": "逐道候选区间和占比\n全局候选区间",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n原版内部使用150 μV振幅阈值、0.1秒线长窗、8倍中位数阈值及1秒间隔合并；会在副本上降采样/滤波。\nSignalQualityEval 3.0.0: get_Artifact",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。\n原版win_len/min_duration外层入参未完全决定内部常量；本适配不提供无效旋钮。",
+            "entryType": "method"
+          },
+          {
+            "id": "f_gnosis_low_band",
+            "title": "灵犀云 · 低频异常区间",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "在1–13 Hz中寻找通道和窗口间的异常功率变化。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "outputs": "逐道低频候选区间\n异常时间占比",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n原版Hilbert功率统计；1秒窗、50%重叠；IQR系数3.5，另有固定3倍标准差条件。\nSignalQualityEval 3.0.0: get_abnormal_inertvals",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。",
+            "entryType": "method"
+          },
+          {
+            "id": "f_gnosis_high_band",
+            "title": "灵犀云 · 高频异常区间",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "在13–40 Hz中寻找异常功率变化，不直接判为肌电。",
+            "inputs": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "outputs": "逐道高频候选区间\n异常时间占比",
+            "conditions": "头皮EEG、单位V、至少3个可比较通道\n单一已确认参考比较组\n采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口\n头皮EEG、单位V、至少3个可比较通道；单一已确认参考比较组；采样率>140 Hz，源频带覆盖1–70 Hz；12–120秒分析窗口",
+            "methods": "灵犀云 · GnosisNeuroDynamicSE\n原版Hilbert功率统计；1秒窗、50%重叠；IQR系数6，另有固定3倍标准差条件。\nSignalQualityEval 3.0.0: get_abnormal_inertvals",
+            "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "自定义阈值，不是统一质控标准；不参与当前三项基础评分。\n原始信号和其他方法的输入保持不变；不自动删除候选通道。\n原示例针对静息态头皮EEG；任务/睡眠/疾病信号只能作探索性解释，不据此自动剔除。",
+            "entryType": "method"
+          }
+        ]
       }
     ],
     "M07": [

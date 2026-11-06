@@ -20,6 +20,8 @@ EXPECTED_IDS = {
     "report", "mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof",
     "autoreject_global", "pyprep_ransac", "autoreject_epochs", "ica_iclabel",
     "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue",
+    "gnosis_line_length", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band",
+    "gnosis_band_power", "gnosis_band_amplitude", "gnosis_psd_deviation", "gnosis_reference_ranges",
 }
 TEXT_FIELDS = {
     "purpose", "how_it_works", "interpretation", "when_to_use", "when_not_to_use",

@@ -44,7 +44,8 @@ _SPECS = [
 def extension_specs():
     from .extra_methods import extension_specs as additional_specs
     from .research_runtime import extension_specs as research_specs
-    return copy.deepcopy(_SPECS) + additional_specs() + research_specs()
+    from .gnosis_catalog import extension_specs as gnosis_specs
+    return copy.deepcopy(_SPECS) + additional_specs() + research_specs() + gnosis_specs()
 
 
 def _spec(extension_id):
@@ -93,6 +94,10 @@ def _parameters(extension_id, params):
 
 
 def evaluate_extension(extension_id, facts, params=None):
+    from .gnosis_catalog import IDS as GNOSIS_IDS
+    if extension_id in GNOSIS_IDS:
+        from .gnosis_runtime import evaluate_extension as evaluate_gnosis
+        return evaluate_gnosis(extension_id, facts, params)
     from .research_runtime import IDS, evaluate_extension as research_call
     if extension_id in IDS:
         return research_call(extension_id, facts, params)
@@ -163,6 +168,10 @@ def _source(extension_id, mne):
 
 
 def run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
+    from .gnosis_catalog import IDS as GNOSIS_IDS
+    if extension_id in GNOSIS_IDS:
+        from .gnosis_runtime import run_extension as run_gnosis
+        return run_gnosis(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)
     from .research_runtime import IDS, run_extension as research_call
     if extension_id in IDS:
         return research_call(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)

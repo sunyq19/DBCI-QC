@@ -378,6 +378,9 @@ def method_documentation(identifier):
     """
     if identifier in _DOCUMENTATION:
         return deepcopy(_DOCUMENTATION[identifier])
+    from .gnosis_catalog import IDS, extension_specs
+    if identifier in IDS:
+        return next(s['documentation'] for s in extension_specs() if s['id'] == identifier)
     from .research_methods import research_documentation
     return research_documentation(identifier)
 

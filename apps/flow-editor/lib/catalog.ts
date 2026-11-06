@@ -1,7 +1,8 @@
 import catalog from '../content/module-catalog.json';
 import {type FlowDoc,type FlowNode,validateDoc} from './flow';
-export const CATALOG_ID='hierarchy-v11';
-export const CATALOG_NOTE='补齐模块层级与已接入方法目录 · 2026-11-06.1';
+export const CATALOG_ID='gnosis-v12';
+export const CATALOG_LABEL='v1.2 · 灵犀云可选方法';
+export const CATALOG_NOTE='加入灵犀云8项原版可选方法、内部依赖与来源 · 2026-11-06.2';
 export function withCatalog(doc:FlowDoc):FlowDoc{
  const groups=catalog.modules as unknown as Record<string,FlowNode[]>;
  // Existing node descriptions and member edits survive; only missing child IDs are added.

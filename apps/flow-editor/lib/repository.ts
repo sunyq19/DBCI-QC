@@ -1,4 +1,4 @@
-import {withCatalog,CATALOG_ID,CATALOG_NOTE} from './catalog';
+import {withCatalog,CATALOG_ID,CATALOG_LABEL,CATALOG_NOTE} from './catalog';
 import { seed } from './seed';
 import { validateDoc, type FlowDoc } from './flow';
 export const SAVE_SQL = `INSERT INTO flow_revisions (revision, document, hash, author_id, note, created_at)
@@ -58,7 +58,7 @@ export async function ensureHierarchy(db:D1Database){
   const head=await db.prepare('SELECT revision,document FROM flow_revisions ORDER BY revision DESC LIMIT 1').first<Revision>();
   if(!head)return;
   const doc=withCatalog(JSON.parse(head.document)),hash=await digest(doc),now=new Date().toISOString();
-  const baseLabel='v1.1 · 模块层级';let label=baseLabel;let suffix=head.revision+1;while(await db.prepare('SELECT id FROM flow_versions WHERE label=?').bind(label).first())label=baseLabel+' · r'+suffix++;
+  const baseLabel=CATALOG_LABEL;let label=baseLabel;let suffix=head.revision+1;while(await db.prepare('SELECT id FROM flow_versions WHERE label=?').bind(label).first())label=baseLabel+' · r'+suffix++;
   await db.batch([
    db.prepare(`INSERT INTO flow_revisions (revision,document,hash,author_id,note,created_at)
     SELECT ?,?,?,?,?,? WHERE (SELECT MAX(revision) FROM flow_revisions)=?

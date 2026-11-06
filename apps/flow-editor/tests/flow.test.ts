@@ -24,7 +24,7 @@ test('unknown snapshots fail explicitly and malformed saves add no history',asyn
 test('hierarchy upgrade covers the registry and preserves every fixed snapshot and existing edit',async()=>{
  const {withCatalog}=await import('../lib/catalog');const {flattenNodes,updateNode,removeNode}=await import('../lib/flow');const {ensureHierarchy}=await import('../lib/repository');
  const d=withCatalog(seed),all=flattenNodes(d.nodes);
- assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,39);
+ assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,47);
  assert.equal(all.filter(n=>n.entryType==='method'&&n.status==='planned').length,3);
  assert.equal(all.filter(n=>n.entryType==='reader').length,6);
  assert.equal(all.filter(n=>n.entryType==='check').length,11);
@@ -38,9 +38,9 @@ test('hierarchy upgrade covers the registry and preserves every fixed snapshot a
  await Promise.all([ensureHierarchy(db),ensureHierarchy(db)]);const current:any=await readFlow(db);
  assert.equal(current.revision,3);assert.equal(current.doc.nodes[1].title,'成员保留的标题');
  assert.deepEqual((await readFlow(db,{version:'baseline-v1'})as any).doc,seed);
- assert.equal((await readFlow(db,{version:'hierarchy-v11'})as any).hash,current.hash);
+ assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).hash,current.hash);
  await saveFlow(db,3,{...current.doc,nodes:edited},'继续维护子方法','editor');await ensureHierarchy(db);
- assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'hierarchy-v11'})as any).revision,3);
+ assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).revision,3);
 });
 test('malformed and excessively deep children cannot enter shared storage',async()=>{
  const {withCatalog}=await import('../lib/catalog');
@@ -48,7 +48,7 @@ test('malformed and excessively deep children cannot enter shared storage',async
  const deep=structuredClone(seed);let n=deep.nodes[0];for(let i=0;i<6;i++){n.children=[{...structuredClone(seed.nodes[0]),id:'deep'+i}];n=n.children[0];}assert.throws(()=>validateDoc(deep),/层级/);
 });
 test('catalog version labels cannot collide with an existing member version',async()=>{
- const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.1 · 模块层级','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'hierarchy-v11'})as any).version.label,'v1.1 · 模块层级 · r2');
+ const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.2 · 灵犀云可选方法','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'gnosis-v12'})as any).version.label,'v1.2 · 灵犀云可选方法 · r2');
 });
 
 test('static release files are valid and content hashes match; public publishing cannot save drafts',async()=>{
@@ -57,9 +57,22 @@ test('static release files are valid and content hashes match; public publishing
  const g=globalThis as any;g.window={__FLOW_PUBLICATION__:pub};
  try{
   assert.equal((staticResponse('/api/session') as any).canEdit,false);
-  assert.equal((staticResponse('/api/flow') as any).version.id,'hierarchy-v11');
+  assert.equal((staticResponse('/api/flow') as any).version.id,'gnosis-v12');
   assert.equal((staticResponse('/api/flow?version=baseline-v1') as any).doc.nodes.length,14);
   assert.throws(()=>staticResponse('/api/flow',{method:'POST'}),/发布版/);
   assert.throws(()=>staticResponse('/api/flow?version=missing'),/尚未发布/);
  }finally{delete g.window;}
+});
+
+
+test('Gnosis migration preserves the published v1.1 snapshot and member edits',async()=>{
+ const {flattenNodes,updateNode}=await import('../lib/flow');const {ensureHierarchy}=await import('../lib/repository');
+ const pub=JSON.parse(readFileSync('content/releases/publication.json','utf8'));const old=pub.releases.find((r:any)=>r.id==='hierarchy-v11');
+ const db=database();await initialize(db);await saveFlow(db,1,old.doc,'existing catalog','editor');const fixed=await freezeFlow(db,2,'v1.1 · 模块层级','','editor');
+ const edited={...old.doc,nodes:updateNode(old.doc.nodes,'f_prep_nonspatial',{title:'成员的PREP说明'})};await saveFlow(db,2,edited,'member edit','editor');
+ await ensureHierarchy(db);const next:any=await readFlow(db);const nodes=flattenNodes(next.doc.nodes);const leaves=nodes.filter(n=>n.id.startsWith('f_gnosis_'));
+ assert.equal(leaves.length,8);assert.equal(nodes.find(n=>n.id==='f_prep_nonspatial')?.title,'成员的PREP说明');
+ assert.equal((await readFlow(db,{version:fixed.id}) as any).hash,old.hash);
+ for(const n of leaves){assert.match(JSON.stringify(n),/https:\/\/github.com\/Gnosis-Neurodynamics\/GnosisNeuroDynamicSE/);assert.deepEqual(n.scope,['eeg']);}
+ assert.equal(nodes.filter(n=>n.id.startsWith('group_gnosis_')).length,3);
 });
