@@ -38,9 +38,9 @@ test('hierarchy upgrade covers the registry and preserves every fixed snapshot a
  await Promise.all([ensureHierarchy(db),ensureHierarchy(db)]);const current:any=await readFlow(db);
  assert.equal(current.revision,3);assert.equal(current.doc.nodes[1].title,'成员保留的标题');
  assert.deepEqual((await readFlow(db,{version:'baseline-v1'})as any).doc,seed);
- assert.equal((await readFlow(db,{version:'workflow-v14'})as any).hash,current.hash);
+ assert.equal((await readFlow(db,{version:'review-v15'})as any).hash,current.hash);
  await saveFlow(db,3,{...current.doc,nodes:edited},'继续维护子方法','editor');await ensureHierarchy(db);
- assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'workflow-v14'})as any).revision,3);
+ assert.equal((await readFlow(db)as any).revision,4);assert.equal((await readFlow(db,{version:'review-v15'})as any).revision,3);
 });
 test('malformed and excessively deep children cannot enter shared storage',async()=>{
  const {withCatalog}=await import('../lib/catalog');
@@ -48,7 +48,7 @@ test('malformed and excessively deep children cannot enter shared storage',async
  const deep=structuredClone(seed);let n=deep.nodes[0];for(let i=0;i<6;i++){n.children=[{...structuredClone(seed.nodes[0]),id:'deep'+i}];n=n.children[0];}assert.throws(()=>validateDoc(deep),/层级/);
 });
 test('catalog version labels cannot collide with an existing member version',async()=>{
- const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.4 · EEG 检查与复核','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'workflow-v14'})as any).version.label,'v1.4 · EEG 检查与复核 · r2');
+ const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,'v1.5 · 数据集审核与复验','member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:'review-v15'})as any).version.label,'v1.5 · 数据集审核与复验 · r2');
 });
 
 test('static release files are valid and content hashes match; public publishing cannot save drafts',async()=>{
@@ -57,7 +57,7 @@ test('static release files are valid and content hashes match; public publishing
  const g=globalThis as any;g.window={__FLOW_PUBLICATION__:pub};
  try{
   assert.equal((staticResponse('/api/session') as any).canEdit,false);
-  assert.equal((staticResponse('/api/flow') as any).version.id,'workflow-v14');
+  assert.equal((staticResponse('/api/flow') as any).version.id,'review-v15');
   assert.equal((staticResponse('/api/flow?version=baseline-v1') as any).doc.nodes.length,14);
   assert.throws(()=>staticResponse('/api/flow',{method:'POST'}),/发布版/);
   assert.throws(()=>staticResponse('/api/flow?version=missing'),/尚未发布/);
@@ -87,4 +87,16 @@ test('visualizations have one separate hierarchy and do not count as QC algorith
  assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,47);
  assert.ok(doc.edges.some(e=>e.source==='M09'&&e.target==='VIS'));
  assert.deepEqual(withCatalog(doc),doc);assert.equal(JSON.stringify(old),before);
+});
+
+test('D04 expands into four implemented supports without changing earlier fixed releases',async()=>{
+ const {withCatalog}=await import('../lib/catalog');
+ const pub=JSON.parse(readFileSync('content/releases/publication.json','utf8'));
+ const before=pub.releases.find((r:any)=>r.id==='workflow-v14');
+ const doc=withCatalog(before.doc),root=doc.nodes.find(n=>n.id==='D04')!;
+ assert.equal(root.children?.length,4);assert.ok(root.children?.every(n=>n.entryType==='support'&&n.status==='ready'));
+ assert.match(root.notes,/3项消除/);assert.match(root.notes,/无医院验收/);
+ assert.equal(before.hash,await digest(before.doc));assert.ok(!before.doc.nodes.some((n:any)=>n.id==='D04'));
+ assert.ok(doc.edges.some(e=>e.source==='D03'&&e.target==='D04'));
+ assert.deepEqual(withCatalog(doc),doc);
 });

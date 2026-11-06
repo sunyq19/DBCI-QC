@@ -83,6 +83,8 @@ class Store:
         self.admission_policy = configured_policy(settings)
         self.root = Path(settings['data_dir']).resolve()
         self.packages = PackageJobs(settings)
+        from package_reviews import PackageReviews
+        self.package_reviews = PackageReviews(self.packages)
         (self.root / 'jobs').mkdir(parents=True, exist_ok=True)
         self.inputs = {}
         for item in settings['inputs']:
@@ -526,6 +528,8 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = dispatch
 
     def get(self, path):
+        from package_review_api import dispatch as package_review_dispatch
+        if package_review_dispatch(self, path): return
         from workflow_api import dispatch as workflow_dispatch
         if workflow_dispatch(self, path): return
         from visualization_page import dispatch_visualizations
@@ -743,13 +747,16 @@ class Handler(BaseHTTPRequestHandler):
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
         static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css'}
+                  '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]
             return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
         raise KeyError(path)
 
     def post(self, path):
+        from package_review_api import dispatch as package_review_dispatch
+        if package_review_dispatch(self, path): return
         from workflow_api import dispatch as workflow_dispatch
         if workflow_dispatch(self, path): return
         if path == '/api/v1/package-record-intakes':

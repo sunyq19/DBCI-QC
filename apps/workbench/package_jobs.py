@@ -94,21 +94,38 @@ class PackageJobs:
         temp.write_text(json.dumps(job,ensure_ascii=False,indent=2)+'\n',encoding='utf-8');temp.replace(path)
 
     def submit(self,body):
-        if not isinstance(body,dict) or set(body)!={'package_id','manifest_hash','confirmed'} or body['confirmed'] is not True:
+        required = {'package_id','manifest_hash','confirmed'}
+        if not isinstance(body,dict) or not required <= set(body) or set(body) - required - {'baseline_job_id'} or body['confirmed'] is not True:
             raise ValueError('请确认本次检查范围与比较组。')
         if not isinstance(body['package_id'],str) or body['package_id'] not in self.packages:raise ValueError('请选择已登记的数据包。')
         p,plan=self._plan(body['package_id'])
         if body['manifest_hash']!=fingerprint(plan):raise ValueError('检查清单已变化，请刷新并重新确认。')
+        baseline = body.get('baseline_job_id')
+        baseline_revision = 0
+        if baseline is not None:
+            if not isinstance(baseline, str) or not re.fullmatch('[a-f0-9]{32}', baseline):
+                raise ValueError('复验基线标识无效。')
+            old = self.get(baseline)
+            if old['package_id'] != p['id'] or old['status'] != 'completed':
+                raise ValueError('复验须选择本数据集已完成的资料检查。')
+            versions = list((self.root / baseline / 'reviews').glob('[0-9]' * 8 + '.json'))
+            baseline_revision = max((int(v.stem) for v in versions), default=0)
         admission = check_dataset_snapshot(p['root'], plan, limits=self.admission_policy) if self.admission_policy else None
         with self.lock:
             for job in self.jobs.values():
-                if job['package_id']==p['id'] and job['status'] in {'queued','running'}:return copy.deepcopy(job)
+                if job['package_id']==p['id'] and job['status'] in {'queued','running'}:
+                    if job.get('baseline_job_id') != baseline or job['manifest_hash'] != fingerprint(plan):
+                        raise ValueError('本数据集已有不同方案的检查在运行，请等待完成后再复验。')
+                    return copy.deepcopy(job)
             identifier=uuid.uuid4().hex;folder=self.root/identifier;folder.mkdir()
             job={'id':identifier,'package_id':p['id'],'label':p['label'],'status':'queued','created_at':now(),
                  'manifest_hash':fingerprint(plan),'modules':[{'id':mid,'status':'pending'} for mid in ('D01','D02','D03')]}
+            if baseline:
+                job.update(baseline_job_id=baseline, baseline_review_revision=baseline_revision)
             job['admission'] = admission
             self.jobs[identifier]=job
-            (folder/'request.json').write_text(json.dumps({'source_root':p['root'],'expectations':plan,'admission':admission},ensure_ascii=False,indent=2)+'\n')
+            (folder/'request.json').write_text(json.dumps({'source_root':p['root'],'expectations':plan,'admission':admission,
+                'baseline_job_id':baseline,'baseline_review_revision':baseline_revision},ensure_ascii=False,indent=2)+'\n')
             self._save(job);self.queue.put(identifier)
             return copy.deepcopy(job)
 

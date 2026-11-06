@@ -71,7 +71,7 @@ python3.11 scripts/setup_local.py
 
 模块独立存放在 [`src/ephys_qc/modules/`](src/ephys_qc/modules/)，提供 Python 和命令行接口，不依赖网页运行。算法、适配、调用与交接方式见[模块工具包](docs/toolkit.md)。
 
-数据包层提供 **D01 文件完整性 → D02 个体一致性 → D03 数据集一致性**。在首页“已有数据”打开本地已登记数据集，确认范围后后台检查；总览显示文件齐备、资料问题、个体与记录信号结果，支持 HTML 汇总导出。检查核心位于 [`src/ephys_qc/dataset_qc/`](src/ephys_qc/dataset_qc/)，可独立通过 CLI/Python 调用。数据包目录由本机配置登记，尚不支持网页整包上传。见[配置与复现](docs/dataset-inventory.md)、[检查规则](docs/dataset-checks.md)。
+数据包层提供 **D01 文件完整性 → D02 个体一致性 → D03 数据集一致性 → D04 审核与复验**。在首页“已有数据”打开本地已登记数据集，确认范围后后台检查；总览显示文件齐备、资料问题、个体与记录信号结果，支持 HTML 汇总导出。“审核与复验”页签可记录处理意见、对比修正前后变化并下载 PDF；人工结论单独保存，不改写信号评分。检查核心位于 [`src/ephys_qc/dataset_qc/`](src/ephys_qc/dataset_qc/)，可独立通过 CLI/Python 调用。数据包目录由本机配置登记，尚不支持网页整包上传。见[配置与复现](docs/dataset-inventory.md)、[检查规则](docs/dataset-checks.md)。
 
 读取后可补充滤波史；已滤除的检查频带记为未评。结果按“概览 / 问题复核 / 可视化”查看，候选联动原始波形与局部 PSD。数据集可预览后批量运行已确认记录，并按相同配置比较 EEG 报告。见[操作与适用范围](docs/design/eeg-workflow-v1.md)。
 

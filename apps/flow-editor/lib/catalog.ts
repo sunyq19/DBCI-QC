@@ -1,8 +1,8 @@
 import catalog from '../content/module-catalog.json';
 import {type FlowDoc,type FlowNode,validateDoc} from './flow';
-export const CATALOG_ID='workflow-v14';
-export const CATALOG_LABEL='v1.4 · EEG 检查与复核';
-export const CATALOG_NOTE='加入处理史确认、候选复核、批量后台检查和同条件报告比较 · 2026-11-06.4';
+export const CATALOG_ID='review-v15';
+export const CATALOG_LABEL='v1.5 · 数据集审核与复验';
+export const CATALOG_NOTE='加入D04：影响与用途、处理意见、固定版本、复验变化及PDF · 2026-11-06.5';
 export function withCatalog(doc:FlowDoc):FlowDoc{
  const groups=catalog.modules as unknown as Record<string,FlowNode[]>;
  // Existing node descriptions and member edits survive; only missing child IDs are added.
@@ -13,6 +13,11 @@ export function withCatalog(doc:FlowDoc):FlowDoc{
  if(!doc.nodes.some(n=>n.id==='VIS')&&nodes.some(n=>n.id==='M09')){
   let id='edge-visualization';while(edges.some(e=>e.id===id))id+='x';
   edges.push({id,source:'M09',target:'VIS',label:'读取结果 · 可选展示'});
+ }
+ for(const [source,target,label] of [['D03','D04','资料问题'],['D04','OVERVIEW','处理与复验结果']]){
+  if(nodes.some(n=>n.id===source)&&nodes.some(n=>n.id===target)&&!edges.some(e=>e.source===source&&e.target===target)){
+   let id='edge-'+source+'-'+target;while(edges.some(e=>e.id===id))id+='x';edges.push({id,source,target,label});
+  }
  }
  return validateDoc({...doc,nodes,edges});
 }

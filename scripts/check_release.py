@@ -21,6 +21,7 @@ def main():
         ['node', 'tests/check-standards-navigation.mjs'],
         ['node', 'tests/check-workbench-layout.mjs'],
         ['node', 'tests/check-dataset-ui.mjs'],
+        ['node', 'tests/check-dataset-review.mjs'],
         ['node', 'tests/check-data-library.mjs'],
         ['git', 'diff', '--check'],
     ]

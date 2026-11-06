@@ -1,5 +1,5 @@
 {
-  "catalogVersion": "2026-11-06.4",
+  "catalogVersion": "2026-11-06.5",
   "roots": [
     {
       "id": "VIS",
@@ -20,6 +20,26 @@
       "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
       "notes": "地形图待坐标接入，雷达图待尺度规则确认。当前不伪造坐标和参考分布。",
       "entryType": "support"
+    },
+    {
+      "id": "D04",
+      "title": "审核与复验",
+      "summary": "影响与用途 · 处理意见 · 修正后对比",
+      "kind": "dataset",
+      "status": "ready",
+      "scope": [
+        "dataset"
+      ],
+      "x": 65,
+      "y": 1020,
+      "description": "在资料检查之后登记问题影响和下一步，形成有版本的本地审核记录。修正后对比同一检查的变化。",
+      "inputs": "D01–D03结果、冻结清单、可选基线审核版本",
+      "outputs": "处理清单、项目结论、复验变化、HTML/PDF",
+      "conditions": "资料检查已完成。未评和范围变化不能算问题消除；最终结论须显式确认。",
+      "methods": "dataset-review/1",
+      "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/design/dataset-review-v1.md",
+      "notes": "已用ds003029公开副本验证：采样率异常产生3项关联问题，恢复后3项消除。无医院验收、认证签名或增量重算。",
+      "entryType": "support"
     }
   ],
   "sourceFiles": {
@@ -32,11 +52,14 @@
     "src/ephys_qc/gnosis_catalog.py": "148ca23bb0b375d5f7e771897b9072dd5db82985e517d75e0113f418785b634c",
     "src/ephys_qc/gnosis_runtime.py": "7c0c0d25d97c2de7ea2b6b98ea93d754b5fc09141128a71b38cefbc6e03dbac6",
     "src/ephys_qc/gnosis_worker.py": "c71802a17a4d2dbcde5b9fa9f479758784ded320237f64f6f515d06515f60450",
-    "docs/dataset-checks.md": "43626b69ea1dd84d12f8e9978887615a2fe96bdfbd6a63822ed06c845ae6b875",
+    "docs/dataset-checks.md": "14f281f6fbc11eeeb5ec6de992c6c0bffb2cf0db1c1655403fd914e33e2a84b6",
     "src/ephys_qc/processing_history.py": "009da338d9ad9a3ee6978722e3c34661da635bad406debef90bb72815d346963",
     "src/ephys_qc/comparison.py": "8c58ee057abcbbf085488bc23acba0dd5b2c1ca54c39484e5df0b8a2e9ec9cc1",
     "apps/workbench/batch_jobs.py": "154196c949c3cb124ecf34464553ce092230f248c7c2dd7882c1a7d5e30dac40",
-    "apps/workbench/review_workspace.py": "d7894591a4cdd4201d7d718d5585e8292402da40283e39a8366fea2097dc8f0b"
+    "apps/workbench/review_workspace.py": "d7894591a4cdd4201d7d718d5585e8292402da40283e39a8366fea2097dc8f0b",
+    "src/ephys_qc/dataset_qc/review.py": "ec5bebed299b93f5eddfb7222a8abea6d776d07f31d6dbe440fbd14c14956d52",
+    "src/ephys_qc/dataset_qc/review_report.py": "1c71a2a003cbd6c546f61623201418e9f15832584dd60b572dc5c9da38fd2799",
+    "apps/workbench/package_reviews.py": "14d46d5e8028a3924a4ae47901b311984c30eddde01e45a6d3cea078eab4304d"
   },
   "modules": {
     "M01": [
@@ -1928,6 +1951,88 @@
         "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
         "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
         "entryType": "visualization"
+      }
+    ],
+    "D04": [
+      {
+        "id": "support_dataset_decisions",
+        "title": "问题处理意见",
+        "summary": "D04 首版",
+        "kind": "dataset",
+        "status": "ready",
+        "scope": [
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "记录需整改、限定用途、登记跟踪或已说明差异，以及影响、依据、下一步和负责人。",
+        "inputs": "完成的资料检查与已登记处理记录",
+        "outputs": "可追溯的处理和复验结果",
+        "conditions": "绑定检查结果和文件证据；修改不覆盖程序状态或信号分数。",
+        "methods": "dataset-review/1",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/review.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/dataset-review-v1.md",
+        "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_dataset_outcome",
+        "title": "显式审核结论",
+        "summary": "D04 首版",
+        "kind": "dataset",
+        "status": "ready",
+        "scope": [
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "有需整改项时确认整改要求；其他情况先处理全部待处理项，再确认项目结论。",
+        "inputs": "完成的资料检查与已登记处理记录",
+        "outputs": "可追溯的处理和复验结果",
+        "conditions": "人工填写人自行声明，不是经认证电子签名。每次保存追加版本。",
+        "methods": "dataset-review/1",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/review.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/dataset-review-v1.md",
+        "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_dataset_retest",
+        "title": "修正前后复验",
+        "summary": "D04 首版",
+        "kind": "dataset",
+        "status": "ready",
+        "scope": [
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "固定基线检查及审核版本，比较消除、新增、证据变化、未复查和范围变化。",
+        "inputs": "完成的资料检查与已登记处理记录",
+        "outputs": "可追溯的处理和复验结果",
+        "conditions": "只有同范围同规则重新检查为一致才算消除。最终结论不继承。",
+        "methods": "dataset-review/1",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/review.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/dataset-review-v1.md",
+        "notes": "",
+        "entryType": "support"
+      },
+      {
+        "id": "support_dataset_report",
+        "title": "审核报告与导出",
+        "summary": "D04 首版",
+        "kind": "dataset",
+        "status": "ready",
+        "scope": [
+          "dataset"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "总览、记录、审核与复验分层查看；导出HTML和PDF，保留全部事项及追溯。",
+        "inputs": "完成的资料检查与已登记处理记录",
+        "outputs": "可追溯的处理和复验结果",
+        "conditions": "公开演示标注模拟意见。原始路径和填写信息尚未自动脱敏。",
+        "methods": "dataset-review/1",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/dataset_qc/review.py\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/design/dataset-review-v1.md",
+        "notes": "",
+        "entryType": "support"
       }
     ]
   }

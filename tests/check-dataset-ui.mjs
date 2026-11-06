@@ -22,8 +22,9 @@ function fixture(admissionPolicy=null,search=''){
   const langs=[element({lang:'zh-CN'}),element({lang:'en'})];
   const textNodes=[...html.matchAll(/data-text="([^"]+)"/g)].map(m=>element({text:m[1]}));
   let finishPost;const requests=[];
-  const context={URLSearchParams,location:{search},localStorage:{getItem:()=>null,setItem:()=>{}},
-    document:{documentElement:{},getElementById:id=>{assert(nodes.has(id),id);return nodes.get(id)},querySelectorAll:selector=>selector==='[data-lang]'?langs:textNodes},
+  const listeners={};
+  const context={CustomEvent:class{constructor(type,init){this.type=type;this.detail=init.detail}},URLSearchParams,location:{search},localStorage:{getItem:()=>null,setItem:()=>{}},
+    document:{documentElement:{},addEventListener(k,f){listeners[k]=f},dispatchEvent(e){listeners[e.type]?.(e)},getElementById:id=>{assert(nodes.has(id),id);return nodes.get(id)},querySelectorAll:selector=>selector==='[data-lang]'?langs:textNodes},
     history:{replaceState(...args){context.url=args[2]}},clearTimeout(){},setTimeout(){},
     fetch:async(url,options)=>{requests.push({url,options});let value;
       if(url.includes('/batches?'))value={batches:[]};
@@ -55,10 +56,17 @@ assert(!f.nodes.get('dataset-result').innerHTML.includes('资料冲突'));
 f.nodes.get('dataset-result').events.click({target:{closest:s=>s==='[data-attention]'?{dataset:{attention:'rates-conflict'}}:null}});
 assert(f.nodes.get('package-records').innerHTML.includes('sub-01/run.edf'));
 assert(!f.nodes.get('package-records').innerHTML.includes('sub-02/run.edf'),'Issue action filters only affected recordings');
+assert.equal(f.nodes.get('dataset-overview-pane').hidden,true);
+assert.equal(f.nodes.get('dataset-records-pane').hidden,false,'Related-record action opens the records tab');
 f.nodes.get('package-records').events.click({target:{closest:s=>s==='[data-clear-issue]'?{}:null}});
 assert(f.nodes.get('package-records').innerHTML.includes('sub-02/run.edf'));
 f.nodes.get('dataset-result').events.click({target:{closest:s=>s==='[data-evidence]'?{dataset:{evidence:'rates-conflict'}}:null}});
 assert.equal(f.nodes.get('dataset-details').open,true);
+assert.equal(f.nodes.get('dataset-overview-pane').hidden,false,'Evidence action returns to overview');
+f.nodes.get('dataset-tabs').events.click({target:{closest:()=>({dataset:{tab:'review'}})}});
+assert.equal(f.nodes.get('dataset-review-pane').hidden,false);
+assert.equal(f.nodes.get('dataset-tab-review').attrs['aria-selected'],'true');
+assert.equal(f.nodes.get('dataset-tab-overview').attrs.tabindex,'-1');
 f.langs[1].events.click();assert.match(f.nodes.get('dataset-result').innerHTML,/Summary report/);
 assert.match(f.nodes.get('dataset-checks').innerHTML,/Sampling rates/);
 f=fixture();await flush();f.nodes.get('package-confirm').checked=true;

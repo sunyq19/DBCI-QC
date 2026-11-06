@@ -45,7 +45,7 @@ For sample-index events with unknown zero/one origin, the initial rule checks a 
 
 Reports preserve scope, counts, subjects, groups, each check's status, affected records, relative paths, observed evidence, rule version and frozen expectations. Statuses are consistent, conflict, review, unassessed and not applicable. No 0–100 signal-quality score or hospital acceptance grade is produced. Execution completion is separate from findings. `conflict` is not a signal-quality grade: it includes different structural or metadata discrepancies. Unit labels alone do not prove incorrect amplitudes; calibration factors and source records must be checked. The UI describes each specific issue and next step instead of exposing only a status code.
 
-Each run is stored independently. Interrupted jobs are marked on service restart. Corrected copies produce new reports; signed review and automatic revision comparisons remain future work. Reports retain relative filenames and public subject codes; de-identification is not implemented. Navigation and check labels are bilingual; detailed rule messages and source group descriptions currently retain Chinese text.
+Each run is stored independently. Interrupted jobs are marked on service restart. Corrected copies produce new reports; D04 records local decisions and automatic revision comparisons. Authenticated signatures remain future work. Reports retain relative filenames and public subject codes; de-identification is not implemented. Navigation and check labels are bilingual; detailed rule messages and source group descriptions currently retain Chinese text.
 
 ## 6 Sources and validation
 
@@ -55,3 +55,12 @@ Huashan SOP-05 v0.2 is a local requirements document and is not redistributed. T
 - [BIDS events](https://bids-specification.readthedocs.io/en/stable/modality-agnostic-files/events.html).
 
 Execution is exercised on fixed subsets of ds003555 v1.0.1 (2 subjects, 12 records) and ds003029 v1.0.7 (3 subjects, 7 records). Findings may include real conflicts. This establishes engineering behavior on these cases, not expert validation or universal format coverage.
+
+
+## D04: review and retest (dataset-review/1)
+
+After D01–D03 complete, record an evidence-bound decision for mismatches, review findings and unassessed checks: correction required, restricted use, follow-up, or explained difference. A reason and impact are required; corrections, restrictions and follow-up also require an action and owner. Machine statuses and EEG scores are never overwritten.
+
+An outcome requires explicit confirmation. Outstanding corrections produce “correction and retest required”; otherwise all pending items require a decision before confirming restricted use or reviewed within scope. These are local project decisions, not hospital acceptance or authenticated signatures.
+
+Each save appends a revision. Editing clears the final outcome. Retests freeze the baseline job and its review revision. A finding is resolved only when the same check passes under identical rules and scope. Omitted checks and scope changes are not resolutions. Unchanged evidence may retain a decision; final approval is never inherited. HTML and PDF contain the outcome, action register, retest changes and traceability. Retests currently rerun the complete dataset-information check.
