@@ -14,7 +14,12 @@
       "id": "gnosis-v12",
       "label": "v1.2 · 灵犀云可选方法",
       "hash": "ba4d4aada825af59a66b91e03478c128646e09f2eca620206ff23213a4870503"
+    },
+    {
+      "id": "visualization-v13",
+      "label": "v1.3 · 统一可视化层",
+      "hash": "75648ffefbf59096f05db7668d2c6ac25c978df25ec913752872ac8a32622313"
     }
   ],
-  "source_commit": "2237fb3b004a72cc07660d35f94c1497d44a8edd"
+  "source_commit": "279b4134fbb7086c39e11a6d3fffebefed130336"
 }
