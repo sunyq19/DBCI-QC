@@ -25,8 +25,8 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
   </div>;
  }
  const roots=(ids:string[])=>ids.map(id=>doc.nodes.find(n=>n.id===id)).filter((n):n is FlowNode=>!!n&&visibleBranch(n,filter,query));
- const known=['INPUT','M01','M02','M03','M04','M05','M06','M07','M08','M09','D01','D02','D03','OVERVIEW','VIS'];
- const start=roots(['INPUT','M01','M02']),signal=roots(['M03','M04','M05','M06','M07']),dataset=roots(['D01','D02','D03']),end=roots(['M08','M09','OVERVIEW']);
+ const known=['INPUT','M01','M02','M03','M04','M05','M06','M07','M08','M09','D01','D02','D03','D04','OVERVIEW','VIS'];
+ const start=roots(['INPUT','M01','M02']),signal=roots(['M03','M04','M05','M06','M07']),dataset=roots(['D01','D02','D03','D04']),end=roots(['M08','M09','OVERVIEW']);
  const visuals=roots(['VIS']);
  const extra=doc.nodes.filter(n=>!known.includes(n.id)&&visibleBranch(n,filter,query));
  const total=doc.nodes.filter(n=>/^M\d|^D\d|^VIS$/.test(n.id)).length;
