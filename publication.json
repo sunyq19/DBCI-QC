@@ -9,7 +9,12 @@
       "id": "hierarchy-v11",
       "label": "v1.1 · 模块层级",
       "hash": "7f9359b16094b86085de550f098a37e9deb0d0843c71d56e08b06b101261df87"
+    },
+    {
+      "id": "gnosis-v12",
+      "label": "v1.2 · 灵犀云可选方法",
+      "hash": "ba4d4aada825af59a66b91e03478c128646e09f2eca620206ff23213a4870503"
     }
   ],
-  "source_commit": "e7c4f73469b6aad1ab0ef0159428c7a4a842fb45"
+  "source_commit": "2237fb3b004a72cc07660d35f94c1497d44a8edd"
 }
