@@ -388,7 +388,7 @@ def evaluate_dataset(root, manifest, *, progress=None):
             'records':facts,'subjects':subjects,'groups':groups,'summary':{'subjects':len(subjects),'records':len(facts),
             'expected_files':inventory['summary']['expected_files'],'present_files':inventory['summary']['present_files'],
             'status_counts':dict(counts),'groups':len(groups)},'status':'needs_attention' if any(counts[s] for s in ('conflict','review','unassessed')) else 'checked',
-            'modules':[{'id':mid,'status':'completed','counts':dict(Counter(c['status'] for c in checks.rows if c['module']==mid))} for mid in ('D01','D02','D03')],
+            'modules':[{'id':mid,'can_output_score':False,'scoring_role':'evidence','status':'completed','counts':dict(Counter(c['status'] for c in checks.rows if c['module']==mid))} for mid in ('D01','D02','D03')],
             'limits':['真实身份核验未执行','信号质量评分未执行','不是完整 BIDS 合规校验','本地报告，未执行脱敏审查']}
     notify('D03','completed')
     return result

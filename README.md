@@ -6,7 +6,7 @@
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
-当前开发版：**1.0.0rc3.dev14**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+当前开发版：**1.0.0rc3.dev16**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
 
 ## 快速开始
 
@@ -77,7 +77,7 @@ python3.11 scripts/setup_local.py
 
 EEG 报告包含总览、完整性/工频/高频突发三个评分分项、通道与时段结果、候选波形和评分依据。整份记录在后台分段计算，报告保留实际覆盖和未评原因。
 
-**评分 v0.2 是项目试行指标，尚未经专家校准。** 满分表示当前计分项未检出候选，不代表数据全面合格；缺项不补满分。其他模态目前提供基础描述报告，不套用 EEG 总分。详见[评分规则](docs/eeg-scoring.md)与[报告要求](docs/eeg-report.md)。
+**评分 project-weighted/1.0 是项目试行指标，尚未经专家校准。** 满分表示当前计分项未检出候选，不代表数据全面合格；缺项不补满分。其他模态目前提供基础描述报告，不套用 EEG 总分。详见[评分规则](docs/eeg-scoring.md)与[报告要求](docs/eeg-report.md)。
 
 ## 方法与扩展
 
@@ -108,3 +108,5 @@ FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究�
 [本项目](https://github.com/sunyq19/DBCI-QC) · [雷佳欣 / BrainElecQC](https://github.com/Jlei61/BrainElecQC)
 
 BrainElecQC 作为固定提交的外部依赖安装，不在本仓库复制分发。原始数据、个人配置和运行报告不随代码提供。本项目尚未指定许可证；第三方软件和数据按各自许可使用，见[第三方说明](THIRD_PARTY_NOTICES.md)。
+
+评分在 **高级设置 → 评分与权重** 中配置。当前仅头皮 EEG 的完整性、工频和高频突发可计分：分项按候选占比，总分按权重平均；其他模块保留测量结果。规则及边界见[评分规范](docs/eeg-scoring.md)。

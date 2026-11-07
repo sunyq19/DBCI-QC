@@ -187,7 +187,7 @@ Software defaults, statistical significance levels and provisional project param
 
 Comparisons shall check reference, sampling, bandwidth, processing history, state, coverage and configuration version. Shared disease or format does not establish comparability; identically named measurements with different definitions shall not be combined directly.
 
-A project trial index shall fix its purpose, equation, channel weighting, missing-data handling and version before use. The [EEG scoring rules](/en/standards/eeg-scoring) use RMS channel burdens and the minimum component. Independent expert validation remains pending. Incomplete required measurements withhold the total. Calibrated grades and industry acceptance thresholds are not established.
+A project trial index shall fix its purpose, equation, channel weighting, missing-data handling and version before use. The [EEG scoring rules](/en/standards/eeg-scoring) use pooled candidate fractions and a configured weighted mean. Independent expert validation remains pending. Incomplete required measurements withhold the total. Calibrated grades and industry acceptance thresholds are not established.
 
 ### 6.3 Report contents
 

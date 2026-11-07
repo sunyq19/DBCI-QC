@@ -8,7 +8,21 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `概览	Overview
+  const pairs = `公开数据的实际检查报告。	Actual reports from public datasets.
+正在读取示例目录…	Loading example directory…
+评分与权重	Scoring and weights
+评分输出	Score output
+分项按候选占比计分，总分按权重平均。0 表示不纳入。	Components use candidate fractions; the total is a weighted mean. Zero excludes a component.
+正权重项目缺失，不生成总分。其他模块保留测量结果。	A missing positive-weight component withholds the total. Other modules retain their measurements.
+当前模态输出测量与复核线索，本版暂不计分。	This modality reports measurements and review candidates, without scores in this version.
+输出加权总分，不重复计权	Produces the weighted total; not weighted again
+可输出分项分数，可设置权重	Produces a component score with configurable weight
+不计分，输出测量与复核线索	No score; measurements and review candidates only
+项目自定义 v1.0	Project-defined v1.0
+项目自定义评分	Project-defined score
+/ 100 · 按权重平均	/ 100 · Weighted mean
+评分规则	Scoring rules
+概览	Overview
 问题复核	Review candidates
 可视化	Visualizations
 检查结果	Check results

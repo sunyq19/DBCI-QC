@@ -148,10 +148,16 @@ def build_recording_view(result, artifacts, label=''):
                               expected_windows=len(windows),coverage_complete=complete)
     for part,pooled in zip(base['score']['components'],parts):
         part.update(assessed_window_seconds=pooled['assessed_window_seconds'],window_count=pooled['window_count'])
+    if result.get('qc_config',{}).get('scoring'):
+        from .project_scoring import weighted_score
+        base['score'] = weighted_score(list(channels.values()),result['recording']['channel_count'],
+            result['qc_config']['scoring'],expected_windows=len(windows),coverage_complete=complete)
+        for part,pooled in zip(base['score']['components'],parts):
+            part.update(assessed_window_seconds=pooled['assessed_window_seconds'],window_count=pooled['window_count'])
     parts=base['score']['components']
     base['score_revision']=score_revision(result,base['score'])
     base['scoring_complete']=base['score']['value'] is not None
-    base['parameters']['aggregation']='channel_pool_then_rms_then_min'
+    base['parameters']['aggregation']=base['score']['aggregation']
     base['line']={key:sum(v['line'][key] for v in present) for key in ('total','hits','observed_frequency_rows','flagged_frequency_rows')}
     base['line'].update(assessed_channels=sum('line_noise' in r['components'] for r in channels.values()),affected_channels=len(line_ids),
                         percent=100*base['line']['hits']/base['line']['total'] if base['line']['total'] else None)
@@ -166,6 +172,9 @@ def build_recording_view(result, artifacts, label=''):
                    '各窗口独立检测，阈值与边缘剔除逐窗计算；边界可能影响候选。',
                    '通道与辅助导联的额外检查保留在逐窗报告中，未并入三项基础评分。']
     base['notes'].extend(dict.fromkeys(note for v in present if v.get('processing_scope') for note in v['notes'] if '滤波' in note or '输入信号' in note or '频带未完整' in note))
+    if base['score']['version']=='project-weighted/1.0':
+        base['notes'][0]=base['score']['formula']
+        base['local_quality']['explanation']='通道分项与总体分项均按各自范围的候选量与有效检查量计算。'
     if not base['scoring_complete']:base['notes'].append('部分范围或基础分项未完成，不给整份总分；已有证据仍展示。')
     line=base['line'];base['headline']='检出待复核线索' if line['hits'] or hf_count or base['finite']['nonfinite'] or base['finite']['constant'] else '基础检查未检出候选'
     if not base['scoring_complete']:base['headline']='已完成部分检查'

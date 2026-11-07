@@ -29,7 +29,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const location = {protocol:"http:",pathname:"/",search,hash}, windowEvents = new Map();
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
-  const names = "state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
+  const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
   const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(instrumented,context);
@@ -812,6 +812,27 @@ check("new records default to full background scope while explicit window drafts
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
   assert.equal(t.currentConfig().scope,"recording");assert.equal(t.state.job,null);
   t.setScope("window");t.get("start-seconds").value=7;t.saveDraft();await t.restoreDraft();assert.equal(t.currentConfig().scope,"window");assert.equal(t.currentConfig().selection.start_seconds,7);
+});
+check("project weights are explicit, editable and invalidate an existing plan",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
+  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.0');
+  const field={dataset:{scoreWeight:'line_noise'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
+  t.state.plan={plan_id:'old'};field.change();
+  assert.equal(t.currentConfig().scoring.weights.line_noise,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  assert(box.innerHTML.includes('50%'));assert(box.innerHTML.includes('评分规则'));
+  field.value='-1';field.change();assert(field.error);assert.equal(t.currentConfig().scoring.weights.line_noise,2);
+  t.setModuleSelected('M04',false);assert.equal(t.currentConfig().scoring.weights.line_noise,0);
+});
+check("non EEG cannot inherit scalp scoring and module capability is visible",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
+  t.state.draftConfig.scoring={version:'project-weighted/1.0',weights:{integrity:1,line_noise:1,hf_burst:1}};
+  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('暂不计分'));
+  t.state.catalog.modules[2].scoring={can_output_score:false,role:'evidence'};t.showModule('M03');assert(t.get('module-dialog-content').innerHTML.includes('不计分，输出测量与复核线索'));
+});
+check("examples and uploads share native disclosure hierarchy",()=>{
+  assert(/<details id="demo-reports"[^>]*supporting-panel/.test(html));
+  assert(/<summary><span id="demo-reports-title">/.test(html));
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

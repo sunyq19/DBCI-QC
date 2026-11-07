@@ -198,3 +198,11 @@
 ## 0.5.0 — 2026-10-29
 
 读取器扩展至EDF/EDF+、BDF、BrainVision、连续EEGLAB和单文件FIF，加入中英文信息提取和明确模态确认；五格式实际报告和独立字节解码核验完成。基线提交`bb0af6a`。
+
+## 1.0.0rc3.dev16 — 2026-11-07
+
+- Landing-page examples use lightweight saved-job receipts instead of rebuilding dataset evidence. Examples and My data share a collapsible section hierarchy; collapse preference persists and focus refresh is throttled.
+- Added `project-weighted/1.0`: scalp EEG components use pooled candidate fractions, with explicit configurable weights. Positive-weight missing measurements withhold the total. Detection thresholds and original results are unchanged.
+- Module catalogs/plans declare score capability and aggregation roles; descriptive modalities, dataset checks and visualization do not manufacture scores.
+- New-run HTML/PDF and workbench show the same weights and formula. Explicitly published example score revisions preserve original reports; their compact summaries avoid repeated spectral aggregation on navigation.
+- Updated scoring specification, report requirements and module documentation. Other-modality scoring and expert calibration remain open.

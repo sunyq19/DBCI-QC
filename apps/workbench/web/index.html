@@ -111,6 +111,7 @@
         </section>
         <details id="advanced-settings" class="panel modules-panel advanced-panel"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
           <p class="small muted advanced-intro">修改后会保留你的配置；重新预览计划即可继续。</p>
+          <details id="scoring-settings" class="parameter-editor"><summary>评分与权重</summary><div id="scoring-controls"></div></details>
           <div id="module-options" class="module-options"><div class="loading-state"><span class="spinner"></span>正在读取模块目录</div></div>
           <p id="module-dependencies" class="dependency-note" hidden></p>
           <div id="extension-options" class="extension-options" hidden></div><p id="extension-selection-note" class="small muted" role="status" hidden></p>
@@ -132,9 +133,9 @@
         </section>
       </div>
     </div>
-    <section id="demo-reports" class="panel demo-reports" aria-label="示例数据集" hidden data-i18n-skip>
-      <h2 id="demo-reports-title">示例数据集</h2><p id="demo-reports-caption" class="small muted">直接打开，查看汇总与逐份报告。</p><div id="demo-report-list"></div>
-    </section>
+    <details id="demo-reports" class="panel demo-reports supporting-panel landing-secondary" aria-label="示例数据集" open data-i18n-skip>
+      <summary><span id="demo-reports-title">示例数据集</span><span id="demo-reports-count" class="tag subtle">—</span></summary><div class="disclosure-content"><p id="demo-reports-caption" class="small muted">公开数据的实际检查报告。</p><div id="demo-report-list"><p class="small muted">正在读取示例目录…</p></div></div>
+    </details>
     <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="我的数据">
       <summary><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
       <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>

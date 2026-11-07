@@ -420,3 +420,16 @@ body.qc-app, body.qc-document {
 .qc-app #example-shortcut {font-size:13px;white-space:nowrap}
 [data-active-record=true] #example-shortcut {display:none}
 @media(min-width:900px) {.qc-app #demo-report-list {grid-template-columns:1fr 1fr}}
+
+/* One disclosure hierarchy for examples and user uploads. */
+.qc-app :is(#demo-reports,#data-library) { padding:20px; }
+.qc-app :is(#demo-reports,#data-library) > summary {font:500 var(--text-body)/1.5 var(--font-ui);color:var(--ink);display:flex;align-items:center;gap:12px;}
+.qc-app :is(#demo-reports,#data-library) > summary::after {margin-left:auto;}
+.qc-app .demo-report-copy strong,.qc-app .data-library-label strong {font-size:var(--text-control);font-weight:500;}
+.qc-app #demo-reports:not([open]) #demo-report-list {display:none;}
+
+.qc-app .scoring-weight-fields {display:grid;gap:10px;margin:14px 0;}
+.qc-app .scoring-weight-fields label {display:flex;justify-content:space-between;align-items:center;font-size:var(--text-control);}
+.qc-app .scoring-weight-fields label span {display:flex;align-items:center;gap:10px;}
+.qc-app .scoring-weight-fields input {width:72px;min-height:32px;}
+.qc-app .scoring-weight-fields small {width:36px;color:var(--muted);}

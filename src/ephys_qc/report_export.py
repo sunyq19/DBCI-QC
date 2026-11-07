@@ -18,7 +18,7 @@ def score_rows(view):
         f'{view["score"]["hf_candidate_channel_seconds"]:g} / {view["score"]["hf_valid_channel_seconds"]:g} 通道秒为候选',
     ]
     return [dict(name=c['name'], value=c['value'], deduction=None if c['value'] is None else 100-c['value'],
-                 reason=(f'通道异常占比 RMS {100*c["rms_burden"]:.2f}%；'+d) if c['value'] is not None else '有效测量不足，未计分')
+                 reason=((f'候选占比 {100*c["candidate_fraction"]:.2f}%；权重 {c["weight"]:g}；' if "candidate_fraction" in c else f'通道异常占比 RMS {100*c["rms_burden"]:.2f}%；')+d) if c['value'] is not None else '有效测量不足，未计分')
             for c,d in zip(view['score']['components'], descriptions)]
 
 
@@ -123,7 +123,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         y=paragraph(f'{view["format"]}   /   头皮 EEG   /   {rec.get("channel_count")} 道   /   {rec.get("sampling_rate_hz"):g} Hz',44,y-12,color=muted)
         y=paragraph(f'本次检查 {start:g}-{stop:g} 秒；原记录 {view["input_duration_seconds"]:g} 秒。',44,y-6,color=muted)
         text(point(view['score']['value']),44,y-75,51,blue);text('/ 100',217,y-72,16,muted)
-        text('EEG 基础质控评分',326,y-32,14);text('项目试行 v0.2',326,y-57,11,blue)
+        text(view['score']['name'],326,y-32,14);text('项目自定义 v1.0' if view['score']['version']=='project-weighted/1.0' else '项目试行 v0.2',326,y-57,11,blue)
         y=y-108
         y=paragraph(view['headline']+'。'+view['summary'],44,y,size=12)
         if view['priority']: y=paragraph(view['priority'],44,y-7,color=muted)
@@ -133,12 +133,12 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         rows=[['检查项','得分 / 100','扣分','测量与扣分原因']]
         rows += [[r['name'],point(r['value']),point(r['deduction']),r['reason']] for r in score_rows(view)]
         y=table(rows,y-20,[96,86,60,265])
-        y=paragraph('分项 = 100 × (1 - 通道异常占比的均方根)；总分取最低分项。缺项不出总分。',44,y-16,size=9,color=muted)
+        y=paragraph(view['score'].get('formula','分项 = 100 × (1 - 通道异常占比的均方根)；总分取最低分项。缺项不出总分。'),44,y-16,size=9,color=muted)
         if view.get('coverage'):
             cov=view['coverage'];y=paragraph(f'整份覆盖：已计算 {cov["completed_seconds"]:g}/{cov["total_seconds"]:g} 秒；间隙 {cov["gap_seconds"]:g} 秒。先逐通道汇总，再评分。',44,y-9,size=9,color=muted)
         revision=view.get('score_revision')
         if revision:
-            y=paragraph(f'按 v0.2 重算；运行时 {revision["previous_version"]} 为 {point(revision["previous_value"])} 分，原文件保留。',44,y-8,size=8,color=muted)
+            y=paragraph(f'按当前规则重算；运行时 {revision["previous_version"]} 为 {point(revision["previous_value"])} 分，原文件保留。',44,y-8,size=8,color=muted)
         y=paragraph('补充检查',44,y-20,size=13)
         extra=[r for r in view['checks'] if r['name'] in {'通道一致性','心电锁时','眼电锁时','文件标注','补充检查'}]
         for r in extra:

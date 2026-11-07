@@ -3,16 +3,21 @@ import copy
 from urllib.parse import urlencode
 
 
-def featured_reports(store):
+def featured_reports(store, packages=None):
     """Selectable datasets, with current evidence coverage rather than QC scores.
 
     A configured dataset remains selectable before its first run. Broken sources
     remain visible but disabled. Historical single-record demos are not promoted
     to datasets; they remain accessible through the ordinary data directory.
     """
-    from dataset_overview import build_overview
     rows = []
-    packages = {p['id']: p for p in store.packages.catalog()['packages']}
+    packages = packages if packages is not None else store.packages.catalog()['packages']
+    packages = {p['id']: p for p in packages}
+    # Directory navigation reads job receipts only. Full evidence verification
+    # belongs to the report endpoint, never to the landing-page critical path.
+    with store.lock:
+        jobs = [{k: j.get(k) for k in ('id', 'status', 'created_at', 'dataset_context')}
+                for j in store.jobs.values()]
     seen = set()
     for example in store.settings.get('demo_examples', []):
         if not isinstance(example, dict) or example.get('kind') != 'dataset': continue
@@ -27,15 +32,18 @@ def featured_reports(store):
                'status': 'not_run' if package['available'] else 'unavailable'}
         row.update({k: example.get(k, '') for k in
                     ('id', 'label', 'label_en', 'description', 'description_en', 'formats', 'modality')})
-        try:
-            if package['available']:
-                data = build_overview(store, identifier)
-                if data['current_manifest']:
-                    row.update(records=data['summary']['records'], subjects=data['summary']['subjects'],
-                               reported=data['summary']['reported'],
-                               status=(data.get('dataset_job') or {}).get('status', 'not_run'))
-        except (OSError, ValueError, KeyError, TypeError):
-            row['status'] = 'report_unavailable'
+        latest = {}
+        for job in jobs:
+            context = job.get('dataset_context') or {}
+            if (context.get('package_id') != identifier or
+                    context.get('manifest_hash') != package.get('manifest_hash')): continue
+            rid = context.get('record_id')
+            if rid and (rid not in latest or (job.get('created_at') or '') > (latest[rid].get('created_at') or '')):
+                latest[rid] = job
+        row['reported'] = sum(j['status'] == 'completed' and
+            (store.root / 'jobs' / j['id'] / 'artifacts' / 'report.html').is_file()
+            for j in latest.values())
+        if row['reported']: row['status'] = 'completed'
         rows.append(row)
     return rows
 
@@ -83,7 +91,7 @@ def library(store):
     # A newly uploaded record remains ordinary data even when its checks fail.
     validation = set(store.settings.get('validation_library_ids', []))
     for row in rows: row['category'] = 'validation' if row['id'] in validation else 'data'
-    examples = featured_reports(store)
+    examples = featured_reports(store, datasets['packages'])
     featured = {'dataset:' + row['package_id'] for row in examples}
     rows = [row for row in rows if row['id'] not in featured]
     return {'schema_version':'data-library/1','items':rows, 'examples':examples,

@@ -129,7 +129,7 @@ class PackageJobs:
                     return copy.deepcopy(job)
             identifier=uuid.uuid4().hex;folder=self.root/identifier;folder.mkdir()
             job={'id':identifier,'package_id':p['id'],'label':p['label'],'status':'queued','created_at':now(),
-                 'manifest_hash':fingerprint(plan),'modules':[{'id':mid,'status':'pending'} for mid in ('D01','D02','D03')]}
+                 'manifest_hash':fingerprint(plan),'modules':[{'id':mid,'can_output_score':False,'scoring_role':'evidence','status':'pending'} for mid in ('D01','D02','D03')]}
             if baseline:
                 job.update(baseline_job_id=baseline, baseline_review_revision=baseline_revision)
             job['admission'] = admission

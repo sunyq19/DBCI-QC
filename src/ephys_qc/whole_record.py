@@ -142,7 +142,7 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
         raise ValueError('default_config must be an object')
     config = _merge(default, qc_config or {})
     _finite_json(config)
-    if set(config) - {'scope', 'recording_options', 'selection', 'method_config', 'feature_config', 'policy_config', 'context_tags'}:
+    if set(config) - {'scope', 'recording_options', 'selection', 'method_config', 'feature_config', 'policy_config', 'context_tags', 'scoring'}:
         raise ValueError('Unknown QC configuration fields')
     options = validate_recording_options(config.get('recording_options', {}))
     layout = _source_layout(record, config)

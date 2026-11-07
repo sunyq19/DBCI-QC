@@ -22,7 +22,7 @@ _ROWS = [
 
 
 def visualization_specs():
-    return [dict(id='viz_'+key,key=key,name=name,description=description,dependencies=deps,
+    return [dict(can_output_score=False, scoring_role='presentation', id='viz_'+key,key=key,name=name,description=description,dependencies=deps,
                  sources=urls,conditions=conditions,status='planned' if key in {'topography','radar'} else 'available',
                  implementation='DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式',scope=['eeg'],version=VERSION)
             for key,name,description,deps,urls,conditions in deepcopy(_ROWS)]

@@ -18,6 +18,15 @@ def report_file(store, identifier):
 def served_report(store, identifier, language='zh-CN'):
     from server import insert_report_navigation
     report = report_file(store, identifier).read_text(encoding='utf-8')
+    from project_score_cache import load
+    published = load(store, identifier)
+    if published:
+        from ephys_qc.report_view import render_report_view
+        report = render_report_view(published['report_view'], pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations')
+        wave = next((a['name'] for a in published.get('artifacts',[]) if a['name'].endswith('waveform.png')), None)
+        if wave:
+            report = report.replace('<section id="review">', f'<section id="review"><details><summary>查看起始波形</summary><p>所选信号起始片段；候选位置见下表。</p><img loading="lazy" src="{escape(wave,quote=True)}" alt="记录起始波形"></details>')
+        report = report.replace('</main>', f'<p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · 本页是保留原始检测证据的评分修订版。</p></main>')
     declared = store.job(identifier).get('plan', {}).get('input_modality', {})
     modality = declared.get('value') if isinstance(declared, dict) else declared
     if modality in {'ecog', 'seeg', 'extracellular'}:

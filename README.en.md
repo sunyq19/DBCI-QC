@@ -6,7 +6,7 @@
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev14**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
+Development version: **1.0.0rc3.dev16**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
 
 ## Quick start
 
@@ -73,7 +73,7 @@ Implementations are separate files in [`src/ephys_qc/modules/`](src/ephys_qc/mod
 
 EEG reports show an overview, integrity/line-interference/high-frequency-burst components, channel and time results, candidate waveforms and scoring rules. Whole-record processing runs in background chunks and retains coverage and unassessed conditions.
 
-**Score v0.2 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. Other modalities retain descriptive reports. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
+**Score project-weighted/1.0 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. Other modalities retain descriptive reports. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
 
 ## Methods and extensions
 
@@ -111,3 +111,5 @@ Datasets share the same data entry. Open a dataset from **Example datasets** or 
 Confirmed dataset recordings can be queued as a reviewed sequential batch, cancelled and traced to their reports. EEG results offer overview, candidate review with native-window PSD, and selectable visualizations. Report comparisons group matching configurations; unknown history and excluded frequency bands never become clean scores.
 
 New uploads are retained for **7 days**; reports and saved evidence remain available. Linked originals and legacy development data are excluded from automatic expiry. See [storage and configuration](docs/en/installation.md).
+
+Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Other modules retain measurements. See the [scoring specification](docs/en/eeg-scoring.md).

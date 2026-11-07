@@ -5,7 +5,7 @@ import json
 import math
 from pathlib import Path
 
-VIEW_VERSION = 'eeg-report-view/4'
+VIEW_VERSION = 'eeg-report-view/5'
 
 def ratio(numerator, denominator):
     return 100 * numerator / denominator if denominator else None
@@ -137,7 +137,12 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
     from .report_aggregate import channel_evidence, local_summary
     from .scoring import burden_score, score_revision
     per_channel = channel_evidence(continuity, line, hf_rows)
-    score = burden_score(per_channel, recording.get('channel_count', 0))
+    config = result.get('qc_config', {}).get('scoring')
+    if config:
+        from .project_scoring import weighted_score
+        score = weighted_score(per_channel, recording.get('channel_count', 0), config)
+    else:
+        score = burden_score(per_channel, recording.get('channel_count', 0))
     groups = bad.get('groups', [])
     eligible = {cid for g in groups if g.get('thresholds_active') for cid in g.get('channel_ids', [])}
     bad_count = len(bad.get('candidates', [])) if eligible else None
@@ -276,7 +281,7 @@ def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=
     revision = view.get('score_revision')
     revision_note = (f'<p class="muted">本页按 v0.2 从原始证据重算；运行时 {esc(revision["previous_version"])} 为 {points(revision["previous_value"])} 分，原文件保留。</p>' if revision else '')
     primary_evidence = ' · '.join(filter(None, [link('eeg-assessment.json','检查词条'),link('eeg-rules.json','规则快照'),link('environment.json','运行环境')]))
-    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(view['label'])} · 质控报告</title><style>
+    report = f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(view['label'])} · 质控报告</title><style>
     :root{{--blue:#245ad3;--ink:#19314c;--muted:#687b92;--line:#dfe7f2}}*{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:#f5f7fc;color:var(--ink);font:15px/1.65 system-ui,"Noto Sans CJK SC",sans-serif}}a{{color:var(--blue);text-decoration:none}}a:hover{{text-decoration:underline}}.shell{{display:grid;grid-template-columns:160px minmax(0,1100px);gap:32px;max-width:1360px;margin:auto;padding:30px 24px}}aside{{position:sticky;top:24px;height:max-content}}aside strong{{font-size:22px}}aside nav{{display:grid;gap:14px;margin-top:28px}}aside nav a{{color:var(--muted)}}main{{min-width:0}}header,section{{background:white;border:1px solid var(--line);border-radius:14px;padding:26px 30px;margin-bottom:22px}}h1{{font-size:25px;line-height:1.4;margin:0 0 10px}}h2{{font-size:21px;margin:0 0 20px}}h3{{font-size:16px}}p{{margin:8px 0}}.muted,small{{color:var(--muted)}}.filename{{font-size:13px;overflow-wrap:anywhere;color:var(--muted)}}.tag{{display:inline-block;border-radius:5px;background:#edf3ff;color:var(--blue);font-size:12px;padding:3px 9px}}.hero{{display:flex;align-items:center;gap:30px;margin:24px 0}}.score{{min-width:185px;border-right:1px solid var(--line);padding-right:28px}}.score span,.score small{{display:block;font-size:12px}}.score strong{{font-size:62px;color:var(--blue);line-height:1.35;font-variant-numeric:tabular-nums;letter-spacing:-2px}}.facts{{display:flex;flex-wrap:wrap;gap:8px 20px;border-top:1px solid var(--line);padding-top:18px;color:var(--muted);font-size:13px}}.scope{{background:#f0f5ff;color:#365b92;padding:8px 12px;border-radius:6px;font-size:13px;margin-top:14px}}.scores{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid var(--line);padding-top:22px;margin-top:22px}}.scores article>span{{font-size:13px}}.scores strong{{display:block;font-size:30px;font-variant-numeric:tabular-nums;margin-top:5px}}.scores small{{font-size:12px;font-weight:400}}.scores p{{font-size:12px;color:var(--muted)}}.track{{height:4px;background:#e9eef7;border-radius:3px;margin:12px 0}}.track i{{display:block;height:100%;background:var(--blue);border-radius:3px}}.footnote{{font-size:12px;color:var(--muted);margin-top:18px}}details{{border-top:1px solid var(--line);padding-top:16px;margin-top:18px}}summary{{cursor:pointer;color:var(--blue);font-size:14px}}.table-wrap{{overflow-x:auto}}table{{border-collapse:collapse;width:100%;font-size:13px;min-width:540px}}th,td{{padding:12px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}}thead th{{color:var(--muted);font-weight:500;background:#f8faff}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f9fc;padding:16px;font:12px/1.6 monospace;max-height:460px;overflow:auto}}img{{max-width:100%}}.failure{{padding:12px;border-radius:6px;background:#fff1f0;color:#a43732}}footer{{font-size:12px;color:var(--muted);padding:0 0 24px}}@media(max-width:900px){{.shell{{display:block;padding:16px 12px}}aside{{position:static;margin-bottom:18px}}aside nav{{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px}}header,section{{padding:22px 18px}}}}@media(max-width:620px){{.hero{{display:block}}.score{{border-right:0;border-bottom:1px solid var(--line);padding:0 0 16px;margin-bottom:18px}}.scores{{grid-template-columns:1fr}}}}@media print{{aside{{display:none}}.shell{{display:block;padding:0}}body{{background:white}}header,section{{break-inside:avoid}}}}
     </style></head><body><div class="shell"><aside><strong>质控报告</strong><nav><a href="#overview">评分概览</a><a href="#score-table">结果总表</a><a href="#review">重点复核</a><a href="#checks">检查明细</a><a href="#scoring">评分依据</a><a href="/standards/eeg-report">质控标准</a></nav></aside><main>
     <header id="overview">{download} <span class="tag">项目试行 v0.2</span><p class="filename">{esc(view['label'])}</p><div class="hero"><div class="score"><span>EEG 基础质控评分</span><strong>{points(score['value'])}</strong><small>/ 100 · 取最低分项</small></div><div><h1>{esc(view['headline'])}</h1><p>{esc(view['summary'])}</p><p class="muted">{esc(view['priority'])}</p></div></div>{failures}
@@ -285,3 +290,18 @@ def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=
     <details><summary>工频候选 · {line['affected_channels'] if line['total'] else '未评'} 个通道，展开查看</summary><p class="muted">按命中窗数排序；每道列出幅度最大的代表窗口。</p><div class="table-wrap"><table><thead><tr><th>通道</th><th>命中窗</th><th>代表窗口</th><th>频率 / 幅度</th></tr></thead><tbody>{line_rows or '<tr><td colspan="4">暂无可展示候选。</td></tr>'}</tbody></table></div><p>{link('candidate-index.json' if cov else 'M04_spectral.json','完整工频证据')}</p></details>{truncation}{waveform}</section>
     <section id="checks"><h2>检查明细</h2><details><summary>全部检查结果</summary><div class="table-wrap"><table><thead><tr><th>检查项</th><th>结果</th><th>测量值</th><th>说明</th></tr></thead><tbody>{check_rows}</tbody></table></div></details><details><summary>补充信息与执行说明</summary><ul>{notes or '<li>无新增补充条件。</li>'}</ul></details></section>
     <section id="scoring"><h2>评分依据</h2><p class="muted">每通道计算异常占比，分项按均方根汇总，总分取最低分项。</p><details><summary>查看 v0.2 计算方法</summary><ul><li>每通道异常占比 p：非有限或恒值样本 / 样本数；工频命中窗 / 有效窗；高频候选时长 / 有效时长。</li><li>分项 = 100 × [1 − √(各通道 p² 的平均值)]。持续集中于少数通道的问题会得到体现。</li><li>总分 = 三个分项的最低值。其他满分项不抵消问题，也不重复累计多方法扣分。</li><li>缺少任一必需分项或通道证据，不生成总分。整份记录先逐通道汇总原始分子分母，不平均窗口分数。</li></ul><p>本次高频候选 {score['hf_candidate_channel_seconds']:g} 通道秒 / 有效 {score['hf_valid_channel_seconds']:g} 通道秒。工频跨频带去重，重叠窗不换算为污染时长。</p><p>此分数衡量三类候选的负担和集中程度，不是可用数据百分比；没有合格线，不区分已经命中之后的幅度严重性。其他检查另列，不被当作已通过。</p><p><a href="/standards/eeg-scoring">完整评分规则与算例</a></p></details><details><summary>方法参数与原始证据</summary><p>{primary_evidence}</p><pre>{raw}</pre><pre>{esc(json.dumps(score,ensure_ascii=False,indent=2,allow_nan=False))}</pre></details></section><footer>{VIEW_VERSION} · {esc(score['version'])} · 来源检测结果保留 · 自动候选待人工复核</footer></main></div></body></html>'''
+
+    if score.get('version') == 'project-weighted/1.0':
+        from .project_scoring import FORMULA
+        report = report.replace('项目试行 v0.2', '项目自定义 v1.0').replace('EEG 基础质控评分','项目自定义评分')
+        report = report.replace('取最低分项','按配置权重平均').replace('按 v0.2 计算','按项目配置计算').replace('按 v0.2 从原始证据重算','按 project-weighted/1.0 从原始证据重算').replace('总体分项使用均方根','总体分项使用候选量与有效检查量的比值')
+        for part in score['components']:
+            report = report.replace('<article><span>'+esc(part['name'])+'</span>', '<article><span>'+esc(part['name'])+f' · 权重 {part["weight"]:g}</span>')
+        report = report.replace('分数概括三项基础检查的候选负担','分数概括纳入评分的检查候选负担')
+        if score.get('missing_reason'):
+            report = report.replace('<div class="scores">', '<p class="muted">未生成总分：'+esc(score['missing_reason'])+'</p><div class="scores">',1)
+        start = report.index('<section id="scoring">')
+        stop = report.index('<details><summary>方法参数与原始证据</summary>', start)
+        weights = '；'.join(f'{esc(p["name"])} {p["weight"]:g}（{100*p["normalized_weight"]:.1f}%）' for p in score['components'])
+        report = report[:start] + f'<section id="scoring"><h2>评分依据</h2><p>{FORMULA}</p><p>权重：{weights}</p><p>0 表示不纳入；正权重项目缺失或检查范围未完成，不出总分。总分只概括所选检查，局部异常另列。已滤除频带不计为通过。</p><p>配置 {esc(score["configuration_id"])} · 项目试行，未经专家校准。</p><p><a href="/standards/eeg-scoring">完整规则与算例</a></p>' + report[stop:]
+    return report

@@ -136,6 +136,9 @@ class SummaryTests(unittest.TestCase):
         path=self.store.root/'jobs'/jid;path.mkdir(parents=True)
         (path/'request.json').write_text(json.dumps({'input':item}))
         self.store.jobs[jid]=dict(id=jid,status=status,created_at=date,input_id=item['id'],dataset_context=item['dataset_context'])
+        if status=='completed':
+            (path/'artifacts').mkdir()
+            (path/'artifacts/report.html').write_text('<html>Saved report</html>')
         return item
 
     def test_latest_failed_attempt_does_not_fall_back_to_good_score(self):
@@ -251,6 +254,14 @@ class SummaryTests(unittest.TestCase):
         self.store.settings['demo_examples'] = [dict(kind='record', id='demo', label='Demo',
                                                     job_id='a'*32, input_id=item['id'])]
         self.assertEqual(library(self.store)['examples'], [])
+
+    def test_example_directory_does_not_read_signal_results_or_claim_missing_reports(self):
+        self.save_dataset();self.save_signal()
+        self.store.settings['demo_examples']=[dict(kind='dataset',package_id='pilot')]
+        with patch('dataset_overview.build_overview',side_effect=AssertionError('directory must not aggregate reports')):
+            self.assertEqual(featured_reports(self.store)[0]['reported'],1)
+            (self.store.root/'jobs'/('a'*32)/'artifacts/report.html').unlink()
+            self.assertEqual(featured_reports(self.store)[0]['reported'],0)
 
     def test_featured_dataset_keeps_issues_and_uses_latest_attempt(self):
         self.save_dataset(); self.save_signal()

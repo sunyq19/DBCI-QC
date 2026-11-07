@@ -449,6 +449,13 @@ class Store:
     def result(self, id_, *, compact=False):
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')
+        if compact:
+            from project_score_cache import load
+            published = load(self, id_)
+            if published:
+                for artifact in published.get('artifacts',[]):
+                    artifact['url'] = f'/api/v1/jobs/{id_}/artifacts/{quote(artifact["name"])}'
+                return published
         result_path = self.root / 'jobs' / id_ / 'result.json'
         if compact:
             # Candidate observations can dwarf the report (tens of thousands of

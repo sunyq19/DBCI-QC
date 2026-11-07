@@ -100,7 +100,7 @@ Zero candidates only means that declared rules produced no candidates within the
 
 ### Project trial score
 
-The current version is `eeg-basic-screen/0.2`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
+The current version is `project-weighted/1.0`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
 
 For each channel calculate invalid/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − RMS of channel burdens)`; the total is the minimum of the three components. All selected channels and required components must be assessed. Missing evidence receives no credit or replacement weights.
 
