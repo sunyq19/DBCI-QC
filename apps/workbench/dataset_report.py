@@ -16,6 +16,9 @@ def render(data, language='zh-CN'):
     package = esc(data['package_id']); summary = data['summary']; records = data['records']
     example = data.get('example') or {}
     title = (example.get('label_en') if en else example.get('label')) or data['label']
+    run_name = (data.get('dataset_job') or {}).get('run_name')
+    source_title = title
+    title = run_name or title
     description = (example.get('description_en') if en else example.get('description')) or ''
     groups = data.get('attention_groups', [])
     present = (summary.get('file_counts') or {}).get('present', 0)
@@ -115,7 +118,7 @@ def render(data, language='zh-CN'):
     method_note = t('ECoG、sEEG、Neuropixels 当前提供技术描述，不套用头皮 EEG 的判坏阈值；相邻恒值可能来自量化，不直接判为坏道。', 'ECoG, sEEG and Neuropixels currently receive technical measurements without scalp-EEG rejection thresholds. Adjacent equal values can reflect quantization, not bad channels.') if non_eeg else t('工频与伪迹是待复核线索。缺少参考构型或辅助导联时，对应检查不会自动判为通过。', 'Interference and artifact detections are review candidates. Checks requiring unknown references or absent auxiliary channels are not counted as passes.')
     return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} · {t('数据集报告','Dataset report')}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report">
 +<header class="report-header"><a href="/#demo-reports">← {t('质控台','Workbench')}</a><span>{t('数据集报告','Dataset report')}</span><nav><a href="?lang={'zh-CN' if en else 'en'}{('&amp;job=' + esc(data['dataset_job']['id'])) if data.get('dataset_job') else ''}">{'中文' if en else 'EN'}</a><button id="print-report">{t('打印 / PDF','Print / PDF')}</button></nav></header>
-+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / {t('公开样本示例' if example else '数据集检查', 'Public sample' if example else 'Dataset QC')}</p><h1>{esc(title)}</h1><p class="secondary">{esc(description)}</p></div></div>
++<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / {t('公开样本示例' if example else '数据集检查', 'Public sample' if example else 'Dataset QC')}</p><h1>{esc(title)}</h1><p class="secondary">{esc(source_title) + ' · ' if run_name else ''}{esc(description)}</p></div></div>
 +<dl class="dataset-facts">{fact_html}</dl><p class="report-conclusion">{esc(primary)}</p>
 +<section id="checks"><h2>{t('检查了什么','Checks performed')}</h2><div class="table-scroll" tabindex="0" role="region" aria-label="{t('检查结果', 'Check results')}"><table class="check-table"><tbody>{check_html}</tbody></table></div></section>
 +{('<section id="findings"><h2>'+t('需要核对','Needs review')+'</h2>'+''.join(attention)+'</section>') if attention else ''}

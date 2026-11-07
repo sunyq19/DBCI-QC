@@ -31,6 +31,7 @@
   const state = {catalog:null,input:null,draftConfig:null,selected:new Set(OPTIONAL),extensions:new Set(),contextTags:{disease:"unknown",age_group:"unknown",task:"unknown"},initialContext:{},dialogModule:null,plan:null,planKey:null,planning:false,submitting:false,cancelling:false,job:null,result:null,mode:"draft",history:[],pollTimer:null,jobRequest:0,resultRequest:0,resultJobId:null,pollFailures:0,historyBusy:false,loadingCatalog:false,recommendation:null,recommendationKey:null,recommending:false,recommendationApplied:false,recommendationStale:false,intake:null,intakeBusy:false,draftEpoch:0,planRequest:0,manualDraft:false,parameterDirty:false,filePending:false,intakeRequest:0,catalogRequest:0,boardKey:null};
   Object.assign(state,{activeModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : "scalp_eeg",modalityChoices:[],scope:"recording",parentJobId:null,revisionInput:null,navigationRestored:false,workspace:null,reviewWarnings:[],workspaceRequest:0,waveformRequest:0,waveform:null,candidates:[],candidateId:null,candidateLimit:100,review:null,reviewBusy:false,reviewDrafts:{},cloneBusy:false,uploadAbort:null});
   Object.assign(state,{records:null,catalogCache:{},selectionRequest:0,loadingRecord:false,browseCatalog:null,browseModality:null,browseRequest:0,dialogContext:null,compatModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : null});
+  Object.assign(state,{runName:"",runNameStamp:new Date().toISOString(),namingFile:null});
   const DRAFT_KEY = "ephys-qc.draft.v2";
   const DRAFT_LAST_KEY = `${DRAFT_KEY}.latest`;
   const DRAFT_INDEX_KEY = `${DRAFT_KEY}.index`;
@@ -307,7 +308,7 @@
   function renderRecommendation() {
     const recommendation = state.recommendation, container = $("recommendation-content");
     if (state.mode === "job") {
-      container.innerHTML = `<p class="recommendation-summary">正在查看已有运行：${escape(state.job?.label || state.job?.id || "读取中")}</p><p class="small muted">下方显示这次运行保存的方案与结果。选择数据后可准备新的检查。</p>`;
+      container.innerHTML = `<p class="recommendation-summary">正在查看已有运行：${escape(state.job?.run_name || state.job?.label || state.job?.id || "读取中")}</p><p class="small muted">下方显示这次运行保存的方案与结果。选择数据后可准备新的检查。</p>`;
       return;
     }
     if (unsupportedInput()) {
@@ -411,7 +412,7 @@
     const text = (value,fallback) => typeof value === "string" && value.trim() ? value : Array.isArray(value) && value.length ? value.map(item => String(item)).join("；") : fallback;
     const url = safeSourceUrl(provenance?.url), name = text(provenance?.name,url ? "查看来源资料" : "来源名称未提供");
     const extras = [provenance?.version ? `版本 ${text(provenance.version,"未提供")}` : "",provenance?.license ? `许可 ${text(provenance.license,"未提供")}` : ""].filter(Boolean);
-    container.innerHTML = `<h3>${title}</h3>${historical ? `<p class="small muted">运行：${escape(state.job?.label || state.job?.id || "")}</p>` : ""}<dl><div><dt>来源</dt><dd>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(name)} ↗</a>` : escape(name)}${extras.length ? `<span class="source-meta">${escape(extras.join(" · "))}</span>` : ""}</dd></div><div><dt>典型用途</dt><dd>${escape(text(usage?.typical_use,"未提供"))}</dd></div><div><dt>已有标注</dt><dd>${escape(text(usage?.annotations,"未提供标注说明"))}</dd></div><div class="annotation-limit"><dt>标注边界</dt><dd>${escape(text(usage?.annotation_limits,"标注适用边界未说明，不推断为质量真值"))}</dd></div></dl>`;
+    container.innerHTML = `<h3>${title}</h3>${historical ? `<p class="small muted">运行：${escape(state.job?.run_name || state.job?.label || state.job?.id || "")}</p>` : ""}<dl><div><dt>来源</dt><dd>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(name)} ↗</a>` : escape(name)}${extras.length ? `<span class="source-meta">${escape(extras.join(" · "))}</span>` : ""}</dd></div><div><dt>典型用途</dt><dd>${escape(text(usage?.typical_use,"未提供"))}</dd></div><div><dt>已有标注</dt><dd>${escape(text(usage?.annotations,"未提供标注说明"))}</dd></div><div class="annotation-limit"><dt>标注边界</dt><dd>${escape(text(usage?.annotation_limits,"标注适用边界未说明，不推断为质量真值"))}</dd></div></dl>`;
   }
 
   function resetInputContext(input) {
@@ -468,7 +469,7 @@
       const title = [`来源：${pretty(tag.source || "未提供")}`,tag.note].filter(Boolean).join("；");
       return `<span class="data-tag ${tag.kind === "context" ? "context" : "technical"} ${unknown ? "unknown" : ""}" title="${escape(title)}"><span class="tag-key">${escape(tag.label || tag.key)}</span><span>${escape(display)}</span></span>`;
     }).join("") : '<p class="small muted">该记录或历史计划没有保存数据标签。</p>';
-    $("data-tags-note").textContent = state.mode === "job" ? `标签属于运行“${state.job?.label || state.job?.id || ""}”。下方背景选项仍用于新分析。` : planned ? "标签来自当前计划；未知信息会明确保留。悬停标签可查看来源。" : "技术标签只读；背景可在下方补充。未知信息不自动推断。悬停标签可查看来源。";
+    $("data-tags-note").textContent = state.mode === "job" ? `标签属于运行“${state.job?.run_name || state.job?.label || state.job?.id || ""}”。下方背景选项仍用于新分析。` : planned ? "标签来自当前计划；未知信息会明确保留。悬停标签可查看来源。" : "技术标签只读；背景可在下方补充。未知信息不自动推断。悬停标签可查看来源。";
   }
 
   function methodApplicability(method, plan = activePlan()) {
@@ -524,7 +525,23 @@
     el.innerHTML=`<a href="${escape(url)}">返回数据集</a><span data-i18n-skip>${escape(context.package_label)} / ${escape(context.subject)} / ${escape(context.session==='none'?'—':context.session)}</span>`;
   }
 
+  function suggestedRunName() {
+    const label=state.input?.label || state.intake?.filename || $("intake-file").files?.[0]?.name;
+    return window.QCRunNames.suggest(label,state.scope,state.runNameStamp,window.QCI18n?.getLanguage?.()||"zh-CN");
+  }
+  function renderRunName() {
+    const historical=state.mode==="job", selected=!!state.input&&!state.filePending;
+    for (const prefix of ["upload","check"]) {
+      const field=$(prefix+"-run-name-field"),input=$(prefix+"-run-name");
+      field.hidden=historical || (prefix==="upload"?selected:!selected);
+      if(input.value!==state.runName)input.value=state.runName;
+      input.placeholder=suggestedRunName();input.disabled=state.submitting||historical;
+    }
+  }
+  function resetRunName() { state.runName="";state.runNameStamp=new Date().toISOString(); }
+
   function updateActions() {
+    renderRunName();
     renderDatasetContext();
     const invalid = validation(), busy = state.planning || state.submitting || state.recommending || state.intakeBusy || state.loadingCatalog || state.loadingRecord;
     $("plan-button").disabled = Boolean(invalid || busy || !state.catalog || unsupportedInput());
@@ -637,6 +654,7 @@
 
   function selectRecord(next, {autoPrepare = true,fromIntake = false} = {}) {
     if (!fromIntake) { ++state.intakeRequest; state.intake = null; pendingIntakeId(null); $("intake-file").value = ""; renderIntake(); }
+    if(!fromIntake)resetRunName();
     state.filePending = false; state.input = next;
     state.revisionInput = null; setJobLocation(null);
     $("input-select").value = state.input.id; clearJobView();
@@ -708,6 +726,8 @@
     state.compatModality=null; state.navigationRestored=true;
     ++state.intakeRequest; state.intakeBusy = false; state.intake = null; pendingIntakeId(null);
     const file = $("intake-file").files?.[0]; state.filePending = Boolean(file);
+    if(state.namingFile!==file && (state.namingFile || state.input))resetRunName();
+    state.namingFile=file;
     clearInputDraft(); renderIntake(); setError("intake-error",null);
     $("registered-records").open = false;
     $("intake-status").textContent = "";
@@ -1097,7 +1117,7 @@
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
     if (historical) {
       label = state.job ? STATUS[state.job.status] || state.job.status : "状态未载入";
-      caption = state.job ? `运行记录 · ${state.job.label || state.job.id}` : "运行状态尚未载入。";
+      caption = state.job ? `运行记录 · ${state.job.run_name || state.job.label || state.job.id}` : "运行状态尚未载入。";
       style = state.job && Object.hasOwn(STATUS,state.job.status) ? state.job.status : "subtle";
     } else if (state.submitting) {
       label = "正在提交"; caption = "等待服务确认，勿重复提交。";
@@ -1161,7 +1181,7 @@
     try {
       if (!validPlan() && !await makePlan({forStart:true})) return;
       if (epoch !== state.draftEpoch || key !== fingerprint() || !validPlan() || state.mode !== "draft") return;
-      const requestBody = {...body(),plan_id:state.plan.plan_id};
+      const requestBody = {...body(),plan_id:state.plan.plan_id,run_name:state.runName.trim()||suggestedRunName()};
       if (state.parentJobId) requestBody.parent_job_id=state.parentJobId;
       const job = await api("/jobs", {method:"POST",body:JSON.stringify(requestBody)});
       if (!job.id) throw new Error("任务响应缺少 id。请刷新运行记录确认任务状态。");
@@ -1178,7 +1198,7 @@
     $("job-empty").hidden = Boolean(job); $("job-content").hidden = !job;
     if (!job) { $("job-status").className = "tag subtle"; $("job-status").textContent = "等待开始"; $("recording-progress").hidden=true; updateActions(); return; }
     const tag = $("job-status"); tag.className = `tag ${Object.hasOwn(STATUS,job.status) ? job.status : "subtle"}`; tag.textContent = STATUS[job.status] || job.status;
-    $("job-label").textContent = job.label || job.id;
+    $("job-label").textContent = job.run_name || job.label || job.id;
     $("job-created").textContent = date(job.created_at);
     $("job-message").textContent = [job.phase,job.message].filter(Boolean).join(" · ") || "服务端暂未提供阶段说明。";
     const modules = arr(job.modules), progress = executionProgress(job);
@@ -1366,7 +1386,7 @@
   }
   function saveDraft() {
     if (!state.input || state.mode !== "draft" || state.filePending || state.revisionInput) return;
-    try { window.sessionStorage.setItem(draftStorageKey(),JSON.stringify({version:1,modality:inputModality(state.input),input_id:state.input.id,selected_modules:body().selected_modules,qc_config:currentConfig(),parent_job_id:state.parentJobId,parameter_dirty:state.parameterDirty,parameter_text:$("extension-parameters").value,updated_at:new Date().toISOString()})); window.sessionStorage.setItem(DRAFT_LAST_KEY,draftStorageKey()); window.sessionStorage.setItem(DRAFT_INDEX_KEY,JSON.stringify(draftKeys())); }
+    try { window.sessionStorage.setItem(draftStorageKey(),JSON.stringify({version:1,modality:inputModality(state.input),input_id:state.input.id,selected_modules:body().selected_modules,qc_config:currentConfig(),parent_job_id:state.parentJobId,run_name:state.runName,run_name_stamp:state.runNameStamp,parameter_dirty:state.parameterDirty,parameter_text:$("extension-parameters").value,updated_at:new Date().toISOString()})); window.sessionStorage.setItem(DRAFT_LAST_KEY,draftStorageKey()); window.sessionStorage.setItem(DRAFT_INDEX_KEY,JSON.stringify(draftKeys())); }
     catch { /* An unavailable session store does not prevent checking data. */ }
   }
   function discardDraft() { try { for(const key of [...draftKeys(),DRAFT_LAST_KEY,DRAFT_INDEX_KEY])window.sessionStorage.removeItem(key); } catch {} $("draft-recovery").hidden = true; }
@@ -1381,6 +1401,8 @@
       return pending.then(()=>{if(request !== state.selectionRequest || state.input?.id !== input.id)return false;return applyConfiguration(config);});
     }
     selectInput(input.id,{autoPrepare:false});
+    state.runName=typeof config.run_name==="string"?config.run_name:"";
+    if(config.run_name_stamp && !Number.isNaN(Date.parse(config.run_name_stamp)))state.runNameStamp=config.run_name_stamp;
     state.draftConfig = clone(config.qc_config); state.scope = config.qc_config.scope === "recording" ? "recording" : "window";
     state.selected = new Set(config.selected_modules.filter(id => optionalModules().includes(id)));
     state.extensions = new Set(arr(config.qc_config.method_config?.extensions));
@@ -1687,7 +1709,7 @@
 
   function renderHistory() {
     const jobs = state.history; renderVisibility();
-    $("history-list").innerHTML = jobs.length ? jobs.map(job => `<button class="history-item ${state.job?.id === job.id ? "active" : ""}" data-job="${escape(job.id)}" aria-label="查看 ${escape(job.label || job.id)}，${escape(STATUS[job.status] || job.status)}"><div class="history-item-top"><span class="history-name">${escape(job.label || job.id)}</span>${statusTag(job.status)}</div><div class="history-meta">${escape(date(job.created_at))} · <span data-i18n-skip>${escape(String(job.id || "").slice(-8))}</span></div><div class="history-config">${escape(runSummary(job))}</div></button>`).join("") : '<div class="empty-state"><p>暂无运行记录。完成规划后，开始第一份分析。</p></div>';
+    $("history-list").innerHTML = jobs.length ? jobs.map(job => `<button class="history-item ${state.job?.id === job.id ? "active" : ""}" data-job="${escape(job.id)}" aria-label="查看 ${escape(job.run_name || job.label || job.id)}，${escape(STATUS[job.status] || job.status)}"><div class="history-item-top"><span class="history-name" data-i18n-skip>${escape(job.run_name || job.label || job.id)}</span>${statusTag(job.status)}</div><div class="history-meta">${escape(date(job.created_at))} · <span data-i18n-skip>${escape(String(job.id || "").slice(-8))}</span></div><div class="history-config">${escape(runSummary(job))}</div></button>`).join("") : '<div class="empty-state"><p>暂无运行记录。完成规划后，开始第一份分析。</p></div>';
   }
 
   function runSummary(job) {
@@ -1843,6 +1865,7 @@
   $("duration-seconds").addEventListener("input",() => invalidatePlan());
   for (const field of Object.keys(CONTEXT_FIELDS)) $(`context-${field}`).addEventListener("change",event => setContext(field,event.target.value));
   $("plan-button").addEventListener("click",async () => { if (state.parameterDirty && !applyParameters()) return; await makePlan(); });
+  for(const prefix of ["upload","check"])$(prefix+"-run-name").addEventListener("input",event=>{state.runName=event.target.value;renderRunName();saveDraft();});
   $("run-button").addEventListener("click",startJob);
   $("refresh-history-button").addEventListener("click",loadHistory);
   $("refresh-job-button").addEventListener("click",() => refreshJob());
@@ -1874,7 +1897,7 @@
   document.addEventListener("click",async event=>{const button=event.target.closest("[data-review-module]");if(button&&moduleOrder().includes(button.dataset.reviewModule)){$("module-dialog").close();await openReviewWorkspace("job");$("candidate-module").value=button.dataset.reviewModule;renderCandidateList();}});
   document.addEventListener("change",event => { if (event.target.id === "intake-stream") selectIntakeStream(event.target.value); if (event.target.id === "intake-modality") applyIntakeModalitySuggestion(event.target.value); const input = event.target.closest("[data-extension]"); if (input && !input.disabled) setExtension(input.dataset.extension,input.checked); });
   document.addEventListener("change",event=>{if(event.target.id==="window-page")renderRecordingProgress();});
-  document.addEventListener("qc:languagechange",()=>{renderWaveform();if(state.records || state.catalog)renderRegisteredInputs();});
+  document.addEventListener("qc:languagechange",()=>{renderRunName();renderWaveform();if(state.records || state.catalog)renderRegisteredInputs();});
   document.addEventListener("visibilitychange",() => { if (!document.hidden && state.job && ACTIVE.has(state.job.status)) refreshJob(); });
   window.addEventListener("beforeunload",clearPoll);
   window.addEventListener("beforeunload",saveDraft);

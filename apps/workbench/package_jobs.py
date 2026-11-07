@@ -105,11 +105,13 @@ class PackageJobs:
 
     def submit(self,body):
         required = {'package_id','manifest_hash','confirmed'}
-        if not isinstance(body,dict) or not required <= set(body) or set(body) - required - {'baseline_job_id'} or body['confirmed'] is not True:
+        if not isinstance(body,dict) or not required <= set(body) or set(body) - required - {'baseline_job_id', 'run_name'} or body['confirmed'] is not True:
             raise ValueError('请确认本次检查范围与比较组。')
         if not isinstance(body['package_id'],str) or body['package_id'] not in self.packages:raise ValueError('请选择已登记的数据包。')
         p,plan=self._plan(body['package_id'])
         if body['manifest_hash']!=fingerprint(plan):raise ValueError('检查清单已变化，请刷新并重新确认。')
+        from ephys_qc.run_names import resolve_run_name
+        run_name = resolve_run_name(body.get('run_name'), p['label'], 'dataset')
         baseline = body.get('baseline_job_id')
         baseline_revision = 0
         if baseline is not None:
@@ -128,13 +130,13 @@ class PackageJobs:
                         raise ValueError('本数据集已有不同方案的检查在运行，请等待完成后再复验。')
                     return copy.deepcopy(job)
             identifier=uuid.uuid4().hex;folder=self.root/identifier;folder.mkdir()
-            job={'id':identifier,'package_id':p['id'],'label':p['label'],'status':'queued','created_at':now(),
+            job={'id':identifier,'package_id':p['id'],'label':p['label'],'run_name':run_name,'status':'queued','created_at':now(),
                  'manifest_hash':fingerprint(plan),'modules':[{'id':mid,'can_output_score':False,'scoring_role':'evidence','status':'pending'} for mid in ('D01','D02','D03')]}
             if baseline:
                 job.update(baseline_job_id=baseline, baseline_review_revision=baseline_revision)
             job['admission'] = admission
             self.jobs[identifier]=job
-            (folder/'request.json').write_text(json.dumps({'source_root':p['root'],'expectations':plan,'admission':admission,
+            (folder/'request.json').write_text(json.dumps({'source_root':p['root'],'run_name':run_name,'expectations':plan,'admission':admission,
                 'baseline_job_id':baseline,'baseline_review_revision':baseline_revision},ensure_ascii=False,indent=2)+'\n')
             self._save(job);self.queue.put(identifier)
             return copy.deepcopy(job)
@@ -151,7 +153,7 @@ class PackageJobs:
                 request=json.loads((folder/'request.json').read_text())
                 if request.get('admission'):
                     assert_snapshot_unchanged(request['source_root'], request['admission'], limits=self.admission_policy)
-                result=run_dataset_qc(request['source_root'],request['expectations'],folder/'result',progress=progress)
+                result=run_dataset_qc(request['source_root'],request['expectations'],folder/'result',progress=progress,run_name=request.get('run_name'))
                 with self.lock:
                     job=self.jobs[identifier];job.update(status='completed',ended_at=now(),summary=result['summary'],
                                                        report_url=f'/api/v1/package-jobs/{identifier}/report')

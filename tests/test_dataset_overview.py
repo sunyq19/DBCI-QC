@@ -322,6 +322,15 @@ class SummaryTests(unittest.TestCase):
         path.parent.mkdir(parents=True);path.write_text('new report')
         updated=next(r for r in library(self.store)['items'] if r['id']=='record:personal')
         self.assertEqual([r['job_id'] for r in updated['recent_reports']],['d'*32,'a'*32])
+        # Explicit run titles must remain distinct, even when names repeat.
+        for key in ['e','f','g']:
+            jid=key*32
+            self.store.jobs[jid]=dict(id=jid,input_id=item['id'],run_name='对照',status='completed',created_at='2026-11-08'+key)
+            p=self.store.root/'jobs'/jid/'artifacts'/'report.html'
+            p.parent.mkdir(parents=True);p.write_text('named report')
+        named=next(r for r in library(self.store)['items'] if r['id']=='record:personal')
+        self.assertEqual(len(named['recent_reports']),5)
+        self.assertEqual([r['label'] for r in named['recent_reports'][:3]],['对照']*3)
         # A revised confirmation must not inherit the previous revision's reports.
         item.update(record_family='family',record_revision=1)
         self.store.inputs['revised']=dict(item,id='revised',record_revision=2)

@@ -98,7 +98,7 @@ def aggregate_overview(manifest, dataset_job=None, dataset_result=None, signals=
             'comparison_groups': copy.deepcopy(manifest['consistency']['groups']),
             'checks': checks, 'findings': findings, 'module_counts': module_counts,
             'attention_groups': attention_groups(checks, rows),
-            'dataset_job': {k: dataset_job.get(k) for k in ('id', 'status', 'created_at', 'ended_at')} if dataset_job else None,
+            'dataset_job': {k: dataset_job.get(k) for k in ('id', 'status', 'created_at', 'ended_at', 'run_name')} if dataset_job else None,
             'summary': {'records': len(rows), 'subjects': len(subjects), 'expected_files': len(manifest['files']),
                         'file_counts': file_counts, 'dataset_assessed': dataset_result is not None,
                         'findings': dict(Counter(c['status'] for c in findings)),

@@ -158,7 +158,7 @@ class Store:
         save_json(self.root / 'jobs' / job['id'] / 'job.json', job)
 
     def plan_request(self, body):
-        if not isinstance(body, dict) or set(body) - {'input_id', 'selected_modules', 'qc_config', 'plan_id', 'parent_job_id'}:
+        if not isinstance(body, dict) or set(body) - {'input_id', 'selected_modules', 'qc_config', 'plan_id', 'parent_job_id', 'run_name'}:
             raise ValueError('请求仅接受输入、所选模块、分析配置和计划标识。')
         input_id = body.get('input_id')
         if not isinstance(input_id, str) or input_id not in self.inputs:
@@ -191,7 +191,7 @@ class Store:
                           and i['dataset_context'].get('record_id') == row['id']}
                 runs = sorted((j for j in self.jobs.values() if j['input_id'] in inputs),
                               key=lambda j: j['created_at'], reverse=True)
-                row['signal_runs'] = [{k: j[k] for k in ('id', 'status', 'created_at', 'input_id')} for j in runs]
+                row['signal_runs'] = [{k: j.get(k) for k in ('id', 'status', 'created_at', 'input_id', 'run_name')} for j in runs]
         return result
 
     def open_package_record(self, body):
@@ -255,6 +255,8 @@ class Store:
 
     def submit(self, body, *, batch_id=None):
         item, plan = self.plan_request(body)
+        from ephys_qc.run_names import resolve_run_name
+        run_name = resolve_run_name(body.get('run_name'), item['label'], plan['qc_config'].get('scope', 'window'))
         if body.get('plan_id') != plan['plan_id']:
             raise ValueError('检查方案与当前配置不一致，请重新预览方案后运行。')
         if item.get('linked_intake_id'):
@@ -277,10 +279,10 @@ class Store:
             id_ = uuid.uuid4().hex
             directory = self.root / 'jobs' / id_
             directory.mkdir()
-            request = {'input': item, 'plan': plan, 'qc_config': plan['qc_config'],
+            request = {'input': item, 'plan': plan, 'run_name': run_name, 'qc_config': plan['qc_config'],
                        'selected_modules': plan['selected_modules'], 'parent_job_id': parent, 'batch_id': batch_id, 'admission': admission}
             save_json(directory / 'request.json', request)
-            job = {'id': id_, 'label': item['label'], 'input_id': item['id'], 'status': 'queued',
+            job = {'id': id_, 'label': item['label'], 'run_name': run_name, 'input_id': item['id'], 'status': 'queued',
                    'input_revision': item.get('record_revision', 1), 'record_family': item.get('record_family', item['id']),
                    'parent_job_id': parent, 'batch_id': batch_id, 'dataset_context': copy.deepcopy(item.get('dataset_context')),
                    'phase': 'queued', 'message': '等待执行', 'created_at': now(), 'plan': plan,
@@ -857,7 +859,7 @@ class Handler(BaseHTTPRequestHandler):
             from example_cache import asset
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
-        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
+        static = {'/': 'index.html', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
                   '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:

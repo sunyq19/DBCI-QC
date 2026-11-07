@@ -8,7 +8,10 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
+  const pairs = `质检名称	QC run name
+（可选）	(optional)
+留空使用灰色名称	Leave blank to use the suggested name
+一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
 点击“读取文件”，下一步确认通道和模态	Click Read file, then confirm channels and modality
 上传文件保留 7 天，报告长期保留。	Uploaded files are kept for 7 days; reports are retained.
 在完整页面查看图表	Open full chart workspace

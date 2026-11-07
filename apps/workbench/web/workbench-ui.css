@@ -517,3 +517,16 @@ html[lang="en"] .comparison-en { display:flex; }
 @media screen and (max-width:900px) { .qc-signal-report .shell { display:block; padding:18px 16px; } }
 .qc-app #result-visual-frame { height:65vh; min-height:360px; max-height:650px; border-radius:0; background:white; }
 .qc-app .visual-workspace-link { margin:10px 0; text-align:right; font-size:13px; }
+
+/* Run titles use the same field scale in upload, record and dataset settings. */
+.run-name-field{min-width:0;margin:16px 0;display:grid;gap:6px}
+.run-name-field[hidden]{display:none}
+.run-name-field .field-label{margin:0;display:block;font-size:13px}
+.run-name-field input{box-sizing:border-box;width:100%;min-width:0;font:inherit;font-size:14px;color:var(--ink,#20334b)}
+.run-name-field input::placeholder{color:#748091;opacity:1}
+.run-name-field small{font-size:12px}
+.qc-app .library-report-name{min-width:0}
+.qc-app .library-report-name strong,.qc-app .history-name{overflow-wrap:anywhere}
+.data-library-older{grid-column:1/-1;margin-top:4px}
+.data-library-older summary{font-size:12px;color:#64748b;cursor:pointer}
+.qc-signal-report .report-title h1{overflow-wrap:anywhere}

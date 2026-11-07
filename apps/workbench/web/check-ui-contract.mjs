@@ -32,6 +32,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
   const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
+  vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
   test.state.catalog=fixtureCatalog();if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
@@ -376,7 +377,7 @@ check("a failed automatic plan keeps Start blocked until reset or explicit manua
 });
 check("one explicit Start replans a manual draft and submits exactly once",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));if(url.endsWith("/jobs")&&options.method==="POST")return response({id:"new-job",status:"failed",plan:t.state.plan,modules:[]});if(url.endsWith("/jobs"))return response({jobs:[]});throw new Error(`Unexpected ${url}`)});
-  t.setModuleSelected("M07",false);t.get("start-seconds").value="10";t.invalidatePlan();await t.startJob();assert.equal(calls.filter(([url,opt])=>url.endsWith("/jobs")&&opt.method==="POST").length,1);assert.equal(calls[0][0],"/api/v1/plan");const request=JSON.parse(calls[1][1].body);assert.equal(request.qc_config.selection.start_seconds,10);assert(!request.selected_modules.includes("M07"));assert.equal(request.plan_id,"plan-fixture");assert.equal(t.state.mode,"job");
+  t.setModuleSelected("M07",false);t.get("start-seconds").value="10";t.invalidatePlan();await t.startJob();assert.equal(calls.filter(([url,opt])=>url.endsWith("/jobs")&&opt.method==="POST").length,1);assert.equal(calls[0][0],"/api/v1/plan");const request=JSON.parse(calls[1][1].body);assert.equal(request.qc_config.selection.start_seconds,10);assert(!request.selected_modules.includes("M07"));assert.equal(request.plan_id,"plan-fixture");assert.equal(request.run_name,t.get("check-run-name").placeholder);assert.equal(t.state.mode,"job");
 });
 check("Start locks input switching and repeat clicks while a manual plan is pending",async()=>{
   const wait=deferred(),calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/plan"))return wait.promise;if(url.endsWith("/jobs")&&options.method)return response({id:"j",status:"failed",plan:t.state.plan,modules:[]});return response({jobs:[]})});
@@ -895,6 +896,27 @@ check('running history opens on entry and polling respects manual collapse',asyn
     await t.selectJob('next-task',{...job,id:'next-task'});
     assert.equal(t.get('run-history-panel').open,true);
   } finally { t.clearPoll(); }
+});
+check("run names survive upload and confirmation, without altering the plan", async()=>{
+  const t=harness(undefined,{selected:false});
+  const file={name:"sub-01.edf",size:100};t.get("intake-file").files=[file];t.chooseLocalFile();
+  assert(t.get("upload-run-name").placeholder.startsWith("sub-01 · 整份检查 · "));
+  const input=t.get("upload-run-name");input.value="同一数据 · 灵犀云方案";input.dispatch("input",{target:input});
+  t.chooseLocalFile();assert.equal(t.state.runName,"同一数据 · 灵犀云方案","Read file must preserve the name");
+  await t.selectInput("input-0",{autoPrepare:false,fromIntake:true});
+  assert.equal(t.get("check-run-name").value,input.value);assert(t.get("upload-run-name-field").hidden);
+  const key=t.fingerprint();t.get("check-run-name").value="推荐方案";
+  t.get("check-run-name").dispatch("input",{target:t.get("check-run-name")});
+  assert.equal(t.fingerprint(),key,"Naming must not invalidate or change analysis settings");
+  t.setScope("window");assert.equal(t.state.runName,"推荐方案");
+  const draft=t.savedDraft();assert.equal(draft.run_name,"推荐方案");
+  await t.selectInput("input-1");assert.equal(t.state.runName,"");
+  await t.applyConfiguration(draft);assert.equal(t.get("check-run-name").value,"推荐方案");
+  t.get("check-run-name").value="";t.get("check-run-name").dispatch("input",{target:t.get("check-run-name")});
+  assert(t.get("check-run-name").placeholder.includes("片段检查"));
+  t.state.history=[{id:"job-1",label:"source.edf",run_name:"<对照方案>",status:"completed"}];t.renderHistory();
+  assert(t.get("history-list").innerHTML.includes("&lt;对照方案&gt;"));
+  assert(!t.get("history-list").innerHTML.includes("<对照方案>"));
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

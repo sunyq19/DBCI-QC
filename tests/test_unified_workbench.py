@@ -20,7 +20,7 @@ class UnifiedWorkbenchTests(unittest.TestCase):
     def setUpClass(cls):
         inputs = {}
         for modality in ('scalp_eeg', 'ecog', 'seeg'):
-            inputs[modality] = {'id': modality, 'label': modality, 'modality': modality,
+            inputs[modality] = {'id': modality, 'label': modality, 'modality': modality, 'library_origin':'user_registered',
                 'source_path': '/private/not-for-list.fif', 'expected_sha256': '0' * 64,
                 'metadata': {'format': 'FIF', 'duration_seconds': 1,
                     'channels': [{'index': 0, 'name': 'C1', 'unit': 'V', 'sampling_rate_hz': 1000}]},

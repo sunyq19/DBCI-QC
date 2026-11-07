@@ -58,10 +58,13 @@ def library(store):
         if configured.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         jobs = [j for j in dataset_jobs if j['package_id'] == package['id'] and j['manifest_hash'] == package.get('manifest_hash')]
         latest = max(jobs, key=lambda j:j['created_at']) if jobs else None
+        reports = sorted((j for j in jobs if j['status']=='completed'),key=lambda j:j['created_at'],reverse=True)
         rows.append({'id': 'dataset:'+package['id'], 'kind':'dataset', 'label':package['label'],
                      'available':package['available'], 'records':package.get('records'), 'subjects':package.get('subjects'),
                      'status':latest['status'] if latest else 'not_run', 'updated_at':latest['created_at'] if latest else '',
-                     'url':'/datasets?'+urlencode({'package':package['id']})})
+                     'url':'/datasets?'+urlencode({'package':package['id']}),
+                     'recent_reports':[{'label':j.get('run_name') or '资料检查', 'label_en':j.get('run_name') or 'Dataset check', 'created_at':j['created_at'],
+                        'url':f"/api/v1/packages/{package['id']}/overview/report?job={j['id']}"} for j in reports]})
     with store.lock:
         inputs, jobs = copy.deepcopy(list(store.inputs.values())), copy.deepcopy(list(store.jobs.values()))
     families = {}
@@ -84,14 +87,13 @@ def library(store):
             label = labels.get(job['id'], {})
             # A refreshed named workflow replaces its older run in this compact
             # list; it must not displace the other comparison workflow.
-            key = label.get('zh-CN') or job['id']
+            key = job['id'] if job.get('run_name') else label.get('zh-CN') or job['id']
             if key in seen_labels: continue
             seen_labels.add(key)
-            reports.append({'job_id':job['id'], 'label':label.get('zh-CN','检查报告'),
-                            'label_en':label.get('en','QC report'), 'created_at':job['created_at'],
+            reports.append({'job_id':job['id'], 'label':job.get('run_name') or label.get('zh-CN','检查报告'),
+                            'label_en':job.get('run_name') or label.get('en','QC report'), 'created_at':job['created_at'],
                             'url':f"/api/v1/jobs/{job['id']}/report",
                             'visualizations_url':f"/api/v1/jobs/{job['id']}/visualizations"})
-            if len(reports) == 2: break
         records.append({'id':'record:'+item['id'], 'kind':'record', 'label':item['label'],
                         'available':item.get('availability',{}).get('status')!='unavailable',
                         'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),

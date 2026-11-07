@@ -57,7 +57,7 @@ def comparison_row(job, request, view, environments):
         value = c.get('value')
         components.append({k: c.get(k) for k in ('id', 'name', 'numerator', 'denominator', 'unit', 'assessed_channels', 'affected_channels')} | {
             'value': value if type(value) in (int, float) and math.isfinite(value) else None})
-    return {'job_id': job['id'], 'label': job['label'], 'conditions': conditions,
+    return {'job_id': job['id'], 'label': job.get('run_name') or job['label'], 'source_label': job['label'], 'conditions': conditions,
             'condition_id': signature(conditions), 'unknown': unknown, 'components': components,
             'score': score.get('value'), 'score_version': score.get('version'),
             'coverage_complete': score.get('coverage_complete', False),

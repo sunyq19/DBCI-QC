@@ -66,7 +66,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     from .report_export import score_composition
     version_label='项目自定义 v'+score['version'].split('/')[-1] if score['version'].startswith('project-weighted/') else '项目试行 v'+score['version'].split('/')[-1]
     route = '灵犀云扩展方案' if any(p['id'].startswith('gnosis_') for p in score['components']) else '基础检查方案'
-    overview = f'''<header id="overview" class="report-overview"><div class="report-title"><div><p class="eyebrow">{route}</p><h1>信号质量报告</h1><p class="filename">{esc(view['label'])}</p></div><div class="report-actions">{actions}</div></div>
+    overview = f'''<header id="overview" class="report-overview"><div class="report-title"><div><p class="eyebrow">{route}</p><h1>{esc(view.get('run_name') or '信号质量报告')}</h1><p class="filename">{esc(view['label'])}</p></div><div class="report-actions">{actions}</div></div>
 <div class="report-summary"><div class="report-total"><span>综合分</span><strong>{points(score['value'])}<small> / 100</small></strong><span>{esc(score_composition(score))}</span></div><div class="report-conclusion"><h2>{headline}</h2><p>{conclusion}</p>{failures}</div></div><div class="facts">{facts}{'<span>'+scope[1]+'</span>' if scope else ''}</div></header>'''
     checks = section('score-table')
     # Put channel/time drill-downs in the detail section, after the actionable findings.

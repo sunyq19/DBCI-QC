@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>数据集总览 · 质控台</title>
 <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/datasets.css"><link rel="stylesheet" href="/dataset-review.css"><link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css">
-  <script src="/datasets.js" defer></script><script src="/dataset-review.js" defer></script></head>
+  <script src="/run-names.js" defer></script><script src="/datasets.js" defer></script><script src="/dataset-review.js" defer></script></head>
 <body class="qc-app dataset-workspace"><header class="site-header"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h6l4-10 5 19 4-12 3 3h4"/></svg></span><strong data-text="brand">质控台</strong></a>
 <div class="header-actions"><nav><a href="/standards/dataset-checks" id="dataset-standard" data-text="standards">质控标准</a></nav><div class="language-switch"><button type="button" data-lang="zh-CN" aria-pressed="true">中文</button><button type="button" data-lang="en" aria-pressed="false">EN</button></div></div></header>
 <main class="page-shell dataset-page"><nav class="data-breadcrumb"><a href="/" data-text="backData">返回数据</a><span id="dataset-breadcrumb"></span></nav>
@@ -12,6 +12,7 @@
 <div id="package-facts" class="package-facts"></div><p id="package-description" class="small muted"></p>
 <p id="package-admission-limits" class="small muted" hidden></p>
 <details class="package-scope"><summary data-text="scope">检查设置</summary><p id="package-scope" class="small"></p><div id="package-groups"></div></details>
+<div class="run-name-field"><label class="field-label" for="package-run-name" data-text="runName">质检名称（可选）</label><input id="package-run-name" type="text" maxlength="120" autocomplete="off" aria-describedby="package-run-name-hint"><small id="package-run-name-hint" class="muted" data-text="runNameHint">留空使用灰色名称</small></div>
 <label class="package-confirm"><input type="checkbox" id="package-confirm"><span data-text="confirm">确认检查以上记录</span></label>
 <button type="button" id="package-run" class="button primary" disabled data-text="run">检查资料</button><p class="small muted" data-text="local">本机后台计算，保留原始文件。</p>
 </section><details class="panel dataset-history"><summary data-text="history">资料检查历史</summary><label class="field-label" for="package-history" data-text="historyLabel">打开已有结果</label><select id="package-history"><option value="">—</option></select><p class="small muted" data-text="registered">信号报告在对应记录处查看。</p></details></aside>

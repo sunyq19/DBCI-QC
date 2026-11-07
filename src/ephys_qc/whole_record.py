@@ -470,7 +470,7 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     modules = _modules(plan, windows)
     status = 'failed' if fatal or all(w['status'] == 'failed' for w in windows) else 'cancelled' if cancelled else 'partial' if any(w['status'] != 'completed' for w in windows) or plan['skipped_methods'] or cov['gap_samples'] else 'completed'
     result = {'schema_version': 'ephys-recording-result/1.0', 'scope': 'recording', 'status': status,
-              'analysis_profile': plan['analysis_profile'],
+              'analysis_profile': plan['analysis_profile'], 'run_name': request.get('run_name'),
               'plan_id': plan['plan_id'], 'label': record.get('label', record['id']), 'qc_config': plan['qc_config'],
               'selected_modules': plan['selected_modules'], 'modules': modules, 'windows': windows,
               'window_count': len(windows), 'coverage': cov, 'coverage_plan': plan['coverage_plan'],

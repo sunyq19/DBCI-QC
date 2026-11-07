@@ -93,7 +93,7 @@ def build_recording_view(result, artifacts, label=''):
     # An empty evidence shell still produces an honest partial report.
     shell=build_report_view({**result,'scope':'window','artifacts':[]},root,label)
     base=copy.deepcopy(present[0] if present else shell)
-    base.update(schema_version=VIEW_VERSION,scope='recording',label=label or result.get('label',''),
+    base.update(schema_version=VIEW_VERSION,scope='recording',label=label or result.get('label',''),run_name=result.get('run_name'),
                 recording=result['recording'],input_duration_seconds=result['coverage']['total_seconds'],
                 artifacts=sorted(declared),modules=result['modules'],warnings=result.get('warnings',[]),
                 plan_id=result.get('plan_id'),source_sha256=result.get('source_sha256'),

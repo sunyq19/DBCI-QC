@@ -95,7 +95,7 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     if root == source or source in root.parents or root in source.parents:
         raise ValueError("Job outputs must be separate from the original input file")
     result = {"schema_version": "ephys-result/1.3", "plan_id": plan["plan_id"], 'scope': 'window',
-              'analysis_profile': plan['analysis_profile'],
+              'analysis_profile': plan['analysis_profile'], 'run_name': request.get('run_name'),
               "recording": {"channel_count": 0, "sampling_rate_hz": None,
                             "start_seconds": plan["qc_config"]["selection"]["start_seconds"],
                             "duration_seconds": plan["qc_config"]["selection"]["duration_seconds"]},

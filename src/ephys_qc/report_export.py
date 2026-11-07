@@ -176,7 +176,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         from reportlab.platypus import SimpleDocTemplate, Spacer, PageBreak, Image
         out=BytesIO()
         doc=SimpleDocTemplate(out,pagesize=(595.28,841.89),leftMargin=44,rightMargin=44,
-            topMargin=74,bottomMargin=55,title=f'DBCI-QC - {view["label"]}',author='DBCI-QC')
+            topMargin=74,bottomMargin=55,title=f'DBCI-QC - {view.get("run_name") or view["label"]}',author='DBCI-QC')
         ink=colors.HexColor('#243449');blue=colors.HexColor('#2459bc');muted=colors.HexColor('#5b687b')
         base=ParagraphStyle('body',fontName=font,fontSize=10,leading=16,textColor=ink,wordWrap='CJK',spaceAfter=7)
         styles={'body':base,
@@ -210,7 +210,9 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         weighted=score.get('version','').startswith('project-weighted/')
         gnosis=any(r['id'].startswith('gnosis_') for r in all_rows)
         route='灵犀云扩展方案（保留共同基础检查）' if gnosis else '基础检查方案'
-        story=[para('01  检查结果','title'),para(view['label']),para(route,'note')]
+        story=[para('01  检查结果','title')]
+        if view.get('run_name'): story.append(para(view['run_name']))
+        story.extend([para(view['label']),para(route,'note')])
         rec=view['recording'];start=rec.get('start_seconds',0);stop=start+rec.get('duration_seconds',0)
         story.append(para(f'{view["format"]} · 头皮 EEG · {rec.get("channel_count")} 通道 · {rec.get("sampling_rate_hz"):g} Hz','note'))
         story.append(para(f'本次检查 {start:g}-{stop:g} 秒；原记录 {view["input_duration_seconds"]:g} 秒。','note'))
