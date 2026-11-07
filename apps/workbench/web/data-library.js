@@ -18,7 +18,7 @@
       const latest=group.latest, runs=group.runs||[];
       const scope=group.scope==='recording'?t('整份检查','Full recording'):t('片段检查','Selected interval');
       const duration=Number.isFinite(group.duration_seconds)?` · ${Number(group.duration_seconds.toFixed(2))}${t(' 秒',' s')}`:'';
-      const meta=[scope+duration,group.channels?t(`${group.channels} 通道`,`${group.channels} channels`):'',group.requirements_unmet?t('方案条件未满足','Workflow requirements unmet'):group.scored_items?t(`${group.scored_items} 项计分`,`${group.scored_items} scored items`):''].filter(Boolean).join(' · ');
+      const meta=[scope+duration,group.channels?t(`${group.channels} 通道`,`${group.channels} channels`):'',group.requirements_unmet?t('方案条件未满足','Workflow requirements unmet'):group.scored_items?t(`已选 ${group.scored_items} 项计分`,`${group.scored_items} scoring checks selected`):''].filter(Boolean).join(' · ');
       return `<section class="library-workflow">${reportRows([{...latest,label:group.label,label_en:group.label_en}])}<p class="library-workflow-meta">${esc(meta)}${group.current_confirmation===false?' · '+t('此前确认配置','Previous confirmation'):''}${latest.status!=='completed'?' · '+esc(status[latest.status]?.[en()?1:0]||latest.status):''}</p>${runs.length>1?`<details class="library-workflow-history"><summary>${t('历次运行','Previous runs')} · ${runs.length-1}</summary>${reportRows(runs.slice(1))}</details>`:''}</section>`;
     };
     // Keep the newest distinct routes visible; repeated configurations cannot
@@ -72,7 +72,7 @@
   $('data-search').addEventListener('input',()=>{limit=6;render()});
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});
-  $('data-library-refresh').addEventListener('click',refresh);
+  $('data-library-refresh').addEventListener('click',event=>{event.preventDefault();event.stopPropagation();refresh()});
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
   try{$('demo-reports').open=window.localStorage.getItem('qc.examples.open')!=='false'}catch{}
   $('demo-reports').addEventListener('toggle',()=>{try{window.localStorage.setItem('qc.examples.open',String($('demo-reports').open))}catch{}});

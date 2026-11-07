@@ -161,18 +161,18 @@ NWB 2/HDF5由独立读取器接入。多ElectricalSeries文件须选定一个流
 
 NWB可先调用`inspect_recording(path)`查看`available_streams`，再以`inspect_recording(path, stream_id="/acquisition/ElectricalSeries")`读取被选流的元数据。准备记录时向`prepare_recording(..., stream_id=...)`传递同一对象路径。命令行对应`dbci-qc inspect record.nwb --stream /acquisition/ElectricalSeries`和`prepare`命令的`--stream`参数；具体路径必须来自该文件的实际读取结果，不能根据示例猜测。
 
-## 方法计分接口（project-weighted/1.1）
+## 方法计分接口（project-weighted/1.2）
 
 `score_registry.py` 声明各方法的计分能力、模态与输出单位；`method_scores.py` 把原检测候选转换为 `method-score/1`，不改动检测阈值。扩展调度 `extensions.run_extension` 返回 `score_outputs`；完整运行在 `result.method_scores`、`result.project_score` 和 `method-scores.json` 保存输出与权重。
 
 ```json
 {
   "scoring": {
-    "version": "project-weighted/1.1",
+    "version": "project-weighted/1.2",
     "weights": {"integrity": 1, "line_noise": 1, "hf_burst": 1, "gnosis_artifact": 2}
   },
   "method_config": {"extensions": ["gnosis_artifact"]}
 }
 ```
 
-上述为配置片段，还需有效输入、选道与方法所需参考等字段。正权重要求启用对应方法；全零关闭总分。方法不可执行或结果不完整时输出 null，不补满分。方法层先保存分子、分母、范围，再由项目层加权；M08 不重复计分。详细目录见[评分规则](eeg-scoring.md)。
+上述为配置片段，还需有效输入、选道与方法所需参考等字段。正权重要求启用对应方法；全零关闭总分。方法不可执行或结果不完整时该分项输出 null，本次权重自动置 0；其余有效项重新归一化，不补满分。方法层先保存分子、分母、范围，再由项目层加权；M08 不重复计分。详细目录见[评分规则](eeg-scoring.md)。

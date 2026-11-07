@@ -12,6 +12,13 @@ assert.equal(g.pan({start:40,span:10},100,1000,1,segment).start,39);
 assert.equal(g.pan({start:40,span:10},100,1000,.25,segment).start,39.75);
 assert.equal(g.pan({start:40,span:60},100,1000,1,segment).start,34);
 assert.equal(g.zoom({start:40,span:10},30,segment).start,30);
+const longSegment={start_seconds:0,stop_seconds:21600};
+const nearby=g.navigation({start:10800,span:10},longSegment,1,'near');
+assert.equal(nearby.max-nearby.min,40,'Six-hour records still use a local 40-second slider at 10-second zoom');
+assert.equal(g.navigation({start:10800,span:10},longSegment,.25,'near').max- g.navigation({start:10800,span:10},longSegment,.25,'near').min,10);
+assert.equal(g.navigation({start:10800,span:10},longSegment,1,'all').max,21590);
+assert.equal(g.navigation({start:0,span:10},longSegment,1,'near').min,0);
+assert.equal(g.navigation({start:21590,span:10},longSegment,1,'near').max,21590);
 const waveform={channels:[{channel_id:'a',name:'F2<script>',unit:'µV',times_seconds:[41,42,43,44],values:[1,null,100,-50]},
  {channel_id:'b',name:'FP1',unit:'µV',times_seconds:[41,42,43,44],values:[2,3,4,5]},
  {channel_id:'c',name:'MEG',unit:'T',times_seconds:[41,42,43,44],values:[1e-12,2e-12,3e-12,4e-12]}]};
@@ -38,7 +45,7 @@ class Node {
 }
 const ids=['finding-preview','finding-image','finding-status','finding-title','finding-position','finding-measure',
  'wave-controls','wave-notice','wave-span','wave-position','wave-prev','wave-next','wave-speed','wave-reset','wave-range',
- 'wave-segment-end','wave-channel-count','wave-channel-options','wave-search','wave-channel-menu','wave-channels-toggle'];
+ 'wave-segment-end','wave-nav-mode','wave-channel-count','wave-channel-options','wave-search','wave-channel-menu','wave-channels-toggle'];
 const nodes=Object.fromEntries(ids.map(id=>[id,new Node()]));
 const stage=new Node(),wrapper=new Node(),caption=new Node();
 const panel=nodes['finding-preview'];panel.dataset.waveformBase='/api/v1/jobs/test';
@@ -68,6 +75,7 @@ const resolveWave=async()=>{
  channels:selected.map(index=>({source_index:index,channel_id:index===7?'a':index===2?'b':'c',name:index===7?'F2':index===2?'FP1':'F3',unit:'µV',times_seconds:[start,start+span/2,start+span-.01],values:[0,100,-20]}))});
 };
 await resolveWave();assert.equal(panel.dataset.state,'ready');assert.equal(nodes['finding-image'].hidden,true);
+assert.equal(Number(nodes['wave-position'].max)-Number(nodes['wave-position'].min),40);
 assert.equal(nodes['wave-controls'].hidden,false);assert.equal(nodes['wave-range'].textContent,'40–50 s');
 const fp1=nodes['wave-channel-options'].children[1].children[0];fp1.checked=true;fp1.fire('change');
 assert(reads[0].url.includes('channel_indices=7%2C2'));await resolveWave();
@@ -79,6 +87,7 @@ nodes['wave-next'].fire('click');nodes['wave-next'].fire('click');assert.equal(r
 await resolveWave();assert.equal(reads.length,1,'Only the latest requested position is queued');
 assert(reads[0].url.includes('start_seconds=75.000000'));await resolveWave();
 assert.equal(nodes['wave-range'].textContent,'75–105 s');
+nodes['wave-nav-mode'].value='all';nodes['wave-nav-mode'].fire('change');
 nodes['wave-position'].value='999';nodes['wave-position'].fire('input');
 assert.equal(reads.length,0,'Dragging a position slider does not immediately fetch');
 assert.equal(nodes['wave-range'].textContent,'703–733 s');

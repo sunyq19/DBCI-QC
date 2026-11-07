@@ -149,7 +149,7 @@ def build_recording_view(result, artifacts, label=''):
     for part,pooled in zip(base['score']['components'],parts):
         part.update(assessed_window_seconds=pooled['assessed_window_seconds'],window_count=pooled['window_count'])
     scoring_config = result.get('qc_config',{}).get('scoring')
-    if scoring_config and scoring_config['version']=='project-weighted/1.1':
+    if scoring_config and scoring_config['version'] in {'project-weighted/1.1','project-weighted/1.2'}:
         from .method_scores import aggregate, core_outputs
         score_rows = core_outputs(list(channels.values()), result['recording']['channel_count'], expected_windows=len(windows), coverage_complete=complete)
         score_rows += [r for r in result.get('method_scores',[]) if r['id'] not in NAMES]

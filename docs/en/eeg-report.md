@@ -102,9 +102,9 @@ Zero candidates only means that declared rules produced no candidates within the
 
 ### Project trial score
 
-The current version is `project-weighted/1.1`; definitions, equations, missing-data rules, examples and validation requirements are maintained in [EEG scoring rules](/en/standards/eeg-scoring). Reports shall display “Project-defined v1.1”. Total composition is shown as a percentage share of the total, with equal proportions described as “N checks counted equally”. Original relative weights and the configuration identity remain in traceability data. A scored check without a valid result retains its configured share; that share is not silently redistributed.
+The current version is `project-weighted/1.2`; definitions, equations, missing-data rules, examples and validation requirements are maintained in [EEG scoring rules](/en/standards/eeg-scoring). Reports shall display “Project-defined v1.1”. Total composition is shown as a percentage share of the total, with equal proportions described as “N checks counted equally”. Original relative weights and the configuration identity remain in traceability data. A scored check without a valid result retains its configured share; that share is not silently redistributed.
 
-For each channel calculate nonfinite/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − candidate amount / assessed amount)`; the total is the frozen weighted mean. Only the three basic components are included by default; optional methods are included through explicit weights. Missing positive-weight results withhold the total without redistributing weights.
+For each channel calculate nonfinite/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − candidate amount / assessed amount)`; the total is the frozen weighted mean. Only the three basic components are included by default; optional methods are included through explicit weights. Unavailable results retain a null score with zero effective weight; valid results are renormalized.
 
 Retain component numerators, denominators, units, assessed scope and missing reasons. Additional checks such as ADC limits, reference-group comparisons and auxiliary timing remain separately reported. No industry acceptance threshold or application success probability is assigned.
 
@@ -178,9 +178,9 @@ Install the PDF dependencies with `pip install -e ".[reports]"`. `DBCI_QC_PDF_FO
 
 The default is the full duration of the selected file and signal stream. Native continuous segments are divided into non-overlapping blocks for background execution, preserving the original sampling clock. Closing the page does not cancel the job; the local service must remain running. Quick precheck evaluates only the selected interval.
 
-Whole-record scoring uses `project-weighted/1.1`: candidate and assessed amounts are pooled across channels and windows before computing component unflagged fractions and their frozen weighted mean. Window scores shall not be averaged directly; short final windows use their actual denominators. A scoring upgrade does not change detector thresholds.
+Whole-record scoring uses `project-weighted/1.2`: candidate and assessed amounts are pooled across channels and windows before computing component unflagged fractions and their frozen weighted mean. Window scores shall not be averaged directly; short final windows use their actual denominators. A scoring upgrade does not change detector thresholds.
 
-The total requires complete execution and source verification, with valid measurements for every positive-weight check in every window. Failures, unexecuted ranges, source gaps or unscorable short final windows leave the whole-record total null while preserving component results and coverage. Execution coverage shall be distinguished from a method's valid samples and duration.
+The total requires complete execution and source verification, with at least one selected check having valid measurements across all windows. Unexecuted ranges, source gaps or failed source verification withhold the whole-record total. A check missing valid window measurements is excluded individually; other complete checks can still contribute. Execution coverage shall be distinguished from a method's valid samples and duration.
 
 Reports also show the lowest channel component, channel component table, per-window scores and original candidate locations. Overall components use the ratio of candidate amount to assessed amount; local measurements remain independently visible. A score of 100 means that these checks produced no deduction candidates, not that the data suit every application.
 

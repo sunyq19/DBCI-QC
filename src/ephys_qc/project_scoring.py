@@ -4,7 +4,8 @@ import hashlib
 import json
 import math
 
-VERSION = 'project-weighted/1.1'
+VERSION = 'project-weighted/1.2'
+METHOD_VERSIONS = ('project-weighted/1.1', VERSION)
 LEGACY_VERSION = 'project-weighted/1.0'
 SPECS = {'integrity': ('M03', '信号完整性'), 'line_noise': ('M04', '工频干扰'),
          'hf_burst': ('M06', '高频突发')}
@@ -22,13 +23,13 @@ def capability(module_id, modality):
 
 
 def normalize(config, modality, selected, extensions=()):
-    """Freeze explicit weights. Unavailable evidence never silently loses weight."""
+    """Freeze requested weights; effective weights are recorded in results."""
     from .score_registry import SPECS as registry, outputs, enabled
     if config is None:
         weights = {s['id']: s['default_weight'] for s in outputs(modality)
                    if s['default_weight'] and s['module_id'] in selected}
         return {'version': VERSION, 'weights': weights} if weights else None
-    if not isinstance(config, dict) or set(config) != {'version', 'weights'} or config['version'] not in (VERSION, LEGACY_VERSION):
+    if not isinstance(config, dict) or set(config) != {'version', 'weights'} or config['version'] not in (*METHOD_VERSIONS, LEGACY_VERSION):
         raise ValueError('评分配置须包含有效的 project-weighted 版本及 weights。')
     weights = config['weights']
     legacy = config['version'] == LEGACY_VERSION
@@ -51,7 +52,7 @@ def weighted_score(evidence, expected_channels, config, *, expected_windows=1, c
     from .scoring import burden_score
     # Reuse strict evidence/identity/coverage checks; do not reuse the RMS score.
     normalize(config, 'scalp_eeg', ['M03','M04','M06'])
-    if config['version'] == VERSION:
+    if config['version'] in METHOD_VERSIONS:
         from .method_scores import core_outputs, aggregate
         return aggregate(core_outputs(evidence, expected_channels, expected_windows=expected_windows, coverage_complete=coverage_complete), config, coverage_complete=coverage_complete)
     score = burden_score(evidence, expected_channels, expected_windows=expected_windows, coverage_complete=coverage_complete)
@@ -83,16 +84,32 @@ def apply_to_view(view, config):
     from .scoring import score_revision
     revised = copy.deepcopy(view)
     old = view['score']
-    score = weighted_score(view['channel_evidence'], view['recording']['channel_count'], config,
-                           expected_windows=old.get('expected_windows',1),
-                           coverage_complete=old.get('coverage_complete',True))
-    for part, previous in zip(score['components'], old['components']):
+    from .method_scores import aggregate
+    if old.get('version') in METHOD_VERSIONS and config['version'] in METHOD_VERSIONS:
+        # Method outputs already contain validated sufficient statistics, including
+        # optional methods. Reweight them without dropping extensions or rereading signals.
+        score = aggregate(old['components'], config, coverage_complete=old.get('coverage_complete',True))
+    else:
+        score = weighted_score(view['channel_evidence'], view['recording']['channel_count'], config,
+                               expected_windows=old.get('expected_windows',1),
+                               coverage_complete=old.get('coverage_complete',True))
+    for part in score['components']:
+        previous = next((p for p in old['components'] if p['id']==part['id']), {})
         for key in ('assessed_window_seconds', 'window_count'):
             if key in previous: part[key] = previous[key]
     revised['score'] = score
     revised['score_revision'] = score_revision({'report_view':view}, score)
     for window in revised.get('window_scores',[]):
         parts = window.get('components',[])
+        if config['version'] in METHOD_VERSIONS:
+            from .method_scores import observation
+            from .score_registry import SPECS as registry
+            rows = [p if 'assessed_amount' in p else observation(registry[p['id']],
+                    p['denominator']-p['numerator'] if p.get('value') is not None else None,
+                    p['denominator'] if p.get('value') is not None else None) for p in parts]
+            scored = aggregate(rows, config, coverage_complete=window.get('status','completed') in {'completed','partial'})
+            window.update(value=scored['value'], components=scored['components'], excluded_components=scored.get('excluded_components',[]))
+            continue
         for p in parts:
             p['value'] = (100*p['numerator']/p['denominator'] if p.get('value') is not None and p.get('denominator',0)>0 else None)
             p['weight'] = config['weights'][p['id']]
@@ -104,5 +121,7 @@ def apply_to_view(view, config):
     if revised.get('local_quality'): revised['local_quality']['explanation']='通道分项与总体分项均按各自范围的候选量与有效检查量计算。'
     revised['scoring_complete'] = score['value'] is not None
     revised['notes'] = [n for n in revised.get('notes',[]) if '均方根' not in n and '最低分项' not in n]
+    if score['value'] is not None:
+        revised['notes'] = [n for n in revised['notes'] if '不给整份总分' not in n]
     revised['notes'].append(FORMULA + '仅比较相同规则、权重、处理状态与检查范围的结果。')
     return revised

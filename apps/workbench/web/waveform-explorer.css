@@ -33,3 +33,5 @@
 .has-waveform-explorer .finding-caption{font-size:10px;flex-wrap:wrap}
 @media(max-width:760px){.has-waveform-explorer.finding-workspace{height:auto}.has-waveform-explorer .finding-preview{height:490px;border-radius:6px 6px 0 0}.has-waveform-explorer .finding-sidebar{border-radius:0 0 6px 6px}}
 @media print{#wave-controls,.wave-notice,#wave-plot{display:none!important}.has-waveform-explorer.finding-workspace{height:auto}.has-waveform-explorer .finding-preview{height:auto}.finding-preview #finding-image[hidden]{display:block!important}}
+#wave-nav-mode{flex:0 0 auto;width:58px;min-height:24px;padding:2px 3px;margin:0;border:1px solid #d5deea;border-radius:4px;background:white;color:#42546b;font:11px var(--font-ui,system-ui,sans-serif)}
+@media(max-width:760px){.wave-navigator{flex-wrap:wrap}#wave-position{flex-basis:50%}#wave-segment-end{margin-left:auto}}

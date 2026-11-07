@@ -154,7 +154,7 @@ def prep_output(payload,expected_channels,scope=None,artifact='M05_bad_channels.
 
 
 def aggregate(rows,config,*,coverage_complete=True):
-    from .project_scoring import FORMULA
+    from .project_scoring import FORMULA, VERSION
     import hashlib,json
     weights=config['weights']
     if set(weights)-set(SPECS) or any(not number(w) or not 0<=w<=100 for w in weights.values()):raise ValueError('无效评分权重')
@@ -166,17 +166,24 @@ def aggregate(rows,config,*,coverage_complete=True):
             row=observation(spec,reason='计分值与原始分子分母不一致。')
         weight=weights.get(key,0)
         if weight==0 and key not in index:continue
-        row.update(weight=weight,normalized_weight=weight/sum(weights.values()) if sum(weights.values()) else 0)
+        excluded = config['version']==VERSION and weight>0 and row.get('value') is None
+        row.update(weight=0 if excluded else weight, configured_weight=weight, automatically_excluded=excluded)
         row['candidate_fraction']=row['candidate_amount']/row['assessed_amount'] if row['value'] is not None else None
         parts.append(row)
-    active=[p for p in parts if p['weight']>0];missing=[p['id'] for p in active if p['value'] is None]
-    value=sum(p['value']*p['weight'] for p in active)/sum(p['weight'] for p in active) if active and not missing and coverage_complete else None
+    total_weight=sum(p['weight'] for p in parts)
+    for p in parts:p['normalized_weight']=p['weight']/total_weight if total_weight else 0
+    active=[p for p in parts if p['weight']>0]
+    missing=[p['id'] for p in parts if p['configured_weight']>0 and p['value'] is None]
+    excluded=[p['id'] for p in parts if p['automatically_excluded']]
+    blocking=[p['id'] for p in active if p['value'] is None]
+    value=sum(p['value']*p['weight'] for p in active)/total_weight if active and not blocking and coverage_complete else None
     h=index.get('hf_burst',{})
-    return dict(version=config['version'],name='项目自定义评分',value=value,status='project_trial' if active else 'disabled',components=parts,
+    return dict(version=config['version'],name='项目自定义评分',value=value,status='project_trial' if active else 'unavailable' if any(weights.values()) else 'disabled',components=parts,
         weights=copy.deepcopy(weights),configuration_id=hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16],
+        effective_weights={p['id']:p['weight'] for p in parts},excluded_components=excluded,
         formula=FORMULA,aggregation='method_fraction_then_weighted_mean',coverage_complete=coverage_complete,
-        missing_components=missing,missing_reason='未选择计分项' if not active else '检查范围未完整覆盖' if not coverage_complete else
-            ('缺少有效计分证据：'+'、'.join(SPECS[k]['name'] for k in missing)) if missing else '',
+        missing_components=missing,missing_reason='未选择计分项' if not any(weights.values()) else '检查范围未完整覆盖' if not coverage_complete else
+            '所有计分项均无有效结果' if not active else ('缺少有效计分证据：'+'、'.join(SPECS[k]['name'] for k in blocking)) if blocking else '',
         calibration='not_expert_calibrated',scope='selected_checks_only',
         hf_valid_channel_seconds=h.get('denominator',0),hf_candidate_channel_seconds=h.get('candidate_amount') or 0)
 
@@ -237,7 +244,7 @@ def finalize(result,rows,*,coverage_complete=True):
     result['method_scores']=[index.get(s['id']) or observation(s,reason='方法未完成或没有完整计分证据。')
         for s in outputs(modality) if enabled(s,selected,extensions)]
     config=result.get('qc_config',{}).get('scoring')
-    if config and config['version']=='project-weighted/1.1':
+    if config and config['version'] in {'project-weighted/1.1','project-weighted/1.2'}:
         result['project_score']=aggregate(result['method_scores'],config,coverage_complete=coverage_complete)
     for module in result.get('modules',[]):
         module['score_outputs']=[copy.deepcopy(r) for r in result['method_scores'] if r['module_id']==module['id']]
@@ -250,5 +257,6 @@ def report_section(score):
     total=sum(p.get('weight',0) for p in score['components'] if p.get('weight',0)>0)
     rows=''.join(f'<tr><th>{escape(p["name"])}</th><td>{point(p["value"])}</td><td>{escape(p["reason"])}</td></tr>' for p in score['components'])
     shares=''.join(f'<li>{escape(p["name"])}：{100*p["weight"]/total:.1f}%</li>' for p in score['components'] if p.get('weight',0)>0)
-    composition=f'<details><summary>总分组成</summary><p>{escape(score_composition(score))}</p><ul>{shares}</ul><p>未列入的项目仅展示结果；缺项不补分、不重新分配比例。</p></details>'
+    policy=('受限项本次权重为 0，其余有效项重新归一化。' if score['version']=='project-weighted/1.2' else '缺项不补分、不重新分配比例。')
+    composition=f'<details><summary>总分组成</summary><p>{escape(score_composition(score))}</p><ul>{shares}</ul><p>未列入的项目仅展示结果；{policy}</p></details>'
     return f'<section class="project-score" style="max-width:1100px;margin:24px auto;padding:24px;background:white"><h2>项目自定义评分 · {point(score["value"])}</h2><p>{escape(score.get("missing_reason") or score_composition(score))}</p><table><thead><tr><th>检查项目</th><th>分项得分 / 100</th><th>检查说明</th></tr></thead><tbody>{rows}</tbody></table>{composition}<p>{escape(score["version"])} · {escape(score["configuration_id"])}</p></section>'

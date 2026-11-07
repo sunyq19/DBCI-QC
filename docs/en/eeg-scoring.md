@@ -1,6 +1,6 @@
 # Project scoring rules
 
-Project trial rules · `project-weighted/1.1` · 7 November 2026 · Not expert-reviewed
+Project trial rules · `project-weighted/1.2` · 7 November 2026 · Not expert-reviewed
 
 [Technical specification](/en/standards) · [Check entries](/en/standards/eeg-checks) · [Report requirements](/en/standards/eeg-report) · [M08 Component assessment](/en/standards/modules/M08)
 
@@ -21,7 +21,7 @@ Internal weights are finite, nonnegative values from 0 to 100; they do not need 
 
 For component scores of 100, 60 and 95 with shares of 25%, 50% and 25%, the total is `100×25% + 60×50% + 95×25% = 78.75`. Internal relative weights are 1, 2 and 1; scaling all weights by the same factor changes neither the shares nor the total. Weights are saved with the plan, parameters and report. Changes require the plan to be checked again and do not automatically start computation.
 
-**Uncomputed results, execution failures and missing valid denominators shall not become scores of 0 or 100.** A missing positive-weight result leaves the total null with a reason; its weight is neither lowered nor redistributed. Missing zero-weight results do not prevent scoring other checks. Missing checks, unassessed channels and incomplete time ranges remain visible in the report.
+**Uncomputed results, execution failures and missing valid denominators shall not become scores of 0 or 100.** An unavailable selected result receives an effective weight of zero; remaining valid checks are renormalized using their original relative weights. Requested weights and exclusion reasons are retained. If no valid weighted checks remain, no total is produced. Missing zero-weight results do not prevent scoring other checks. Missing checks, unassessed channels and incomplete time ranges remain visible in the report.
 
 ## 3 Score output catalogue
 
@@ -84,3 +84,7 @@ New runs save outputs in method artifacts, `result.method_scores` and `method-sc
 Compare scores only when rule versions, scoring components, weights, detection parameters, selected channels, references, durations, frequency bands and processing states are comparable. The same EEG modality or disease label alone does not establish comparability.
 
 Previously cleaned data may produce no candidates and receive high scores. A score of 100 only means that the selected methods found no candidates; it does not establish interference-free original acquisition. A target frequency band removed by filtering shall not receive a perfect “no line noise” score. No acceptance threshold is set, and severity after detection is not scored. Detector accuracy and agreement between scores and expert judgments still require independent validation.
+
+## v1.2 exclusion example
+
+For requested weights 1:1:1 and results 90, unavailable, 80, effective weights are 1:0:1. The total is 85 with shares 50%, 0%, 50%. The unavailable score remains null with its reason. A valid score of zero is still included. Preserve requested weights, effective weights and automatically excluded component IDs. Compare totals only when their actual included checks and weights match. Earlier rule versions retain their original behavior.

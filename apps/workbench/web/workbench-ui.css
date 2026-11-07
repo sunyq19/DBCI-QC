@@ -544,3 +544,8 @@ html[lang="en"] .comparison-en { display:flex; }
 .qc-main-results table{table-layout:fixed;width:100%;min-width:490px}
 .qc-main-results th:first-child{width:23%}.qc-main-results th:nth-child(2){width:18%}.qc-main-results th:nth-child(3){width:14%}
 .qc-main-results td{font-size:13px;vertical-align:top}.qc-main-results .result-points{font-size:15px;font-weight:600}
+
+/* Header actions stay on the disclosure row. */
+.qc-app .library-heading-actions{display:inline-flex;align-items:center;gap:8px}
+.qc-app #data-library-refresh{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;min-height:28px;padding:4px;margin:0;color:var(--muted);border:0;background:transparent;box-shadow:none}
+.qc-app #data-library-refresh:hover{color:var(--primary);background:var(--primary-light)}

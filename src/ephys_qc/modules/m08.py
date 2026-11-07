@@ -29,7 +29,7 @@ def run(context: ModuleContext) -> dict:
                                                ["空间坏道预测", "local AutoReject", "ICA/ICLabel", "一般重复数据块"]),
                       "execution_status_is_not_quality": True}
     if any(m["status"] in {"partial", "failed"} for m in result["modules"] if m["id"] != "M08"):
-        row.update(status="partial", reason="部分方法未评或执行失败；保留分项结论，不生成总分")
+        row.update(status="partial", reason="部分方法未评或执行失败；保留已完成分项与未评原因")
     save("M08_assessment.json", row["summary"])
 
     return row

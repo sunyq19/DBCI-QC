@@ -15,6 +15,12 @@
   function zoom(state,span,segment) {
     return viewport(state.start+(state.span-span)/2,span,segment);
   }
+  function navigation(state,segment,speed=1,mode='near') {
+    const a=segment.start_seconds,b=Math.max(a,segment.stop_seconds-state.span);
+    const length=mode==='all'?b-a:Math.min(b-a,state.span*4*speed);
+    const min=clamp(state.start-length/2,a,b-length);
+    return {min,max:min+length,step:Math.max(.001,state.span/1000)};
+  }
   function scales(channels) {
     const ranges={};
     for(const c of channels) {
@@ -58,7 +64,7 @@
     });
     return out;
   }
-  const api={viewport,pan,zoom,scales,plot};
+  const api={viewport,pan,zoom,navigation,scales,plot};
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(!root.document)return;
   root.QCWaveformGeometry=api;
@@ -68,11 +74,13 @@
   const base=panel.dataset.waveformBase,links=[...doc.querySelectorAll('[data-finding]')];
   const stage=panel.querySelector('.finding-stage'),controls=$('wave-controls'),notice=$('wave-notice');
   const image=$('finding-image'),status=$('finding-status'),spanSelect=$('wave-span'),position=$('wave-position');
+  const navMode=$('wave-nav-mode');
   const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.id='wave-plot';svg.setAttribute('role','img');svg.setAttribute('tabindex','0');
   svg.setAttribute('aria-label',t('波形对照；左右拖动或使用方向键查看前后','Aligned waveforms; drag or use arrow keys to pan'));
   svg.setAttribute('hidden','');stage.append(svg);
   let info,stream,segment,candidate,state,wave,selected=[],comparisons=[],sequence=0,drag,inFlight=false,pending=false;
+  let sliding=false,nav;
   const cache=new Map();
   function message(text=''){notice.textContent=text;notice.hidden=!text;}
   function activity(mode,text='') {
@@ -86,11 +94,12 @@
   }
   function sync() {
     $('wave-range').textContent=`${fmt(state.start)}–${fmt(state.start+state.span)} s`;
-    position.min=segment.start_seconds;position.max=Math.max(segment.start_seconds,segment.stop_seconds-state.span);
+    if(!sliding)nav=navigation(state,segment,Number($('wave-speed').value),navMode?.value||'near');
+    position.min=nav.min;position.max=nav.max;position.step=nav.step;
     position.value=state.start;position.disabled=Number(position.max)===Number(position.min);
     position.setAttribute('aria-valuetext',`${fmt(state.start)}–${fmt(state.start+state.span)} s`);
-    $('wave-segment-end').textContent=`${fmt(segment.stop_seconds)} s`;
-    $('wave-segment-end').title=t('当前连续记录段的终点','End of the current continuous segment');
+    $('wave-segment-end').textContent=`${fmt(nav.min)}–${fmt(nav.max+state.span)} s`;
+    $('wave-segment-end').title=t('拉条可定位的时间范围','Time range covered by the slider');
     $('wave-prev').disabled=state.start<=segment.start_seconds+1e-6;
     $('wave-next').disabled=state.start+state.span>=segment.stop_seconds-1e-6;
     $('wave-channel-count').textContent=`${selected.length} / ${info.limits.max_channels}`;
@@ -179,6 +188,7 @@
     const c=next.channels.find(c=>c.channel_id===id);
     if(stream?.stream_id!==next.stream_id)comparisons=[];
     stream=next;segment=seg;candidate={id,source:c.source_index,start,stop};
+    sliding=false;
     comparisons=comparisons.filter(i=>i!==c.source_index&&stream.channels.some(c=>c.source_index===i));
     selected=[c.source_index,...comparisons].slice(0,info.limits.max_channels);
     const span=sizes(Math.max(10,stop-start+4));
@@ -200,10 +210,12 @@
     state=viewport((candidate.start+candidate.stop)/2-state.span/2,state.span,segment);load();
   });
   spanSelect.addEventListener('change',()=>{state=zoom(state,Number(spanSelect.value),segment);load();});
+  navMode?.addEventListener('change',()=>{sliding=false;sync();});
+  $('wave-speed').addEventListener('change',()=>{sliding=false;sync();});
   position.addEventListener('input',()=>{
-    invalidate();state=viewport(Number(position.value),state.span,segment);activity('moving');sync();render();
+    sliding=true;invalidate();state=viewport(clamp(Number(position.value),nav.min,nav.max),state.span,segment);activity('moving');sync();render();
   });
-  position.addEventListener('change',load);
+  position.addEventListener('change',()=>{sliding=false;load();});
   $('wave-channels-toggle').addEventListener('click',()=>{
     const menu=$('wave-channel-menu');menu.hidden=!menu.hidden;
     $('wave-channels-toggle').setAttribute('aria-expanded',String(!menu.hidden));

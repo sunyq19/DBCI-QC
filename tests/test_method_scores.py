@@ -112,14 +112,32 @@ class MethodScoreTests(unittest.TestCase):
         self.assertIsNone(normalize(None,'ecog',['M03','M04','M06']))
         self.assertEqual(normalize({'version':VERSION,'weights':{}},'ecog',[])['weights'],{})
 
-    def test_weight_average_missing_and_zero_not_renormalized(self):
+    def test_weight_average_excludes_unavailable_without_fabricating_values(self):
         rows=[observation(SPECS['integrity'],0,100),observation(SPECS['gnosis_artifact'],4,10)]
         config={'version':VERSION,'weights':{'integrity':1,'gnosis_artifact':3}}
         self.assertEqual(aggregate(rows,config)['value'],70)
-        self.assertIsNone(aggregate(rows[:1],config)['value'])
+        auto=aggregate(rows[:1],config)
+        self.assertEqual(auto['value'],100)
+        self.assertEqual(auto['effective_weights']['gnosis_artifact'],0)
+        self.assertEqual(auto['components'][1]['configured_weight'],3)
+        self.assertIsNone(auto['components'][1]['value'])
+        missing=aggregate([],config)
+        self.assertIsNone(missing['value']);self.assertEqual(missing['status'],'unavailable')
+        frozen=copy.deepcopy(config);frozen['version']='project-weighted/1.1'
+        self.assertIsNone(aggregate(rows[:1],frozen)['value'])
         config['weights']['gnosis_artifact']=0;self.assertEqual(aggregate(rows[:1],config)['value'],100)
         self.assertIsNone(aggregate(rows,config,coverage_complete=False)['value'])
         config['weights']['integrity']=0;self.assertIsNone(aggregate(rows,config)['value'])
+
+    def test_valid_zero_remains_weighted_and_input_configuration_is_immutable(self):
+        rows=[observation(SPECS['integrity'],100,100),observation(SPECS['gnosis_artifact'],None,None,reason='条件未满足')]
+        config={'version':VERSION,'weights':{'integrity':1,'gnosis_artifact':3}}
+        before=copy.deepcopy((rows,config));out=aggregate(rows,config)
+        self.assertEqual(out['value'],0)
+        self.assertEqual(out['components'][0]['normalized_weight'],1)
+        self.assertEqual(out['excluded_components'],['gnosis_artifact'])
+        self.assertEqual(out['components'][1]['reason'],'条件未满足')
+        self.assertEqual((rows,config),before)
 
     def test_whole_record_pools_native_denominators_and_channel_blocks(self):
         a=observation(SPECS['gnosis_artifact'],2,10);b=observation(SPECS['gnosis_artifact'],0,30)

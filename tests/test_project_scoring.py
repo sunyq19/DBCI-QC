@@ -34,7 +34,8 @@ class ProjectScoreTests(unittest.TestCase):
         row=copy.deepcopy(fixture.result);row['qc_config']={'scoring':config()}
         row['modules'][1]['status']='failed'
         failed=build_report_view(row,fixture.artifacts)
-        self.assertIsNone(failed['score']['value'])
+        self.assertIsNotNone(failed['score']['value'])
+        self.assertEqual(failed['score']['excluded_components'],['line_noise'])
         self.assertIn('line_noise',failed['score']['missing_components'])
         row=copy.deepcopy(fixture.result);row['qc_config']={'scoring':config((0,0,0))}
         disabled=build_report_view(row,fixture.artifacts)
@@ -50,9 +51,16 @@ class ProjectScoreTests(unittest.TestCase):
         # Weight scale does not change the result or detector evidence.
         self.assertEqual(weighted_score(evidence(),2,config((2,4,2)))['value'],78.75)
 
-    def test_missing_positive_weight_never_silently_renormalizes(self):
+    def test_missing_positive_weight_is_explicitly_excluded(self):
         rows=evidence();rows[1]['components'].pop('line_noise')
-        self.assertIsNone(weighted_score(rows,2,config())['value'])
+        auto=weighted_score(rows,2,config())
+        self.assertEqual(auto['value'],97.5)
+        self.assertEqual(auto['effective_weights']['line_noise'],0)
+        self.assertEqual(auto['weights']['line_noise'],1)
+        self.assertEqual(auto['excluded_components'],['line_noise'])
+        self.assertEqual(auto['components'][0]['normalized_weight'],.5)
+        old=config();old['version']='project-weighted/1.1'
+        self.assertIsNone(weighted_score(rows,2,old)['value'])
         score=weighted_score(rows,2,config((1,0,1)))
         self.assertEqual(score['value'],97.5)
         self.assertIsNone(score['components'][1]['value'])
@@ -75,6 +83,25 @@ class ProjectScoreTests(unittest.TestCase):
         self.assertEqual([m['id'] for m in modules if m['can_output_score']],['M03','M04','M05','M06','M08'])
         self.assertEqual(next(m for m in modules if m['id']=='M08')['scoring']['role'],'aggregate')
 
+    def test_revision_keeps_optional_method_outputs_and_window_exclusions(self):
+        from ephys_qc.method_scores import aggregate,observation
+        from ephys_qc.score_registry import SPECS as registry
+        fixture=ReportViewTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        view=fixture.view()
+        rows=[observation(registry['integrity'],10,100),observation(registry['gnosis_artifact'],None,None,reason='参考未知')]
+        old={'version':'project-weighted/1.1','weights':{'integrity':1,'gnosis_artifact':1}}
+        view['score']=aggregate(rows,old)
+        view['window_scores']=[dict(start_seconds=0,duration_seconds=10,value=None,components=copy.deepcopy(view['score']['components']))]
+        view['lowest_window']=None
+        before=copy.deepcopy(view)
+        revised=apply_to_view(view,dict(old,version=VERSION))
+        self.assertEqual(view,before)
+        self.assertEqual(revised['score']['value'],90)
+        self.assertEqual(revised['score']['excluded_components'],['gnosis_artifact'])
+        self.assertEqual(revised['window_scores'][0]['value'],90)
+        self.assertEqual(revised['lowest_window']['value'],90)
+        self.assertIn('gnosis_artifact',{p['id'] for p in revised['score']['components']})
+
     def test_real_report_fixture_weighted_view_html_pdf_and_legacy_immutable(self):
         fixture=ReportViewTests();fixture.setUp()
         self.addCleanup(fixture.doCleanups)
@@ -86,7 +113,7 @@ class ProjectScoreTests(unittest.TestCase):
         # 100 integrity; 2/3 good channel-windows; 90 HF; weights 1:2:1.
         self.assertAlmostEqual(revised['score']['value'],(100+2*100*2/3+90)/4)
         report=render_report_view(revised)
-        self.assertIn('3 项计入总分',report)
+        self.assertIn('总分由 3 个分项按设定比例汇总',report)
         self.assertNotIn('总分取最低分项',report)
         self.assertIn('<th>工频干扰</th><td>50.0%</td>',report)
         self.assertTrue(pdf_bytes(revised).startswith(b'%PDF'))

@@ -817,7 +817,7 @@ check("new records default to full background scope while explicit window drafts
 });
 check("project weights are explicit, editable and invalidate an existing plan",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
-  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.1');
+  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.2');
   const field={dataset:{scoreWeight:'line_noise'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
   t.state.plan={plan_id:'old'};field.change();

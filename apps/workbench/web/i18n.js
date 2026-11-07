@@ -15,11 +15,16 @@
 单文件最大 2 GiB	Up to 2 GiB per file
 质检名称	QC run name
 （可选）	(optional)
-留空使用灰色名称	Leave blank to use the suggested name
 一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
 点击“读取文件”，下一步确认通道和模态	Click Read file, then confirm channels and modality
 上传文件保留 7 天，报告长期保留。	Uploaded files are kept for 7 days; reports are retained.
 在完整页面查看图表	Open full chart workspace
+受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。	Unavailable checks are excluded automatically; remaining valid checks are renormalized. All-zero weights show components only.
+无有效结果的项目自动不计入；其余有效项目重新归一化。分数只代表所选检查，尚未经过专家校准。	Checks without valid results are excluded and the rest are renormalized. Scores cover selected checks and have not been expert-calibrated.
+0% · 未计入	0% · Not included
+附近	Nearby
+全程	Full range
+拉条范围	Slider range
 可选计分项	Optional scoring checks
 证据不足，暂不能评分	Insufficient evidence to score
 疑似异常通道占比	Candidate channel fraction
@@ -96,6 +101,7 @@
 验证样例	Validation examples
 数据目录分类	Data library categories
 读取文件或打开已有数据，生成检查报告。	Read a file or open existing data to generate a QC report.
+刷新我的数据	Refresh my data
 刷新	Refresh
 已有数据	Your data
 查看示例	View examples
@@ -1995,6 +2001,9 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^(\d+) 项无有效结果，本次权重为 0；综合分按其余 (\d+) 项计算。$/, (_,a,b) => `${a} unavailable checks have zero effective weight; the total uses the other ${b} checks.`],
+    [/^(\d+) 项无有效结果，本次权重为 0；本次不生成综合分。$/, (_,n) => `${n} checks are unavailable; no total is produced.`],
+    [/^本次不计入：(.+)$/, (_,reason) => `Excluded from this total: ${translate(reason,"en")}`],
     [/^共同基础检查：(.+)$/, (_,text) => `Shared basic checks: ${translate(text,"en")}`],
     [/^(疑似异常通道占比(?:（按分段时长汇总）)?|各通道疑似异常时长占比|疑似异常时长占比|被标记的分析分段占比|被标记的采样点占比|被标记的检查片段占比|本方法标记比例) ([\d,.]+)%$/, (_,label,n) => `${dictionary[label]} ${n}%`],
 

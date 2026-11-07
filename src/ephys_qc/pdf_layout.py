@@ -79,8 +79,8 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
 
     point = lambda value: '未评' if value is None else f'{value:.2f}'
     all_rows = score_rows(view); score = view['score']
-    active = [r for r in all_rows if r['included']]
-    supplemental = [r for r in all_rows if not r['included']]
+    active = [r for r in all_rows if r['included'] or r.get('automatically_excluded')]
+    supplemental = [r for r in all_rows if not r['included'] and not r.get('automatically_excluded')]
     appendix = len(supplemental) > 3
     weighted = score.get('version', '').startswith('project-weighted/')
     gnosis = any(r['id'].startswith('gnosis_') for r in all_rows)
@@ -142,8 +142,10 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
         finding_title, finding = '主要发现 · ' + first['name'], first['finding']
     else:
         finding_title, finding = '检查概况', view['headline'] + '。' + view['summary']
+    from .report_export import exclusion_note
+    excluded_note=exclusion_note(score)
     left = [para('综合分 / 100', 'note'), para('未评', 'subtitle') if score.get('value') is None else para(point(score['value']), 'score')]
-    right = [para(finding_title, 'subtitle'), para(finding), para('分数描述本方案候选负担，不设通用合格线。', 'note')]
+    right = [para(finding_title, 'subtitle'), para(finding), *([para(excluded_note, 'note')] if excluded_note else []), para('分数描述本方案候选负担，不设通用合格线。', 'note')]
     hero = Table([[left, right]], colWidths=[120, width-120], hAlign='LEFT')
     hero.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#eef3fa')),
         ('LINEBEFORE', (0, 0), (0, 0), 3, blue), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -155,7 +157,7 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
 
     def results(rows):
         return table([['检查项目', '得分 / 100', '权重', '检查发现']] +
-            [[r['name'], point(r['value']), score_weight_label(r, score), r['finding']] for r in rows],
+            [[r['name'], point(r['value']), '0%' if r.get('automatically_excluded') else score_weight_label(r, score), r['finding']] for r in rows],
             [132, 62, 54, width-248], numeric=(1,), weights=(2,))
     story.append(para('检查结果', 'section'))
     if active: story.append(results(active))
@@ -165,7 +167,8 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
     elif appendix:
         story.append(para(f'另有 {len(supplemental)} 项补充检查，详见附页；不计入本方案综合分。', 'note'))
     if weighted:
-        rule = '综合分 = 各项得分 × 对应权重，再相加。权重按显示精度四舍五入；各项完成后才汇总。'
+        rule = '综合分 = 各项得分 × 对应权重，再相加。权重按显示精度四舍五入。'
+        rule += '受限项权重为 0，其余有效项重新归一化。' if score['version']=='project-weighted/1.2' else '各项完成后才汇总。'
     elif score.get('version') == 'eeg-basic-screen/0.1':
         rule = '旧版 v0.1：三个基础分项取平均值。'
     else:
@@ -207,7 +210,7 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
                       para('补充测量', 'section'), table([['检查项目', '实际测量']] + [[r['name'], r['measurement']] for r in supplemental], [143, width-143])])
     story.append(Spacer(1, 5))
     if weighted:
-        story.append(para('分项 = 100 × (1 - 候选占比)。权重见检查结果表；缺失项目不补满分，也不重新分配权重。', 'note'))
+        story.append(para('分项 = 100 × (1 - 候选占比)。权重见检查结果表；'+('受限项权重为 0，其余有效项重新归一化。' if score['version']=='project-weighted/1.2' else '缺失项目不补满分，也不重新分配权重。'), 'note'))
     else: story.append(para(rule, 'note'))
     story.append(para('自动标记为待复核线索。比较不同记录时，需使用相同检查项目、输入处理状态及评分配置。', 'note'))
     revision = view.get('score_revision')

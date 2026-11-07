@@ -58,7 +58,7 @@ def waveform_controls():
     return '''<div id="wave-controls" hidden>
 <div class="wave-toolbar"><div class="wave-time-controls"><button type="button" id="wave-prev" aria-label="向前查看" title="向前查看（左方向键）">‹</button><label>窗宽 <select id="wave-span" aria-label="显示时长"></select></label><button type="button" id="wave-next" aria-label="向后查看" title="向后查看（右方向键）">›</button><label>移动 <select id="wave-speed" aria-label="移动速度"><option value="0.25">精细</option><option value="1" selected>正常</option><option value="3">快速</option></select></label><button type="button" id="wave-reset">回到候选</button></div>
 <div class="wave-channel-picker"><button type="button" id="wave-channels-toggle" aria-expanded="false" aria-controls="wave-channel-menu">对照通道 <span id="wave-channel-count">1 / 6</span></button><div id="wave-channel-menu" hidden><label for="wave-search">选择对照通道 · 最多 6 道</label><input id="wave-search" type="search" placeholder="搜索通道" autocomplete="off"><div id="wave-channel-options"></div></div></div></div>
-<div class="wave-navigator"><span id="wave-range"></span><input type="range" id="wave-position" min="0" max="1" step="0.001" value="0" aria-label="查看时间位置"><span id="wave-segment-end"></span></div></div>
+<div class="wave-navigator"><span id="wave-range"></span><select id="wave-nav-mode" aria-label="拉条范围"><option value="near">附近</option><option value="all">全程</option></select><input type="range" id="wave-position" min="0" max="1" step="0.001" value="0" aria-label="查看时间位置"><span id="wave-segment-end"></span></div></div>
 <p id="wave-notice" class="wave-notice" role="status" hidden></p>'''
 
 
@@ -83,6 +83,9 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
     route = '灵犀云扩展方案' if any(p['id'].startswith('gnosis_') for p in score['components']) else '基础检查方案'
     overview = f'''<header id="overview" class="report-overview"><div class="report-title"><div><p class="eyebrow">{route}</p><h1>{esc(view.get('run_name') or '信号质量报告')}</h1><p class="filename">{esc(view['label'])}</p></div><div class="report-actions">{actions}</div></div>
 <div class="report-summary"><div class="report-total"><span>综合分</span><strong>{points(score['value'])}<small> / 100</small></strong></div><div class="report-conclusion"><h2>{headline}</h2><p>{conclusion}</p>{failures}</div></div><div class="facts">{facts}{'<span>'+scope[1]+'</span>' if scope else ''}</div></header>'''
+    from .report_export import exclusion_note
+    if exclusion_note(score):
+        overview=overview.replace('</header>', '<p class="muted">'+esc(exclusion_note(score))+'</p></header>')
     checks = section('score-table')
     # Put channel/time drill-downs in the detail section, after the actionable findings.
     extra = ''

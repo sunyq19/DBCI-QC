@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import threading
 
-EXPORT_VERSION = 'eeg-pdf/1.4'
+EXPORT_VERSION = 'eeg-pdf/1.5'
 _RENDER_LOCK = threading.RLock()
 
 
@@ -68,6 +68,7 @@ def score_rows(view):
         weight=c.get('weight',0)
         rows.append(dict(id=key,name=c['name'],value=c['value'],deduction=None if c['value'] is None else 100-c['value'],
                          finding=finding,measurement=d,reason=reason,included=weight>0 if weighted else True,
+                         automatically_excluded=c.get('automatically_excluded',False),
                          share=weight/total_weight if weighted and total_weight>0 else None))
     return rows
 
@@ -75,24 +76,33 @@ def score_rows(view):
 def score_weight_label(row, score):
     """Display the saved configured share, including missing and excluded checks."""
     if score.get('version', '').startswith('project-weighted/'):
+        if row.get('automatically_excluded'):return '0% · 未计入'
         return f"{row['share'] * 100:.1f}%" if row.get('included') and row.get('share') is not None else '不计入'
     if score.get('version') == 'eeg-basic-screen/0.1':
         return f"{100 / len(score['components']):.1f}%"
     return '—'  # A minimum-of-components score has no additive weights.
 
 
+def exclusion_note(score):
+    excluded=score.get('excluded_components',[])
+    if not excluded:return ''
+    active=sum(p.get('weight',0)>0 for p in score['components'])
+    return (f'{len(excluded)} 项无有效结果，本次权重为 0；综合分按其余 {active} 项计算。'
+            if active else '所选计分项均无有效结果，本次不生成综合分。')
+
+
 def score_composition(score):
-    """Human-readable proportions; missing components keep their configured share."""
+    """Human-readable effective proportions, with automatic exclusions explicit."""
     if score.get('version')=='eeg-basic-screen/0.1':
         return '三个基础分项同等计入，总分为三项的平均分（旧版 v0.1）。'
     if not score.get('version','').startswith('project-weighted/'):
         return '总分取三个基础分项中的最低分。'
     active=[p for p in score['components'] if p.get('weight',0)>0]
     if not active:
-        return '本次仅展示分项，未设置总分。'
+        return exclusion_note(score) or '本次仅展示分项，未设置总分。'
     if len({p['weight'] for p in active})==1:
-        return f'{len(active)} 项同等计入，总分为这些分项的平均分。'
-    return f'总分由 {len(active)} 个分项按设定比例汇总。'
+        return f'{len(active)} 项同等计入，总分为这些分项的平均分。'+exclusion_note(score)
+    return f'总分由 {len(active)} 个分项按设定比例汇总。'+exclusion_note(score)
 
 
 def display_checks(view):

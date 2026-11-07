@@ -42,7 +42,7 @@
         </label>
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
-      <div id="upload-run-name-field" class="run-name-field"><label class="field-label" for="upload-run-name">质检名称 <span class="muted">（可选）</span></label><input id="upload-run-name" type="text" maxlength="120" autocomplete="off" aria-describedby="upload-run-name-hint" data-i18n-skip><small id="upload-run-name-hint" class="muted">留空使用灰色名称</small></div>
+      <div id="upload-run-name-field" class="run-name-field"><label class="field-label" for="upload-run-name">质检名称 <span class="muted">（可选）</span></label><input id="upload-run-name" type="text" maxlength="120" autocomplete="off" data-i18n-skip></div>
       <div class="upload-meta"><p id="upload-limit-note" class="small muted">单文件最大 2 GiB · 数据集总量最大 10 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
       <p id="intake-status" class="small muted" role="status"></p>
       <div id="upload-support" class="upload-support">
@@ -128,7 +128,7 @@
             <div id="recommendation-content" aria-live="polite"><p class="small muted">确认文件后，自动准备检查方案。</p></div>
           </section>
           <fieldset class="scope-picker"><legend>检查范围</legend><label><input type="radio" name="qc-scope" id="scope-window" value="window"> 快速预检</label><label><input type="radio" name="qc-scope" id="scope-recording" value="recording" checked> 整份检查</label><p id="scope-description" class="small muted">整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。</p></fieldset>
-          <div id="check-run-name-field" class="run-name-field"><label class="field-label" for="check-run-name">质检名称 <span class="muted">（可选）</span></label><input id="check-run-name" type="text" maxlength="120" autocomplete="off" aria-describedby="check-run-name-hint" data-i18n-skip><small id="check-run-name-hint" class="muted">留空使用灰色名称</small></div>
+          <div id="check-run-name-field" class="run-name-field"><label class="field-label" for="check-run-name">质检名称 <span class="muted">（可选）</span></label><input id="check-run-name" type="text" maxlength="120" autocomplete="off" data-i18n-skip></div>
           <div id="plan-error" class="notice error" role="alert" hidden></div>
           <div class="action-row primary-action-row"><button id="run-button" class="button primary" disabled><span aria-hidden="true">▶</span> 开始检查</button><p id="action-hint" class="action-hint">方案准备好后即可开始。</p></div>
 
@@ -139,8 +139,8 @@
       <summary><span id="demo-reports-title">示例数据集</span><span id="demo-reports-count" class="tag subtle">—</span></summary><div class="disclosure-content"><p id="demo-reports-caption" class="small muted">公开数据的实际检查报告。</p><div id="demo-report-list"><p class="small muted">正在读取示例目录…</p></div></div>
     </details>
     <details id="data-library" class="panel data-library supporting-panel rail-section landing-secondary" aria-label="我的数据">
-      <summary><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
-      <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
+      <summary><span>我的数据</span><span class="library-heading-actions"><span id="data-library-count" class="tag subtle">—</span><button type="button" class="icon-button" id="data-library-refresh" aria-label="刷新我的数据" title="刷新我的数据"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.8-1L20 9M4 15l2.1 3A7 7 0 0 0 17.9 17"/></svg></button></span></summary><div class="disclosure-content">
+      <div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div>
       <p id="library-category-note" class="small muted" hidden></p>
       <label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off">
       <p id="data-library-error" class="small field-error" hidden></p><div id="data-library-list"><p class="small muted">正在加载数据…</p></div>

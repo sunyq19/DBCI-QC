@@ -171,7 +171,7 @@
     config.scope = state.scope;
     if(inputModality(state.input)!=="scalp_eeg" && Object.keys(config.scoring?.weights||{}).some(k=>Object.hasOwn(SCORE_KEYS,k))) delete config.scoring;
     if(!config.scoring && inputModality(state.input)==="scalp_eeg" && Object.values(SCORE_KEYS).some(([mid])=>state.selected.has(mid)))
-      config.scoring={version:'project-weighted/1.1',weights:Object.fromEntries(Object.entries(SCORE_KEYS).map(([key,[mid]])=>[key,state.selected.has(mid)?1:0]))};
+      config.scoring={version:'project-weighted/1.2',weights:Object.fromEntries(Object.entries(SCORE_KEYS).map(([key,[mid]])=>[key,state.selected.has(mid)?1:0]))};
     return config;
   }
 
@@ -1034,13 +1034,13 @@
     const basic=specs.filter(s=>s.default_weight),extras=specs.filter(s=>!s.default_weight);
     box.innerHTML='<p class="small muted">调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。</p>'+ (basic.length?'<div class="scoring-weight-fields">'+basic.map(field).join('')+'</div>':'')+
       (extras.length?'<details class="scoring-optional"'+(optionalOpen?' open':'')+'><summary>可选计分项 · '+extras.length+'</summary><p class="small muted">设为大于 0 时会启用对应方法。不同方法可能检查同一问题，请按需选择。</p><div class="scoring-weight-fields">'+extras.map(field).join('')+'</div></details>':'')+
-      '<p class="small muted">0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。</p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">评分规则</a>';
+      '<p class="small muted">'+(config.scoring?.version==='project-weighted/1.2'?'受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。':'0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。')+'</p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">评分规则</a>';
     box.querySelectorAll('[data-score-weight]').forEach(input=>input.addEventListener('change',()=>{
       const value=Number(input.value);
       if(!input.value.trim() || !Number.isFinite(value) || value<0 || value>100){input.setCustomValidity('计分比重须为 0–100');input.reportValidity();return;}
       input.setCustomValidity('');
       const key=input.dataset.scoreWeight,spec=specs.find(s=>s.id===key);
-      state.draftConfig=clone(config);state.draftConfig.scoring={version:'project-weighted/1.1',weights:{...weights,[key]:value}};
+      state.draftConfig=clone(config);state.draftConfig.scoring={version:'project-weighted/1.2',weights:{...weights,[key]:value}};
       if(value>0){state.selected.add(spec.module_id);if(!['core','prep'].includes(spec.reducer)) state.extensions.add(spec.method_id);}
       invalidatePlan();renderModuleOptions();
     }));
@@ -1285,11 +1285,12 @@
     const partKey=part=>part.id || Object.entries(SCORE_KEYS).find(([,spec])=>spec[1]===part.name)?.[0];
     const hasGnosis=parts.some(part=>String(partKey(part)||"").startsWith("gnosis_")) || arr(view.extensions).some(method=>String(method.method_id||method.id||"").startsWith("gnosis_"));
     const included=weighted?parts.filter(part=>numeric(part.weight)&&part.weight>0):[];
-    const displayed=included.length?included:parts.filter(part=>Object.hasOwn(descriptions,partKey(part)));
+    const requested=parts.filter(part=>part.automatically_excluded);
+    const displayed=included.length||requested.length?[...included,...requested]:parts.filter(part=>Object.hasOwn(descriptions,partKey(part)));
     const mainParts=displayed.length?displayed:parts.slice(0,3);
     const otherParts=parts.filter(part=>!mainParts.includes(part));
     const partDescription=part=>{
-      if(!numeric(part.value))return "证据不足，暂不能评分";
+      if(!numeric(part.value))return (part.automatically_excluded?"本次不计入：":"")+(part.reason||"证据不足，暂不能评分");
       const key=partKey(part);
       if(Object.hasOwn(descriptions,key))return descriptions[key];
       const fraction=numeric(part.candidate_fraction)?part.candidate_fraction:numeric(part.candidate_amount)&&part.assessed_amount>0?part.candidate_amount/part.assessed_amount:null;
@@ -1321,7 +1322,7 @@
       }
       if(failures)headline="部分检查未完成";
     }
-    const weightLabel=part=>weighted ? scoreShareLabel(part.weight,scoreWeightTotal(parts)) : score.version==="eeg-basic-screen/0.1" ? `${number(100/parts.length,1)}%` : "—";
+    const weightLabel=part=>part.automatically_excluded ? "0% · 未计入" : weighted ? scoreShareLabel(part.weight,scoreWeightTotal(parts)) : score.version==="eeg-basic-screen/0.1" ? `${number(100/parts.length,1)}%` : "—";
     const resultTable=`<div class="qc-score-table qc-main-results"><h3>检查结果</h3><table><thead><tr><th>检查项目</th><th>分项 / 100</th><th title="占综合分的比例">权重</th><th>检查发现</th></tr></thead><tbody>${mainParts.map(part=>`<tr><th>${escape(part.name)}</th><td class="result-points">${point(part.value)}</td><td>${weightLabel(part)}</td><td>${escape(partDescription(part))}</td></tr>`).join("")}</tbody></table></div>`;
     const candidates = arr(view.hf_candidates).slice(0,8).map(c=>`<div><strong data-i18n-skip>${escape(c.channel_name)}</strong><span>${number(c.start_seconds,2)}–${number(c.stop_seconds,2)} s</span><span class="small muted">高频突发</span></div>`).join("");
     const channels = arr(view.line_channels).slice(0,20).map(c=>`<div><strong data-i18n-skip>${escape(c.name)}</strong><span>${c.hits}/${c.total}</span><span class="small muted">命中窗</span></div>`).join("");
@@ -1339,11 +1340,11 @@
     return `<div class="qc-report-overview">
       <div class="qc-score-head"><span class="tag ready">${weighted ? "项目自定义 v"+escape(score.version.split("/")[1]) : revised ? "项目试行 v0.2" : "项目试行 v0.1"}</span>${reportUrl ? `<a class="button primary small-button" href="${reportUrl}" target="_blank" rel="noopener">查看完整报告 ↗</a><a class="button small-button" href="${reportUrl}.pdf" download>下载 PDF</a>` : ""}</div>
       <div class="qc-score-hero"><div class="qc-score-total"><span>${weighted ? "项目自定义评分" : revised ? "EEG 基础质控评分" : "EEG 基础初评分"}</span><strong>${point(score.value)}</strong><small>/ 100</small></div><div class="qc-score-conclusion"><h3>${escape(headline)}</h3><p>${summaryParts ? summaryParts.map(part=>`<span>${escape(part)}</span>`).join("：") : escape(summary)}</p>${priority ? `<p class="small muted">${escape(priority)}</p>` : ""}</div></div>
-      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}${resultTable}<p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${methodScoreTable(otherParts,parts)}${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
+      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${score.excluded_components?.length ? `<p class="small muted">${score.excluded_components.length} 项无有效结果，本次权重为 0${included.length?`；综合分按其余 ${included.length} 项计算。`:"；本次不生成综合分。"}</p>` : ""}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}${resultTable}<p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${methodScoreTable(otherParts,parts)}${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
     </div><div class="qc-result-findings"><h3>${hasGnosis ? "共同基础检查 · 重点复核" : "重点复核"}</h3>${candidates ? `<div class="qc-candidate-list">${candidates}</div>` : '<p class="small muted">暂无可展示的高频候选，检查状态见明细。</p>'}
       <details class="result-summary"><summary>工频候选通道</summary>${channels ? `<div class="qc-candidate-list">${channels}</div>` : '<p class="small muted">暂无可展示的工频候选，检查状态见明细。</p>'}<p class="small muted">完整位置与证据见报告。</p></details>
     </div><details class="result-summary"><summary>检查明细与执行说明</summary><div class="qc-check-list">${checks}</div>${arr(view.notes).length ? `<ul>${view.notes.map(n=>`<li>${escape(n)}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<details><summary>模块原始结果</summary><pre>${escape(pretty(result.modules))}</pre></details></details>
-    <details class="result-summary"><summary>评分计算方法</summary><p>${weighted ? "总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。" : revised ? "每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。" : "信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。"}</p><p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">完整评分规则与算例</a></p><p>${weighted ? "参与计分的项目全部完成后才生成总分。" : "三项齐备才计算总分。"}分数只代表所选检查，尚未经过专家校准。</p><details><summary>原始计分数据</summary><pre>${escape(pretty(score))}</pre></details></details>`;
+    <details class="result-summary"><summary>评分计算方法</summary><p>${weighted ? "总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。" : revised ? "每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。" : "信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。"}</p><p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">完整评分规则与算例</a></p><p>${score.version==="project-weighted/1.2" ? "无有效结果的项目自动不计入；其余有效项目重新归一化。" : weighted ? "参与计分的项目全部完成后才生成总分。" : "三项齐备才计算总分。"}分数只代表所选检查，尚未经过专家校准。</p><details><summary>原始计分数据</summary><pre>${escape(pretty(score))}</pre></details></details>`;
   }
 
   function extensionResultsHtml(result) {
