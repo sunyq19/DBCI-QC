@@ -5,12 +5,20 @@ import re
 from urllib.parse import urlencode
 
 
+def report_section(identifier, title, content, *, opened=False, extra_class='', attributes=''):
+    """One heading/disclosure pattern for every top-level report section."""
+    classes='report-section'+(' '+extra_class if extra_class else '')
+    return (f'<details id="{identifier}" class="{classes}"{" open" if opened else ""}{attributes}>'
+            f'<summary><h2>{escape(title)}</h2></summary><div class="report-section-body">{content}</div></details>')
+
+
 def inline_charts(url, *, english=False):
     """A report section; figures load only when this section is expanded."""
     src=url+('&' if '?' in url else '?')+urlencode({'embedded':'1'})
     title='Charts' if english else '图表分析'
     loading='Loading charts…' if english else '正在载入图表…'
-    return f'<details id="charts" class="report-chart-section" data-report-charts><summary>{title}</summary><p data-chart-status role="status">{loading}</p><iframe data-chart-src="{escape(src,quote=True)}" title="{title}" class="report-chart-frame" scrolling="no"></iframe></details>'
+    content=f'<p data-chart-status role="status">{loading}</p><iframe data-chart-src="{escape(src,quote=True)}" title="{title}" class="report-chart-frame" scrolling="no"></iframe>'
+    return report_section('charts',title,content,extra_class='report-chart-section',attributes=' data-report-charts')
 
 
 def focus_targets(view):
@@ -81,6 +89,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
     marker = '<details'
     if marker in checks:
         at = checks.index(marker); extra, checks = checks[at:], checks[:at]
+    checks=re.sub(r'<h2>.*?</h2>','',checks,count=1,flags=re.S)
     original_review = section('review')
     # The old evidence panel is superseded by per-finding waveforms.
     original_review = re.sub(r'<h3>对应候选波形</h3>.*?</p>', '', original_review, flags=re.S)
@@ -106,14 +115,16 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
 
     if '灵犀' in route:
         locator='<p class="muted">以下为共同基础检查定位。灵犀云异常区间见下方图表。</p>'+locator
-    review = f'<section id="review"><h2>问题定位</h2>{locator}</section>'
+    review = report_section('review','问题定位',locator,opened=True)
     charts = ''
     if visualization_url:
         charts=inline_charts(visualization_url)
     scoring=re.sub(r'<h2>.*?</h2>','',section('scoring'),count=1,flags=re.S)
-    details=f'<details id="checks" class="report-details-section"><summary>报告详情<span class="disclosure-hint">完整明细、方法与版本</span></summary><div class="report-details-body"><div class="report-detail-group"><h3>结果明细</h3><details><summary>完整候选列表</summary>{original_review}</details>{extra}</div><div class="report-detail-group"><h3>检查依据</h3><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{scoring}</details><div id="report-archive-slot"></div></div></div></details>'
+    detail_body=f'<div class="report-details-body"><div class="report-detail-group"><h3>结果明细</h3><details><summary>完整候选列表</summary>{original_review}</details>{extra}</div><div class="report-detail-group"><h3>检查依据</h3><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{scoring}</details><div id="report-archive-slot"></div></div></div>'
+    details=report_section('checks','报告详情',detail_body,extra_class='report-details-section')
     aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">报告详情</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
-    body=f'<div class="shell">{aside}<main>{overview}<section id="score-table">{checks}</section>{review}{charts}{details}<footer>DBCI-QC · 项目检查结果，候选需复核</footer></main></div>'
+    results=report_section('score-table','检查结果',checks,opened=True)
+    body=f'<div class="shell">{aside}<main>{overview}{results}{review}{charts}{details}<footer>DBCI-QC · 项目检查结果，候选需复核</footer></main></div>'
     head=report[:report.index('</head>')]
     explorer = '<link rel="stylesheet" href="/waveform-explorer.css"><script src="/waveform-explorer.js" defer></script>' if waveform_url else ''
     return head+f'<style>{CSS}</style><script src="/report-interactions.js" defer></script>{explorer}</head><body>{body}</body></html>'
@@ -133,9 +144,8 @@ h1{font-size:22px;margin:0}h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;m
 .facts{margin:0;padding-top:10px;gap:5px 18px;font-size:12px}.filename{margin-top:4px;font-size:13px}
 table{table-layout:fixed;font-size:13px;min-width:480px}th,td{padding:9px 10px;overflow-wrap:anywhere}th{font-weight:500}thead th{background:#f5f7fa;font-size:12px}td small{display:block;font-size:12px}
 .result-points{font-size:16px}.table-wrap{max-width:100%;overflow-x:auto;scrollbar-width:thin}
-#score-table>.table-wrap>table th:first-child{width:22%}#score-table>.table-wrap>table th:nth-child(2){width:17%}#score-table>.table-wrap>table th:nth-child(3){width:13%}
+#score-table .table-wrap>table th:first-child{width:22%}#score-table .table-wrap>table th:nth-child(2){width:17%}#score-table .table-wrap>table th:nth-child(3){width:13%}
 .result-weight{white-space:nowrap;color:#42546b;font-variant-numeric:tabular-nums}
-#review{border-bottom:0;padding-bottom:0;margin-bottom:24px}
 .finding-workspace{display:grid;grid-template-columns:220px minmax(0,1fr);height:354px;overflow:hidden;border:1px solid #dce3ec;border-radius:6px;background:#fff}
 .finding-sidebar{min-width:0;min-height:0;background:#f7f9fc;border-right:1px solid #dce3ec;display:flex;flex-direction:column}
 .finding-list-label{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 8px;font-size:12px;font-weight:500;color:#42546b}.finding-list-label span{font-size:11px;color:#748094;font-weight:400}
@@ -156,13 +166,18 @@ table{table-layout:fixed;font-size:13px;min-width:480px}th,td{padding:9px 10px;o
 .finding-preview[data-state="loading"] #finding-image,.finding-preview[data-state="error"] #finding-image{opacity:0}
 .finding-preview[data-state="loading"] #finding-status::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid #d9e3f3;border-top-color:#2459bc;border-radius:50%;margin-right:8px;vertical-align:-2px;animation:finding-spin .8s linear infinite}
 .finding-caption{display:flex;align-items:center;gap:5px;font-size:11px;color:#748094;margin:5px 0 0}.finding-caption>span:last-child{margin-left:auto}.candidate-swatch{width:10px;height:7px;background:#f7dfaf;display:inline-block}
-.report-chart-section,.report-details-section{border:0;border-bottom:1px solid #dfe5ed;padding:0;margin:0}
-.report-chart-section{border-top:1px solid #dfe5ed}
-.report-chart-section>summary,.report-details-section>summary{font-size:14px;font-weight:500;line-height:22px;color:#243449;min-height:48px;padding:12px 0;display:flex;align-items:baseline;gap:12px}
-.report-chart-section>summary:hover,.report-details-section>summary:hover{color:#2459bc}
-.disclosure-hint{font-size:12px;font-weight:400;color:#748094}
+.shell main>details.report-section{border:0;border-bottom:1px solid #dfe5ed;padding:0;margin:0;border-radius:0;background:none}
+.shell main>details.report-section>summary{box-sizing:border-box;display:flex;align-items:center;gap:12px;min-height:52px;padding:14px 0;margin:0;color:#243449;cursor:pointer;list-style:none}
+.shell main>details.report-section>summary>h2{font:600 16px/24px var(--font-ui,system-ui,sans-serif);color:inherit;padding:0;margin:0}
+.shell main>details.report-section>summary::after{content:'+';margin-left:auto;flex:none;color:#748094;font:400 18px/24px var(--font-ui,system-ui,sans-serif)}
+.shell main>details.report-section[open]>summary::after{content:'−'}
+.shell main>details.report-section>summary::-webkit-details-marker{display:none}
+.shell main>details.report-section>summary:hover{color:#2459bc}
+.shell main>details.report-section>summary:focus-visible{outline:2px solid #8bade2;outline-offset:2px;border-radius:3px}
+.report-section>.report-section-body{padding:0 0 18px}
+.report-section-body>p:first-child{margin-top:0}
 .report-chart-frame{width:100%;height:180px;border:0;display:block;margin:4px 0 14px}.report-chart-section [data-chart-status]{font-size:13px;color:#5b687b}
-.report-details-body{padding:0 0 16px}.report-detail-group{padding:10px 14px;background:#f8fafc;border:1px solid #e6ebf1;border-radius:4px;margin:0 0 10px}
+.report-details-body{padding:0}.report-detail-group{padding:10px 14px;background:#f8fafc;border:1px solid #e6ebf1;border-radius:4px;margin:0 0 10px}
 .report-details-body .report-detail-group>h3{font-size:12px;font-weight:600;color:#64748b;margin:0 0 6px}
 .report-detail-group details{padding:8px 0;margin:0;border-top:1px solid #e3e9f0}.report-details-body .report-detail-group summary{font-size:13px;color:#34465d;min-height:22px}
 .report-detail-group details[open]>summary{margin-bottom:8px}.report-detail-group details details{margin-left:10px;border-top:0}.report-detail-group h2{font-size:14px}.report-detail-group h3{font-size:13px}
@@ -170,7 +185,7 @@ section>p.muted{font-size:12px;margin:0 0 10px}.scope,.footnote{font-size:12px}p
 @keyframes finding-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.finding-preview[data-state="loading"] #finding-status::before{animation:none}}
 @media(max-width:1050px){.finding-workspace{grid-template-columns:195px minmax(0,1fr)}.finding-preview{padding:12px 10px 10px}}
 @media(max-width:900px){.shell{display:block;padding:18px 16px}.shell aside{margin-bottom:18px}.shell aside nav{display:flex;flex-wrap:wrap;margin-top:8px;gap:8px 16px}.report-title{flex-wrap:wrap}}
-@media(max-width:760px){.finding-workspace{display:flex;flex-direction:column;height:auto}.finding-preview{order:-1;height:276px;flex:none}.finding-sidebar{border-right:0;border-top:1px solid #dce3ec}.finding-list{max-height:200px}.finding-item-top span{font-size:12px}.finding-list-label{padding-bottom:4px}.disclosure-hint{display:none}}
+@media(max-width:760px){.finding-workspace{display:flex;flex-direction:column;height:auto}.finding-preview{order:-1;height:276px;flex:none}.finding-sidebar{border-right:0;border-top:1px solid #dce3ec}.finding-list{max-height:200px}.finding-item-top span{font-size:12px}.finding-list-label{padding-bottom:4px}}
 @media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.figure-heading>span{font-size:11px}.finding-caption{font-size:10px}}
 @media print{.report-actions,aside,script{display:none}.shell{display:block;max-width:none;padding:0}.report-summary{grid-template-columns:180px 1fr}.finding-workspace{height:auto;display:block;overflow:visible;break-inside:avoid}.finding-sidebar{display:none}.finding-preview{display:block}.finding-stage{display:block}.finding-stage #finding-image{height:auto;opacity:1!important}#finding-status{display:none!important}.report-details-body{padding:0}.report-detail-group{background:#fff}}
 """

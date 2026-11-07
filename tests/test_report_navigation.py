@@ -11,14 +11,18 @@ from ephys_qc.report_view import render_report_view
 
 class VisibleText(HTMLParser):
     def __init__(self):
-        super().__init__(); self.stack=[]; self.text=[]
+        super().__init__(); self.stack=[]; self.text=[];self.report_sections=[]
     def handle_starttag(self,tag,attrs):
-        if tag not in {'img','input','meta','link','br','hr'}: self.stack.append(tag)
+        attrs=dict(attrs)
+        if tag=='details' and 'report-section' in attrs.get('class','').split():self.report_sections.append(attrs)
+        if tag not in {'img','input','meta','link','br','hr'}: self.stack.append((tag,attrs))
     def handle_endtag(self,tag):
-        if tag in self.stack:
-            index=len(self.stack)-1-self.stack[::-1].index(tag);self.stack=self.stack[:index]
+        for i in range(len(self.stack)-1,-1,-1):
+            if self.stack[i][0]==tag:
+                self.stack=self.stack[:i];break
     def handle_data(self,data):
-        if not {'details','style','script','head'} & set(self.stack): self.text.append(data)
+        if any(tag in {'style','script','head'} or (tag=='details' and 'open' not in attrs) for tag,attrs in self.stack):return
+        self.text.append(data)
 
 
 class NavigationTests(unittest.TestCase):
@@ -52,6 +56,10 @@ class NavigationTests(unittest.TestCase):
         self.assertNotIn('/charts#viz_timeline',report)
         self.assertIn('src="/report-interactions.js"',report)
         parsed=VisibleText();parsed.feed(report);visible=' '.join(parsed.text)
+        self.assertEqual([s['id'] for s in parsed.report_sections],['score-table','review','charts','checks'])
+        self.assertEqual(['open' in s for s in parsed.report_sections],[True,True,False,False])
+        for title in ['检查结果','问题定位','图表分析','报告详情']:
+            self.assertIn(f'<summary><h2>{title}</h2></summary>',report)
         self.assertNotIn('private-hash-example',visible)
         self.assertIn('private-hash-example',report)
         self.assertNotIn('本机原文件不变',visible)
