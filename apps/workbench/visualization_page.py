@@ -2,7 +2,6 @@
 import re
 from urllib.parse import parse_qs, urlsplit, quote
 from ephys_qc.visualizations.render import render_gallery
-from ephys_qc.visualizations.evidence import read_evidence
 
 
 def dispatch_visualizations(handler,path):
@@ -18,25 +17,29 @@ def dispatch_visualizations(handler,path):
         raise ValueError('图表显示方式无效。')
     if handler.store.job(identifier)['status']!='completed':
         raise ValueError('任务尚未完成，没有可用的最终报告。')
+    from presentation_cache import gallery
+    handler.send_bytes(gallery(handler.store,identifier,query),'text/html; charset=utf-8')
+    return True
+
+
+def build_gallery(store,identifier,query):
     # The gallery only needs the saved presentation manifest, not the potentially
     # very large candidate index in Store.result's generic summary builder.
     from project_score_cache import load as published_result
     from saved_reports import frozen_view
-    saved=published_result(handler.store,identifier)
-    view=saved.get('report_view') if saved else frozen_view(handler.store,identifier)
+    saved=published_result(store,identifier)
+    view=saved.get('report_view') if saved else frozen_view(store,identifier)
     if view:
         result={k:view.get(k) for k in ('scope','recording')}
         result.update(windows=view.get('window_scores',[]),
                       artifacts=[{'name':n} for n in view.get('artifacts',[])])
     else:
-        result=handler.store.result(identifier,compact=True)
+        result=store.result(identifier,compact=True)
     def load(name):
-        target=handler.store.artifact(identifier,name)
-        return read_evidence(target)
+        from presentation_cache import load_evidence
+        return load_evidence(store,identifier,name)
     base=f'/api/v1/jobs/{identifier}'
-    page=render_gallery(result,load,selected=query.get('show',[]) if query.get('configured')==['1'] else None,
+    return render_gallery(result,load,selected=query.get('show',[]) if query.get('configured')==['1'] else None,
                         window=query.get('window',[''])[0],limit=int(query.get('limit',['32'])[0]),band=query.get('band',['alpha'])[0],
                         back_url=base+'/report',action=base+'/visualizations',asset_url=lambda n:base+'/artifacts/'+quote(n),
                         embedded=query.get('embedded')==['1'])
-    handler.send_bytes(page.encode(),'text/html; charset=utf-8')
-    return True

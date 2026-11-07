@@ -18,6 +18,30 @@ def facts(**kw):
 
 
 class GnosisContracts(unittest.TestCase):
+    def test_overflow_retry_preserves_original_functions_and_restores_numpy(self):
+        import numpy as np
+        from types import SimpleNamespace
+        from ephys_qc.gnosis_worker import band_intervals
+        if np.finfo(np.longdouble).max <= np.finfo(np.float64).max:
+            self.skipTest('extended exponent range not available on this platform')
+        original=np;vendor=SimpleNamespace(np=np)
+        vendor.get_power_ratio=lambda *args,**kw:vendor.np.exp(np.array([2.,800.]))
+        calls=[]
+        def detect(*args,**kw):
+            values=vendor.get_power_ratio()
+            self.assertTrue(np.isfinite(values).all())
+            calls.append(kw)
+            return {'C3':[[1.,2.]]}
+        vendor.get_abnormal_inertvals=detect
+        result,precision=band_intervals(vendor,None,256,['C3'],6.,lambda f,*a,**k:f(*a,**k))
+        self.assertEqual(result,{'C3':[[1.,2.]]})
+        self.assertEqual(precision['mode'],'extended_exponential/1')
+        self.assertEqual(calls[0]['thresh'],6.)
+        self.assertIs(vendor.np,original)
+        vendor.get_power_ratio=lambda *args,**kw:np.array([np.nan])
+        with self.assertRaises(ValueError):band_intervals(vendor,None,256,['C3'],6.,lambda f,*a,**k:f(*a,**k))
+        self.assertIs(vendor.np,original)
+
     def test_catalog_selection_and_source_are_explicit(self):
         rows=[m for m in methods() if m['id'] in IDS]
         self.assertEqual(len(rows),8)

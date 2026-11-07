@@ -315,6 +315,13 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(row['recent_reports'][0]['visualizations_url'],'/api/v1/jobs/'+'b'*32+'/visualizations')
         self.assertTrue(all(r['url'].startswith('/api/v1/jobs/') for r in row['recent_reports']))
         self.assertEqual((self.store.root/'jobs'/('a'*32)/'artifacts/report.html').read_text(),'saved report')
+        # A corrected Gnosis run should replace Gnosis, not hide the comparison.
+        item['report_labels']['d'*32]=item['report_labels']['b'*32]
+        self.store.jobs['d'*32]=dict(id='d'*32,input_id=item['id'],status='completed',created_at='2026-11-07')
+        path=self.store.root/'jobs'/('d'*32)/'artifacts/report.html'
+        path.parent.mkdir(parents=True);path.write_text('new report')
+        updated=next(r for r in library(self.store)['items'] if r['id']=='record:personal')
+        self.assertEqual([r['job_id'] for r in updated['recent_reports']],['d'*32,'a'*32])
         # A revised confirmation must not inherit the previous revision's reports.
         item.update(record_family='family',record_revision=1)
         self.store.inputs['revised']=dict(item,id='revised',record_revision=2)

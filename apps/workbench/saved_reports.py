@@ -21,8 +21,13 @@ def frozen_view(store, identifier):
             if not hasattr(store, 'presentation_views'): store.presentation_views = {}
             cached = store.presentation_views.get(identifier)
             if cached and cached[0] == signature: return copy.deepcopy(cached[1])
-        with path.open('rb') as handle:
-            view = next(ijson.items(handle, 'report_view', use_float=True), None)
+        from presentation_cache import cached, stamps
+        import json
+        def read_view():
+            with path.open('rb') as handle:
+                value = next(ijson.items(handle, 'report_view', use_float=True), None)
+            return json.dumps(value, allow_nan=False).encode()
+        view = json.loads(cached(path.parent, 'frozen-view', stamps([path]), read_view))
         if not isinstance(view, dict) or not view.get('score'): return None
         version = view['score'].get('version', '')
         if version not in {'eeg-basic-screen/0.1', 'eeg-basic-screen/0.2'} and not version.startswith('project-weighted/'):

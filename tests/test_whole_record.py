@@ -60,6 +60,20 @@ def fake_runner(calls, *, fail_at=None, mismatch=False):
 
 
 class WholePlanTests(unittest.TestCase):
+    def test_gnosis_short_tail_is_balanced_before_detection_with_no_sample_loss(self):
+        source = record(duration=733., fs=512., channels=4)
+        source['default_config']['method_config'].update(extensions=['gnosis_high_band'])
+        plan = build_plan(source, ['M06'], config(120))
+        spans = [(w['start_seconds'],w['duration_seconds']) for w in plan['windows']]
+        self.assertEqual(spans[-2:], [(600.,66.5),(666.5,66.5)])
+        self.assertEqual(spans[:5],[(i*120.,120.) for i in range(5)])
+        self.assertEqual(sum(w['stop_sample']-w['start_sample'] for w in plan['windows']),733*512)
+        self.assertTrue(all(a['stop_sample']==b['start_sample'] for a,b in zip(plan['windows'],plan['windows'][1:])))
+        self.assertEqual(plan['window_partition'],'gnosis_balanced_short_tail/1')
+        short = build_plan(record(duration=25., fs=256., channels=4), ['M06'],
+                           {**config(12), 'method_config':{'extensions':['gnosis_high_band']}})
+        self.assertEqual([w['duration_seconds'] for w in short['windows']],[12.,12.,1.])
+
     def test_all_native_samples_including_short_tail_are_planned_once(self):
         plan = build_plan(record(), ['M03'], config())
         self.assertEqual([(w['start_sample'], w['stop_sample']) for w in plan['windows']], [(0, 6000), (6000, 12000), (12000, 12500)])

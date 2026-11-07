@@ -79,12 +79,19 @@ def library(store):
                            key=lambda j:j['created_at'],reverse=True)
         labels = item.get('report_labels', {})
         reports = []
-        for job in completed[:2]:
+        seen_labels = set()
+        for job in completed:
             label = labels.get(job['id'], {})
+            # A refreshed named workflow replaces its older run in this compact
+            # list; it must not displace the other comparison workflow.
+            key = label.get('zh-CN') or job['id']
+            if key in seen_labels: continue
+            seen_labels.add(key)
             reports.append({'job_id':job['id'], 'label':label.get('zh-CN','检查报告'),
                             'label_en':label.get('en','QC report'), 'created_at':job['created_at'],
                             'url':f"/api/v1/jobs/{job['id']}/report",
                             'visualizations_url':f"/api/v1/jobs/{job['id']}/visualizations"})
+            if len(reports) == 2: break
         records.append({'id':'record:'+item['id'], 'kind':'record', 'label':item['label'],
                         'available':item.get('availability',{}).get('status')!='unavailable',
                         'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),

@@ -32,10 +32,15 @@ document.querySelectorAll('[data-finding]').forEach(link => {
     if (!image || !panel || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     const request = ++findingRequest, pending = new Image();
-    status.textContent = '正在读取该通道的波形…';
+    status.textContent = '正在载入波形…';
+    // Show the loading state at the preview immediately, even below a long table.
+    panel.scrollIntoView({block:'nearest', behavior:'instant'});
+    const oldText = link.dataset.idleLabel || (link.dataset.idleLabel = link.textContent);
+    link.textContent = '载入中…';
     document.querySelectorAll('.finding-table .is-selected').forEach(row => row.classList.remove('is-selected'));
     link.closest('tr')?.classList.add('is-selected');
     pending.onload = () => {
+      link.textContent = oldText;
       if (request !== findingRequest) return;
       image.src = pending.src;
       image.alt = link.dataset.title;
@@ -44,6 +49,7 @@ document.querySelectorAll('[data-finding]').forEach(link => {
       panel.scrollIntoView({block:'nearest', behavior:'instant'});
     };
     pending.onerror = () => {
+      link.textContent = oldText;
       if (request === findingRequest) status.textContent = '此段波形暂不可用，通道与时间位置仍见上表。';
     };
     pending.src = link.href;

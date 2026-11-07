@@ -8,6 +8,54 @@ import json
 from pathlib import Path
 import sys
 import warnings
+from contextlib import contextmanager
+
+
+@contextmanager
+def extended_exponential(utils):
+    """Promote only upstream exp, not the FFT input or detection formula.
+
+    NumPy's longdouble has a wider exponent range on the verified Linux worker.
+    The private proxy is confined to this single-method subprocess; NumPy itself
+    and the installed vendor module files are never modified.
+    """
+    import numpy as np
+    if np.finfo(np.longdouble).max <= np.finfo(np.float64).max:
+        raise ValueError('本运行环境不支持扩展指数精度；原版功率统计溢出，未生成分数。')
+    original = utils.np
+    class PrecisionNumpy:
+        def __getattr__(self, key): return getattr(original, key)
+        def exp(self, values, *args, **kwargs):
+            return original.exp(original.asarray(values, dtype=original.longdouble), *args, **kwargs)
+    utils.np = PrecisionNumpy()
+    try:
+        yield
+    finally:
+        utils.np = original
+
+
+def band_intervals(utils, x, fs, names, threshold, call):
+    """Run original thresholds, retrying overflow with wider exp arithmetic."""
+    import numpy as np
+    kwargs = dict(win=1, scale=1e6)
+    def detect():
+        return call(utils.get_abnormal_inertvals, x, fs, **kwargs,
+                    ch_names=names, max_tol_gap=0, thresh=threshold)
+    with np.errstate(over='ignore'):
+        ratios = call(utils.get_power_ratio, x, fs, **kwargs)
+    if np.isfinite(ratios).all():
+        return detect(), {'mode': 'float64', 'overflow_count': 0}
+    count = int(np.isinf(ratios).sum())
+    if not count or np.isnan(ratios).any():
+        raise ValueError('功率统计退化（非有限值）；不能按正常区间计分。')
+    with extended_exponential(utils):
+        wider = call(utils.get_power_ratio, x, fs, **kwargs)
+        if not np.isfinite(wider).all():
+            raise ValueError('扩展指数精度后统计量仍非有限；本项未评。')
+        mapping = detect()
+    return mapping, {'mode': 'extended_exponential/1', 'overflow_count': count,
+                     'exponent_max': int(np.finfo(np.longdouble).maxexp),
+                     'formula_and_thresholds_unchanged': True}
 
 
 def merge_intervals(rows, duration):
@@ -105,10 +153,10 @@ def compute(request, data):
         band=(1,13) if identifier=='gnosis_low_band' else (13,40)
         filtered=prepared.copy();call(set_RFN,filtered,None,*band)
         filtered.apply_function(utils.common_average,channel_wise=False)
-        # Verify the actual upstream statistic, not just an empty interval list.
-        ratios=call(utils.get_power_ratio,filtered.get_data(),fs2,win=1,scale=1e6)
-        if not np.isfinite(ratios).all(): raise ValueError('Degenerate band statistic')
-        mapping=call(utils.get_abnormal_inertvals,filtered.get_data(),fs2,win=1,scale=1e6,ch_names=names,max_tol_gap=0,thresh=p['threshold'])
+        mapping,precision=band_intervals(utils,filtered.get_data(),fs2,names,p['threshold'],call)
+        out['numerical_precision']=precision
+        if precision['mode'] != 'float64':
+            out['notes'].append('原版指数计算超出float64范围；仅扩展指数运算精度后调用原版阈值与区间函数，未裁剪异常值或修改公式。')
         add_intervals(mapping,identifier)
         out['metrics']['band_hz']=list(band)
         out['metrics']['analysis_window_seconds']=1.

@@ -152,11 +152,21 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
     if max_samples < 1:
         raise ValueError('Selected recording chunk exceeds the input memory budget')
     windows = []
+    gnosis = any(isinstance(m, str) and m.startswith('gnosis_') for m in config.get('method_config', {}).get('extensions', []))
     for segment in layout['segments']:
-        for first in range(segment['start_sample'], segment['stop_sample'], max_samples):
+        if len(windows) + math.ceil((segment['stop_sample'] - segment['start_sample']) / max_samples) > MAX_WINDOWS:
+            raise ValueError(f'Recording plan exceeds {MAX_WINDOWS} windows; increase the window duration')
+        bounds = list(range(segment['start_sample'], segment['stop_sample'], max_samples)) + [segment['stop_sample']]
+        # Avoid a tiny remainder for methods estimating within-segment spectra
+        # and thresholds. Split only the last pair, never bridge a source gap,
+        # and never drop or duplicate samples. This is decided before detection.
+        if gnosis and len(bounds) >= 3 and bounds[-1] - bounds[-2] < max_samples / 2:
+            midpoint = (bounds[-3] + bounds[-1]) // 2
+            if midpoint - bounds[-3] >= math.ceil(12 * fs):
+                bounds[-2] = midpoint
+        for first, stop in zip(bounds, bounds[1:]):
             if len(windows) >= MAX_WINDOWS:
                 raise ValueError(f'Recording plan exceeds {MAX_WINDOWS} windows; increase the window duration')
-            stop = min(first + max_samples, segment['stop_sample'])
             windows.append({'id': f'w{len(windows) + 1:06d}', 'index': len(windows), 'segment_id': segment['segment_id'],
                             'start_sample': first, 'stop_sample': stop, 'start_seconds': (first - layout['sample_origin']) / fs,
                             'duration_seconds': (stop - first) / fs})
@@ -182,6 +192,7 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
     plan.update(scope='recording', schema_version='ephys-recording-plan/1.0', qc_config=canonical,
                 windows=windows, window_count=len(windows), coverage_plan=layout,
                 skipped_methods=skipped, algorithm_scope='independent_native_windows',
+                window_partition='gnosis_balanced_short_tail/1' if gnosis else 'fixed/1',
                 auto_added_modules=original['auto_added_modules'])
     node_states = {n['id']: Counter() for n in original['nodes']}
     method_states = {m['id']: Counter() for m in original['method_applicability']}
@@ -215,6 +226,8 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
         '窗口边界会影响滤波、频谱、稳健阈值和短事件；跨窗候选保留独立证据，不自动合并为最终坏段。',
         '覆盖百分比仅表示执行范围，不表示信号质量；短尾窗、失败、跳过和来源缺口分别保留。',
     ]
+    if gnosis:
+        warnings.append('含灵犀云方法时，短于半窗的尾段与前一窗均分；保持原生样本完整覆盖，不跨采集缺口。')
     if layout['gap_samples']:
         warnings.append('文件声明存在无样本的采集缺口；这些时间不纳入已检查范围。')
     warnings += [m['reason'] for m in skipped]

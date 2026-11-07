@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const requests=[];
 const classes=()=>({values:new Set(),add(x){this.values.add(x)},remove(x){this.values.delete(x)}});
 const rows=[{classList:classes()},{classList:classes()}];
-const links=rows.map((row,i)=>({href:`/finding-${i}.png`,dataset:{title:`C${i} · 1–3 秒`},closest:()=>row,addEventListener(_,fn){this.click=fn}}));
+const links=rows.map((row,i)=>({href:`/finding-${i}.png`,textContent:'查看波形',dataset:{title:`C${i} · 1–3 秒`},closest:()=>row,addEventListener(_,fn){this.click=fn}}));
 const nodes={
  'finding-image':{src:'original.png'},'finding-title':{textContent:''},'finding-status':{textContent:''},
  'finding-preview':{scrollIntoView(){this.scrolled=true}},
@@ -42,3 +42,6 @@ handlers.message({origin:'http://local',source:frame.contentWindow,data:{type:'q
 handlers.message({origin:'http://local',source:frame.contentWindow,data:{type:'qc-chart-height',height:NaN}});assert.equal(frame.style.height,'900px');
 context.location.hash='#charts';chartSection.open=false;chartLink.click();assert(chartSection.open,'The same anchor must reopen a collapsed chart section');
 console.log('PASS report charts load on expansion and resize only from the matching local frame');
+links[0].click({preventDefault(){}});links[0].click({preventDefault(){}});
+requests[3].onload();requests[4].onload();
+assert.equal(links[0].textContent,'查看波形','Repeated clicks must restore the original label');

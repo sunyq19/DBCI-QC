@@ -85,7 +85,7 @@ def publish(config,destination):
     from ephys_qc.report_export import pdf_bytes, evidence_figure
     from ephys_qc.report_presentation import focused_figure
     from ephys_qc.visualizations.render import render_gallery
-    from ephys_qc.visualizations.evidence import read_evidence
+    from presentation_cache import load_evidence
     store=snapshot(config);examples=featured_reports(store)
     if not examples:raise ValueError('No explicitly configured examples')
     overviews={r['package_id']:build_overview(store,r['package_id']) for r in examples}
@@ -141,7 +141,7 @@ def publish(config,destination):
                     for stem,keys in [('M04_spectral.json',('psd','interference')),('M06_muscle.json',('timeline',))]:
                         if any(n.endswith(stem) for n in names):
                             selected.extend(k for k in keys if k not in selected)
-                html=render_gallery(result,lambda n:read_evidence(store.artifact(jid,n)),
+                html=render_gallery(result,lambda n:load_evidence(store,jid,n),
                     selected=selected,window=options.get('window',''),limit=options.get('limit',32),
                     embedded=embedded,back_url=f'/api/v1/jobs/{jid}/report',asset_url=lambda n:f'/api/v1/jobs/{jid}/artifacts/{n}')
                 html=re.sub(r'<form\b.*?</form>','',html,flags=re.S|re.I)

@@ -389,6 +389,18 @@ class Store:
                         self._stop_nodes(job, '执行失败，未完成评估。')
                     job['ended_at'] = now()
                     self.persist(job)
+                if job['status'] == 'completed':
+                    # Prepare report displays outside the state lock. A display
+                    # failure must never change a successful detector run.
+                    try:
+                        from presentation_cache import prepare
+                        prepare(self, id_)
+                    except Exception as exc:
+                        try:
+                            with (directory / 'presentation.log').open('a') as log:
+                                log.write(f'{type(exc).__name__}: {exc}\n')
+                        except OSError:
+                            pass
             except Exception as exc:
                 with self.lock:
                     job = self.jobs[id_]
@@ -787,8 +799,9 @@ class Handler(BaseHTTPRequestHandler):
             from ephys_qc.report_export import evidence_figure, pdf_bytes
             try:
                 if export_kind.startswith('report-focus-'):
-                    from ephys_qc.report_presentation import focused_figure
-                    figure, figure_notes = focused_figure(view, self.store.workspace(identifier), int(export_kind[13:-4]))
+                    from presentation_cache import focus
+                    figure = focus(self.store, identifier, view, int(export_kind[13:-4]))
+                    figure_notes = []
                 else:
                     figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
             except (OSError, KeyError, ValueError, RuntimeError, ImportError):

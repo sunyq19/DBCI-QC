@@ -23,6 +23,8 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(reads,['M04_gnosis_band_power.json']);self.assertEqual(data,old)
         self.assertIn('40',html);self.assertIn('未评',html);self.assertIn('0 → 100 %',html)
         self.assertIn('Gnosis-Neurodynamics',html)
+        self.assertIn('<details class="method-sources"><summary>方法来源</summary>',html)
+        self.assertNotIn('<a ',html.split('<div class="figure-head">')[1].split('</div>')[0])
         self.assertNotIn('id="viz_psd"',html)
     def test_empty_and_failed_results_are_not_zero(self):
         result={'artifacts':[{'name':'M04_gnosis_band_power.json'}]}
@@ -86,7 +88,7 @@ class VisualizationTests(unittest.TestCase):
 
     def test_http_gallery_uses_saved_view_without_generic_result_parse(self):
         sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/workbench'))
-        from visualization_page import dispatch_visualizations
+        from visualization_page import build_gallery
         path='/api/v1/jobs/'+'a'*32+'/visualizations'
         view={'scope':'recording','recording':{'duration_seconds':120},
               'window_scores':[{'id':'w000001','start_seconds':0,'duration_seconds':120}],
@@ -98,7 +100,7 @@ class VisualizationTests(unittest.TestCase):
         with patch('project_score_cache.load',return_value=None), \
              patch('saved_reports.frozen_view',return_value=view), \
              patch('visualization_page.render_gallery',return_value='ok') as render:
-            self.assertTrue(dispatch_visualizations(handler,path))
+            self.assertEqual(build_gallery(store,'a'*32,{'lang':['zh-CN']}),'ok')
         result=render.call_args.args[0]
         self.assertEqual(result['windows'],view['window_scores'])
         self.assertEqual(result['artifacts'],[{'name':'w000001--M04_spectral.json'}])
