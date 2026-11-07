@@ -233,7 +233,7 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
                 artifacts=[a['name'] for a in result.get('artifacts', [])])
 
 
-def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=None, focus_url=None):
+def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=None, focus_url=None, waveform_url=None):
     """Standalone report with local artifact links; the server rewrites those links."""
     esc = lambda value: html.escape(str(value), quote=True)
     number = lambda value: '—' if value is None else f'{value:g}'
@@ -359,4 +359,4 @@ def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=
         report = report[:start] + f'<section id="scoring"><h2>总分组成</h2><p>{esc(composition)}</p>{share_table}<p class="muted">比例按显示精度四舍五入；缺项不补满分，也不把比例转给其他项目。</p><details><summary>计算方法与适用范围</summary><p>分项 = 100 ×（1 − 候选占比）。总分 = 各分项得分 × 对应占比，再相加。</p><p>选中的计分项目缺失或检查范围未完成时，不生成总分。相同方法、处理状态和计分配置下的结果才适合比较。</p><p>不同方法可能标记同一问题；已滤除的频带不当作检查通过。</p><p>配置 {esc(score["configuration_id"])} · {esc(score["version"])} · 项目试行，未经专家校准。</p><p><a href="/standards/eeg-scoring">完整规则与算例</a></p></details>' + report[stop:]
         report = report.replace('按配置权重平均', f'{len(active_rows)} 项计入总分' if active_rows else '仅展示分项')
     from .report_presentation import compact_report
-    return compact_report(report, view, focus_url=focus_url, visualization_url=visualization_url)
+    return compact_report(report, view, focus_url=focus_url, visualization_url=visualization_url, waveform_url=waveform_url)

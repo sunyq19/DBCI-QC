@@ -46,7 +46,15 @@ def focused_figure(view, workspace, index):
     return evidence_figure(selected, workspace, compact=True)
 
 
-def compact_report(report, view, *, focus_url=None, visualization_url=None):
+def waveform_controls():
+    return '''<div id="wave-controls" hidden>
+<div class="wave-toolbar"><div class="wave-time-controls"><button type="button" id="wave-prev" aria-label="向前查看" title="向前查看（左方向键）">‹</button><label>窗宽 <select id="wave-span" aria-label="显示时长"></select></label><button type="button" id="wave-next" aria-label="向后查看" title="向后查看（右方向键）">›</button><label>移动 <select id="wave-speed" aria-label="移动速度"><option value="0.25">精细</option><option value="1" selected>正常</option><option value="3">快速</option></select></label><button type="button" id="wave-reset">回到候选</button></div>
+<div class="wave-channel-picker"><button type="button" id="wave-channels-toggle" aria-expanded="false" aria-controls="wave-channel-menu">对照通道 <span id="wave-channel-count">1 / 6</span></button><div id="wave-channel-menu" hidden><label for="wave-search">选择对照通道 · 最多 6 道</label><input id="wave-search" type="search" placeholder="搜索通道" autocomplete="off"><div id="wave-channel-options"></div></div></div></div>
+<div class="wave-navigator"><span id="wave-range"></span><input type="range" id="wave-position" min="0" max="1" step="0.001" value="0" aria-label="查看时间位置"><span id="wave-segment-end"></span></div></div>
+<p id="wave-notice" class="wave-notice" role="status" hidden></p>'''
+
+
+def compact_report(report, view, *, focus_url=None, visualization_url=None, waveform_url=None):
     """Reorganize renderer-owned sections; technical details remain downloadable."""
     def section(identifier):
         return re.search(r'<section id="'+identifier+r'">(.*?)</section>', report, re.S).group(1)
@@ -85,12 +93,15 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
         contents=f'<span class="finding-item-top"><strong>{esc(c["channel_name"])}</strong><span>{c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒</span></span><small>{esc(c["finding"])}</small>'
         if i == 0 or c['kind'] != targets[i-1]['kind']:
             rows.append(f'<div class="finding-group-label">{esc(c["label"])}</div>')
-        rows.append((f'<a class="finding-item" href="{esc(focus_url(i))}" data-finding="{i}" data-title="{esc(title)}" data-measure="{esc(measure)}" data-position="{i+1} / {len(targets)}" aria-controls="finding-preview" aria-current="{str(i == 0).lower()}" aria-label="{esc(title)}">{contents}</a>' if focus_url else f'<div class="finding-item">{contents}</div>'))
+        rows.append((f'<a class="finding-item" href="{esc(focus_url(i))}" data-finding="{i}" data-channel-id="{esc(c["channel_id"])}" data-start="{c["start_seconds"]:g}" data-stop="{c["stop_seconds"]:g}" data-title="{esc(title)}" data-measure="{esc(measure)}" data-position="{i+1} / {len(targets)}" aria-controls="finding-preview" aria-current="{str(i == 0).lower()}" aria-label="{esc(title)}">{contents}</a>' if focus_url else f'<div class="finding-item">{contents}</div>'))
     preview = ''
     if rows and focus_url:
         c=targets[0];title=f'{c["channel_name"]} · {c["label"]} · {c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒'
         measure = c['finding'] + (' · 代表窗口' if c['kind'] == 'line' else ' · 候选片段')
         preview=f'<div class="finding-preview" id="finding-preview" data-state="ready" aria-busy="false"><div class="figure-heading"><h3 id="finding-title">{esc(title)}</h3><span id="finding-position">1 / {len(targets)}</span></div><p id="finding-measure">{esc(measure)}</p><div class="finding-stage"><img id="finding-image" src="{esc(focus_url(0))}" alt="{esc(title)}"><p id="finding-status" role="status" aria-live="polite"></p></div><p class="finding-caption"><span class="candidate-swatch" aria-hidden="true"></span>候选区间<span>原始记录时间（秒）</span></p></div>'
+        if waveform_url:
+            preview=preview.replace('id="finding-preview"',f'id="finding-preview" data-waveform-base="{esc(waveform_url)}"')
+            preview=preview.replace('<div class="finding-stage">',waveform_controls()+'<div class="finding-stage">')
     locator = ('<div class="finding-workspace"><div class="finding-sidebar"><div class="finding-list-label">候选位置<span>点击切换波形</span></div><div class="finding-list" role="region" aria-label="候选位置列表" tabindex="0">'+''.join(rows)+'</div></div>'+preview+'</div>' if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
 
     if '灵犀' in route:
@@ -104,7 +115,8 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">报告详情</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
     body=f'<div class="shell">{aside}<main>{overview}<section id="score-table">{checks}</section>{review}{charts}{details}<footer>DBCI-QC · 项目检查结果，候选需复核</footer></main></div>'
     head=report[:report.index('</head>')]
-    return head+f'<style>{CSS}</style><script src="/report-interactions.js" defer></script></head><body>{body}</body></html>'
+    explorer = '<link rel="stylesheet" href="/waveform-explorer.css"><script src="/waveform-explorer.js" defer></script>' if waveform_url else ''
+    return head+f'<style>{CSS}</style><script src="/report-interactions.js" defer></script>{explorer}</head><body>{body}</body></html>'
 
 
 CSS = """

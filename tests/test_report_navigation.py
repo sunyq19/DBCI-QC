@@ -71,5 +71,16 @@ class NavigationTests(unittest.TestCase):
         view['line_channels'][0]['example']['stop_seconds']=None
         self.assertEqual(focus_targets(view),[])
 
+    def test_interactive_waveform_uses_explicit_frozen_identity_and_escaped_attributes(self):
+        self.view['hf_candidates'][0]['channel_id']='channel"<unsafe>'
+        before=copy.deepcopy(self.view)
+        report=render_report_view(self.view,focus_url=lambda i:f'/focus-{i}.png',waveform_url='/api/v1/jobs/example')
+        self.assertIn('data-waveform-base="/api/v1/jobs/example"',report)
+        self.assertIn('data-channel-id="channel&quot;&lt;unsafe&gt;"',report)
+        self.assertIn('data-start="1" data-stop="3"',report)
+        self.assertIn('src="/waveform-explorer.js"',report)
+        self.assertIn('id="wave-controls" hidden',report)
+        self.assertEqual(self.view,before)
+
 
 if __name__=='__main__':unittest.main()

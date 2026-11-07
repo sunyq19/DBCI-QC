@@ -59,7 +59,7 @@ class ComparisonPublicationTests(unittest.TestCase):
     def test_snapshot_freezes_charts_pdf_and_evidence_without_runtime_links(self):
         def report(store,jid,language):
             base=f'/api/v1/jobs/{jid}'
-            return f'<html><head></head><body><nav class="saved-report-nav"></nav><iframe data-chart-src="{base}/visualizations?embedded=1"></iframe><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
+            return f'<html><head></head><body><nav class="saved-report-nav"></nav><div data-waveform-base="{base}"></div><iframe data-chart-src="{base}/visualizations?embedded=1"></iframe><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
         def gallery(*args,**kwargs):
             return f'<html><head><script src="/visualizations.js" defer></script></head><body><form><button>Recompute</button></form><p>原记录 0–120 秒，非整份汇总</p><svg></svg><a href="{kwargs["back_url"]}">Report</a></body></html>'
         with tempfile.TemporaryDirectory() as temp:
@@ -95,6 +95,7 @@ class ComparisonPublicationTests(unittest.TestCase):
             for path in release.rglob('*.html'):
                 text=path.read_text()
                 self.assertNotIn('/api/v1/jobs/',text)
+                self.assertNotIn('data-waveform-base',text)
                 self.assertNotIn('/examples/RELEASE/',text)
             self.assertTrue((release/'assets/visualizations.js').is_file())
             self.assertFalse(list(release.rglob('*.json')))

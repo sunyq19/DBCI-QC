@@ -821,12 +821,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({'error': 'PDF 组件未安装。请在服务环境安装 ephys-qc-workbench[reports]。'}, 503)
             return self.send_bytes(data, 'application/pdf', headers={
                 'Content-Disposition': f'attachment; filename="DBCI-QC-{identifier[:8]}.pdf"'})
-        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|review|configuration)', path)
+        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|waveform-context|waveform-window|review|configuration)', path)
         if match:
             identifier, action = match.groups()
             if action == 'configuration':
                 return self.json(self.store.configuration(identifier))
             workspace = self.store.workspace(identifier)
+            if action == 'waveform-context':
+                if urlsplit(self.path).query:
+                    raise ValueError('波形目录不接受查询参数。')
+                return self.json(workspace.waveform_context())
+            if action == 'waveform-window':
+                return self.json(workspace.waveform_window(**self.waveform_query()))
             if action == 'waveform':
                 return self.json(workspace.waveform(**self.waveform_query()))
             if action == 'candidates':
@@ -861,7 +867,7 @@ class Handler(BaseHTTPRequestHandler):
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
         static = {'/': 'index.html', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]

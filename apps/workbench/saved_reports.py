@@ -58,7 +58,7 @@ def served_report(store, identifier, language='zh-CN'):
     view = published.get('report_view') if published else frozen_view(store, identifier)
     if view:
         from ephys_qc.report_view import render_report_view
-        report = render_report_view(view, evidence_url=f'/api/v1/jobs/{identifier}/report-evidence.png', pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations', focus_url=lambda i:f'/api/v1/jobs/{identifier}/report-focus-{i}.png')
+        report = render_report_view(view, evidence_url=f'/api/v1/jobs/{identifier}/report-evidence.png', pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations', focus_url=lambda i:f'/api/v1/jobs/{identifier}/report-focus-{i}.png', waveform_url=f'/api/v1/jobs/{identifier}')
         note = '本页是保留原始检测证据的评分修订版。' if published else '使用当前版式展示运行时保存的结果，检测与分数未改动。'
         archive = f'<details class="report-archive"><summary>版本与存档</summary><p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · {note}</p></details>'
         report = report.replace('<div id="report-archive-slot"></div>', archive) if 'id="report-archive-slot"' in report else report.replace('</main>',archive+'</main>')

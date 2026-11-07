@@ -194,7 +194,7 @@ def publish(config,destination):
                     done.add(name)
                     put(name,clean(src.read_text(),path,language) if src.suffix=='.html' else src.read_bytes())
                 return replacement+name
-            if path in {'/ui-tokens.css','/workbench-ui.css','/dataset-report.css','/dataset-report.js','/visualizations.js','/report-interactions.js','/standards-nav.js'}:
+            if path in {'/ui-tokens.css','/workbench-ui.css','/dataset-report.css','/dataset-report.js','/visualizations.js','/report-interactions.js','/waveform-explorer.js','/waveform-explorer.css','/standards-nav.js'}:
                 src=REPO/'apps/workbench/web'/path[1:]
                 if src.is_file():put('assets'+path,src.read_bytes());return replacement+'assets'+path
             if path.startswith('/standards'):return path
@@ -208,6 +208,8 @@ def publish(config,destination):
                 result+='#'+fragment
             return result
         def clean(html,origin,language):
+            # Public snapshots retain saved figures, never a live raw-data endpoint.
+            html=re.sub(r'\sdata-waveform-base="[^"]*"','',html)
             html=re.sub(r'<pre\b[^>]*>.*?</pre>','',html,flags=re.S|re.I)
             # A public example has no user's live run workspace to restore.
             html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run)\s*</a>','',html)

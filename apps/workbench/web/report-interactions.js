@@ -36,8 +36,8 @@ function findingState(state, message='') {
   findingStatus.textContent=message;
 }
 if(findingImage && findingPanel) {
-  findingImage.addEventListener('load',()=>{if(!findingRequest)findingState('ready');});
-  findingImage.addEventListener('error',()=>{if(!findingRequest)findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));});
+  findingImage.addEventListener('load',()=>{if(!findingRequest&&findingPanel.dataset.interactive!=='ready')findingState('ready');});
+  findingImage.addEventListener('error',()=>{if(!findingRequest&&findingPanel.dataset.interactive!=='ready')findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));});
   if(!findingImage.complete)findingState('loading',reportText('正在载入波形…','Loading waveform…'));
   else if(!findingImage.naturalWidth)findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));
 }
@@ -52,15 +52,16 @@ findingLinks.forEach(link => {
     if(position)position.textContent=link.dataset.position||'';
     findingState('loading',reportText('正在载入波形…','Loading waveform…'));
     findingLinks.forEach(other=>other.setAttribute('aria-current',String(other===link)));
+    if(window.qcWaveformViewer?.select(link))return;
     // Scroll only when selecting; a late image must never pull the page away.
     if(window.matchMedia?.('(max-width: 760px)')?.matches)findingPanel.scrollIntoView({block:'nearest',behavior:'instant'});
     pending.onload = () => {
-      if(request !== findingRequest)return;
+      if(request !== findingRequest||findingPanel.dataset.interactive==='ready')return;
       findingImage.src=pending.src;findingImage.alt=link.dataset.title;
       findingState('ready');
     };
     pending.onerror = () => {
-      if(request === findingRequest)findingState('error',reportText('此段波形未能载入，请重新点击或选择其他候选。','Could not load this waveform. Retry or select another finding.'));
+      if(request === findingRequest&&findingPanel.dataset.interactive!=='ready')findingState('error',reportText('此段波形未能载入，请重新点击或选择其他候选。','Could not load this waveform. Retry or select another finding.'));
     };
     pending.src=link.href;
   });

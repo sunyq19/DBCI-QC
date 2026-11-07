@@ -6,7 +6,7 @@ LEI = 'https://github.com/Jlei61/BrainElecQC'
 GNOSIS = 'https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE'
 PROJECT = 'https://github.com/sunyq19/DBCI-QC'
 _ROWS = [
- ('waveform','波形与候选标记','查看原始波形，定位需要复核的时间段。',['M02','M06','M09'],[LEI,PROJECT],'已保存的波形图；候选图还需原文件可读。'),
+ ('waveform','波形与候选标记','查看原始波形，定位需要复核的时间段。',['M02','M06','M09'],[LEI,PROJECT],'已有波形快照可查看；原文件可读时，报告支持前后拖动与最多6道同步对照。'),
  ('channel_metrics','通道指标','逐道查看 PREP 指标和线长；不同单位分开绘制。',['M05'],[LEI,GNOSIS],'对应通道指标已计算；候选标记沿用检测结果。'),
  ('psd','功率谱密度','查看各通道频谱；两条路线分图展示。',['M04'],[LEI,GNOSIS],'需要 PSD 与频率轴；统一显示 dB re μV²/Hz，不把处理前后变化当改善。'),
  ('interference','工频命中比例','展示逐通道工频命中窗占比。',['M04'],[LEI],'需要工频窗口观测；占比是通道窗命中率，不是受污染时长。'),
