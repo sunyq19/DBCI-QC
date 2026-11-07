@@ -9,17 +9,20 @@
     span=Math.min(Math.max(span,.001),segment.stop_seconds-segment.start_seconds);
     return {start:clamp(start,segment.start_seconds,segment.stop_seconds-span),span};
   }
-  function pan(state,pixels,width,speed,segment) {
-    return viewport(state.start-pixels/Math.max(width,1)*state.span*speed,state.span,segment);
+  function pan(state,pixels,width,segment) {
+    return viewport(state.start-pixels/Math.max(width,1)*state.span,state.span,segment);
   }
-  function zoom(state,span,segment) {
-    return viewport(state.start+(state.span-span)/2,span,segment);
+  function zoom(state,span,segment,anchor=.5) {
+    return viewport(state.start+(state.span-span)*clamp(anchor,0,1),span,segment);
   }
-  function navigation(state,segment,speed=1,mode='near') {
+  function navigation(state,segment,previous) {
     const a=segment.start_seconds,b=Math.max(a,segment.stop_seconds-state.span);
-    const length=mode==='all'?b-a:Math.min(b-a,state.span*4*speed);
+    // Keep the rail stable between gestures; its scale follows the view, not
+    // the recording duration. Moving past its ends reveals the next stretch.
+    if(previous&&previous.span===state.span&&state.start>=previous.min&&state.start<=previous.max)return previous;
+    const length=Math.min(b-a,state.span*4);
     const min=clamp(state.start-length/2,a,b-length);
-    return {min,max:min+length,step:Math.max(.001,state.span/1000)};
+    return {min,max:min+length,step:Math.max(.001,state.span/1000),span:state.span};
   }
   function scales(channels) {
     const ranges={};
@@ -73,14 +76,13 @@
   const $=id=>doc.getElementById(id),t=(zh,en)=>doc.documentElement.lang==='en'?en:zh;
   const base=panel.dataset.waveformBase,links=[...doc.querySelectorAll('[data-finding]')];
   const stage=panel.querySelector('.finding-stage'),controls=$('wave-controls'),notice=$('wave-notice');
-  const image=$('finding-image'),status=$('finding-status'),spanSelect=$('wave-span'),position=$('wave-position');
-  const navMode=$('wave-nav-mode');
+  const image=$('finding-image'),status=$('finding-status'),spanLabel=$('wave-span'),position=$('wave-position');
   const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.id='wave-plot';svg.setAttribute('role','img');svg.setAttribute('tabindex','0');
   svg.setAttribute('aria-label',t('波形对照；左右拖动或使用方向键查看前后','Aligned waveforms; drag or use arrow keys to pan'));
   svg.setAttribute('hidden','');stage.append(svg);
   let info,stream,segment,candidate,state,wave,selected=[],comparisons=[],sequence=0,drag,inFlight=false,pending=false;
-  let sliding=false,nav;
+  let sliding=false,nav,loadTimer;
   const cache=new Map();
   function message(text=''){notice.textContent=text;notice.hidden=!text;}
   function activity(mode,text='') {
@@ -94,24 +96,28 @@
   }
   function sync() {
     $('wave-range').textContent=`${fmt(state.start)}–${fmt(state.start+state.span)} s`;
-    if(!sliding)nav=navigation(state,segment,Number($('wave-speed').value),navMode?.value||'near');
+    if(!sliding)nav=navigation(state,segment,nav);
     position.min=nav.min;position.max=nav.max;position.step=nav.step;
     position.value=state.start;position.disabled=Number(position.max)===Number(position.min);
+    position.style.setProperty('--wave-thumb-width',`${Math.max(16,(position.clientWidth||240)*state.span/(nav.max-nav.min+state.span))}px`);
     position.setAttribute('aria-valuetext',`${fmt(state.start)}–${fmt(state.start+state.span)} s`);
-    $('wave-segment-end').textContent=`${fmt(nav.min)}–${fmt(nav.max+state.span)} s`;
-    $('wave-segment-end').title=t('拉条可定位的时间范围','Time range covered by the slider');
+    $('wave-segment-start').textContent=`${fmt(nav.min)} s`;
+    $('wave-segment-end').textContent=`${fmt(nav.max+state.span)} s`;
+    spanLabel.textContent=`${fmt(state.span)} s`;
+    const bounds=spanBounds();
+    $('wave-zoom-in').disabled=state.span<=bounds.min+1e-6;
+    $('wave-zoom-out').disabled=state.span>=bounds.max-1e-6;
     $('wave-prev').disabled=state.start<=segment.start_seconds+1e-6;
     $('wave-next').disabled=state.start+state.span>=segment.stop_seconds-1e-6;
     $('wave-channel-count').textContent=`${selected.length} / ${info.limits.max_channels}`;
   }
-  function sizes(desired=state?.span||10) {
+  function spanBounds() {
     const max=Math.min(info.limits.max_seconds,segment.stop_seconds-segment.start_seconds,
       info.limits.max_read_bytes/(selected.length*stream.sampling_rate_hz*8));
-    let choices=[1,2,5,10,20,30,60].filter(v=>v<=max);
-    if(!choices.length)choices=[Math.floor(max*1000)/1000];
-    spanSelect.replaceChildren(...choices.map(v=>{const opt=doc.createElement('option');opt.value=v;opt.textContent=`${fmt(v)} s`;return opt;}));
-    const chosen=choices.reduce((a,b)=>Math.abs(a-desired)<=Math.abs(b-desired)?a:b);
-    spanSelect.value=chosen;return chosen;
+    return {min:Math.min(1,max),max};
+  }
+  function sizes(desired=state?.span||10) {
+    const bounds=spanBounds();return clamp(desired,bounds.min,bounds.max);
   }
   async function readJSON(url,signal) {
     const response=await fetch(url,{signal,cache:'no-store'});
@@ -119,7 +125,7 @@
     return response.json();
   }
   function invalidate() {
-    ++sequence;pending=false;
+    ++sequence;pending=false;clearTimeout(loadTimer);
   }
   async function load() {
     invalidate();const token=sequence;
@@ -136,7 +142,7 @@
       if(token!==sequence)return;
       if(!data.frozen_source_verified||!data.channels?.length)throw new Error('unverified');
       if(cache.size>=12)cache.delete(cache.keys().next().value);cache.set(key,data);
-      wave=data;state={start:data.start_seconds,span:data.duration_seconds};
+      wave=data;
       image.hidden=true;svg.removeAttribute('hidden');panel.dataset.waveReady='true';
       render();sync();activity('ready');
       const checked=info.checked_range;
@@ -188,7 +194,7 @@
     const c=next.channels.find(c=>c.channel_id===id);
     if(stream?.stream_id!==next.stream_id)comparisons=[];
     stream=next;segment=seg;candidate={id,source:c.source_index,start,stop};
-    sliding=false;
+    sliding=false;nav=null;
     comparisons=comparisons.filter(i=>i!==c.source_index&&stream.channels.some(c=>c.source_index===i));
     selected=[c.source_index,...comparisons].slice(0,info.limits.max_channels);
     const span=sizes(Math.max(10,stop-start+4));
@@ -201,21 +207,31 @@
     channelMenu();load();return true;
   }
   root.qcWaveformViewer={select};
-  const speed=()=>Number($('wave-speed').value);
-  function move(direction,fine=false) {
-    state=viewport(state.start+direction*state.span*.5*(fine?.25:speed()),state.span,segment);load();
+  function move(direction) {
+    state=viewport(state.start+direction*state.span*.5,state.span,segment);load();
+  }
+  function rescale(factor,anchor=.5) {
+    if(!state||drag)return;
+    const next=zoom(state,sizes(state.span*factor),segment,anchor);
+    if(next.start===state.start&&next.span===state.span)return;
+    invalidate();state=next;nav=null;
+    activity('moving');sync();render();
+    loadTimer=setTimeout(load,120);
   }
   $('wave-prev').addEventListener('click',()=>move(-1));$('wave-next').addEventListener('click',()=>move(1));
   $('wave-reset').addEventListener('click',()=>{
-    state=viewport((candidate.start+candidate.stop)/2-state.span/2,state.span,segment);load();
+    state=viewport((candidate.start+candidate.stop)/2-state.span/2,state.span,segment);nav=null;load();
   });
-  spanSelect.addEventListener('change',()=>{state=zoom(state,Number(spanSelect.value),segment);load();});
-  navMode?.addEventListener('change',()=>{sliding=false;sync();});
-  $('wave-speed').addEventListener('change',()=>{sliding=false;sync();});
+  $('wave-zoom-in').addEventListener('click',()=>rescale(.5));
+  $('wave-zoom-out').addEventListener('click',()=>rescale(2));
   position.addEventListener('input',()=>{
     sliding=true;invalidate();state=viewport(clamp(Number(position.value),nav.min,nav.max),state.span,segment);activity('moving');sync();render();
   });
-  position.addEventListener('change',()=>{sliding=false;load();});
+  position.addEventListener('change',()=>{
+    sliding=false;
+    if(state.start<=nav.min+nav.step||state.start>=nav.max-nav.step)nav=null;
+    load();
+  });
   $('wave-channels-toggle').addEventListener('click',()=>{
     const menu=$('wave-channel-menu');menu.hidden=!menu.hidden;
     $('wave-channels-toggle').setAttribute('aria-expanded',String(!menu.hidden));
@@ -231,12 +247,22 @@
     $('wave-channel-menu').hidden=true;$('wave-channels-toggle').setAttribute('aria-expanded','false');
   }});
   svg.addEventListener('keydown',e=>{
-    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowLeft'?-1:1,e.shiftKey);}
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(e.key==='ArrowLeft'?-1:1);}
+    if(['+','=','-'].includes(e.key)){e.preventDefault();rescale(e.key==='-'?2:.5);}
   });
-  svg.setAttribute('title',t('左右拖动查看前后；按住 Shift 精细移动','Drag to pan; hold Shift for fine movement'));
+  svg.setAttribute('title',t('左右拖动查看前后；滚轮放大或缩小时间范围','Drag to pan; scroll to zoom the time range'));
+  svg.addEventListener('wheel',e=>{
+    if(!state||drag||e.ctrlKey||e.metaKey)return;
+    e.preventDefault();
+    const rect=svg.getBoundingClientRect(),width=Math.max(320,stage.clientWidth||800);
+    const anchor=((e.clientX-rect.left)/rect.width*width-74)/(width-84);
+    const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?rect.height:1);
+    rescale(Math.exp(clamp(delta,-160,160)*.003),anchor);
+  },{passive:false});
   svg.addEventListener('pointerdown',e=>{
     if(e.button!==0||!state)return;
-    invalidate();drag={x:e.clientX,state:{...state},speed:e.shiftKey?.25:speed()};
+    invalidate();drag={x:e.clientX,state:{...state}};
+    svg.focus({preventScroll:true});
     svg.setPointerCapture(e.pointerId);svg.classList.add('is-dragging');
   });
   svg.addEventListener('pointermove',e=>{
@@ -252,7 +278,7 @@
       }
       return;
     }
-    state=pan(drag.state,e.clientX-drag.x,Math.max(1,stage.clientWidth-84),drag.speed,segment);
+    state=pan(drag.state,e.clientX-drag.x,Math.max(1,stage.clientWidth-84),segment);
     activity('moving');sync();render();
   });
   function endDrag(e) {
@@ -261,7 +287,7 @@
   }
   svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
   svg.addEventListener('pointerleave',()=>{$('wave-cursor')?.setAttribute('visibility','hidden');});
-  if(root.ResizeObserver)new ResizeObserver(render).observe(stage);
+  if(root.ResizeObserver)new ResizeObserver(()=>{if(state)sync();render();}).observe(stage);
   readJSON(`${base}/waveform-context`).then(data=>{
     info=data;select(links.find(l=>l.getAttribute('aria-current')==='true')||links[0]);
     const caption=panel.querySelector('.finding-caption');

@@ -88,6 +88,10 @@ class NavigationTests(unittest.TestCase):
         self.assertIn('data-start="1" data-stop="3"',report)
         self.assertIn('src="/waveform-explorer.js"',report)
         self.assertIn('id="wave-controls" hidden',report)
+        self.assertIn('id="wave-zoom-in"',report)
+        self.assertIn('id="wave-zoom-out"',report)
+        self.assertNotIn('id="wave-speed"',report)
+        self.assertNotIn('id="wave-nav-mode"',report)
         self.assertEqual(self.view,before)
 
 

@@ -25,6 +25,19 @@
 附近	Nearby
 全程	Full range
 拉条范围	Slider range
+时间缩放	Time zoom
+缩小，查看更多时间	Zoom out to see more time
+放大，查看细节	Zoom in for detail
+拖动查看 · 滚轮缩放	Drag to pan · Scroll to zoom
+拖动查看前后时间	Drag to browse earlier or later
+向前查看	View earlier
+向后查看	View later
+向前查看（左方向键）	View earlier (left arrow)
+向后查看（右方向键）	View later (right arrow)
+回到候选	Back to candidate
+对照通道	Compare channels
+选择对照通道 · 最多 6 道	Select comparison channels · up to 6
+搜索通道	Search channels
 可选计分项	Optional scoring checks
 证据不足，暂不能评分	Insufficient evidence to score
 疑似异常通道占比	Candidate channel fraction
