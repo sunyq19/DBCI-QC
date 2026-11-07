@@ -8,7 +8,16 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `公开数据的实际检查报告。	Actual reports from public datasets.
+  const pairs = `读取文件后可设置计分项目。	Set scoring components after reading a file.
+分项 = 100 ×（1 − 候选占比）；总分按权重平均。	Component = 100 × (1 − candidate fraction); the total is a weighted mean.
+正权重会选中对应方法。不同方法可能命中同一问题，请按项目需要选择。	A positive weight selects its method. Methods may detect the same issue; choose according to project needs.
+0 表示不纳入；正权重项目缺失，不生成总分。全部为 0 时仅展示分项。	Zero excludes a component. Missing positive-weight results withhold the total. All-zero weights show components only.
+计分依据	Scoring basis
+分数 / 100	Score / 100
+权重	Weight
+尚未发布示例报告。	No example reports have been published.
+项目自定义 v1.1	Project-defined v1.1
+公开数据的实际检查报告。	Actual reports from public datasets.
 正在读取示例目录…	Loading example directory…
 评分与权重	Scoring and weights
 评分输出	Score output

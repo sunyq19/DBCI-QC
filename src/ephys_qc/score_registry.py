@@ -1,0 +1,52 @@
+"""Declarative score-output contracts; independent of algorithms and the UI."""
+from copy import deepcopy
+
+CONTRACT = 'method-score/1'
+SCALP = ['scalp_eeg']
+# id, method, module, label, native denominator, output reducer, modality scope
+_ROWS = [
+ ('integrity','continuity','M03','信号完整性','channel_samples','core',SCALP),
+ ('line_noise','thomson_line','M04','工频干扰','channel_windows','core',SCALP),
+ ('hf_burst','hf_burst','M06','高频突发','channel_seconds','core',SCALP),
+ ('prep_nonspatial','prep_nonspatial','M05','PREP 非空间通道候选','channels','prep',SCALP),
+ ('mne_amplitude_channels','mne_amplitude','M03','MNE 幅度通道候选','channels','channels',SCALP),
+ ('mne_amplitude_time','mne_amplitude','M03','MNE 幅度区间候选','seconds','intervals',SCALP),
+ ('mne_muscle','mne_muscle','M06','MNE 高频伪迹候选','samples','finite_samples',SCALP),
+ ('mne_bridge','mne_bridge','M05','MNE 桥接涉及通道','channels','pairs',SCALP),
+ ('mne_lof','mne_lof','M05','MNE LOF 通道候选','channels','channels',SCALP),
+ ('autoreject_global','autoreject_global','M03','AutoReject 超阈值片段','epochs','epochs',SCALP),
+ ('gnosis_line_length','gnosis_line_length','M05','灵犀云 · 线长通道候选','channels','channels',SCALP),
+ ('gnosis_artifact','gnosis_artifact','M06','灵犀云 · 伪差区间','channel_seconds','ratios',SCALP),
+ ('gnosis_low_band','gnosis_low_band','M06','灵犀云 · 低频异常','channel_seconds','ratios',SCALP),
+ ('gnosis_high_band','gnosis_high_band','M06','灵犀云 · 高频异常','channel_seconds','ratios',SCALP),
+ ('gnosis_psd_deviation','gnosis_psd_deviation','M05','灵犀云 · PSD 异常通道','channels','channels',SCALP),
+ ('faster_channels','faster_channels','M05','FASTER 通道候选','channels','channels',SCALP),
+ ('fieldtrip_zvalue','fieldtrip_zvalue','M06','FieldTrip 跳变区间','seconds','intervals',['scalp_eeg','ecog','seeg']),
+ ('spikeinterface_bad_channels','spikeinterface_bad_channels','M05','SpikeInterface 噪声通道','channels','channels',['extracellular']),
+]
+SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,reducer=reducer,
+                 modalities=list(modalities),default_weight=1 if reducer=='core' else 0,
+                 contract_version=CONTRACT,formula='100 * (1 - candidate_amount / assessed_amount)',
+                 interpretation='指定方法未命中的比例；候选不是已确认坏道或伪迹。')
+         for key,method,module,name,unit,reducer,modalities in _ROWS}
+
+
+def outputs(modality=None, method_id=None):
+    return [deepcopy(s) for s in SPECS.values() if
+            (modality is None or modality in s['modalities']) and
+            (method_id is None or s['method_id']==method_id)]
+
+
+def describe(method, modality):
+    out=outputs(modality,method['id']) if method.get('implementation')=='available' else []
+    reason=('按候选量与有效检查量输出项目分数；默认只启用 EEG 三项。' if out else
+            '未实现，不能计分。' if method.get('implementation')!='available' else
+            '处理变化量不等于输入质量。' if method['id'] in {'asr_bursts','cleanline','zapline_plus'} else
+            '参考范围的人群适用性未确认，不将范围外直接判为质量差。' if method['id']=='gnosis_reference_ranges' else
+            '没有独立质量判定及有效分母，保留测量或流程输出。')
+    return {**method,'can_output_score':bool(out),'scoring':dict(can_output_score=bool(out),
+            outputs=out,contract_version=CONTRACT,reason=reason)}
+
+
+def enabled(spec, selected, extensions):
+    return spec['module_id'] in selected and (spec['reducer'] in {'core','prep'} or spec['method_id'] in extensions)

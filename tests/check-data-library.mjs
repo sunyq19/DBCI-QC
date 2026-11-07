@@ -51,3 +51,17 @@ const missing=window.QCDataLibrary.refresh();requests.at(-1)({ok:true,json:async
 console.log('Data library: escaping, local links, search, pagination, language and stale responses passed. No jobs submitted.');
 
 assert.match(element('data-library-list').innerHTML, /No uploads yet|尚未上传数据/);
+// Cached examples render synchronously, even if personal data never respond.
+const cachedNodes=new Map(),cachedEvents={};let resolvePrivate;
+const cachedElement=id=>{if(!cachedNodes.has(id))cachedNodes.set(id,{value:'',events:{},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return cachedNodes.get(id)};
+const frozen={schema_version:'example-cache/1',examples:[{kind:'dataset',label:'缓存 EEG',label_en:'Cached EEG',subjects:2,records:2,reported:2,available:true,url:'/examples/0123456789abcdef/datasets/eeg.zh-CN.html',url_en:'/examples/0123456789abcdef/datasets/eeg.en.html'}]};
+cachedElement('example-cache').textContent=JSON.stringify(frozen);
+let cacheLanguage='zh-CN';
+vm.runInNewContext(source,{URL,window:{QCI18n:{getLanguage:()=>cacheLanguage},addEventListener(k,v){cachedEvents[k]=v}},document:{getElementById:cachedElement},fetch:()=>new Promise(resolve=>resolvePrivate=resolve)});
+assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
+assert.match(cachedElement('demo-report-list').innerHTML,/href="\/examples\/0123456789abcdef\/datasets\/eeg.zh-CN.html/);
+resolvePrivate({ok:true,json:async()=>({items:[],examples:[]})});await flush();
+assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
+cacheLanguage='en';cachedEvents['qc:languagechange']();
+assert.match(cachedElement('demo-report-list').innerHTML,/eeg.en.html/);
+console.log('Published cache renders before fetch and survives empty personal responses.');

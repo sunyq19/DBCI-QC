@@ -28,7 +28,7 @@ class ScorePublicationTests(unittest.TestCase):
             result=store.result(fixture.jid,compact=True)
         self.assertEqual(result['report_view']['score'],view['score'])
         html=served_report(store,fixture.jid)
-        self.assertIn('项目自定义 v1.0',html);self.assertIn('运行时原始报告',html)
+        self.assertIn('项目自定义 v1.1',html);self.assertIn('运行时原始报告',html)
         self.assertNotIn('按 v0.2',html);self.assertNotIn('使用均方根',html)
         (fixture.artifacts/'M04_spectral.json').write_text('{}')
         self.assertIsNone(load(store,fixture.jid))

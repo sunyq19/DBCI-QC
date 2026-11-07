@@ -17,9 +17,18 @@ def score_rows(view):
         f'{view["line"]["hits"]} / {view["line"]["total"]} 个通道窗命中',
         f'{view["score"]["hf_candidate_channel_seconds"]:g} / {view["score"]["hf_valid_channel_seconds"]:g} 通道秒为候选',
     ]
-    return [dict(name=c['name'], value=c['value'], deduction=None if c['value'] is None else 100-c['value'],
-                 reason=((f'候选占比 {100*c["candidate_fraction"]:.2f}%；权重 {c["weight"]:g}；' if "candidate_fraction" in c else f'通道异常占比 RMS {100*c["rms_burden"]:.2f}%；')+d) if c['value'] is not None else '有效测量不足，未计分')
-            for c,d in zip(view['score']['components'], descriptions)]
+    rows=[]
+    units={'channels':'通道','channel_seconds':'通道秒','channel_samples':'通道样本','channel_windows':'通道窗',
+           'channel_block_seconds':'通道块秒','samples':'有效样本','epochs':'片段','seconds':'秒'}
+    amount=lambda v:'—' if v is None else f'{v:g}'
+    for c in view['score']['components']:
+        key=c['id'];core=['integrity','line_noise','hf_burst']
+        d=descriptions[core.index(key)] if key in core else f"{amount(c.get('candidate_amount'))} / {amount(c.get('assessed_amount'))} {units.get(c.get('unit'),c.get('unit',''))} 为候选"
+        if c['value'] is None:reason=c.get('reason') or '有效测量不足，未计分'
+        elif 'candidate_fraction' in c:reason=f"候选占比 {100*c['candidate_fraction']:.2f}%；权重 {c['weight']:g}；"+d
+        else:reason=f"通道异常占比 RMS {100*c.get('rms_burden',0):.2f}%；"+d
+        rows.append(dict(name=c['name'],value=c['value'],deduction=None if c['value'] is None else 100-c['value'],reason=reason))
+    return rows
 
 
 def evidence_figure(view, workspace):
@@ -69,7 +78,7 @@ def evidence_figure(view, workspace):
 
 
 def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
-    """Two-page, selectable-text PDF. Same score/view as HTML; no recalculation."""
+    """Two summary pages plus optional score appendix; no score recalculation."""
     from reportlab.pdfgen import canvas
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
@@ -93,7 +102,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
                 font='STSong-Light'
                 if font not in pdfmetrics.getRegisteredFontNames():
                     pdfmetrics.registerFont(UnicodeCIDFont(font))
-        out=BytesIO(); c=canvas.Canvas(out,pagesize=(595.28,841.89))
+        out=BytesIO(); c=canvas.Canvas(out,pagesize=(595.28,841.89),invariant=1)
         c.setTitle(f'DBCI-QC - {view["label"]}'); c.setAuthor('DBCI-QC')
         ink=colors.HexColor('#19314c'); blue=colors.HexColor('#245ad3');muted=colors.HexColor('#687b92')
         style=ParagraphStyle('body',fontName=font,fontSize=10,leading=16,textColor=ink,wordWrap='CJK')
@@ -107,7 +116,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
             text('DBCI-QC   质控报告',44,780,19);text(title,44,751,11,muted)
             c.setStrokeColor(colors.HexColor('#dfe7f2'));c.line(44,731,551,731)
             text(f'{EXPORT_VERSION}   /   {view["score"]["version"]}',44,35,8,muted)
-            text(f'{page} / 2',520,35,9,muted)
+            text(str(page),530,35,9,muted)
         def table(rows,y,widths):
             values=[[Paragraph(escape(str(v)),style) for v in row] for row in rows]
             t=Table(values,colWidths=widths,repeatRows=1)
@@ -123,7 +132,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         y=paragraph(f'{view["format"]}   /   头皮 EEG   /   {rec.get("channel_count")} 道   /   {rec.get("sampling_rate_hz"):g} Hz',44,y-12,color=muted)
         y=paragraph(f'本次检查 {start:g}-{stop:g} 秒；原记录 {view["input_duration_seconds"]:g} 秒。',44,y-6,color=muted)
         text(point(view['score']['value']),44,y-75,51,blue);text('/ 100',217,y-72,16,muted)
-        text(view['score']['name'],326,y-32,14);text('项目自定义 v1.0' if view['score']['version']=='project-weighted/1.0' else '项目试行 v0.2',326,y-57,11,blue)
+        text(view['score']['name'],326,y-32,14);text('项目自定义 v'+view['score']['version'].split('/')[-1] if view['score']['version'].startswith('project-weighted/') else '项目试行 v0.2',326,y-57,11,blue)
         y=y-108
         y=paragraph(view['headline']+'。'+view['summary'],44,y,size=12)
         if view['priority']: y=paragraph(view['priority'],44,y-7,color=muted)
@@ -131,7 +140,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         if low and low['lowest_component']['value']<100:
             y=paragraph(f'局部关注：{low["name"]} / {low["lowest_component"]["name"]} {low["lowest_component"]["value"]:.2f} 分。',44,y-6,size=10,color=blue)
         rows=[['检查项','得分 / 100','扣分','测量与扣分原因']]
-        rows += [[r['name'],point(r['value']),point(r['deduction']),r['reason']] for r in score_rows(view)]
+        rows += [[r['name'],point(r['value']),point(r['deduction']),r['reason']] for r in score_rows(view)[:3]]
         y=table(rows,y-20,[96,86,60,265])
         y=paragraph(view['score'].get('formula','分项 = 100 × (1 - 通道异常占比的均方根)；总分取最低分项。缺项不出总分。'),44,y-16,size=9,color=muted)
         if view.get('coverage'):
@@ -143,7 +152,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         extra=[r for r in view['checks'] if r['name'] in {'通道一致性','心电锁时','眼电锁时','文件标注','补充检查'}]
         for r in extra:
             y=paragraph(f'{r["name"]}：{r["state"]}。{r["value"]}',44,y-5,size=9,color=muted)
-        y=paragraph('说明：本版为项目试行评分，未设合格线。补充检查未纳入三项总分。',44,y-13,size=9,color=muted)
+        y=paragraph('说明：项目试行评分，未设合格线。扩展计分项见附页，按所存权重纳入总分。',44,y-13,size=9,color=muted)
         if y<57: raise ValueError('PDF summary exceeds the fixed page layout')
         c.showPage();header('02  问题定位与复核',2)
         rows=[['类型 / 通道','原始时间','复核依据']]
@@ -167,4 +176,12 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         y=paragraph(f'任务 {job_id or "未登记"}；规则 {view["score"]["version"]}。',44,y-8,size=8,color=muted)
         y=paragraph(f'计划 {view.get("plan_id") or "未登记"}；检测证据与参数保存在本次任务中。',44,y-4,size=8,color=muted)
         if y<57: raise ValueError('PDF content exceeds the fixed page layout')
+        extras=score_rows(view)[3:]
+        for offset in range(0,len(extras),6):
+            c.showPage();header('扩展方法评分与权重',3+offset//6)
+            rows=[['检查项','得分 / 100','扣分','测量与扣分原因']]
+            rows += [[r['name'],point(r['value']),point(r['deduction']),r['reason']] for r in extras[offset:offset+6]]
+            y=table(rows,709,[112,80,50,265])
+            y=paragraph('权重为 0 的项目只展示分项。各方法的有效分母不同；缺项不补满分，不自动改变权重。',44,y-16,size=9,color=muted)
+            if y<57:raise ValueError('PDF scoring appendix exceeds page layout')
         c.save();return out.getvalue()

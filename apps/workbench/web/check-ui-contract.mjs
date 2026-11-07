@@ -815,7 +815,7 @@ check("new records default to full background scope while explicit window drafts
 });
 check("project weights are explicit, editable and invalidate an existing plan",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
-  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.0');
+  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.1');
   const field={dataset:{scoreWeight:'line_noise'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
   t.state.plan={plan_id:'old'};field.change();
@@ -827,12 +827,26 @@ check("project weights are explicit, editable and invalidate an existing plan",a
 check("non EEG cannot inherit scalp scoring and module capability is visible",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
   t.state.draftConfig.scoring={version:'project-weighted/1.0',weights:{integrity:1,line_noise:1,hf_burst:1}};
-  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('暂不计分'));
+  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('正权重项目缺失'));
   t.state.catalog.modules[2].scoring={can_output_score:false,role:'evidence'};t.showModule('M03');assert(t.get('module-dialog-content').innerHTML.includes('不计分，输出测量与复核线索'));
 });
 check("examples and uploads share native disclosure hierarchy",()=>{
   assert(/<details id="demo-reports"[^>]*supporting-panel/.test(html));
   assert(/<summary><span id="demo-reports-title">/.test(html));
+});
+check("optional score weights select methods, and zero disables a total",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
+  const m=t.state.catalog.modules.find(m=>m.id==='M06');m.methods=m.methods||[];
+  m.methods.push({id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',optional_extension:true,implementation:'available',scoring:{outputs:[{id:'gnosis_artifact',method_id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',default_weight:0,reducer:'ratios'}]}});
+  const field={dataset:{scoreWeight:'gnosis_artifact'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  t.get('scoring-controls').querySelectorAll=()=>[field];t.renderScoringControls();t.state.plan={plan_id:'old'};field.change();
+  assert(t.state.extensions.has('gnosis_artifact'));assert(t.state.selected.has('M06'));assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  t.state.draftConfig.scoring.weights={gnosis_artifact:2};t.renderScoringControls();field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,0);assert(!field.error);
+});
+check("current report schema displays the weighted score and optional method table",()=>{
+  const t=harness();t.state.result={modules:[],report_view:{schema_version:'eeg-report-view/5',score:{version:'project-weighted/1.1',value:78.75,formula:'weighted',components:[{name:'信号完整性',value:100,weight:1},{name:'工频干扰',value:60,weight:2},{name:'高频突发',value:95,weight:1},{name:'灵犀云伪差',value:82,weight:0,reason:'test'}]},recording:{channel_count:2,sampling_rate_hz:100,start_seconds:0,duration_seconds:10},finite:{nonfinite:0,constant:0},line:{hits:1,total:3,affected_channels:1},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
+  t.renderResult();const text=t.get('result-content').innerHTML;
+  assert(text.includes('78.75'));assert(text.includes('项目自定义 v1.1'));assert(text.includes('灵犀云伪差'));assert(!text.includes('总分尚未校准'));
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

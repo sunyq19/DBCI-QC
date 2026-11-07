@@ -4,42 +4,46 @@ import hashlib
 import json
 import math
 
-VERSION = 'project-weighted/1.0'
+VERSION = 'project-weighted/1.1'
+LEGACY_VERSION = 'project-weighted/1.0'
 SPECS = {'integrity': ('M03', '信号完整性'), 'line_noise': ('M04', '工频干扰'),
          'hf_burst': ('M06', '高频突发')}
 FORMULA = '分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。'
 
 
 def capability(module_id, modality):
-    components = [key for key, (mid, _) in SPECS.items() if mid == module_id] if modality == 'scalp_eeg' else []
-    aggregate = module_id == 'M08' and modality == 'scalp_eeg'
+    from .score_registry import outputs
+    components = [s['id'] for s in outputs(modality) if s['module_id'] == module_id]
+    aggregate = module_id == 'M08' and bool(outputs(modality))
     return dict(can_output_score=bool(components or aggregate), component_ids=components,
                 role='aggregate' if aggregate else 'component' if components else 'evidence',
                 version=VERSION if components or aggregate else None,
-                reason=('仅汇总，不重复参与加权' if aggregate else '按候选占比计分' if components else
-                        '输出测量与复核线索；本版未定义分数'))
+                reason='仅汇总，不重复参与加权' if aggregate else '按方法输出候选占比' if components else '保留测量与流程输出')
 
 
-def normalize(config, modality, selected):
-    """Resolve defaults once into the frozen plan. Never silently drop a weight."""
-    if modality != 'scalp_eeg':
-        if config not in (None, {}):
-            raise ValueError('当前模态尚未定义可计分项目；保留测量与复核结果。')
-        return None
+def normalize(config, modality, selected, extensions=()):
+    """Freeze explicit weights. Unavailable evidence never silently loses weight."""
+    from .score_registry import SPECS as registry, outputs, enabled
     if config is None:
-        config = {'version': VERSION, 'weights': {k: 1 if m in selected else 0 for k,(m,_) in SPECS.items()}}
-        if not any(config['weights'].values()): return None
-    if not isinstance(config, dict) or set(config) != {'version', 'weights'} or config['version'] != VERSION:
-        raise ValueError('评分配置须包含 project-weighted/1.0 版本及完整 weights。')
+        weights = {s['id']: s['default_weight'] for s in outputs(modality)
+                   if s['default_weight'] and s['module_id'] in selected}
+        return {'version': VERSION, 'weights': weights} if weights else None
+    if not isinstance(config, dict) or set(config) != {'version', 'weights'} or config['version'] not in (VERSION, LEGACY_VERSION):
+        raise ValueError('评分配置须包含有效的 project-weighted 版本及 weights。')
     weights = config['weights']
-    if not isinstance(weights, dict) or set(weights) != set(SPECS):
-        raise ValueError('评分权重须明确列出完整性、工频和高频突发三项。')
+    legacy = config['version'] == LEGACY_VERSION
+    if not isinstance(weights, dict) or (legacy and (modality != 'scalp_eeg' or set(weights) != set(SPECS))):
+        raise ValueError('旧版评分仅支持头皮 EEG 完整性、工频、高频三项。')
+    eligible = {s['id'] for s in outputs(modality)}
+    if set(weights) - eligible:
+        raise ValueError('当前模态不支持这些计分项目：' + ', '.join(sorted(set(weights)-eligible)))
     for key, value in weights.items():
         if isinstance(value, bool) or not isinstance(value, (int,float)) or not math.isfinite(value) or not 0 <= value <= 100:
             raise ValueError('评分权重须为 0–100 的有限数值；0 表示不纳入。')
-        if value and SPECS[key][0] not in selected:
-            raise ValueError(f'{SPECS[key][1]}模块未选择；请启用模块或将其权重设为 0。')
-    if not any(weights.values()): raise ValueError('至少一个评分权重须大于 0。')
+        if value and not enabled(registry[key], selected, extensions):
+            raise ValueError(registry[key]['name']+'方法未选择；请启用方法及模块或将权重设为 0。')
+    if legacy and not any(weights.values()):
+        raise ValueError('至少一个评分权重须大于 0。')
     return copy.deepcopy(config)
 
 
@@ -47,6 +51,9 @@ def weighted_score(evidence, expected_channels, config, *, expected_windows=1, c
     from .scoring import burden_score
     # Reuse strict evidence/identity/coverage checks; do not reuse the RMS score.
     normalize(config, 'scalp_eeg', ['M03','M04','M06'])
+    if config['version'] == VERSION:
+        from .method_scores import core_outputs, aggregate
+        return aggregate(core_outputs(evidence, expected_channels, expected_windows=expected_windows, coverage_complete=coverage_complete), config, coverage_complete=coverage_complete)
     score = burden_score(evidence, expected_channels, expected_windows=expected_windows, coverage_complete=coverage_complete)
     weights = config['weights']
     parts = score['components']
@@ -62,9 +69,9 @@ def weighted_score(evidence, expected_channels, config, *, expected_windows=1, c
     value = (sum(p['value']*p['weight'] for p in parts if p['weight']>0)/weight_sum
              if coverage_complete and not missing else None)
     digest = hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16]
-    score.update(version=VERSION,name='项目自定义评分',value=value,weights=copy.deepcopy(weights),
+    score.update(version=LEGACY_VERSION,name='项目自定义评分',value=value,weights=copy.deepcopy(weights),
                  formula=FORMULA,aggregation='pooled_fraction_then_weighted_mean',
-                 aggregation_version=VERSION,configuration_id=digest,
+                 aggregation_version=LEGACY_VERSION,configuration_id=digest,
                  missing_components=missing,limiting_components=[],
                  missing_reason=('检查范围未完整覆盖' if not coverage_complete else '缺少有效计分证据：'+ '、'.join(SPECS[k][1] for k in missing) if missing else ''),
                  scope='selected_checks_only')

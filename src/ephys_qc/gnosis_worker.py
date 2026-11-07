@@ -54,7 +54,7 @@ def compute(request, data):
         with prepared.info._unlock():
             prepared.info['highpass']=1.;prepared.info['lowpass']=70.
     fs2=float(prepared.info['sfreq']);duration=prepared.n_times/fs2; source_duration=data.shape[1]/fs
-    out=dict(status='completed',reason='灵犀云原版可选方法计算完成，结果不计入基础总分。',calculated=True,
+    out=dict(status='completed',reason='灵犀云原版可选方法计算完成；默认不纳入总分，可计分项按项目权重选择。',calculated=True,
         candidates=[],candidate_channel_count=0,candidate_interval_count=0,notes=[],metrics={},
         preprocessing=dict(prepared_copy=p['prepare_copy'],sampling_rate_hz=fs2,highpass_hz=1.,lowpass_hz=70.,
             common_average=p['prepare_copy'],ica=False,excluded_channels=[],source_unchanged=True),
@@ -77,6 +77,7 @@ def compute(request, data):
                 out['candidates'].append(dict(kind=kind,localization='channel_interval',scope='channel',channel_index=names.index(name),channel_name=name,
                     start_seconds=start+a,stop_seconds=start+b,duration_seconds=b-a,action='review'))
         out['metrics']['ratio_by_channel']=ratios
+        out['metrics']['assessed_duration_seconds']=min(duration,source_duration)
     def artifact():
         intervals,by_channel=call(utils.get_Artifact,prepared.copy(),on_ch=names,win_len=1,min_duration=.5)
         return merge_intervals(intervals,min(duration,source_duration)),by_channel

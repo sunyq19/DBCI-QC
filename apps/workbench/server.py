@@ -543,12 +543,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Cache-Control', (headers or {}).get('Cache-Control', 'no-store'))
         self.send_header('X-Content-Type-Options', 'nosniff')
         frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations", urlsplit(self.path).path) else "none"
         self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors '{frame_policy}'; base-uri 'none'")
         for name, value in (headers or {}).items():
-            self.send_header(name, value)
+            if name.lower() != 'cache-control': self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 
@@ -800,11 +800,18 @@ class Handler(BaseHTTPRequestHandler):
                 if target.suffix in {'.html', '.json', '.txt', '.csv', '.tsv'}:
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
+        if path.startswith('/examples/'):
+            from example_cache import asset
+            target = asset(self.store, path)
+            return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
         static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
                   '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]
+            if path == '/':
+                from example_cache import homepage
+                return self.send_bytes(homepage(self.store, target.read_text()).encode('utf-8'), 'text/html; charset=utf-8')
             return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
         raise KeyError(path)
 

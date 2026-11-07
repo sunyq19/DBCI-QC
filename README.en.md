@@ -6,7 +6,7 @@
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev16**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
+Development version: **1.0.0rc3.dev17**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
 
 ## Quick start
 
@@ -113,3 +113,5 @@ Confirmed dataset recordings can be queued as a reviewed sequential batch, cance
 New uploads are retained for **7 days**; reports and saved evidence remain available. Linked originals and legacy development data are excluded from automatic expiry. See [storage and configuration](docs/en/installation.md).
 
 Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Other modules retain measurements. See the [scoring specification](docs/en/eeg-scoring.md).
+
+Published example reports for four modalities are included in `apps/workbench/example-cache`. The homepage renders them without reading raw data or waiting for the personal library. Scalp EEG defaults to three equally weighted components; eligible optional methods support explicit weights under Advanced settings. See [scoring rules](docs/en/eeg-scoring.md).

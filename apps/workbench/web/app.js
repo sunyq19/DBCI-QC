@@ -167,10 +167,9 @@
     config.context_tags = {...state.contextTags};
     config.method_config = {...(config.method_config || {}),extensions:[...state.extensions].sort()};
     config.scope = state.scope;
-    if(inputModality(state.input)==="scalp_eeg") {
-      if(config.scoring && !Object.values(config.scoring.weights).some(x=>x>0) && !Object.values(SCORE_KEYS).some(([mid])=>state.selected.has(mid))) delete config.scoring;
-      if(!config.scoring && Object.values(SCORE_KEYS).some(([mid])=>state.selected.has(mid))) config.scoring={version:'project-weighted/1.0',weights:Object.fromEntries(Object.entries(SCORE_KEYS).map(([key,[mid]])=>[key,state.selected.has(mid)?1:0]))};
-    } else delete config.scoring;
+    if(inputModality(state.input)!=="scalp_eeg" && Object.keys(config.scoring?.weights||{}).some(k=>Object.hasOwn(SCORE_KEYS,k))) delete config.scoring;
+    if(!config.scoring && inputModality(state.input)==="scalp_eeg" && Object.values(SCORE_KEYS).some(([mid])=>state.selected.has(mid)))
+      config.scoring={version:'project-weighted/1.1',weights:Object.fromEntries(Object.entries(SCORE_KEYS).map(([key,[mid]])=>[key,state.selected.has(mid)?1:0]))};
     return config;
   }
 
@@ -493,7 +492,7 @@
     const method = extensionMethods().find(item => item.id === id);
     if (!method || !state.input || state.submitting || !selectableModule(method.module_id) || unsupportedInput()) return;
     if (checked) { state.extensions.add(id); state.selected.add(method.module_id); }
-    else state.extensions.delete(id);
+    else { state.extensions.delete(id); if(state.draftConfig?.scoring) for(const spec of scoringOutputs()) if(spec.method_id===id) state.draftConfig.scoring.weights[spec.id]=0; }
     $("extension-selection-note").hidden = false;
     $("extension-selection-note").textContent = checked ? `已选择 ${method.name}，同时选中 ${method.module_id}。依赖和条件将在规划时核对。` : `已关闭 ${method.name}；所属模块的其他方法仍按模块选择执行。`;
     renderModuleOptions(); invalidatePlan();
@@ -509,7 +508,7 @@
       if (removed.length) { $("extension-selection-note").hidden = false; $("extension-selection-note").textContent = `取消 ${id} 时，已同时关闭其可选扩展：${removed.map(method => method.name).join("、")}。`; }
     }
     const score=state.draftConfig?.scoring;
-    if(score && !checked) for(const [key,[mid]] of Object.entries(SCORE_KEYS)) if(mid===id) score.weights[key]=0;
+    if(score && !checked) for(const spec of scoringOutputs()) if(spec.module_id===id) score.weights[spec.id]=0;
     renderScoringControls();invalidatePlan();
   }
 
@@ -1000,21 +999,30 @@
   }
 
   const SCORE_KEYS = {integrity:["M03","信号完整性"],line_noise:["M04","工频干扰"],hf_burst:["M06","高频突发"]};
+  function scoringOutputs() {
+    const outputs=arr(state.catalog?.modules).flatMap(m=>arr(m.methods).flatMap(method=>arr(method.scoring?.outputs)));
+    if(!outputs.length && inputModality(state.input)==="scalp_eeg") return Object.entries(SCORE_KEYS).map(([id,[module_id,name]])=>({id,module_id,name,default_weight:1,method_id:id,reducer:'core'}));
+    return [...new Map(outputs.map(s=>[s.id,s])).values()];
+  }
   function renderScoringControls() {
     const box=$("scoring-controls");
-    if(!state.input || inputModality(state.input)!=="scalp_eeg") {
-      box.innerHTML='<p class="small muted">当前模态输出测量与复核线索，本版暂不计分。</p>';return;
-    }
-    const config=currentConfig(), weights=config.scoring?.weights || Object.fromEntries(Object.entries(SCORE_KEYS).map(([key,[mid]])=>[key,state.selected.has(mid)?1:0]));
+    const optionalOpen=box.querySelector?.('.scoring-optional')?.open;
+    if(!state.input){box.innerHTML='<p class="small muted">读取文件后可设置计分项目。</p>';return;}
+    const specs=scoringOutputs(),config=currentConfig(),weights=config.scoring?.weights || {};
     const total=Object.values(weights).reduce((a,b)=>a+b,0), historical=state.mode==="job";
-    box.innerHTML='<p class="small muted">分项按候选占比计分，总分按权重平均。0 表示不纳入。</p><div class="scoring-weight-fields">'+Object.entries(SCORE_KEYS).map(([key,[mid,name]])=>`<label>${name}<span><input type="number" data-score-weight="${key}" aria-label="${name}权重" min="0" max="100" step="any" value="${weights[key]}" ${historical || !state.selected.has(mid)?"disabled":""}><small>${total?(weights[key]/total*100).toFixed(0):0}%</small></span></label>`).join('')+'</div><p class="small muted">正权重项目缺失，不生成总分。其他模块保留测量结果。</p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">评分规则</a>';
+    const field=spec=>`<label>${escape(spec.name)}<span><input type="number" data-score-weight="${spec.id}" aria-label="${escape(spec.name)}权重" min="0" max="100" step="any" value="${weights[spec.id]||0}" ${historical?"disabled":""}><small>${total?((weights[spec.id]||0)/total*100).toFixed(0):0}%</small></span></label>`;
+    const basic=specs.filter(s=>s.default_weight),extras=specs.filter(s=>!s.default_weight);
+    box.innerHTML='<p class="small muted">分项 = 100 ×（1 − 候选占比）；总分按权重平均。</p>'+ (basic.length?'<div class="scoring-weight-fields">'+basic.map(field).join('')+'</div>':'')+
+      (extras.length?'<details class="scoring-optional"'+(optionalOpen?' open':'')+'><summary>可选计分项 · '+extras.length+'</summary><p class="small muted">正权重会选中对应方法。不同方法可能命中同一问题，请按项目需要选择。</p><div class="scoring-weight-fields">'+extras.map(field).join('')+'</div></details>':'')+
+      '<p class="small muted">0 表示不纳入；正权重项目缺失，不生成总分。全部为 0 时仅展示分项。</p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">评分规则</a>';
     box.querySelectorAll('[data-score-weight]').forEach(input=>input.addEventListener('change',()=>{
       const value=Number(input.value);
       if(!input.value.trim() || !Number.isFinite(value) || value<0 || value>100){input.setCustomValidity('权重须为 0–100');input.reportValidity();return;}
-      const changed={...weights,[input.dataset.scoreWeight]:value};
-      if(!Object.values(changed).some(x=>x>0)){input.setCustomValidity('至少保留一个正权重');input.reportValidity();return;}
-      state.draftConfig=clone(config);state.draftConfig.scoring={version:'project-weighted/1.0',weights:changed};
-      invalidatePlan();renderScoringControls();
+      input.setCustomValidity('');
+      const key=input.dataset.scoreWeight,spec=specs.find(s=>s.id===key);
+      state.draftConfig=clone(config);state.draftConfig.scoring={version:'project-weighted/1.1',weights:{...weights,[key]:value}};
+      if(value>0){state.selected.add(spec.module_id);if(!['core','prep'].includes(spec.reducer)) state.extensions.add(spec.method_id);}
+      invalidatePlan();renderModuleOptions();
     }));
   }
 
@@ -1217,20 +1225,26 @@
     const result = state.result, container = $("result-content");
     container.hidden = !result;
     if (!result) { container.innerHTML = ""; return; }
-    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3","eeg-report-view/4"].includes(result.report_view?.schema_version)) {
+    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3","eeg-report-view/4","eeg-report-view/5"].includes(result.report_view?.schema_version)) {
       container.innerHTML = scoredResultHtml(result.report_view, result);
       $("workflow-panel").open = false;
       $("record-summary").hidden = true;
       return;
     }
-    const score = result.score || {};
+    const score = result.project_score || result.score || {};
     container.innerHTML = `<div class="score-card"><div class="score-value" aria-label="无已校准总分">—</div><div><strong>总分尚未校准</strong><p>${escape(score.reason || "当前仅报告分项证据与限制，不生成整体质量分数。")}</p></div></div>${arr(result.warnings).length ? `<ul class="result-warnings">${result.warnings.map(warning => `<li>${escape(pretty(warning))}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<h3>模块结果摘要</h3>${arr(result.modules).length ? result.modules.map(module => `<details class="result-summary"><summary>${escape(module.id || module.module_id || "模块")} · ${escape(module.name || "结果")} ${module.status ? statusTag(displayStatus(module,state.job?.plan)) : ""}</summary><pre>${escape(pretty(module))}</pre></details>`).join("") : '<p class="small muted">服务端未提供模块摘要，请查看实际报告。</p>'}${result.recording ? `<details class="result-summary"><summary>本次记录与分析范围</summary><pre>${escape(pretty(result.recording))}</pre></details>` : ""}${result.artifacts ? `<details class="result-summary"><summary>产物清单</summary><pre>${escape(pretty(result.artifacts))}</pre></details>` : ""}`;
+    if(result.project_score) container.innerHTML=`<div class="score-card"><div class="score-value">${numeric(score.value)?Number(score.value).toFixed(2):'—'}</div><div><strong>项目自定义评分</strong><p>${escape(score.missing_reason||score.formula)}</p></div></div>${methodScoreTable(arr(score.components))}`+container.innerHTML.replace(/<div class="score-card">[\s\S]*?<\/div><\/div>/,'');
     container.innerHTML = `<p class="coverage-summary">${escape(coverageText(result))}</p>` + container.innerHTML;
+  }
+
+  function methodScoreTable(parts) {
+    if(!parts.length)return '';
+    return `<details class="result-summary"><summary>方法分项 · ${parts.length}</summary><div class="qc-score-table"><table><thead><tr><th>方法</th><th>分数 / 100</th><th>权重</th><th>计分依据</th></tr></thead><tbody>${parts.map(p=>`<tr><th>${escape(p.name)}</th><td>${numeric(p.value)?Number(p.value).toFixed(2):'—'}</td><td>${p.weight??0}</td><td>${escape(p.reason||'')}</td></tr>`).join('')}</tbody></table></div></details>`;
   }
 
   function scoredResultHtml(view, result) {
     const score = view.score || {}, parts = arr(score.components);
-    const weighted = score.version === "project-weighted/1.0", revised = weighted || score.version === "eeg-basic-screen/0.2";
+    const weighted = score.version?.startsWith("project-weighted/"), revised = weighted || score.version === "eeg-basic-screen/0.2";
     const point = value => numeric(value) ? Number(value).toFixed(2) : "—";
     const rec = view.recording || {}, line = view.line || {}, finite = view.finite || {};
     const count = value => numeric(value) ? number(value,0) : "—";
@@ -1247,15 +1261,15 @@
     const localDetails = channelRows ? `<details class="result-summary"><summary>按通道查看分项</summary><div class="qc-score-table"><table><thead><tr><th>通道</th><th>完整性</th><th>工频</th><th>高频突发</th></tr></thead><tbody>${channelRows}</tbody></table></div></details>` : "";
     const timeDetails = timeRows ? `<details class="result-summary"><summary>按时段查看分数</summary><div class="qc-score-table"><table><thead><tr><th>原始时间</th><th>基础初评分</th><th>证据</th></tr></thead><tbody>${timeRows}</tbody></table></div><p class="small muted">分段独立检测，逐通道汇总后评分。窗口链接保留原始报告版本。最多展示 200 窗。</p></details>` : "";
     const failures = arr(view.failures).length || arr(view.evidence_errors).length;
-    const cards = parts.map((part,index)=>`<article><span>${escape(part.name)}${weighted ? ` · 权重 ${number(part.weight,2)}` : ""}</span><strong>${point(part.value)}<small> / 100</small></strong><div class="qc-score-track"><i style="width:${numeric(part.value) ? Math.max(0,Math.min(100,part.value)) : 0}%"></i></div><p>${escape(descriptions[index] || "")}</p></article>`).join("");
+    const cards = parts.slice(0,3).map((part,index)=>`<article><span>${escape(part.name)}${weighted ? ` · 权重 ${number(part.weight,2)}` : ""}</span><strong>${point(part.value)}<small> / 100</small></strong><div class="qc-score-track"><i style="width:${numeric(part.value) ? Math.max(0,Math.min(100,part.value)) : 0}%"></i></div><p>${escape(descriptions[index] || "")}</p></article>`).join("");
     const candidates = arr(view.hf_candidates).slice(0,8).map(c=>`<div><strong data-i18n-skip>${escape(c.channel_name)}</strong><span>${number(c.start_seconds,2)}–${number(c.stop_seconds,2)} s</span><span class="small muted">高频突发</span></div>`).join("");
     const channels = arr(view.line_channels).slice(0,20).map(c=>`<div><strong data-i18n-skip>${escape(c.name)}</strong><span>${c.hits}/${c.total}</span><span class="small muted">命中窗</span></div>`).join("");
     const checks = arr(view.checks).map(c=>`<div><strong>${escape(c.name)}</strong><span>${escape(c.value)}</span><small>${escape(c.state)}</small></div>`).join("");
     const range = `${count(rec.channel_count)} 道 · ${number(rec.sampling_rate_hz)} Hz · ${number(rec.start_seconds)}–${number(numeric(rec.start_seconds) && numeric(rec.duration_seconds) ? rec.start_seconds + rec.duration_seconds : null)} s`;
     return `<div class="qc-report-overview">
-      <div class="qc-score-head"><span class="tag ready">${weighted ? "项目自定义 v1.0" : revised ? "项目试行 v0.2" : "项目试行 v0.1"}</span>${reportUrl ? `<a class="button primary small-button" href="${reportUrl}" target="_blank" rel="noopener">查看完整报告 ↗</a><a class="button small-button" href="${reportUrl}.pdf" download>下载 PDF</a>` : ""}</div>
+      <div class="qc-score-head"><span class="tag ready">${weighted ? "项目自定义 v"+escape(score.version.split("/")[1]) : revised ? "项目试行 v0.2" : "项目试行 v0.1"}</span>${reportUrl ? `<a class="button primary small-button" href="${reportUrl}" target="_blank" rel="noopener">查看完整报告 ↗</a><a class="button small-button" href="${reportUrl}.pdf" download>下载 PDF</a>` : ""}</div>
       <div class="qc-score-hero"><div class="qc-score-total"><span>${weighted ? "项目自定义评分" : revised ? "EEG 基础质控评分" : "EEG 基础初评分"}</span><strong>${point(score.value)}</strong><small>${weighted ? "/ 100 · 按权重平均" : revised ? "/ 100 · 取最低分项" : "/ 100 · 三项等权平均"}</small></div><div class="qc-score-conclusion"><h3>${escape(view.headline)}</h3><p>${escape(view.summary)}</p>${view.priority ? `<p class="small muted">${escape(view.priority)}</p>` : ""}</div></div>
-      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}<div class="qc-score-parts">${cards}</div><p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
+      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}<div class="qc-score-parts">${cards}</div><p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${methodScoreTable(parts.slice(3))}${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
     </div><div class="qc-result-findings"><h3>重点复核</h3>${candidates ? `<div class="qc-candidate-list">${candidates}</div>` : '<p class="small muted">暂无可展示的高频候选，检查状态见明细。</p>'}
       <details class="result-summary"><summary>工频候选通道</summary>${channels ? `<div class="qc-candidate-list">${channels}</div>` : '<p class="small muted">暂无可展示的工频候选，检查状态见明细。</p>'}<p class="small muted">完整位置与证据见报告。</p></details>
     </div><details class="result-summary"><summary>检查明细与执行说明</summary><div class="qc-check-list">${checks}</div>${arr(view.notes).length ? `<ul>${view.notes.map(n=>`<li>${escape(n)}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<details><summary>模块原始结果</summary><pre>${escape(pretty(result.modules))}</pre></details></details>
@@ -1666,7 +1680,7 @@
       const switchable = !browsing && method.optional_extension && method.implementation === "available";
       const historicalSelected = arr(plan?.qc_config?.method_config?.extensions).includes(method.id) || Boolean(applicability.selected);
       const selected = historical ? historicalSelected : state.extensions.has(method.id);
-      return `<article class="method-card"><div class="method-card-head"><div><h4>${escape(method.name)}</h4><div class="method-tags"><span class="tag method-domain">${escape(classification.domain_label)}</span><span class="tag method-activation ${escape(classification.activation)}">${escape(classification.activation_label)}</span><span class="tag subtle">${method.implementation === "available" ? "已接入" : "尚未接入"}</span></div></div>${!browsing && plan ? statusTag(applicability.status) : ""}</div><p>${escape(method.description || "目录未提供方法说明。")}</p><details class="method-more"${methodId ? " open" : ""}><summary>原理、条件与来源</summary><div class="method-scope"><h5>${planned ? "计划适用模态" : "适用模态"}</h5><p>${escape(modalities.length ? modalities.join(" · ") : planned ? "目录未声明计划适用模态。" : "目录未声明适用模态。")}</p>${method.scope_note ? `<p>${escape(method.scope_note)}</p>` : ""}</div>${methodDocumentationHtml(method)}<div class="method-io"><div><h5>输入</h5>${methodList(method.inputs)}</div><div><h5>输出</h5>${methodList(method.outputs)}</div></div><div class="method-requirements"><h5>适用条件</h5>${methodList(method.requirements)}</div><div class="method-availability ${escape(applicability.status)}">${escape(applicability.reason || "计划未提供适用性原因。")}</div><div class="method-source"><span>开源 / 方法来源</span>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(source.name || url)} ↗</a>` : `<span>${escape(source.name || "目录未提供")}</span>`}${source.license ? `<span class="source-license">${escape(pretty(source.license))}</span>` : '<span>许可未提供</span>'}</div>${arr(method.limitations).length ? `<details><summary>方法限制（${method.limitations.length} 项）</summary>${methodList(method.limitations)}</details>` : ""}${applicability.parameters != null || method.defaults != null ? `<details><summary>${applicability.parameters != null ? "本次计划参数" : "方法默认参数（尚待规划）"}</summary><pre>${escape(pretty(applicability.parameters ?? method.defaults))}</pre></details>` : ""}</details>${switchable ? `<div class="method-toggle"><label class="extension-check" for="dialog-extension-${escape(method.id)}"><input id="dialog-extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${selected ? "checked" : ""} ${historical ? "disabled" : ""}><span>${historical ? "此运行的扩展选择" : "启用这项可选扩展"}</span></label><p>${historical ? "历史选择只读；要修改，请在左侧配置新分析。" : `启用后同时选中 ${escape(module.id)}；开始时核对适用条件。`}</p></div>` : ""}</article>`;
+      return `<article class="method-card"><div class="method-card-head"><div><h4>${escape(method.name)}</h4><div class="method-tags"><span class="tag method-domain">${escape(classification.domain_label)}</span><span class="tag method-activation ${escape(classification.activation)}">${escape(classification.activation_label)}</span><span class="tag subtle">${method.implementation === "available" ? "已接入" : "尚未接入"}</span></div></div>${!browsing && plan ? statusTag(applicability.status) : ""}</div><p>${escape(method.description || "目录未提供方法说明。")}</p><details class="method-more"${methodId ? " open" : ""}><summary>原理、条件与来源</summary><div class="method-scope"><h5>${planned ? "计划适用模态" : "适用模态"}</h5><p>${escape(modalities.length ? modalities.join(" · ") : planned ? "目录未声明计划适用模态。" : "目录未声明适用模态。")}</p>${method.scope_note ? `<p>${escape(method.scope_note)}</p>` : ""}</div>${methodDocumentationHtml(method)}<p class="small muted">${method.can_output_score?"可输出分数 · "+arr(method.scoring?.outputs).map(s=>escape(s.name)).join("、"):"不输出分数 · "+escape(method.scoring?.reason||"仅输出测量与流程结果")}</p><div class="method-io"><div><h5>输入</h5>${methodList(method.inputs)}</div><div><h5>输出</h5>${methodList(method.outputs)}</div></div><div class="method-requirements"><h5>适用条件</h5>${methodList(method.requirements)}</div><div class="method-availability ${escape(applicability.status)}">${escape(applicability.reason || "计划未提供适用性原因。")}</div><div class="method-source"><span>开源 / 方法来源</span>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(source.name || url)} ↗</a>` : `<span>${escape(source.name || "目录未提供")}</span>`}${source.license ? `<span class="source-license">${escape(pretty(source.license))}</span>` : '<span>许可未提供</span>'}</div>${arr(method.limitations).length ? `<details><summary>方法限制（${method.limitations.length} 项）</summary>${methodList(method.limitations)}</details>` : ""}${applicability.parameters != null || method.defaults != null ? `<details><summary>${applicability.parameters != null ? "本次计划参数" : "方法默认参数（尚待规划）"}</summary><pre>${escape(pretty(applicability.parameters ?? method.defaults))}</pre></details>` : ""}</details>${switchable ? `<div class="method-toggle"><label class="extension-check" for="dialog-extension-${escape(method.id)}"><input id="dialog-extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${selected ? "checked" : ""} ${historical ? "disabled" : ""}><span>${historical ? "此运行的扩展选择" : "启用这项可选扩展"}</span></label><p>${historical ? "历史选择只读；要修改，请在左侧配置新分析。" : `启用后同时选中 ${escape(module.id)}；开始时核对适用条件。`}</p></div>` : ""}</article>`;
     }).join("")}</section>`;
   }
 

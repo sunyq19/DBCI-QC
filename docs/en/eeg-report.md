@@ -100,11 +100,11 @@ Zero candidates only means that declared rules produced no candidates within the
 
 ### Project trial score
 
-The current version is `project-weighted/1.0`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
+The current version is `project-weighted/1.1`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
 
-For each channel calculate invalid/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − RMS of channel burdens)`; the total is the minimum of the three components. All selected channels and required components must be assessed. Missing evidence receives no credit or replacement weights.
+For each channel calculate invalid/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − candidate amount / assessed amount)`; the total is the frozen weighted mean. Selected channels and positive-weight components require valid evidence. Missing evidence receives no credit or replacement weights.
 
-Retain component numerators, denominators, RMS and mean channel burdens, worst channel and assessed count. Keep the raw pooled unflagged fraction distinct from the score. Additional checks such as ADC limits, reference-group comparisons and auxiliary timing remain separately reported. No industry acceptance threshold or application success probability is assigned.
+Retain component numerators, denominators, units, assessed scope and missing reasons. Additional checks such as ADC limits, reference-group comparisons and auxiliary timing remain separately reported. No industry acceptance threshold or application success probability is assigned.
 
 The score is stored in `report_view.score`, separately from legacy generic `score.value=null`. New runs freeze the current score. A revised view of a historical run shall identify the old score and recalculation version without rewriting evidence. Do not rank different versions together.
 
@@ -172,6 +172,8 @@ The first two high-frequency candidates are illustrated, or line-noise candidate
 
 New inputs default to full duration of the selected signal stream. Native, non-overlapping windows are processed in the background while the local service runs; closing the page does not cancel the job. Quick precheck remains available.
 
-`eeg-pooling/2` first sums native numerators and denominators within each channel, then computes channel burdens, component RMS and the minimum component. Window scores are not averaged. Detector thresholds remain unchanged. Missing windows, source gaps, incomplete source verification or unassessable tail components withhold the whole-record total, while measurements and coverage remain visible.
+`project-weighted/1.1` pools native numerators and denominators before computing components and the configured weighted mean. Window scores are not averaged. Detector thresholds remain unchanged. Missing windows, source gaps, incomplete source verification or unassessable tail components withhold the whole-record total, while measurements and coverage remain visible.
 
 Channel components, the lowest component and per-window scores expose local findings without arbitrary extra penalties. Window boundaries and method-specific exclusions remain documented. Compare only matching configurations; this is not a multi-file population score.
+
+For v1.1, weights and method outputs follow the scoring rules above. Default EEG scoring covers three components; optional outputs and their actual denominators are listed separately. Additional PDF pages preserve all optional scores. All-zero weights disable the total, and positive-weight missing data never cause automatic redistribution.

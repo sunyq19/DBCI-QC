@@ -68,6 +68,7 @@ def _method(id_, name, module, category, description, requirements, outputs, *, 
 def methods(modality='scalp_eeg'):
     if modality not in ROUTES:
         raise ValueError('Unsupported QC modality: ' + str(modality))
+    from .score_registry import describe
     rows = [
         _method('edf_reader', '多格式读取与来源核验', 'M01', 'basic', '核对文件结构、时钟、索引与来源指纹。', ['已核验文件及配套文件'], ['结构与来源核验']),
         _method('voltage_calibration', '单位与电压标定', 'M01', 'basic', '确认数字值可转换成物理电压。', ['有效单位及逐道标定'], ['标定信息', '无法评估原因']),
@@ -148,8 +149,8 @@ def methods(modality='scalp_eeg'):
                         how_it_works='SpikeGLX按量程与增益标定；NWB按conversion、channel_conversion、offset及明确单位标定为V。',
                         upstream_call='ephys_qc.readers.open_reader',
                         implementation_origin='SpikeGLX已用官方readSGLX核对；NWB通过h5py独立核对源切片及单位。')
-        return sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])
-    return [enrich_method(_classification(row)) for row in rows] + candidates
+        return [describe(row, modality) for row in sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])]
+    return [describe(row, modality) for row in [enrich_method(_classification(row)) for row in rows] + candidates]
 
 
 def _hf_applicability(facts, config):

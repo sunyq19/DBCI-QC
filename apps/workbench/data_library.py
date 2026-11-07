@@ -91,7 +91,8 @@ def library(store):
     # A newly uploaded record remains ordinary data even when its checks fail.
     validation = set(store.settings.get('validation_library_ids', []))
     for row in rows: row['category'] = 'validation' if row['id'] in validation else 'data'
-    examples = featured_reports(store, datasets['packages'])
+    from example_cache import manifest
+    examples = manifest(store)['examples']
     featured = {'dataset:' + row['package_id'] for row in examples}
     rows = [row for row in rows if row['id'] not in featured]
     return {'schema_version':'data-library/1','items':rows, 'examples':examples,

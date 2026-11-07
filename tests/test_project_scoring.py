@@ -17,6 +17,31 @@ def config(weights=(1,1,1)):
 
 
 class ProjectScoreTests(unittest.TestCase):
+    def test_archived_v10_rules_stay_frozen(self):
+        frozen=config((1,2,1));frozen['version']='project-weighted/1.0'
+        before=copy.deepcopy(frozen)
+        self.assertEqual(normalize(frozen,'scalp_eeg',['M03','M04','M06']),before)
+        score=weighted_score(evidence(),2,frozen)
+        self.assertEqual(score['version'],'project-weighted/1.0')
+        self.assertEqual(score['value'],78.75)
+        self.assertEqual(frozen,before)
+        frozen['weights']={k:0 for k in SPECS}
+        with self.assertRaises(ValueError):normalize(frozen,'scalp_eeg',['M03','M04','M06'])
+
+    def test_current_report_failure_and_disabled_scoring_are_distinct(self):
+        fixture=ReportViewTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        from ephys_qc.report_view import build_report_view
+        row=copy.deepcopy(fixture.result);row['qc_config']={'scoring':config()}
+        row['modules'][1]['status']='failed'
+        failed=build_report_view(row,fixture.artifacts)
+        self.assertIsNone(failed['score']['value'])
+        self.assertIn('line_noise',failed['score']['missing_components'])
+        row=copy.deepcopy(fixture.result);row['qc_config']={'scoring':config((0,0,0))}
+        disabled=build_report_view(row,fixture.artifacts)
+        self.assertIsNone(disabled['score']['value'])
+        self.assertEqual(disabled['score']['status'],'disabled')
+        self.assertNotIn('未完成',disabled['headline'])
+
     def test_transparent_fraction_and_weighted_mean(self):
         score=weighted_score(evidence(),2,config((1,2,1)))
         self.assertEqual([p['value'] for p in score['components']],[100,60,95])
@@ -39,15 +64,15 @@ class ProjectScoreTests(unittest.TestCase):
         self.assertIsNone(weighted_score(evidence(),2,config(),expected_windows=2)['value'])
 
     def test_validation_and_modalities(self):
-        for weights in [(0,0,0),(-1,1,1),(True,1,1),(math.nan,1,1),(math.inf,1,1),(101,1,1)]:
+        for weights in [(-1,1,1),(True,1,1),(math.nan,1,1),(math.inf,1,1),(101,1,1)]:
             with self.subTest(weights=weights), self.assertRaises(ValueError): normalize(config(weights),'scalp_eeg',['M03','M04','M06'])
         with self.assertRaises(ValueError): normalize(config(),'scalp_eeg',['M03'])
         for modality in ['ecog','seeg','extracellular']:
             self.assertIsNone(normalize(None,modality,['M03']))
             with self.assertRaises(ValueError): normalize(config(),modality,['M03','M04','M06'])
-            self.assertFalse(any(m['can_output_score'] for m in catalog(modality)))
+            self.assertTrue(any(m['can_output_score'] for m in catalog(modality)))
         modules=catalog('scalp_eeg')
-        self.assertEqual([m['id'] for m in modules if m['can_output_score']],['M03','M04','M06','M08'])
+        self.assertEqual([m['id'] for m in modules if m['can_output_score']],['M03','M04','M05','M06','M08'])
         self.assertEqual(next(m for m in modules if m['id']=='M08')['scoring']['role'],'aggregate')
 
     def test_real_report_fixture_weighted_view_html_pdf_and_legacy_immutable(self):

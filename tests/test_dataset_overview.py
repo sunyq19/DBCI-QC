@@ -30,8 +30,11 @@ def signal(scope='recording',status='completed'):
 
 
 class SummaryTests(unittest.TestCase):
+    def setUp(self):
+        linked_fixtures.LinkedRecordTests.setUp(self)
+        self.store.settings['example_cache_dir']=str(self.store.root/'unpublished-examples')
+
     freeze=linked_fixtures.LinkedRecordTests.freeze
-    setUp=linked_fixtures.LinkedRecordTests.setUp
 
     def test_empty_summary_distinguishes_unassessed(self):
         data=aggregate_overview(self.plan)
@@ -180,8 +183,8 @@ class SummaryTests(unittest.TestCase):
             dict(id='demo', kind='dataset', package_id='pilot', label='EEG', description='Two participants'),
             dict(id='duplicate', kind='dataset', package_id='pilot')]
         data = library(self.store)
-        self.assertEqual(len(data['examples']), 1)
-        demo = data['examples'][0]
+        self.assertEqual(data['examples'], [])  # Not published; no request-time generation.
+        demo = featured_reports(self.store)[0]
         self.assertTrue(demo['available'])
         self.assertEqual(demo['reported'], 0)
         self.assertEqual(demo['status'], 'not_run')
@@ -267,11 +270,11 @@ class SummaryTests(unittest.TestCase):
         self.save_dataset(); self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='dataset', id='demo', label='Demo', package_id='pilot')]
         with patch.object(self.store, 'dataset_result', return_value=signal()['result']):
-            row = library(self.store)['examples'][0]
+            row = featured_reports(self.store)[0]
             self.assertEqual(row['reported'], 1)
             self.assertEqual(row['records'], 4)
         self.save_signal('b'*32, 'failed', '2026-11-07')
-        row = library(self.store)['examples'][0]
+        row = featured_reports(self.store)[0]
         self.assertTrue(row['available'])
         self.assertEqual(row['reported'], 0)
 

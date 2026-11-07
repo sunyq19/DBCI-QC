@@ -429,7 +429,7 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
                 loaded = child.get('recording', {})
                 if loaded.get('start_sample') is not None and (loaded['start_sample'] != window['start_sample'] or loaded.get('stop_sample') != window['stop_sample']):
                     raise ValueError('Loaded source sample bounds differ from frozen recording window')
-                window.update(status=child['status'], modules=copy.deepcopy(child['modules']), data_sha256=child.get('data_sha256'))
+                window.update(status=child['status'], modules=copy.deepcopy(child['modules']), data_sha256=child.get('data_sha256'), method_scores=copy.deepcopy(child.get('method_scores', [])))
                 if child.get('source_sha256'):
                     window['source_sha256'] = child['source_sha256']
             except RecordingCancelled as error:
@@ -474,6 +474,9 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
               'input_provenance': plan['input_provenance'], 'input_data_usage': plan['input_data_usage'],
               'data_tags': plan['data_tags'], 'method_applicability': plan['method_applicability'], 'extensions': [],
               'report_path': 'artifacts/report.html', 'artifacts': [], 'duration_seconds': time.time() - started}
+    from .method_scores import finalize, pool_windows
+    finalize(result, pool_windows(windows), coverage_complete=source_verified and not fatal and not cancelled and cov['gap_samples']==0 and all(w['status'] in {'completed','partial'} for w in windows))
+    _save(artifacts / 'method-scores.json', {'outputs': result['method_scores'], 'project_score': result.get('project_score')})
     _save(artifacts / 'coverage.json', cov)
     _save(artifacts / 'candidate-index.json', candidate_index)
     _save(artifacts / 'window-results.json', windows)
@@ -487,6 +490,9 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
         (artifacts / 'report.html').write_text(render_report_view(view), encoding='utf-8')
     else:
         render_recording_report(result, artifacts / 'report.html')
+        if result.get('project_score'):
+            from .method_scores import report_section
+            path=artifacts/'report.html';path.write_text(path.read_text().replace('</body>',report_section(result['project_score'])+'</body>'))
     result['artifacts'] = [{'name': p.name, 'bytes': p.stat().st_size, 'kind': 'image' if p.suffix == '.png' else 'report' if p.suffix == '.html' else 'json'} for p in sorted(artifacts.iterdir()) if p.is_file()]
     progress['status'] = status; checkpoint()
     _save(root / 'result.json', result)

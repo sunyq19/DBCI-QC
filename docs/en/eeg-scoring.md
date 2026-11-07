@@ -1,26 +1,50 @@
-# EEG project scoring rules
+# Project scoring rules
 
-Project trial · `project-weighted/1.0` · 7 November 2026 · Not expert reviewed
+Project trial · `project-weighted/1.1` · 7 November 2026 · Not expert-approved
 
-## Scope
+## Definition and defaults
 
-Scalp EEG currently supports three score components: integrity (M03), line-interference candidates (M04), and high-frequency bursts (M06). ECoG, sEEG and Neuropixels AP/LF currently report measurements without quality scores. Their candidate criteria have not been established for scoring. Dataset consistency and visualization do not contribute quality scores.
+Component = `100 × (1 − candidate amount / assessed amount)`.
+Project total = `sum(component × weight) / sum(weights)`.
 
-## Formula
+Scalp EEG defaults to integrity, line interference and high-frequency bursts, with weight 1 each. Every optional component defaults to 0. ECoG, sEEG and Neuropixels have no default total and do not inherit scalp thresholds. Eligible FieldTrip or SpikeInterface results may be explicitly selected for project scoring.
 
-```text
-Component = 100 × (1 − candidate amount / assessed amount)
-Total = Σ(component × weight) / Σweight
-```
+Weights are finite values from 0 to 100. A positive weight requires the method and its parent module to be selected. All-zero weights disable the total. A missing positive-weight component or incomplete recording coverage prevents a total; weights are never silently redistributed. Missing values are neither zero nor perfect scores.
 
-Integrity uses channel-samples outside the union of nonfinite and constant candidates. Line interference uses channel-windows, deduplicated across tested frequencies. High-frequency bursts use the detector's valid channel-seconds. Sum the original numerators and denominators across channels and windows before calculating fractions. Do not average window scores.
+## Score outputs
 
-Weights range from 0 to 100; at least one must be positive. Defaults are equal weights for selected scorable modules. Zero excludes a component from the total; it does not remove its observations. A missing positive-weight component or incomplete recording coverage makes the total unavailable. Do not silently redistribute its weight. All selected channels need valid evidence. Filtered-out frequencies are not scored as clean.
+| Method | Candidate amount / assessed amount |
+| --- | --- |
+| Integrity | Nonfinite or constant channel-samples / checked channel-samples |
+| Thomson line noise | Flagged channel-windows, deduplicated across frequencies / assessed channel-windows |
+| HF bursts | Candidate channel-seconds / valid channel-seconds |
+| PREP nonspatial | Union of candidate channels / assessed channels |
+| MNE amplitude | Two outputs: candidate channels / channels; union of global intervals / duration |
+| MNE muscle | Flagged finite-score samples / finite-score samples |
+| MNE bridges | Distinct channels involved in candidate pairs / channels |
+| MNE LOF | Candidate channels / channels |
+| AutoReject global | Flagged fixed epochs / evaluated epochs |
+| Gnosis line length | Candidate channels / channels |
+| Gnosis artifacts, low-band and high-band | Per-channel union of candidate intervals / actual channel-duration |
+| Gnosis PSD deviation | Candidate channels / channels evaluated on retained spectral input |
+| FASTER | Union of native candidate channels / channels |
+| FieldTrip z-value | Union of candidate intervals / checked duration |
+| SpikeInterface | Native noise-labelled channels / assessed channels |
 
-Example: components 100, 60, 95 with weights 1, 2, 1 produce 78.75. Weights are frozen in `qc_config.scoring`, included in the plan fingerprint, and shown with the report. Scores only summarize selected checks, not universal usability or clinical validity. Local suspicious channels and intervals remain visible independently.
+Seventeen methods supply eighteen score outputs. Scoring capability does not imply that a particular recording satisfies a method's prerequisites. Each native detector and its parameters remain unchanged.
 
-## Module contract and comparison
+PSD, power, amplitude, spectrum fits, auxiliary event evidence, processing-change measurements and unvalidated population reference ranges are not directly converted to quality scores. Unimplemented methods, dataset checks and visualizations do not receive signal-quality scores.
 
-Each signal module declares `can_output_score` and a `scoring` record with role, component IDs, version and explanation. M03/M04/M06 provide components for scalp EEG; M08 aggregates and must not be counted again. Other modules provide evidence. Capability does not guarantee an actual score for a particular recording.
+## Whole-record pooling
 
-Compare only matching modalities, methods, parameters, analysis scope, processing history, score version and weights. Keep original evidence and historical reports immutable. Explicitly published score revisions identify the prior version and link to its report. Legacy versions 0.1 and 0.2 remain interpretable; new plans use this version. Threshold accuracy, weights and other-modality scoring still require representative data and expert review.
+Pool actual numerators and denominators for sample, epoch, window and interval outputs. For channel-only decisions, weight each analysis block by its actual analyzed duration; this produces channel-block-seconds, not exact artifact duration. Gnosis PSD uses the retained spectral-input duration. Unused tails and invalid filter edges are not counted as passes. A missing block leaves the method's whole-record score unavailable.
+
+Methods can detect the same event, so optional components are not independent evidence. The total does not replace review of individual channels and times.
+
+## Contract and reporting
+
+`method-score/1` includes IDs, status, value, candidate and assessed amounts, unit, scope, reason, source artifacts and applicable parameters. Methods expose `can_output_score` and their output definitions in the catalog. M08 only aggregates.
+
+Results save `method_scores`, `project_score` and `method-scores.json`; EEG reports also expose `report_view.score`. Weights are frozen in the plan. HTML and PDF use the same score data; extra components have dedicated PDF pages. Archived v1.0 and v0.2 reports retain their original definitions.
+
+Only compare matched versions, methods, weights, parameters, channels, references, durations, bandwidth and processing histories. A perfect score means no candidates were detected by the selected checks, not that the recording is clinically suitable. Filtered-away frequency bands are not scored as clean. Threshold accuracy, project weights and acceptance limits remain subject to independent validation.

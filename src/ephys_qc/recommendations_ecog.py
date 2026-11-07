@@ -53,7 +53,7 @@ def recommend_ecog(record, submitted=None):
     result['cautions'] += ['当前为ECoG基础描述流程；不运行PREP、头皮桥接/LOF、FOOOFα指标或肌电阈值。',
                            '不根据触点名推测电极邻接、脑区、共同参考或植入位置。',
                            '工频附近能量只作观察量，不以固定比值自动判定污染。',
-                           '计算完成不表示信号质量合格，总分保持null；当前未校准ECoG检测准确率。']
+                           '计算完成不表示信号质量合格，默认不计总分；可选方法按项目权重计分，当前未校准ECoG检测准确率。']
     if facts['reference_scheme'] == 'unknown':
         result['missing_fields'].append(_missing('reference_scheme', '参考构型', '参考尚未核实；基础逐触点描述仍可运行，不进行跨触点相似性判定。'))
     if not facts['preprocessing_verified']:

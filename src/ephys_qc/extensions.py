@@ -168,6 +168,17 @@ def _source(extension_id, mne):
 
 
 def run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
+    """Original detector output plus independent versioned scoring observations."""
+    result = _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)
+    from .method_scores import extension_outputs
+    from .score_registry import outputs
+    modality=(facts or {}).get('modality','scalp_eeg')
+    result['can_output_score']=bool(outputs(modality, extension_id))
+    result['score_outputs']=extension_outputs(extension_id,result,modality)
+    return result
+
+
+def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
     from .gnosis_catalog import IDS as GNOSIS_IDS
     if extension_id in GNOSIS_IDS:
         from .gnosis_runtime import run_extension as run_gnosis

@@ -138,7 +138,12 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
     from .scoring import burden_score, score_revision
     per_channel = channel_evidence(continuity, line, hf_rows)
     config = result.get('qc_config', {}).get('scoring')
-    if config:
+    if config and config['version'] == 'project-weighted/1.1':
+        from .method_scores import core_outputs, aggregate
+        rows = core_outputs(per_channel, recording.get('channel_count',0))
+        rows += [r for r in result.get('method_scores',[]) if r['id'] not in {'integrity','line_noise','hf_burst'}]
+        score = aggregate(rows, config, coverage_complete=result.get("project_score",{}).get("coverage_complete",result.get("status") not in {"failed","cancelled"}))
+    elif config:
         from .project_scoring import weighted_score
         score = weighted_score(per_channel, recording.get('channel_count', 0), config)
     else:
@@ -162,7 +167,7 @@ def build_report_view(result, artifacts, label='', *, artifact_prefix=''):
         parts.append(f'组内异常候选 {bad_count} 道')
     failed = [m['id'] for m in modules.values() if m.get('status') == 'failed']
     headline = ('检出待复核线索' if parts else '基础检查未检出候选'
-                if score['value'] is not None else '已完成部分检查')
+                if score['value'] is not None or score.get('status')=='disabled' else '已完成部分检查')
     if failed or evidence_errors:
         headline = '部分检查未完成'
     summary = '；'.join(parts) + '。' if parts else '具体测量值与执行情况见下方。'
@@ -291,10 +296,10 @@ def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=
     <section id="checks"><h2>检查明细</h2><details><summary>全部检查结果</summary><div class="table-wrap"><table><thead><tr><th>检查项</th><th>结果</th><th>测量值</th><th>说明</th></tr></thead><tbody>{check_rows}</tbody></table></div></details><details><summary>补充信息与执行说明</summary><ul>{notes or '<li>无新增补充条件。</li>'}</ul></details></section>
     <section id="scoring"><h2>评分依据</h2><p class="muted">每通道计算异常占比，分项按均方根汇总，总分取最低分项。</p><details><summary>查看 v0.2 计算方法</summary><ul><li>每通道异常占比 p：非有限或恒值样本 / 样本数；工频命中窗 / 有效窗；高频候选时长 / 有效时长。</li><li>分项 = 100 × [1 − √(各通道 p² 的平均值)]。持续集中于少数通道的问题会得到体现。</li><li>总分 = 三个分项的最低值。其他满分项不抵消问题，也不重复累计多方法扣分。</li><li>缺少任一必需分项或通道证据，不生成总分。整份记录先逐通道汇总原始分子分母，不平均窗口分数。</li></ul><p>本次高频候选 {score['hf_candidate_channel_seconds']:g} 通道秒 / 有效 {score['hf_valid_channel_seconds']:g} 通道秒。工频跨频带去重，重叠窗不换算为污染时长。</p><p>此分数衡量三类候选的负担和集中程度，不是可用数据百分比；没有合格线，不区分已经命中之后的幅度严重性。其他检查另列，不被当作已通过。</p><p><a href="/standards/eeg-scoring">完整评分规则与算例</a></p></details><details><summary>方法参数与原始证据</summary><p>{primary_evidence}</p><pre>{raw}</pre><pre>{esc(json.dumps(score,ensure_ascii=False,indent=2,allow_nan=False))}</pre></details></section><footer>{VIEW_VERSION} · {esc(score['version'])} · 来源检测结果保留 · 自动候选待人工复核</footer></main></div></body></html>'''
 
-    if score.get('version') == 'project-weighted/1.0':
+    if score.get('version', '').startswith('project-weighted/'):
         from .project_scoring import FORMULA
-        report = report.replace('项目试行 v0.2', '项目自定义 v1.0').replace('EEG 基础质控评分','项目自定义评分')
-        report = report.replace('取最低分项','按配置权重平均').replace('按 v0.2 计算','按项目配置计算').replace('按 v0.2 从原始证据重算','按 project-weighted/1.0 从原始证据重算').replace('总体分项使用均方根','总体分项使用候选量与有效检查量的比值')
+        report = report.replace('项目试行 v0.2', '项目自定义 v'+score['version'].split('/')[-1]).replace('EEG 基础质控评分','项目自定义评分')
+        report = report.replace('取最低分项','按配置权重平均').replace('按 v0.2 计算','按项目配置计算').replace('按 v0.2 从原始证据重算','按 '+score['version']+' 从原始证据重算').replace('总体分项使用均方根','总体分项使用候选量与有效检查量的比值')
         for part in score['components']:
             report = report.replace('<article><span>'+esc(part['name'])+'</span>', '<article><span>'+esc(part['name'])+f' · 权重 {part["weight"]:g}</span>')
         report = report.replace('分数概括三项基础检查的候选负担','分数概括纳入评分的检查候选负担')
@@ -303,5 +308,5 @@ def render_report_view(view, evidence_url=None, pdf_url=None, visualization_url=
         start = report.index('<section id="scoring">')
         stop = report.index('<details><summary>方法参数与原始证据</summary>', start)
         weights = '；'.join(f'{esc(p["name"])} {p["weight"]:g}（{100*p["normalized_weight"]:.1f}%）' for p in score['components'])
-        report = report[:start] + f'<section id="scoring"><h2>评分依据</h2><p>{FORMULA}</p><p>权重：{weights}</p><p>0 表示不纳入；正权重项目缺失或检查范围未完成，不出总分。总分只概括所选检查，局部异常另列。已滤除频带不计为通过。</p><p>配置 {esc(score["configuration_id"])} · 项目试行，未经专家校准。</p><p><a href="/standards/eeg-scoring">完整规则与算例</a></p>' + report[stop:]
+        report = report[:start] + f'<section id="scoring"><h2>评分依据</h2><p>{FORMULA}</p><p>权重：{weights}</p><p>扩展分项列在结果总表；不同方法可能命中同一问题，权重是项目选择，不代表独立证据。</p><p>0 表示不纳入；正权重项目缺失或检查范围未完成，不出总分。总分只概括所选检查，局部异常另列。已滤除频带不计为通过。</p><p>配置 {esc(score["configuration_id"])} · 项目试行，未经专家校准。</p><p><a href="/standards/eeg-scoring">完整规则与算例</a></p>' + report[stop:]
     return report

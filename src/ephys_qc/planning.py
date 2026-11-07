@@ -240,7 +240,7 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
             break
         selected = extended
     from .project_scoring import normalize
-    scoring = normalize(config.get("scoring"), modality, selected)
+    scoring = normalize(config.get("scoring"), modality, selected, config["method_config"].get("extensions", []))
     if scoring is not None: config["scoring"] = scoring
     else: config.pop("scoring", None)
     nodes, warnings = [], []
