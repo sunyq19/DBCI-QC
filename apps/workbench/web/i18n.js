@@ -34,6 +34,9 @@
 读取文件或打开已有数据，生成检查报告。	Read a file or open existing data to generate a QC report.
 刷新	Refresh
 已有数据	Your data
+查看示例	View examples
+我的数据	My uploads
+上传副本保留 7 天，报告保留；本机原文件不变。	Uploaded copies are kept for 7 days; reports are retained. Your original files stay unchanged.
 已导入数据	Imported data
 示例数据集	Example datasets
 直接打开，查看汇总与逐份报告。	Open a dataset to explore its summary and recording reports.

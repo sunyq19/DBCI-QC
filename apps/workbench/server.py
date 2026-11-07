@@ -63,7 +63,7 @@ def insert_report_navigation(report, navigation):
 
 
 def public_input(item):
-    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context') if key in item}
+    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context', 'library_origin', 'retention') if key in item}
     result.setdefault('record_family', item['id'])
     result.setdefault('record_revision', 1)
     result.setdefault('default_config', {}).setdefault('context_tags', context_defaults(item))
@@ -118,10 +118,32 @@ class Store:
         threading.Thread(target=self._loop, daemon=True).start()
         from batch_jobs import BatchJobs
         self.batches = BatchJobs(self)
+        threading.Thread(target=self._retention_loop, daemon=True).start()
+
+    def expire_uploads(self):
+        from upload_retention import expire_uploads, ACTIVE
+        with self.lock:
+            protected = {j.get('record_family', j['input_id']) for j in self.jobs.values() if j['status'] in ACTIVE}
+            expired = expire_uploads(self.intakes, protected_families=protected)
+            for row in expired:
+                for item in self.inputs.values():
+                    if item.get('record_family', item['id']) == row['family']:
+                        item['retention'] = copy.deepcopy(row['retention'])
+                        self._availability(item)
+            return expired
+
+    def _retention_loop(self):
+        import time, logging
+        while True:
+            try: self.expire_uploads()
+            except Exception: logging.exception('Upload retention check failed; retry in 60 seconds')
+            time.sleep(60)
 
     @staticmethod
     def _availability(item, refresh=False):
         try:
+            if item.get('retention', {}).get('state') == 'expired':
+                raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
             if refresh:
                 item['metadata'] = inspect_recording(item['source_path'], **reader_kwargs(item.get('metadata', {})))
             paths = [item['source_path']] + [f['path'] for f in item.get('expected_source_files', [])]
@@ -239,6 +261,10 @@ class Store:
             self.intakes._verified_source(self.intakes.get(item['linked_intake_id']))
         admission = check_registered_record(item, limits=self.admission_policy) if self.admission_policy else None
         with self.lock:
+            # Recheck under the same lock as expiry, before a queued job protects its files.
+            current = self.inputs[item['id']]
+            if current.get('retention', {}).get('state') == 'expired':
+                raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
             parent = body.get('parent_job_id')
             if parent is not None:
                 if not isinstance(parent, str) or parent not in self.jobs:
@@ -476,7 +502,8 @@ class Store:
         return data
 
     def artifact(self, id_, name):
-        if Path(name).name != name or name not in {a['name'] for a in self.result(id_, compact=True)['artifacts']}:
+        from saved_reports import artifact_names
+        if Path(name).name != name or name not in artifact_names(self, id_):
             raise KeyError(name)
         root = (self.root / 'jobs' / id_ / 'artifacts').resolve()
         target = (root / name).resolve()
@@ -593,7 +620,9 @@ class Handler(BaseHTTPRequestHandler):
         records_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/records', path)
         if records_match: return self.json(self.store.package_records(records_match.group(1)))
         if path == '/api/v1/packages':
-            return self.json(self.store.packages.catalog())
+            directory = self.store.packages.catalog()
+            directory['packages'] = [p for p in directory['packages'] if p.get('category') == 'example' or self.store.packages.packages.get(p['id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]
+            return self.json(directory)
         package_match = re.fullmatch(r'/api/v1/package-jobs/([a-f0-9]{32})(?:/(result|report|download|expectations))?', path)
         if package_match:
             identifier, action = package_match.groups()
@@ -659,7 +688,7 @@ class Handler(BaseHTTPRequestHandler):
             if modality not in ROUTES:
                 raise ValueError('当前目录：' + ', '.join(ROUTES))
             with self.store.lock:
-                inputs = [public_input(i) for i in self.store.inputs.values() if i.get('modality', 'scalp_eeg') == modality]
+                inputs = [public_input(i) for i in self.store.inputs.values() if i.get('modality', 'scalp_eeg') == modality and i.get('library_origin') in {'user_upload', 'user_registered'}]
             modules = catalog(modality)
             overview = '/standards' + ('/' + route(modality)['slug'] if route(modality)['slug'] else '')
             for module in modules:
@@ -682,19 +711,19 @@ class Handler(BaseHTTPRequestHandler):
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
-            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending()]})
+            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending() if i.get('library_origin') in {'user_upload', 'user_registered'}]})
         if path == '/api/v1/inputs':
             if urlsplit(self.path).query:
                 raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
             with self.store.lock:
-                records = [public_input(item) for item in self.store.inputs.values()]
+                records = [public_input(item) for item in self.store.inputs.values() if item.get('library_origin') in {'user_upload', 'user_registered'}]
             return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
             return self.json(public_intake(self.store.intake_status(match.group(1))))
         if path == '/api/v1/jobs':
             with self.store.lock:
-                jobs = sorted(copy.deepcopy(list(self.store.jobs.values())), key=lambda j: j['created_at'], reverse=True)
+                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]), key=lambda j: j['created_at'], reverse=True)
             return self.json({'jobs': jobs})
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform))?', path)
         if match:
@@ -754,32 +783,9 @@ class Handler(BaseHTTPRequestHandler):
                 log = self.store.root / 'jobs' / id_ / 'run.log'
                 return self.send_bytes(log.read_bytes()[-100_000:] if log.exists() else b'', 'text/plain; charset=utf-8')
             if action == 'report':
-                result = self.store.result(id_, compact=True)
-                if result.get('report_view'):
-                    from ephys_qc.report_view import render_report_view
-                    report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf', visualization_url=f'/api/v1/jobs/{id_}/visualizations')
-                    # Presentation only: the live workbench theme never edits saved reports.
-                    report = report.replace('</head>', '<link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css"></head>', 1)
-                    report = report.replace('<body>', '<body class="qc-signal-report">', 1)
-                else:
-                    report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
-                # Keep the standalone report usable both on disk and at the job's /report route.
-                # Use explicit artifact URLs without relaxing the base-uri policy.
-                for a in result['artifacts']:
-                    safe_name = a['name']
-                    for attr in ('src', 'href'):
-                        report = report.replace(f'{attr}="{safe_name}"', f'{attr}="{a["url"]}"')
-                        report = report.replace(f"{attr}='{safe_name}'", f'{attr}="{a["url"]}"')
-                # Navigation belongs to the served view; frozen report bytes stay unchanged.
-                from html import escape
-                declared = job.get('plan', {}).get('input_modality', {})
-                modality = declared.get('value') if isinstance(declared, dict) else declared
-                modality = modality if modality in ROUTES else 'scalp_eeg'
+                from saved_reports import served_report
                 language = parse_qs(urlsplit(self.path).query).get('lang', ['zh-CN'])[0]
-                back = f'/?modality={modality}&job={id_}' + ('&lang=en' if language == 'en' else '')
-                label = 'Return to this QC run' if language == 'en' else '返回本次质控'
-                navigation = f'<nav aria-label="QC navigation" style="padding:14px 24px;background:#fff;border-bottom:1px solid #e4e7ec"><a href="{escape(back, quote=True)}">← {label}</a></nav>'
-                report = insert_report_navigation(report, navigation)
+                report = served_report(self.store, id_, language)
                 return self.send_bytes(report.encode('utf-8'), 'text/html; charset=utf-8')
             if filename:
                 target = self.store.artifact(id_, filename)
@@ -788,7 +794,7 @@ class Handler(BaseHTTPRequestHandler):
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
         static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]

@@ -31,7 +31,7 @@
   const state = {catalog:null,input:null,draftConfig:null,selected:new Set(OPTIONAL),extensions:new Set(),contextTags:{disease:"unknown",age_group:"unknown",task:"unknown"},initialContext:{},dialogModule:null,plan:null,planKey:null,planning:false,submitting:false,cancelling:false,job:null,result:null,mode:"draft",history:[],pollTimer:null,jobRequest:0,resultRequest:0,resultJobId:null,pollFailures:0,historyBusy:false,loadingCatalog:false,recommendation:null,recommendationKey:null,recommending:false,recommendationApplied:false,recommendationStale:false,intake:null,intakeBusy:false,draftEpoch:0,planRequest:0,manualDraft:false,parameterDirty:false,filePending:false,intakeRequest:0,catalogRequest:0,boardKey:null};
   Object.assign(state,{activeModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : "scalp_eeg",modalityChoices:[],scope:"recording",parentJobId:null,revisionInput:null,navigationRestored:false,workspace:null,reviewWarnings:[],workspaceRequest:0,waveformRequest:0,waveform:null,candidates:[],candidateId:null,candidateLimit:100,review:null,reviewBusy:false,reviewDrafts:{},cloneBusy:false,uploadAbort:null});
   Object.assign(state,{records:null,catalogCache:{},selectionRequest:0,loadingRecord:false,browseCatalog:null,browseModality:null,browseRequest:0,dialogContext:null,compatModality:Object.hasOwn(MODALITY_DOC_ROUTES,LEGACY_MODALITY) ? LEGACY_MODALITY : null});
-  const DRAFT_KEY = "ephys-qc.draft.v1";
+  const DRAFT_KEY = "ephys-qc.draft.v2";
   const DRAFT_LAST_KEY = `${DRAFT_KEY}.latest`;
   const DRAFT_INDEX_KEY = `${DRAFT_KEY}.index`;
   const FRAMEWORK_NAMES = {M01:"文件读取",M02:"字段与方案",M03:"信号完整性",M04:"频谱与干扰",M05:"通道质量",M06:"伪迹线索",M07:"事件与时间",M08:"结果汇总",M09:"报告与复核"};
@@ -711,9 +711,9 @@
 
   function pendingIntakeId(value) {
     try {
-      if (value === null) window.sessionStorage.removeItem("eeg-qc-pending-intake");
-      else if (typeof value === "string") window.sessionStorage.setItem("eeg-qc-pending-intake",value);
-      return window.sessionStorage.getItem("eeg-qc-pending-intake");
+      if (value === null) window.sessionStorage.removeItem("ephys-qc-user-pending-intake.v2");
+      else if (typeof value === "string") window.sessionStorage.setItem("ephys-qc-user-pending-intake.v2",value);
+      return window.sessionStorage.getItem("ephys-qc-user-pending-intake.v2");
     } catch { return null; }
   }
 

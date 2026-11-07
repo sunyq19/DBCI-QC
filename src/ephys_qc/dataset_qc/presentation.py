@@ -3,6 +3,11 @@ from collections import defaultdict
 
 # title, meaning, next step, suggested owner (zh / en).
 COPY = {
+    'channel_schema': (
+        ('通道表需要核对', 'Channel table needs review'),
+        ('配套通道表无法建立唯一的通道对应关系，关联核对暂未完成。', 'The channel table does not establish a unique mapping; dependent comparisons were not completed.'),
+        ('核对重复名称或缺失字段；信号检查结果仍可查看。', 'Check repeated names or missing fields; signal reports remain available.'),
+        ('数据提供方', 'Data provider')),
     'read': (
         ('记录暂时无法读取', 'Recordings could not be read'),
         ('这些记录尚不能进入信号检查。', 'Signal checks cannot start for these recordings.'),

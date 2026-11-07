@@ -1,0 +1,71 @@
+"""Serve frozen HTML without rebuilding spectra, scores or candidate indices."""
+from html import escape
+from pathlib import Path
+import re
+from urllib.parse import quote
+
+
+def report_file(store, identifier):
+    if store.job(identifier)['status'] != 'completed':
+        raise ValueError('任务尚未完成，没有可用的最终报告。')
+    root = store.root / 'jobs' / identifier / 'artifacts'
+    target = root / 'report.html'
+    if root.is_symlink() or target.is_symlink() or not target.is_file():
+        raise KeyError('report.html')
+    return target
+
+
+def served_report(store, identifier, language='zh-CN'):
+    from server import insert_report_navigation
+    report = report_file(store, identifier).read_text(encoding='utf-8')
+    declared = store.job(identifier).get('plan', {}).get('input_modality', {})
+    modality = declared.get('value') if isinstance(declared, dict) else declared
+    if modality in {'ecog', 'seeg', 'extracellular'}:
+        from descriptive_report import render
+        report = render(store, identifier, language) or report
+    # Every relative resource is still checked against the artifact manifest by
+    # its endpoint. This rewrite grants no access to new files or host paths.
+    def resource(match):
+        attr, mark, name = match.groups()
+        if name.startswith(('/', '#', 'http:', 'https:', 'data:')) or Path(name).name != name:
+            return match.group(0)
+        return f'{attr}={mark}/api/v1/jobs/{identifier}/artifacts/{quote(name)}{mark}'
+    report = re.sub(r'''\b(src|href)=(['"])([^'"]+)\2''', resource, report)
+    report = report.replace('</head>', '<link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css"></head>', 1)
+    report = report.replace('<body>', '<body class="qc-signal-report">', 1)
+    job = store.job(identifier)
+    package = (job.get('dataset_context') or {}).get('package_id')
+    en = language == 'en'
+    links = [(f'/?job={identifier}', 'Open this run' if en else '本次检查')]
+    if package and re.fullmatch('[a-zA-Z0-9_-]+', package):
+        links.insert(0, (f'/api/v1/packages/{package}/overview/report?lang={language}',
+                         '← Dataset report' if en else '← 返回数据集报告'))
+    else: links.insert(0, ('/', '← Workbench' if en else '← 返回质控台'))
+    print_button = ''
+    if 'id="print-report"' not in report:
+        print_button = '<button id="print-report">' + ('Print / PDF' if en else '打印 / PDF') + '</button>'
+        report = report.replace('</head>', '<script src="/dataset-report.js" defer></script></head>', 1)
+    navigation = '<nav class="saved-report-nav" aria-label="QC navigation">' + ''.join(
+        f'<a href="{escape(url, quote=True)}">{text}</a>' for url, text in links) + print_button + '</nav>'
+    return insert_report_navigation(report, navigation)
+
+
+def artifact_names(store, identifier):
+    """Small persistent manifest; never call score-building Store.result here."""
+    import json
+    import ijson
+    from server import save_json
+    if store.job(identifier)['status'] != 'completed': raise KeyError(identifier)
+    path = store.root / 'jobs' / identifier / 'result.json'
+    signature = [path.stat().st_mtime_ns, path.stat().st_size]
+    cache = path.with_name('artifact-manifest-cache.json')
+    try:
+        if cache.stat().st_size < 1024 * 1024:
+            saved = json.loads(cache.read_text())
+            if saved['signature'] == signature: return set(saved['names'])
+    except (OSError, ValueError, KeyError, TypeError): pass
+    with path.open('rb') as handle:
+        names = [item['name'] for item in ijson.items(handle, 'artifacts.item')]
+    try: save_json(cache, {'signature': signature, 'names': names})
+    except OSError: pass  # Read-only result archives remain usable.
+    return set(names)

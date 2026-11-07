@@ -36,7 +36,7 @@ python3.11 scripts/setup_local.py
 上传文件 → 确认信息 → 查看推荐方案 → 开始检查 → 查看报告 / 下载 PDF
 ```
 
-终端保持运行，按 `Ctrl+C` 停止。下次只需执行第 2 步。默认上传副本、任务和报告保存在 `.local/runtime/`，不进入 Git；原始文件保持不变。服务仅监听本机地址。
+终端保持运行，按 `Ctrl+C` 停止。下次只需执行第 2 步。默认上传副本、任务和报告保存在 `.local/runtime/`，不进入 Git；原始文件保持不变。新上传副本保留 **7 天**，到期保留报告与检查证据。服务仅监听本机地址。
 
 需要换端口、改数据目录或更新旧版本，见[安装与配置](docs/installation.md)。
 
@@ -59,7 +59,7 @@ python3.11 scripts/setup_local.py
 .venv/bin/python examples/headless_qc.py --output .local/demo
 ```
 
-它生成 `.local/demo/synthetic.edf` 并运行完整性检查，也可将该 EDF 上传到质控台。它用于验证操作流程，不代表真实数据的检测准确性。输出目录须尚不存在。真实数据下载入口见[公开样例](docs/public-examples.md)。已配置的公开样本可从首页“示例数据集”直接打开，统一按数据集 → 记录 → 报告查看，见[示例数据集说明](docs/example-datasets.md)。
+它生成 `.local/demo/synthetic.edf` 并运行完整性检查，也可将该 EDF 上传到质控台。它用于验证操作流程，不代表真实数据的检测准确性。输出目录须尚不存在。真实数据下载入口见[公开样例](docs/public-examples.md)。已配置的公开样本可从首页“示例数据集”直接打开，点击即看数据集报告，同页打开逐份结果，见[示例数据集说明](docs/example-datasets.md)。
 
 ## 模块与报告
 
@@ -71,7 +71,7 @@ python3.11 scripts/setup_local.py
 
 模块独立存放在 [`src/ephys_qc/modules/`](src/ephys_qc/modules/)，提供 Python 和命令行接口，不依赖网页运行。算法、适配、调用与交接方式见[模块工具包](docs/toolkit.md)。
 
-数据包层提供 **D01 文件完整性 → D02 个体一致性 → D03 数据集一致性 → D04 审核与复验**。在首页“已导入数据”打开本地已登记数据集，确认范围后后台检查；总览显示文件齐备、资料问题、个体与记录信号结果，支持 HTML 汇总导出。“审核与复验”页签可记录处理意见、对比修正前后变化并下载 PDF；人工结论单独保存，不改写信号评分。检查核心位于 [`src/ephys_qc/dataset_qc/`](src/ephys_qc/dataset_qc/)，可独立通过 CLI/Python 调用。数据包目录由本机配置登记，尚不支持网页整包上传。见[配置与复现](docs/dataset-inventory.md)、[检查规则](docs/dataset-checks.md)。
+数据包层提供 **D01 文件完整性 → D02 个体一致性 → D03 数据集一致性 → D04 审核与复验**。在首页“我的数据”打开显式登记的个人数据集，确认范围后后台检查；总览显示文件齐备、资料问题、个体与记录信号结果，支持 HTML 汇总导出。“审核与复验”页签可记录处理意见、对比修正前后变化并下载 PDF；人工结论单独保存，不改写信号评分。检查核心位于 [`src/ephys_qc/dataset_qc/`](src/ephys_qc/dataset_qc/)，可独立通过 CLI/Python 调用。数据包目录由本机配置登记，尚不支持网页整包上传。见[配置与复现](docs/dataset-inventory.md)、[检查规则](docs/dataset-checks.md)。
 
 读取后可补充滤波史；已滤除的检查频带记为未评。结果按“概览 / 问题复核 / 可视化”查看，候选联动原始波形与局部 PSD。数据集可预览后批量运行已确认记录，并按相同配置比较 EEG 报告。见[操作与适用范围](docs/design/eeg-workflow-v1.md)。
 

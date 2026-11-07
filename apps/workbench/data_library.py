@@ -21,7 +21,7 @@ def featured_reports(store):
         seen.add(identifier)
         package = packages[identifier]
         row = {'kind': 'dataset', 'package_id': identifier,
-               'url': '/datasets?' + urlencode({'package': identifier}),
+               'url': '/api/v1/packages/' + identifier + '/overview/report',
                'available': package['available'], 'records': package.get('records', 0),
                'subjects': package.get('subjects', 0), 'reported': 0,
                'status': 'not_run' if package['available'] else 'unavailable'}
@@ -46,6 +46,8 @@ def library(store):
         dataset_jobs = copy.deepcopy(list(store.packages.jobs.values()))
     rows = []
     for package in datasets['packages']:
+        configured = store.packages.packages.get(package['id'], {})
+        if configured.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         jobs = [j for j in dataset_jobs if j['package_id'] == package['id'] and j['manifest_hash'] == package.get('manifest_hash')]
         latest = max(jobs, key=lambda j:j['created_at']) if jobs else None
         rows.append({'id': 'dataset:'+package['id'], 'kind':'dataset', 'label':package['label'],
@@ -56,7 +58,7 @@ def library(store):
         inputs, jobs = copy.deepcopy(list(store.inputs.values())), copy.deepcopy(list(store.jobs.values()))
     families = {}
     for item in inputs:
-        if item.get('dataset_context'): continue
+        if item.get('dataset_context') or item.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         family = item.get('record_family',item['id'])
         if family not in families or item.get('record_revision',1)>families[family].get('record_revision',1):families[family]=item
     records = []
@@ -66,13 +68,13 @@ def library(store):
         latest = max(attempts,key=lambda j:j['created_at']) if attempts else None
         records.append({'id':'record:'+item['id'], 'kind':'record', 'label':item['label'],
                         'available':item.get('availability',{}).get('status')!='unavailable',
-                        'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),
+                        'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),
                         'status':latest['status'] if latest else 'not_run',
                         'updated_at':latest['created_at'] if latest else item.get('provenance',{}).get('received_at',''),
                         'url':'/?'+urlencode({'input':item['id']}),
-                        'latest_run_url':'/?'+urlencode({'job':latest['id']}) if latest else None})
+                        'latest_run_url':(f"/api/v1/jobs/{latest['id']}/report" if latest['status'] == 'completed' else '/?'+urlencode({'job':latest['id']})) if latest else None})
     for intake in store.intakes.pending():
-        if intake.get('dataset_context'): continue
+        if intake.get('dataset_context') or intake.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         records.append({'id':'intake:'+intake['id'],'kind':'record','label':intake['filename'],
                         'available':True,'format':intake.get('metadata',{}).get('format'), 'status':'needs_confirmation',
                         'updated_at':intake['received_at'],'url':'/?'+urlencode({'intake':intake['id']})})

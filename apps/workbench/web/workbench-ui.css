@@ -411,3 +411,12 @@ body.qc-app, body.qc-document {
   .qc-app :focus-visible { outline-color: Highlight; }
   #module-dialog::backdrop { background: Canvas; opacity: .65; }
 }
+
+/* Frozen report navigation shares the same type and spacing as the workbench. */
+.saved-report-nav {display:flex;align-items:center;gap:24px;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--line);font:13px var(--font-ui)}
+@media print {.saved-report-nav {display:none}}
+
+.qc-app .upload-first .intro {display:flex;align-items:center;justify-content:space-between;gap:16px}
+.qc-app #example-shortcut {font-size:13px;white-space:nowrap}
+[data-active-record=true] #example-shortcut {display:none}
+@media(min-width:900px) {.qc-app #demo-report-list {grid-template-columns:1fr 1fr}}

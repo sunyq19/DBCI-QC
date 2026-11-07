@@ -92,6 +92,8 @@ class PackageJobs:
                    'record_id': record['id'], 'record_path': record['path'],
                    **{k: record[k] for k in ('subject', 'session', 'group', 'processing')},
                    'declared_modality': record['modality'], 'declared_stream_id': options.get('stream_id')}
+        if p.get('library_origin') in {'user_upload', 'user_registered'}:
+            context['library_origin'] = 'user_registered'
         return p['root'], record['path'], context, options.get('stream_id')
 
     def get(self,identifier):

@@ -78,3 +78,9 @@ These start, inspect and stop the service managed by this launcher. Avoid launch
 ```
 
 See the [toolkit API](../toolkit.md) and [workbench API](../../apps/workbench/README.md).
+
+## Upload retention and personal library
+
+New upload copies expire **7 days** after receipt. While running, the service checks expiry every minute and defers deletion for queued/running jobs. Reports, saved evidence, fingerprints and confirmation records remain. Linked originals, registered dataset folders and legacy files without an ownership receipt are never automatically removed.
+
+My uploads starts empty; development entries, examples and legacy drafts no longer populate it. Their files and reports are preserved. An administrator can explicitly mark a configured `inputs` or `packages` entry with `library_origin: user_registered` to show it as personal data; this does not authorize deleting the linked source. Re-upload expired copies to rerun QC. Cloud user isolation and object-storage lifecycle remain planned.

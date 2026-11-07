@@ -25,7 +25,7 @@
   </header>
   <main id="main" class="page-shell upload-first">
     <nav id="dataset-record-context" class="dataset-record-context" aria-label="数据归属" hidden></nav>
-    <section class="intro"><h1>数据质控</h1><p>上传数据，确认信息，查看报告。</p></section>
+    <section class="intro"><div><h1>数据质控</h1><p>上传数据，确认信息，查看报告。</p></div><a id="example-shortcut" href="#demo-reports" hidden>查看示例</a></section>
     <div id="catalog-error" class="notice error" role="alert" hidden></div>
     <div id="draft-recovery" class="draft-recovery" hidden><span>有尚未运行的配置</span><button id="restore-draft-button" class="button secondary small-button">恢复草稿</button><button id="discard-draft-button" class="button ghost small-button">丢弃草稿</button></div>
     <div class="studio-layout">
@@ -42,6 +42,7 @@
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
       <div class="upload-meta"><p id="upload-limit-note" class="small muted">仅在本机处理 · 最大 2 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
+      <p class="small muted" id="retention-note">上传副本保留 7 天，报告保留；本机原文件不变。</p>
       <p id="intake-status" class="small muted" role="status"></p>
       <div id="upload-support" class="upload-support">
         <dl id="upload-capabilities" class="upload-capabilities">
@@ -134,9 +135,9 @@
     <section id="demo-reports" class="panel demo-reports" aria-label="示例数据集" hidden data-i18n-skip>
       <h2 id="demo-reports-title">示例数据集</h2><p id="demo-reports-caption" class="small muted">直接打开，查看汇总与逐份报告。</p><div id="demo-report-list"></div>
     </section>
-    <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="已导入数据">
-      <summary><span>已导入数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
-      <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs"><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
+    <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="我的数据">
+      <summary><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
+      <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
       <p id="library-category-note" class="small muted" hidden></p>
       <label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off">
       <p id="data-library-error" class="small field-error" hidden></p><div id="data-library-list"><p class="small muted">正在加载数据…</p></div>

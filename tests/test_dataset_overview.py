@@ -182,7 +182,7 @@ class SummaryTests(unittest.TestCase):
         self.assertTrue(demo['available'])
         self.assertEqual(demo['reported'], 0)
         self.assertEqual(demo['status'], 'not_run')
-        self.assertEqual(demo['url'], '/datasets?package=pilot')
+        self.assertEqual(demo['url'], '/api/v1/packages/pilot/overview/report')
         self.assertNotIn('score', demo)
         self.assertFalse(any(r['id'] == 'dataset:pilot' for r in data['items']))
         self.assertEqual(data['counts']['datasets'], 0)
@@ -225,10 +225,11 @@ class SummaryTests(unittest.TestCase):
 
     def test_library_latest_revision_no_duplicate_linked_inputs_or_paths(self):
         self.save_dataset();self.save_signal()
-        self.store.inputs['old']=dict(id='old',label='old',record_family='f',record_revision=1)
-        self.store.inputs['new']=dict(id='new',label='new',record_family='f',record_revision=2)
+        self.store.packages.packages['pilot']['library_origin'] = 'user_upload'
+        self.store.inputs['old']=dict(id='old',label='old',record_family='f',record_revision=1,library_origin='user_upload')
+        self.store.inputs['new']=dict(id='new',label='new',record_family='f',record_revision=2,library_origin='user_upload')
         self.store.jobs['old-run']=dict(id='old-run',status='completed',input_id='old',created_at='2026-11-01')
-        with patch.object(self.store.intakes,'pending',return_value=[dict(id='pending',filename='p.edf',received_at='2026-11-07')]):
+        with patch.object(self.store.intakes,'pending',return_value=[dict(id='pending',filename='p.edf',received_at='2026-11-07',library_origin='user_upload')]):
             data=library(self.store)
         self.assertEqual(data['counts'],dict(datasets=1,records=2))
         row=next(r for r in data['items'] if r['id']=='record:new')
@@ -236,8 +237,9 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn('source_path',json.dumps(data));self.assertNotIn(str(self.root),json.dumps(data))
 
     def test_library_separates_only_explicit_validation_cases(self):
+        self.store.packages.packages['pilot']['library_origin'] = 'user_upload'
         self.store.settings['validation_library_ids'] = ['dataset:pilot']
-        self.store.inputs['ordinary'] = dict(id='ordinary', label='New upload')
+        self.store.inputs['ordinary'] = dict(id='ordinary', label='New upload', library_origin='user_upload')
         self.store.jobs['failed'] = dict(id='failed', input_id='ordinary', status='failed', created_at='2026-11-06')
         data = library(self.store)
         self.assertEqual(next(r for r in data['items'] if r['id']=='dataset:pilot')['category'], 'validation')
@@ -262,6 +264,26 @@ class SummaryTests(unittest.TestCase):
         self.assertTrue(row['available'])
         self.assertEqual(row['reported'], 0)
 
+    def test_empty_personal_library_does_not_delete_legacy_or_linked_data(self):
+        self.save_dataset(); self.save_signal()
+        self.store.inputs['legacy'] = dict(id='legacy', label='Development recording')
+        data = library(self.store)
+        self.assertEqual(data['items'], [])
+        self.assertIn('legacy', self.store.inputs)
+        self.assertIn('pilot', self.store.packages.packages)
+        self.store.inputs['fresh'] = dict(id='fresh', label='My upload', library_origin='user_upload')
+        self.assertEqual([r['id'] for r in library(self.store)['items']], ['record:fresh'])
+
+    def test_missing_metadata_is_collapsed_without_becoming_a_pass(self):
+        data = aggregate_overview(self.plan, dataset_result=evaluate_dataset(self.root, self.plan))
+        data.update(package_id='pilot', label='Pilot', generated_at='now', manifest_hash='hash')
+        data['findings'].append(dict(id='unknown', module='D02', code='extra', status='unassessed', label='Extra metadata', message='Missing auxiliary table'))
+        html = render_overview(data)
+        before, after = html.split('<details class="disclosure">', 1)
+        self.assertNotIn('Missing auxiliary table', before)
+        self.assertIn('Missing auxiliary table', after)
+        self.assertNotIn('尚无法判断', before)
+
     def test_summary_api_export_and_local_origin_guard(self):
         self.save_dataset()
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.store=self.store
@@ -277,7 +299,7 @@ class SummaryTests(unittest.TestCase):
                 self.assertEqual(get(path)[0],200)
             status,headers,body=get('/api/v1/packages/pilot/overview/report?lang=en&download=1')
             self.assertEqual(status,200);self.assertIn('attachment',headers['Content-Disposition'])
-            self.assertIn(b'Dataset summary',body)
+            self.assertIn(b'Dataset report',body)
             self.assertEqual(get('/api/v1/packages/pilot/overview?job=invalid')[0],400)
             self.assertEqual(get('/api/v1/packages/pilot/overview?path=/tmp')[0],400)
             self.assertEqual(get('/api/v1/data',{'Origin':'https://other.test'})[0],403)
