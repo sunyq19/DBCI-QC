@@ -18,9 +18,11 @@
   function translate(){document.documentElement.lang=lang;document.querySelectorAll('[data-text]').forEach(el=>el.textContent=word(el.dataset.text));document.querySelectorAll('[data-lang]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.lang===lang)));$('dataset-standard').href=(en()?'/en':'')+'/standards/dataset-checks';render();}
   function renderSource(){
     $('dataset-breadcrumb').textContent=selected?.label||'';
-    $('package-select').innerHTML=packages.map(p=>`<option value="${esc(p.id)}" ${p.available?'':'disabled'}>${esc(p.label)}</option>`).join('');$('package-select').disabled=!packages.length;if(selected)$('package-select').value=selected.id;
+    const option=p=>`<option value="${esc(p.id)}" ${p.available?'':'disabled'}>${esc(en()?p.label_en||p.label:p.label)}${p.available?'':t(' · 不可用',' · unavailable')}</option>`;
+    const groups=[['example',t('示例数据集','Example datasets')],['data',t('已导入数据','Imported data')],['validation',t('验证样例','Validation cases')]];
+    $('package-select').innerHTML='<option value="">'+t('选择数据集','Select a dataset')+'</option>'+groups.map(([kind,label])=>{const rows=packages.filter(p=>(p.category||'data')===kind);return rows.length?`<optgroup label="${label}">${rows.map(option).join('')}</optgroup>`:''}).join('');$('package-select').disabled=!packages.length;$('package-select').value=selected?.id||'';
     $('package-facts').innerHTML=selected?.available?[[overview?.summary.subjects??selected.subjects,t('个体','subjects')],[overview?.summary.records??selected.records,t('记录','recordings')],[overview?.summary.expected_files??selected.files,t('文件','files')]].map(([v,k])=>`<div><b>${v}</b><small>${k}</small></div>`).join(''):'';
-    $('package-description').textContent=selected?.description||'';$('package-scope').textContent=overview?.scope||selected?.scope||'';
+    $('package-description').textContent=(en()?selected?.description_en||selected?.description:selected?.description)||'';$('package-scope').textContent=overview?.scope||selected?.scope||'';
     $('package-groups').innerHTML=(overview?.comparison_groups||selected?.groups||[]).map(g=>`<div class="package-rule"><strong>${esc(g.label||g.id)}</strong><p class="small muted">${g.same_channels?t('固定通道布局','Fixed channel layout'):t('允许不同个体的通道布局不同','Layouts may differ across subjects')}</p></div>`).join('');
     $('package-admission-limits').hidden=!admissionPolicy;
     if(admissionPolicy){const bytes=admissionPolicy.max_record_bytes,recordSize=bytes>=1073741824?`${bytes/1073741824} GiB`:`${bytes/1048576} MiB`;$('package-admission-limits').textContent=t(`云端限额验证 · 每记录 ${recordSize} · 数据集 ${admissionPolicy.max_dataset_bytes/1073741824} GiB / ${admissionPolicy.max_records} 记录 / ${admissionPolicy.max_files} 文件`,`Cloud limit validation · ${recordSize} per record · ${admissionPolicy.max_dataset_bytes/1073741824} GiB / ${admissionPolicy.max_records} records / ${admissionPolicy.max_files} files per dataset`);}
@@ -57,7 +59,7 @@
   function signalHtml(signal){
     if(!signal||signal.status==='not_run')return `<small>${t('尚未检查','Not checked')}</small>`;
     const complete=signal.full_duration_computed?t('已检查全时长','Full duration checked'):signal.scope==='window'?t('仅片段','Window only'):t('尚未覆盖全时长','Full duration not covered');
-    const score=signal.components?.length?`<details class="signal-metrics"><summary>${t('EEG 分项','EEG components')} · <span class="overview-score">${point(signal.score)}</span></summary>${signal.components.map(p=>`<div>${esc(p.name||p.id)} · ${point(p.value)}</div>`).join('')}<small>${esc(signal.score_version)}</small></details>`:'';
+    const score=signal.components?.length?`<details class="signal-metrics"><summary>${t('查看 EEG 检查指标','EEG check metrics')}</summary>${signal.components.map(p=>`<div>${esc(p.name||p.id)} · ${point(p.value)}</div>`).join('')}<small>${esc(signal.score_version)}</small></details>`:'';
     return `${tag(signal.status)}<small class="target">${complete}${signal.incomplete_modules?.length?` · ${t('部分项目未完成','Some checks incomplete')}`:''}</small>${signal.source_status==='unverified'?`<small class="target">${t('待资料检查核对来源','Source comparison pending')}</small>`:''}${score}`;
   }
   function renderRecords(){

@@ -6,15 +6,19 @@
   const status={not_run:['未运行','Not run'],needs_confirmation:['待确认','Confirm information'],running:['运行中','Running'],queued:['排队中','Queued'],completed:['有检查报告','Report available'],failed:['检查失败','Failed'],interrupted:['已中断','Interrupted'],cancelled:['已取消','Cancelled']};
   function href(value){if(typeof value!=='string'||!/^\/(?:\?|datasets\?)/.test(value))return '#';const url=new URL(value,'http://localhost');url.searchParams.set('lang',en()?'en':'zh-CN');return url.pathname+url.search;}
   function renderExamples(){
-    $('demo-reports').hidden=!examples.length;
-    $('demo-reports-title').textContent=t('示例报告','Example reports');
-    $('demo-reports-caption').textContent=t('先看已完成的结果，也可以上传自己的数据。','Explore completed results, or upload your own data.');
-    $('demo-report-list').innerHTML=examples.map(r=>{
-      const record=r.kind==='record',value=record&&Number.isFinite(r.score)?r.score.toFixed(2):null;
-      const scope=r.scope==='recording'?t('整份检查','Full recording'):t('片段检查','Window check');
-      const detail=record?`${scope}${r.scope==='recording'&&Number.isFinite(r.duration_seconds)?` · ${r.duration_seconds.toFixed(1)} s`:''}`:t(`${r.subjects} 个体 · ${r.reported}/${r.records} 份报告`,`${r.subjects} subjects · ${r.reported}/${r.records} reports`);
-      const note=record?t('总分、分项与异常位置','Score, components and findings'):r.attention_categories?t(`${r.attention_categories} 类资料问题保留在汇总中`,`${r.attention_categories} metadata issue categories retained`):t('资料检查与逐份信号报告','Dataset checks and recording reports');
-      return `<a class="demo-report" href="${esc(href(r.url))}"><span class="demo-report-copy"><strong>${esc(en()?r.label_en||r.label:r.label)}</strong><span>${esc(detail)}</span><small>${esc(note)}</small></span><span class="demo-report-end">${value?`<b>${value}</b><small>${t('试行评分','Trial score')}</small>`:''}<span>${t('查看报告','View report')}</span></span></a>`;
+    const datasets=examples.filter(r=>r.kind==='dataset');
+    $('demo-reports').hidden=!datasets.length;
+    $('demo-reports-title').textContent=t('示例数据集','Example datasets');
+    $('demo-reports').setAttribute('aria-label',t('示例数据集','Example datasets'));
+    $('demo-reports-caption').textContent=t('直接打开，查看汇总与逐份报告。','Open a dataset to explore its summary and recording reports.');
+    $('demo-report-list').innerHTML=datasets.map(r=>{
+      const available=r.available!==false;
+      const reports=r.status==='report_unavailable'?t('报告暂不可用','Reports unavailable'):t(`报告 ${r.reported||0}/${r.records||0}`,`Reports ${r.reported||0}/${r.records||0}`);
+      const description=en()?r.description_en||r.description:r.description;
+      const label=en()?r.label_en||r.label:r.label;
+      const meta=t(`${r.subjects??'—'} 个体 · ${r.records??'—'} 份记录`,`${r.subjects??'—'} subjects · ${r.records??'—'} recordings`);
+      const content=`<span class="demo-report-copy"><strong>${esc(label)}${r.formats?`<small class="example-format">${esc(r.formats)}</small>`:''}</strong>${description?`<span>${esc(description)}</span>`:''}<small>${esc(meta)} · ${esc(reports)}</small></span><span class="demo-report-end">${available?t('打开数据集','Open dataset'):t('文件不可用','Files unavailable')}</span>`;
+      return available?`<a class="demo-report" href="${esc(href(r.url))}" aria-label="${esc(label+' · '+t('打开数据集','Open dataset'))}">${content}</a>`:`<div class="demo-report unavailable" aria-disabled="true">${content}</div>`;
     }).join('');
   }
   function render(){

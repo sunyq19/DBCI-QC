@@ -2,10 +2,48 @@
 import copy
 from datetime import datetime, timezone
 import json
+import re
 from pathlib import Path
 
 from ephys_qc.dataset_qc.overview import aggregate_overview
 from package_jobs import fingerprint
+
+
+def read_signal_summary(path):
+    """Read execution coverage without loading candidates or rebuilding scores.
+
+    A recording result can contain hundreds of MB of candidate observations.
+    Dataset navigation needs only frozen coverage and module execution states.
+    Parsing to EOF also keeps a truncated result from counting as a report.
+    """
+    import ijson
+    result = {'coverage': {}, 'recording': {}, 'modules': []}
+    module = None
+    coverage_fields = {'total_seconds', 'completed_seconds', 'failed_seconds',
+                       'unexecuted_seconds', 'gap_seconds'}
+    try:
+        with Path(path).open('rb') as handle:
+            for prefix, event, value in ijson.parse(handle, use_float=True):
+                if event in {'string', 'number', 'boolean', 'null'}:
+                    if prefix in {'schema_version', 'scope', 'status', 'analysis_profile'}:
+                        result[prefix] = value
+                    elif prefix.startswith('coverage.') and prefix[9:] in coverage_fields:
+                        result['coverage'][prefix[9:]] = value
+                    elif prefix in {'recording.start_seconds', 'recording.duration_seconds'}:
+                        result['recording'][prefix.split('.')[1]] = value
+                    elif module is not None and prefix in {'modules.item.id', 'modules.item.name', 'modules.item.status'}:
+                        module[prefix.split('.')[-1]] = value
+                elif prefix == 'modules.item' and event == 'start_map':
+                    module = {}
+                elif prefix == 'modules.item' and event == 'end_map':
+                    if module and 'id' in module and 'status' in module:
+                        result['modules'].append(module)
+                    module = None
+    except ijson.JSONError as error:
+        raise ValueError('Incomplete recording result') from error
+    if not result.get('schema_version') or result.get('scope') not in {'window', 'recording'}:
+        raise ValueError('Missing recording result structure')
+    return result
 
 
 def source_match(item, source_root, dataset_result):
@@ -55,7 +93,7 @@ def build_overview(store, package_id, job_id=None):
         try:
             item = json.loads((store.root / 'jobs' / job['id'] / 'request.json').read_text())['input']
             signal['source_status'] = source_match(item, root, dataset_result)
-            if job['status'] == 'completed': signal['result'] = store.result(job['id'], compact=True)
+            if job['status'] == 'completed': signal['result'] = store.dataset_result(job['id'])
         except (OSError, ValueError, KeyError, TypeError):
             signal['result_error'] = True
         signals[rid] = signal
@@ -83,11 +121,10 @@ def render_overview(data, language='zh-CN'):
         elif s.get('scope')=='window':text+=t(' · 片段',' · Window only')
         if s.get('incomplete_modules'):text+=t(' · 部分项目未评',' · Some checks unassessed')
         return text
-    def score(row):
-        s=row['signal'];v=s.get('score')
-        text=f'{v:.2f}' if v is not None else '—'
-        parts='; '.join(f"{p.get('name',p.get('id',''))}: {p['value']:.2f}" if p.get('value') is not None else f"{p.get('name','')}: —" for p in s.get('components',[]))
-        return esc(text)+(f'<small>{esc(parts)} · {esc(s.get("score_version"))}</small>' if parts else '')
+    def report_link(row):
+        url = row['signal'].get('report_url') or ''
+        if not re.fullmatch(r'/api/v1/jobs/[a-f0-9]{32}/report', url): return '—'
+        return f'<a href="{esc(url)}?lang={esc(language)}">{t("查看报告", "View report")}</a>'
     summary=data['summary'];files=summary['file_counts'];groups=data.get('attention_groups',[])
     affected={rid for g in groups for rid in g['record_ids']}
     counts=(f"{files.get('present',0)}/{summary['expected_files']}" if files is not None else t('未检查','Not checked'))
@@ -96,14 +133,14 @@ def render_overview(data, language='zh-CN'):
            (f"{summary['reported']}/{summary['records']}",t('信号报告','Signal reports'))]
     card_html=''.join(f'<div><strong>{esc(v)}</strong><span>{esc(k)}</span></div>' for v,k in cards)
     attention=''.join(f'<article class="attention"><h3>{esc(g["title_en"] if en else g["title"])} · {esc(g["record_count"])} {t("份记录","recordings")}</h3><p>{esc(g["meaning_en"] if en else g["meaning"])}</p><p>{esc(g["next_step_en"] if en else g["next_step"])}</p><small>{t("建议核对人","Suggested reviewer")}: {esc(g["owner_en"] if en else g["owner"])}</small></article>' for g in groups)
-    rows=''.join(f'<tr><td>{esc(r["subject"])}</td><td>{esc(r["session"])}<small>{esc(r["path"])}</small></td><td>{esc(r["modality"])}<small>{esc(r["processing"])}</small></td><td>{esc(r["checks"].get("conflict",0))} / {esc(r["checks"].get("review",0))} / {esc(r["checks"].get("unassessed",0))}</td><td>{esc(signal(r))}</td><td>{score(r)}</td><td>{esc(r["signal"].get("job_id"))}</td></tr>' for r in data['records'])
+    rows=''.join(f'<tr><td>{esc(r["subject"])}</td><td>{esc(r["session"])}<small>{esc(r["path"])}</small></td><td>{esc(r["modality"])}<small>{esc(r["processing"])}</small></td><td>{esc(r["checks"].get("conflict",0))} / {esc(r["checks"].get("review",0))} / {esc(r["checks"].get("unassessed",0))}</td><td>{esc(signal(r))}</td><td>{report_link(r)}</td></tr>' for r in data['records'])
     status_labels={'conflict':t('需核对','Needs review'),'review':t('待复核','Review'),'unassessed':t('尚无法判断','Not yet assessable')}
     findings=''.join(f'<tr><td>{esc(c["module"])} · {esc(c["label_en"] if en else c["label"])}</td><td>{esc(status_labels.get(c["status"],c["status"]))}</td><td>{esc(c["target"])}</td><td>{esc(c["message"])}<small>{esc("; ".join(c.get("files",[])))}</small></td></tr>' for c in data['findings'])
     return f'''<!doctype html><html lang="{esc(language)}"><meta charset="utf-8"><title>{esc(data['label'])} · {t('数据集汇总','Dataset summary')}</title>
-<style>body{{font:14px/1.6 system-ui,sans-serif;color:#20344f;background:#f5f7fb;margin:0}}main{{max-width:1280px;margin:30px auto;padding:28px;background:white;border-radius:16px}}h1{{font-size:26px}}h2{{font-size:19px;margin-top:30px}}.cards{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}}.cards div{{background:#f1f5fd;padding:18px;border-radius:10px}}.cards strong{{display:block;font-size:28px;color:#245ad3}}span,small,.note{{color:#64748b}}small{{display:block;font-size:12px;overflow-wrap:anywhere}}table{{width:100%;border-collapse:collapse;font-size:12px}}td,th{{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #dce5f2;overflow-wrap:anywhere;max-width:300px}}.scroll{{overflow:auto}}a{{color:#245ad3}}@media print{{main{{margin:0;padding:0}}body{{background:white}}a{{display:none}}thead{{display:table-header-group}}tr{{break-inside:avoid}}}}@media(max-width:700px){{main{{padding:16px}}.cards{{grid-template-columns:1fr 1fr}}}}</style>
+<style>body{{font:14px/1.6 system-ui,sans-serif;color:#252b34;background:#fff;margin:0}}main{{max-width:1280px;margin:30px auto;padding:28px;background:white;border-radius:6px}}h1{{font-size:22px}}h2{{font-size:16px;margin-top:30px}}.cards{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}}.cards div{{background:#f7f8fa;padding:16px;border-radius:4px}}.cards strong{{display:block;font-size:24px;color:#252b34}}span,small,.note{{color:#68717e}}small{{display:block;font-size:12px;overflow-wrap:anywhere}}table{{width:100%;border-collapse:collapse;font-size:12px}}td,th{{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #dce5f2;overflow-wrap:anywhere;max-width:300px}}.scroll{{overflow:auto}}a{{color:#2459bc}}@media print{{main{{margin:0;padding:0}}body{{background:white}}main>a{{display:none}}thead{{display:table-header-group}}tr{{break-inside:avoid}}}}@media(max-width:700px){{main{{padding:16px}}.cards{{grid-template-columns:1fr 1fr}}}}</style>
 <main><a href="/datasets?package={esc(data['package_id'])}">{t('返回数据集','Back to dataset')}</a><h1>{esc(data['label'])}</h1><p>{esc(data['scope'])}</p><p class="note">{esc(data['generated_at'])} · {esc(data['schema_version'])}</p><div class="cards">{card_html}</div>
-<p class="note">{t('按已保存结果汇总。整段计算覆盖不是质量合格率；分数逐记录列出，不计算跨个体总分。','Summarizes saved results. Execution coverage is not quality. Scores remain per recording; there is no cohort score.')}</p>
+<p class="note">{t('汇总资料检查与信号报告的完成情况。检查指标在逐份报告中查看，不计算跨个体或跨模态总分。','Dataset checks and available signal reports. Inspect measurements in each recording report; no score is pooled across subjects or modalities.')}</p>
 {('<h2>'+t('需要处理的事项','Items needing attention')+'</h2>'+attention) if attention else ''}
-<h2>{t('记录结果','Recording results')}</h2><div class="scroll"><table><thead><tr>{''.join('<th>'+x+'</th>' for x in [t('个体','Subject'),t('会话 / 记录','Session / recording'),t('模态','Modality'),t('需核对 / 待复核 / 尚无法判断','Needs review / review / unassessed'),t('信号检查','Signal QC'),t('EEG 分数 / 分项','EEG score / components'),t('信号任务','Signal run')])}</tr></thead><tbody>{rows}</tbody></table></div>
+<h2>{t('记录结果','Recording results')}</h2><div class="scroll"><table><thead><tr>{''.join('<th>'+x+'</th>' for x in [t('个体','Subject'),t('会话 / 记录','Session / recording'),t('模态','Modality'),t('需核对 / 待复核 / 尚无法判断','Needs review / review / unassessed'),t('信号检查','Signal QC'),t('逐份报告','Recording report')])}</tr></thead><tbody>{rows}</tbody></table></div>
 <h2>{t('资料检查明细','Dataset findings')}</h2><div class="scroll"><table><thead><tr><th>{t('检查','Check')}</th><th>{t('状态','Status')}</th><th>{t('对象','Target')}</th><th>{t('证据','Evidence')}</th></tr></thead><tbody>{findings or '<tr><td>—</td></tr>'}</tbody></table></div>
 <p class="note">{t('清单指纹','Manifest fingerprint')}: {esc(data['manifest_hash'])}<br>{t('资料检查任务','Dataset run')}: {esc((data.get('dataset_job') or {}).get('id'))}<br>{t('仅核对已保存来源指纹，导出时未重新读取原数据。','Saved source fingerprints are compared; raw data are not reread during export.')}</p></main></html>'''

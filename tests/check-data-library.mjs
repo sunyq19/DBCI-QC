@@ -29,15 +29,22 @@ const req=window.QCDataLibrary.refresh();requests.at(-1)({ok:true,json:async()=>
  item('ordinary-report',{status:'completed',latest_run_url:'/?job=report'}),
  item('injected-case',{category:'validation',status:'completed'})],
  examples:[{kind:'record',label:'<sample>',label_en:'Sample report',url:'/?job=report',score:88.51,scope:'recording',duration_seconds:281.66},
- {kind:'dataset',label:'Dataset demo',url:'/datasets?package=demo',subjects:2,records:2,reported:1,attention_categories:1}]})});await req;
+ {kind:'dataset',label:'<sample>',label_en:'Dataset demo',description:'双个体记录',description_en:'Two participants',formats:'EDF',url:'/datasets?package=demo',subjects:2,records:2,reported:1,available:true},
+ {kind:'dataset',label:'未运行',label_en:'Ready to run',url:'/datasets?package=new',subjects:1,records:2,reported:0,available:true},
+ {kind:'dataset',label:'缺文件',label_en:'Missing files',url:'/datasets?package=gone',subjects:1,records:1,reported:0,available:false}]})});await req;
 assert.match(element('data-library-list').innerHTML,/ordinary-failure/);
 assert.match(element('data-library-list').innerHTML,/job=report/);
 assert(!element('data-library-list').innerHTML.includes('injected-case'));
-assert.match(element('demo-report-list').innerHTML,/88.51/);assert.match(element('demo-report-list').innerHTML,/1\/2 reports/);
+assert(!element('demo-report-list').innerHTML.includes('88.51'));
+assert.match(element('demo-report-list').innerHTML,/Reports 1\/2/);
+assert.match(element('demo-report-list').innerHTML,/Reports 0\/2/);
+assert.match(element('demo-report-list').innerHTML,/Open dataset/);
+assert(!element('demo-report-list').innerHTML.includes('href="/datasets?package=gone'));
+assert.match(element('demo-report-list').innerHTML,/aria-disabled="true"/);
 assert.equal(element('demo-reports').hidden,false);
 element('library-validation').events.click();
 assert.match(element('data-library-list').innerHTML,/injected-case/);assert(!element('data-library-list').innerHTML.includes('ordinary-failure'));
 assert.equal(element('library-category-note').hidden,false);
-language='zh-CN';events['qc:languagechange']();assert.match(element('demo-report-list').innerHTML,/&lt;sample&gt;/);assert.match(element('demo-report-list').innerHTML,/试行评分/);
+language='zh-CN';events['qc:languagechange']();assert.match(element('demo-report-list').innerHTML,/&lt;sample&gt;/);assert(!element('demo-report-list').innerHTML.includes('试行评分'));assert.match(element('demo-reports-title').textContent,/示例数据集/);assert.match(element('demo-report-list').innerHTML,/报告 1\/2/);
 const missing=window.QCDataLibrary.refresh();requests.at(-1)({ok:true,json:async()=>({items:[],examples:[]})});await missing;assert.equal(element('demo-reports').hidden,true);
 console.log('Data library: escaping, local links, search, pagination, language and stale responses passed. No jobs submitted.');

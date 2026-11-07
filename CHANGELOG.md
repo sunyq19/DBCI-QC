@@ -1,5 +1,12 @@
 # 变更记录
 
+## 未发布 — 2026-11-07
+
+- 首页改为可直接打开的示例数据集，提供简短描述、格式和报告数量；与已导入数据、验证样例分开。移除示例分数展示。
+- 本机公开演示覆盖 EEG、ECoG、sEEG、Neuropixels 四类数据集，共 13 份记录；资料检查与逐份信号报告均已跑通。数据及运行报告不随 Git 分发。
+- 数据集导出提供逐份报告链接，不展示 EEG 分数列；页面指标按需展开。数据集切换按示例、已导入、验证样例分组。
+- 数据集导航读取有界执行摘要并缓存，不再加载完整候选列表或重算 EEG 评分。
+
 ## 2026-11-06 · EEG workflow integration
 
 - Confirm processing history at first intake; excluded bands remain unassessed.

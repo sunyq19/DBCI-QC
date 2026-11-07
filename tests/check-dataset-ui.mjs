@@ -7,7 +7,7 @@ const html = fs.readFileSync(new URL('datasets.html', root), 'utf8');
 const source = fs.readFileSync(new URL('datasets.js', root), 'utf8');
 const ids = [...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(new Set(ids).size, ids.length);
-const pack = id=>({id,label:id,available:true,subjects:2,records:4,files:12,scope:'selected only',manifest_hash:'hash-'+id,groups:[]});
+const pack = id=>({id,label:id,category:id==='A'?'example':'data',available:true,subjects:2,records:4,files:12,scope:'selected only',manifest_hash:'hash-'+id,groups:[]});
 const check={id:'check1',module:'D02',code:'rates',label:'采样率',label_en:'Sampling rates',status:'conflict',target:'<img onerror=alert(1)>',message:'evidence',files:['<script>'],observed:{rate:500}};
 const attention={id:'rates-conflict',code:'rates',record_ids:['r1'],record_count:1,check_ids:['check1'],title:'采样率记录不一致',title_en:'Sampling-rate descriptions differ',meaning:'文件与配套表的描述不同。',meaning_en:'Descriptions differ.',next_step:'核对采集记录。',next_step_en:'Verify source records.',owner:'数据提供方',owner_en:'Data provider',unit_labels:[]};
 const recordRows=[{id:'r1',subject:'sub-01',session:'none',path:'sub-01/run.edf',modality:'scalp_eeg',processing:'raw',checks:{conflict:1},signal:{status:'not_run'}},{id:'r2',subject:'sub-02',session:'s2',path:'sub-02/run.edf',modality:'ecog',processing:'raw',checks:{},signal:{status:'not_run'}}];
@@ -39,6 +39,8 @@ function fixture(admissionPolicy=null,search=''){
 }
 const flush=async()=>{for(let i=0;i<80;i++)await Promise.resolve()};
 let f=fixture();await flush();
+assert.match(f.nodes.get('package-select').innerHTML, /optgroup label="示例数据集"/);
+assert.match(f.nodes.get('package-select').innerHTML, /optgroup label="已导入数据"/);
 assert.equal(f.nodes.get('package-admission-limits').hidden,true,'Local dataset mode has no cloud dataset restriction');
 assert.equal(f.nodes.get('package-run').disabled,true,'Unconfirmed scope cannot start');
 f.nodes.get('package-confirm').checked=true;f.nodes.get('package-confirm').events.change();

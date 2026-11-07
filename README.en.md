@@ -59,7 +59,7 @@ To try a generated engineering example:
 .venv/bin/python examples/headless_qc.py --output .local/demo
 ```
 
-This generates `.local/demo/synthetic.edf` and runs an integrity check. You can upload that EDF to the workbench. It verifies the workflow, not accuracy on natural artifacts. The output directory must not already exist. See [public examples](docs/public-examples.md) for real data.
+This generates `.local/demo/synthetic.edf` and runs an integrity check. You can upload that EDF to the workbench. It verifies the workflow, not accuracy on natural artifacts. The output directory must not already exist. See [public examples](docs/public-examples.md) for real data. Configured examples open directly from **Example datasets**, following dataset → recordings → report. See the [example dataset guide](docs/example-datasets.md) for the four-modality local demonstration; recordings and generated reports are not bundled with a new clone.
 
 ## Modules and reports
 
@@ -106,6 +106,6 @@ BrainElecQC is installed at a fixed commit, not vendored. Raw data, local config
 
 ## Dataset checks
 
-The workbench also provides **Dataset** mode: D01 file completeness → D02 individual consistency → D03 cohort consistency. Register local package roots and explicit expectations in the local configuration, confirm scope, then run checks in the background. Reports include subjects, groups, conflicts and evidence; no signal-quality score is assigned. Whole-package browser upload is not implemented. Core functions are independent of the UI. See [rules](docs/en/dataset-checks.md) and [configuration](docs/dataset-inventory.md).
+Datasets share the same data entry. Open a dataset from **Example datasets** or **Imported data**: D01 file completeness → D02 individual consistency → D03 cohort consistency. Register local package roots and explicit expectations in the local configuration, confirm scope, then run checks in the background. Reports include subjects, groups, conflicts and evidence; no signal-quality score is assigned. Whole-package browser upload is not implemented. Core functions are independent of the UI. See [rules](docs/en/dataset-checks.md) and [configuration](docs/dataset-inventory.md).
 
 Confirmed dataset recordings can be queued as a reviewed sequential batch, cancelled and traced to their reports. EEG results offer overview, candidate review with native-window PSD, and selectable visualizations. Report comparisons group matching configurations; unknown history and excluded frequency bands never become clean scores.

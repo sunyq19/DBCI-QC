@@ -117,11 +117,23 @@ body.qc-app, body.qc-document {
 .qc-app .supporting-panel[open] > .disclosure-content { padding-top: 16px; }
 .qc-app .demo-reports h2 { font-size: var(--text-control); }
 .qc-app .demo-reports > p { font-size: var(--text-note); }
-.qc-app .demo-report { padding: 14px 0; color: var(--ink); }
-.qc-app .demo-report-copy strong { font-size: var(--text-control); font-weight: 500; }
-.qc-app .demo-report-copy > span, .qc-app .demo-report-copy small { font-size: var(--text-note); color: var(--muted); }
-.qc-app .demo-report-end b { font-size: 20px; font-weight: 600; letter-spacing: 0; color: var(--ink); }
-.qc-app .demo-report-end > span { font-size: var(--text-note); }
+.qc-app #demo-report-list { display: grid; gap: 8px; margin-top: 14px; }
+.qc-app .demo-report {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: #fff; color: var(--ink); text-decoration: none;
+}
+.qc-app a.demo-report:hover { border-color: #a5b9da; background: #f8faff; }
+.qc-app a.demo-report:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+.qc-app .demo-report-copy { min-width: 0; display: grid; gap: 5px; }
+.qc-app .demo-report-copy strong { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font-size: var(--text-control); font-weight: 600; }
+.qc-app .demo-report-copy > span { font-size: var(--text-note); color: var(--ink); line-height: 1.5; }
+.qc-app .demo-report-copy small { font-size: var(--text-note); color: var(--muted); font-weight: 400; }
+.qc-app .demo-report-copy .example-format { font-size: 11px; letter-spacing: .02em; }
+.qc-app .demo-report-end { flex-shrink: 0; color: var(--blue); font-size: var(--text-note); font-weight: 500; }
+.qc-app .demo-report.unavailable { background: var(--surface); }
+.qc-app .demo-report.unavailable .demo-report-end { color: var(--muted); }
+@media (max-width: 480px) { .qc-app .demo-report { gap: 8px; padding: 12px; } .qc-app .demo-report-end { font-size: 11px; } }
 .qc-app .library-tabs { background: var(--wash); border-radius: var(--radius-control); }
 .qc-app .library-tabs button { border-radius: 3px; font-size: var(--text-note); }
 .qc-app .library-tabs button[aria-pressed=true] { color: var(--ink); background: white; box-shadow: none; }

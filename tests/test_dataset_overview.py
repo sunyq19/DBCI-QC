@@ -17,7 +17,7 @@ import test_package_record_links as linked_fixtures
 from ephys_qc.dataset_qc.consistency import evaluate_dataset
 from ephys_qc.dataset_qc.overview import aggregate_overview, summarize_signal
 from dataset_overview import build_overview, render_overview, source_match
-from data_library import library
+from data_library import library, featured_reports
 from package_jobs import fingerprint
 from server import Handler
 
@@ -140,7 +140,7 @@ class SummaryTests(unittest.TestCase):
 
     def test_latest_failed_attempt_does_not_fall_back_to_good_score(self):
         self.save_dataset();self.save_signal();self.save_signal('b'*32,'failed','2026-11-07')
-        with patch.object(self.store,'result',return_value=signal()['result']) as reader:
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']) as reader:
             data=build_overview(self.store,'pilot');reader.assert_not_called()
         self.assertEqual(data['records'][0]['signal']['status'],'failed')
         self.assertEqual(data['summary']['reported'],0)
@@ -149,7 +149,7 @@ class SummaryTests(unittest.TestCase):
         jid=self.save_dataset();item=self.save_signal()
         result=evaluate_dataset(self.root,self.plan)
         self.assertEqual(source_match(item,str(self.root),result),'matched')
-        with patch.object(self.store,'result',return_value=signal()['result']):
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']):
             data=build_overview(self.store,'pilot')
             self.assertEqual(data['summary']['reported'],1)
             self.assertEqual(data['records'][0]['signal']['source_status'],'matched')
@@ -162,7 +162,7 @@ class SummaryTests(unittest.TestCase):
 
     def test_mismatching_companion_sources_excluded_and_export_is_escaped(self):
         self.save_dataset();self.save_signal(digest='0'*64)
-        with patch.object(self.store,'result',return_value=signal()['result']):data=build_overview(self.store,'pilot')
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']):data=build_overview(self.store,'pilot')
         self.assertEqual(data['summary']['reported'],0)
         self.assertEqual(data['records'][0]['signal']['status'],'source_mismatch')
         data['label']='<script>alert(1)</script>'
@@ -170,6 +170,58 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn('<script>',html);self.assertIn('&lt;script&gt;',html)
         self.assertIn('来源不一致',html);self.assertIn('清单指纹',html)
         self.assertIn('Source mismatch',render_overview(data,'en'))
+
+    def test_dataset_examples_are_selectable_without_reports_and_not_duplicated(self):
+        self.store.settings['demo_examples'] = [
+            dict(id='old', kind='record', job_id='old', input_id='old'),
+            dict(id='demo', kind='dataset', package_id='pilot', label='EEG', description='Two participants'),
+            dict(id='duplicate', kind='dataset', package_id='pilot')]
+        data = library(self.store)
+        self.assertEqual(len(data['examples']), 1)
+        demo = data['examples'][0]
+        self.assertTrue(demo['available'])
+        self.assertEqual(demo['reported'], 0)
+        self.assertEqual(demo['status'], 'not_run')
+        self.assertEqual(demo['url'], '/datasets?package=pilot')
+        self.assertNotIn('score', demo)
+        self.assertFalse(any(r['id'] == 'dataset:pilot' for r in data['items']))
+        self.assertEqual(data['counts']['datasets'], 0)
+
+    def test_dataset_navigation_streams_execution_only_and_invalidates_saved_cache(self):
+        self.save_signal()
+        path = self.store.root / 'jobs' / ('a' * 32) / 'result.json'
+        value = dict(signal()['result'], schema_version='ephys-recording-result/1.0',
+                     candidate_index=[{'evidence': 'x' * 1000}] * 1000)
+        path.write_text(json.dumps(value))
+        result = self.store.dataset_result('a' * 32)
+        self.assertEqual(result['coverage']['total_seconds'], 10)
+        self.assertNotIn('candidate_index', result)
+        self.assertNotIn('report_view', result)
+        self.store.dataset_summaries.clear()
+        with patch('dataset_overview.read_signal_summary', side_effect=AssertionError('must use valid disk cache')):
+            self.assertEqual(self.store.dataset_result('a' * 32), result)
+        value['coverage']['completed_seconds'] = 9
+        path.write_text(json.dumps(value))
+        self.assertEqual(self.store.dataset_result('a' * 32)['coverage']['completed_seconds'], 9)
+        path.write_text('{"scope":"recording",')
+        with self.assertRaises(ValueError): self.store.dataset_result('a' * 32)
+
+    def test_example_coverage_uses_current_manifest_and_latest_attempt(self):
+        self.store.settings['demo_examples'] = [dict(id='demo', kind='dataset', package_id='pilot')]
+        self.save_dataset(); self.save_signal()
+        with patch.object(self.store, 'dataset_result', return_value=signal()['result']):
+            self.assertEqual(featured_reports(self.store)[0]['reported'], 1)
+            report = render_overview(build_overview(self.store, 'pilot'))
+            self.assertIn('/api/v1/jobs/', report)
+            self.assertNotIn('88.51', report)
+            self.assertNotIn('EEG 分数 / 分项', report)
+            self.plan['scope'] = 'new selection'
+            self.config.write_text(json.dumps(self.plan))
+            self.assertEqual(featured_reports(self.store)[0]['reported'], 0)
+        with patch.object(self.store.packages, 'catalog', return_value={'packages': [dict(id='pilot', available=False)]}):
+            row = featured_reports(self.store)[0]
+            self.assertFalse(row['available'])
+            self.assertEqual(row['status'], 'unavailable')
 
     def test_library_latest_revision_no_duplicate_linked_inputs_or_paths(self):
         self.save_dataset();self.save_signal()
@@ -192,32 +244,23 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(next(r for r in data['items'] if r['id']=='record:ordinary')['category'], 'data')
         self.assertEqual(data['examples'], [])
 
-    def test_featured_record_requires_matching_completed_report(self):
+    def test_legacy_single_report_is_not_a_dataset_example(self):
         item = self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='record', id='demo', label='Demo',
                                                     job_id='a'*32, input_id=item['id'])]
-        with patch.object(self.store, 'result', return_value=signal()['result']):
-            row = library(self.store)['examples'][0]
-            self.assertEqual(row['score'], 88.51)
-            self.assertIn('job='+'a'*32, row['url'])
-            self.store.settings['demo_examples'][0]['input_id'] = 'unrelated'
-            self.assertEqual(library(self.store)['examples'], [])
-            self.store.settings['demo_examples'][0]['input_id'] = item['id']
-            self.store.jobs['a'*32]['status'] = 'failed'
-            self.assertEqual(library(self.store)['examples'], [])
-        self.store.jobs['a'*32]['status'] = 'completed'
-        with patch.object(self.store, 'result', side_effect=FileNotFoundError):
-            self.assertEqual(library(self.store)['examples'], [])
+        self.assertEqual(library(self.store)['examples'], [])
 
     def test_featured_dataset_keeps_issues_and_uses_latest_attempt(self):
         self.save_dataset(); self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='dataset', id='demo', label='Demo', package_id='pilot')]
-        with patch.object(self.store, 'result', return_value=signal()['result']):
+        with patch.object(self.store, 'dataset_result', return_value=signal()['result']):
             row = library(self.store)['examples'][0]
             self.assertEqual(row['reported'], 1)
             self.assertEqual(row['records'], 4)
         self.save_signal('b'*32, 'failed', '2026-11-07')
-        self.assertEqual(library(self.store)['examples'], [])
+        row = library(self.store)['examples'][0]
+        self.assertTrue(row['available'])
+        self.assertEqual(row['reported'], 0)
 
     def test_summary_api_export_and_local_origin_guard(self):
         self.save_dataset()

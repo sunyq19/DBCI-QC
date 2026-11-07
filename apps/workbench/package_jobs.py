@@ -24,6 +24,9 @@ def fingerprint(value):return hashlib.sha256(json.dumps(value,ensure_ascii=False
 class PackageJobs:
     def __init__(self, settings):
         self.admission_policy = configured_policy(settings)
+        self.examples = {p['package_id']: p for p in settings.get('demo_examples', [])
+                         if isinstance(p, dict) and p.get('kind') == 'dataset' and p.get('package_id')}
+        self.validation_ids = set(settings.get('validation_library_ids', []))
         self.root=Path(settings['data_dir'])/'package_jobs';self.root.mkdir(parents=True,exist_ok=True)
         self.packages={};self.jobs={};self.lock=threading.RLock();self.queue=queue.Queue()
         for p in settings.get('packages',[]):
@@ -48,6 +51,11 @@ class PackageJobs:
         packages=[]
         for identifier,p in self.packages.items():
             item={k:p[k] for k in ('id','label','description') if k in p}
+            item['category'] = ('example' if identifier in self.examples else
+                                'validation' if 'dataset:' + identifier in self.validation_ids else 'data')
+            if identifier in self.examples:
+                example = self.examples[identifier]
+                item.update({k: example[k] for k in ('label', 'label_en', 'description', 'description_en') if example.get(k)})
             try:
                 _,plan=self._plan(identifier);records=plan['consistency']['records']
                 item.update(available=True,scope=plan['scope'],manifest_hash=fingerprint(plan),groups=plan['consistency']['groups'],

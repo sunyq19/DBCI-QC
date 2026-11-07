@@ -382,6 +382,44 @@ class Store:
             job['recording_progress'] = read_json(progress)
         return job
 
+    def dataset_result(self, id_):
+        """Small frozen summary for dataset listings; never re-score on navigation."""
+        from dataset_overview import read_signal_summary
+        if self.job(id_)['status'] != 'completed':
+            raise ValueError('任务尚未完成。')
+        path = self.root / 'jobs' / id_ / 'result.json'
+        stat = path.stat()
+        signature = (stat.st_mtime_ns, stat.st_size)
+        with self.lock:
+            if not hasattr(self, 'dataset_summaries'): self.dataset_summaries = {}
+            cached = self.dataset_summaries.get(id_)
+        if cached and cached[0] == signature:
+            return copy.deepcopy(cached[1])
+        cache_path = path.with_name('dataset-summary-cache.json')
+        try:
+            if cache_path.stat().st_size <= 65536:
+                saved = read_json(cache_path)
+                if (isinstance(saved, dict) and saved.get('version') == 'dataset-display/1' and
+                        saved.get('signature') == list(signature) and isinstance(saved.get('summary'), dict)):
+                    with self.lock:
+                        if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
+                        self.dataset_summaries[id_] = (signature, saved['summary'])
+                    return copy.deepcopy(saved['summary'])
+        except (OSError, ValueError, TypeError):
+            pass
+        result = read_signal_summary(path)
+        after = path.stat()
+        if signature != (after.st_mtime_ns, after.st_size):
+            raise ValueError('结果文件发生变化，请重新加载。')
+        with self.lock:
+            if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
+            self.dataset_summaries[id_] = (signature, copy.deepcopy(result))
+            try:
+                save_json(cache_path, {'version': 'dataset-display/1', 'signature': list(signature), 'summary': result})
+            except OSError:
+                pass  # Read-only archives still produce an in-memory summary.
+        return result
+
     def result(self, id_, *, compact=False):
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')

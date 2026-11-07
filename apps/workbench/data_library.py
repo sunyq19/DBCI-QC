@@ -1,46 +1,42 @@
 """One data directory for uploaded/registered records and declared datasets."""
 import copy
-import math
 from urllib.parse import urlencode
 
 
 def featured_reports(store):
-    """Explicit demonstration selection; never infer 'good' examples from scores.
+    """Selectable datasets, with current evidence coverage rather than QC scores.
 
-    Job examples are pinned historical reports. Dataset examples use the current
-    manifest and latest attempts, so a failure cannot silently borrow an old score.
-    Missing local results simply make a configured example unavailable.
+    A configured dataset remains selectable before its first run. Broken sources
+    remain visible but disabled. Historical single-record demos are not promoted
+    to datasets; they remain accessible through the ordinary data directory.
     """
     from dataset_overview import build_overview
     rows = []
-    for example in store.settings.get('demo_examples', [])[:4]:
-        if not isinstance(example, dict): continue
+    packages = {p['id']: p for p in store.packages.catalog()['packages']}
+    seen = set()
+    for example in store.settings.get('demo_examples', []):
+        if not isinstance(example, dict) or example.get('kind') != 'dataset': continue
+        identifier = example.get('package_id')
+        if identifier not in packages or identifier in seen: continue
+        seen.add(identifier)
+        package = packages[identifier]
+        row = {'kind': 'dataset', 'package_id': identifier,
+               'url': '/datasets?' + urlencode({'package': identifier}),
+               'available': package['available'], 'records': package.get('records', 0),
+               'subjects': package.get('subjects', 0), 'reported': 0,
+               'status': 'not_run' if package['available'] else 'unavailable'}
+        row.update({k: example.get(k, '') for k in
+                    ('id', 'label', 'label_en', 'description', 'description_en', 'formats', 'modality')})
         try:
-            if example.get('kind') == 'record':
-                job = store.job(example['job_id'])
-                if job['status'] != 'completed' or job['input_id'] != example['input_id']: continue
-                result = store.result(job['id'], compact=True)
-                view = result.get('report_view') or {}
-                score = view.get('score') or {}
-                value = score.get('value')
-                if not isinstance(value, (int, float)) or not math.isfinite(value): value = None
-                row = {'kind': 'record', 'url': '/?' + urlencode({'job': job['id']}),
-                       'score': value, 'scope': result.get('scope'), 'score_version': score.get('version'),
-                       'duration_seconds': view.get('input_duration_seconds'),
-                       'summary': view.get('summary'), 'summary_en': None,
-                       'completed_at': job.get('ended_at')}
-            elif example.get('kind') == 'dataset':
-                data = build_overview(store, example['package_id'])
-                if not data['current_manifest'] or not data['summary']['reported']: continue
-                row = {'kind': 'dataset', 'url': '/datasets?' + urlencode({'package': example['package_id']}),
-                       'records': data['summary']['records'], 'subjects': data['summary']['subjects'],
-                       'reported': data['summary']['reported'],
-                       'attention_categories': len(data.get('attention_groups', []))}
-            else: continue
-            row.update({k: example.get(k, '') for k in ('id', 'label', 'label_en')})
-            rows.append(row)
+            if package['available']:
+                data = build_overview(store, identifier)
+                if data['current_manifest']:
+                    row.update(records=data['summary']['records'], subjects=data['summary']['subjects'],
+                               reported=data['summary']['reported'],
+                               status=(data.get('dataset_job') or {}).get('status', 'not_run'))
         except (OSError, ValueError, KeyError, TypeError):
-            continue
+            row['status'] = 'report_unavailable'
+        rows.append(row)
     return rows
 
 
@@ -85,6 +81,8 @@ def library(store):
     # A newly uploaded record remains ordinary data even when its checks fail.
     validation = set(store.settings.get('validation_library_ids', []))
     for row in rows: row['category'] = 'validation' if row['id'] in validation else 'data'
-    return {'schema_version':'data-library/1','items':rows,
-            'examples':featured_reports(store),
-            'counts':{'datasets':len(datasets['packages']),'records':len(records)}}
+    examples = featured_reports(store)
+    featured = {'dataset:' + row['package_id'] for row in examples}
+    rows = [row for row in rows if row['id'] not in featured]
+    return {'schema_version':'data-library/1','items':rows, 'examples':examples,
+            'counts':{'datasets':sum(row['kind'] == 'dataset' for row in rows), 'records':len(records)}}

@@ -34,6 +34,9 @@
 读取文件或打开已有数据，生成检查报告。	Read a file or open existing data to generate a QC report.
 刷新	Refresh
 已有数据	Your data
+已导入数据	Imported data
+示例数据集	Example datasets
+直接打开，查看汇总与逐份报告。	Open a dataset to explore its summary and recording reports.
 搜索数据名称	Search data
 正在加载数据…	Loading data…
 显示更多	Show more
