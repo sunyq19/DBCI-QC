@@ -177,6 +177,14 @@ body.qc-app, body.qc-document {
 .qc-app .library-report-name strong { font-size:var(--text-control); font-weight:500; }
 .qc-app .library-report-name time { color:var(--muted); font-size:var(--text-note); }
 .qc-app .library-report-links { display:flex; gap:12px; flex-shrink:0; }
+.qc-app .data-library-workflows { grid-column:2 / -1; min-width:0; }
+.qc-app .library-workflow { padding:10px 0; border-top:1px solid var(--line); }
+.qc-app .library-workflow .data-library-reports { border:0; }
+.qc-app .library-workflow .library-report-row { padding:0; }
+.qc-app .library-workflow-meta { margin:5px 0 0; font-size:var(--text-note); color:var(--muted); }
+.qc-app .library-workflow-history { margin-top:8px; padding-left:12px; border-left:2px solid var(--line); }
+.qc-app :is(.library-workflow-history,.library-more-workflows) > summary { font-size:var(--text-note); color:var(--muted); padding:4px 0; }
+.qc-app .library-workflow-history .library-report-row { padding:7px 0; }
 .report-chart-section { margin:16px 0; padding:0 0 16px; border-bottom:1px solid var(--line); }
 .report-chart-section>summary { font-size:16px; font-weight:600; }
 .report-chart-frame { display:block; width:100%; height:180px; border:0; margin-top:12px; }

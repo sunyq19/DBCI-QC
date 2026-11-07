@@ -1189,6 +1189,7 @@
       await selectJob(job.id,job);
       discardDraft();
       await loadHistory();
+      window.QCDataLibrary?.refresh();
       $("runs-section").scrollIntoView({behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",block:"start"});
     } catch(error) { setError("plan-error",error.message); await loadHistory(); }
     finally { state.submitting = false; updateActions(); renderExamplePresets(); }
@@ -1683,6 +1684,7 @@
       state.job = job; state.pollFailures = 0; setError("job-load-error",null); renderJob();
       if (job.status === "completed" && state.resultJobId !== id) await loadResult(id);
       if (changed || !fromPoll) await loadHistory();
+      if (changed || !fromPoll) window.QCDataLibrary?.refresh();
       schedulePoll();
     } catch(error) {
       if (request !== state.jobRequest) return;

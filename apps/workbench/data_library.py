@@ -1,6 +1,7 @@
 """One data directory for uploaded/registered records and declared datasets."""
 import copy
 from urllib.parse import urlencode
+from library_identity import data_identity, workflow_groups
 
 
 def featured_reports(store, packages=None):
@@ -72,18 +73,31 @@ def library(store):
         if item.get('dataset_context') or item.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         family = item.get('record_family',item['id'])
         if family not in families or item.get('record_revision',1)>families[family].get('record_revision',1):families[family]=item
-    records = []
+    validation = set(store.settings.get('validation_library_ids', []))
+    grouped = {}
     for item in families.values():
+        key = (data_identity(item), 'record:'+item['id'] in validation)
+        grouped.setdefault(key, []).append(item)
+    records = []
+    for (identity, is_validation), copies in grouped.items():
+        # Prefer a usable current confirmation, preserving every historical run.
+        item = max(copies, key=lambda i: (i.get('availability', {}).get('status') != 'unavailable',
+            i.get('revised_at') or i.get('provenance', {}).get('received_at', ''), i['id']))
+        current_ids = {i['id'] for i in copies}
+        related = {i['id']: i for i in inputs if
+                   not i.get('dataset_context') and i.get('library_origin') in {'user_upload', 'user_registered'}
+                   and data_identity(i) == identity and ('record:'+i['id'] in validation) == is_validation}
+        all_attempts = [j for j in jobs if j['input_id'] in related]
         # A prior confirmation's score never substitutes for the current revision.
-        attempts = [j for j in jobs if j['input_id']==item['id']]
+        attempts = [j for j in all_attempts if j['input_id'] in current_ids]
         latest = max(attempts,key=lambda j:j['created_at']) if attempts else None
         completed = sorted((j for j in attempts if j['status']=='completed' and
                             (store.root/'jobs'/j['id']/'artifacts'/'report.html').is_file()),
                            key=lambda j:j['created_at'],reverse=True)
-        labels = item.get('report_labels', {})
         reports = []
         seen_labels = set()
         for job in completed:
+            labels = related[job['input_id']].get('report_labels', {})
             label = labels.get(job['id'], {})
             # A refreshed named workflow replaces its older run in this compact
             # list; it must not displace the other comparison workflow.
@@ -99,6 +113,8 @@ def library(store):
                         'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),
                         'status':latest['status'] if latest else 'not_run',
                         'recent_reports':reports,
+                        'workflow_groups':workflow_groups(store.root, all_attempts, related, current_ids),
+                        'registered_copies':len(copies),
                         'updated_at':latest['created_at'] if latest else item.get('provenance',{}).get('received_at',''),
                         'url':'/?'+urlencode({'input':item['id']}),
                         'latest_run_url':(f"/api/v1/jobs/{latest['id']}/report" if latest['status'] == 'completed' else '/?'+urlencode({'job':latest['id']})) if latest else None})
@@ -110,7 +126,6 @@ def library(store):
     rows += sorted(records,key=lambda r:r['updated_at'],reverse=True)
     # Only explicitly designated controlled/compatibility tests are separated.
     # A newly uploaded record remains ordinary data even when its checks fail.
-    validation = set(store.settings.get('validation_library_ids', []))
     for row in rows: row['category'] = 'validation' if row['id'] in validation else 'data'
     from example_cache import manifest
     examples = manifest(store)['examples']

@@ -252,6 +252,26 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(next(r for r in data['items'] if r['id']=='record:ordinary')['category'], 'data')
         self.assertEqual(data['examples'], [])
 
+    def test_same_content_uploads_share_data_but_keep_distinct_workflows(self):
+        a = dict(id='first',label='First',library_origin='user_upload',expected_sha256='a'*64,
+                 source_path='/first.edf',metadata={'format':'EDF'},modality='scalp_eeg')
+        b = dict(a,id='second',label='Renamed',source_path='/renamed.edf')
+        self.store.inputs.update(first=a,second=b)
+        for index, item in enumerate((a,b)):
+            jid = str(index+1)*32
+            self.store.jobs[jid] = dict(id=jid,input_id=item['id'],status='completed',created_at=f'2026-11-0{index+1}',
+                plan={'selected_modules':['M01','M03','M09'], 'qc_config':{'scope':'recording',
+                'selection':{'eeg_indices':[0,1]},'scoring':{'weights':{'integrity':index+1}}}})
+            p = self.store.root/'jobs'/jid/'artifacts/report.html'
+            p.parent.mkdir(parents=True);p.write_text('report')
+        rows = library(self.store)['items']
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['registered_copies'],2)
+        self.assertEqual(len(rows[0]['workflow_groups']),2)
+        self.assertEqual(sum(len(g['runs']) for g in rows[0]['workflow_groups']),2)
+        b['expected_sha256'] = 'b'*64
+        self.assertEqual(len(library(self.store)['items']),2)
+
     def test_legacy_single_report_is_not_a_dataset_example(self):
         item = self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='record', id='demo', label='Demo',

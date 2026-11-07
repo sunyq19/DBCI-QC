@@ -283,6 +283,7 @@ class Store:
                        'selected_modules': plan['selected_modules'], 'parent_job_id': parent, 'batch_id': batch_id, 'admission': admission}
             save_json(directory / 'request.json', request)
             job = {'id': id_, 'label': item['label'], 'run_name': run_name, 'input_id': item['id'], 'status': 'queued',
+                   'software_version': __version__,
                    'input_revision': item.get('record_revision', 1), 'record_family': item.get('record_family', item['id']),
                    'parent_job_id': parent, 'batch_id': batch_id, 'dataset_context': copy.deepcopy(item.get('dataset_context')),
                    'phase': 'queued', 'message': '等待执行', 'created_at': now(), 'plan': plan,

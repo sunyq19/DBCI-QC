@@ -101,3 +101,27 @@ assert.match(grouped,/href="\/\?input=eeg&amp;lang=zh-CN"/);
 language='en';events['qc:languagechange']();grouped=element('data-library-list').innerHTML;
 assert.match(grouped,/Recommended workflow/);assert(!grouped.includes('推荐方案'));
 console.log('Personal data groups saved reports and charts, with one active language.');
+
+// Data -> configuration -> runs: repeated runs do not create duplicate schemes.
+language='zh-CN';
+const hierarchy=window.QCDataLibrary.refresh();
+const current={...recent[0],report_available:true,status:'completed'};
+const previous={...current,job_id:'c'.repeat(32),label:'此前运行',url:`/api/v1/jobs/${'c'.repeat(32)}/report`};
+const workflows=[
+ {id:'basic',label:'基础方案',label_en:'Basic workflow',method_family:'basic',scope:'recording',duration_seconds:61,channels:64,scored_items:3,current_confirmation:true,latest:current,runs:[current,previous]},
+ {id:'failed',label:'<old config>',label_en:'Old config',method_family:'basic',scope:'window',current_confirmation:true,latest:{...previous,status:'failed',report_available:false},runs:[previous]},
+ {id:'gnosis',label:'灵犀云方案',label_en:'Gnosis workflow',method_family:'gnosis',scope:'recording',duration_seconds:61,channels:64,scored_items:5,current_confirmation:true,latest:{...recent[1],report_available:true,status:'completed'},runs:[recent[1]]}
+];
+requests.at(-1)({ok:true,json:async()=>({items:[item('paired',{workflow_groups:workflows})]})});await hierarchy;
+const hierarchyHtml=element('data-library-list').innerHTML;
+assert.equal((hierarchyHtml.match(/class="data-library-item/g)||[]).length,1);
+assert.match(hierarchyHtml,/3 套方案 · 4 次运行/);
+assert.match(hierarchyHtml,/历次运行/);
+assert.match(hierarchyHtml,/3 项计分/);
+const firstLayer=hierarchyHtml.split('<details class="library-more-workflows">')[0];
+assert.match(firstLayer,/基础方案/);assert.match(firstLayer,/灵犀云方案/);
+assert(!firstLayer.includes('old config'));
+assert.match(hierarchyHtml,/&lt;old config&gt;/);
+assert.match(hierarchyHtml,/查看运行/);
+assert(!hierarchyHtml.includes('workflow:'));
+console.log('Workflow grouping keeps alternative routes visible and previous runs expandable.');

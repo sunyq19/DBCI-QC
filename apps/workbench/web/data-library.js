@@ -10,8 +10,27 @@
     return `<div class="data-library-reports" aria-label="${t('最近的检查报告','Recent QC reports')}">${reports.map(report=>{
       const stamp=new Date(report.created_at);
       const time=Number.isNaN(stamp.valueOf())?'':stamp.toLocaleString(en()?'en-GB':'zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
-      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(en()?report.label_en||report.label:report.label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${t('查看报告','View report')}</a></span></div>`;
+      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(en()?report.label_en||report.label:report.label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span></div>`;
     }).join('')}</div>`;
+  }
+  function workflowRows(groups){
+    const groupMarkup=group=>{
+      const latest=group.latest, runs=group.runs||[];
+      const scope=group.scope==='recording'?t('整份检查','Full recording'):t('片段检查','Selected interval');
+      const duration=Number.isFinite(group.duration_seconds)?` · ${Number(group.duration_seconds.toFixed(2))}${t(' 秒',' s')}`:'';
+      const meta=[scope+duration,group.channels?t(`${group.channels} 通道`,`${group.channels} channels`):'',group.requirements_unmet?t('方案条件未满足','Workflow requirements unmet'):group.scored_items?t(`${group.scored_items} 项计分`,`${group.scored_items} scored items`):''].filter(Boolean).join(' · ');
+      return `<section class="library-workflow">${reportRows([{...latest,label:group.label,label_en:group.label_en}])}<p class="library-workflow-meta">${esc(meta)}${group.current_confirmation===false?' · '+t('此前确认配置','Previous confirmation'):''}${latest.status!=='completed'?' · '+esc(status[latest.status]?.[en()?1:0]||latest.status):''}</p>${runs.length>1?`<details class="library-workflow-history"><summary>${t('历次运行','Previous runs')} · ${runs.length-1}</summary>${reportRows(runs.slice(1))}</details>`:''}</section>`;
+    };
+    // Keep the newest distinct routes visible; repeated configurations cannot
+    // push the other comparison route out of the compact data card.
+    const primary=[],families=new Set();
+    for(const group of groups){
+      const family=group.method_family||group.id;
+      if(primary.length<3&&!families.has(family)&&!group.requirements_unmet&&group.current_confirmation!==false){primary.push(group);families.add(family);}
+    }
+    if(!primary.length&&groups.length)primary.push(groups[0]);
+    const other=groups.filter(g=>!primary.includes(g));
+    return `<div class="data-library-workflows">${primary.map(groupMarkup).join('')}${other.length?`<details class="library-more-workflows"><summary>${t('其他配置与历史方案','Other configurations and past workflows')} · ${other.length}</summary>${other.map(groupMarkup).join('')}</details>`:''}</div>`;
   }
   function renderExamples(){
     const datasets=examples.filter(r=>r.kind==='dataset');
@@ -40,8 +59,10 @@
     $('library-category-note').textContent=t('用于验证缺件、信息不一致和读取边界；检查发现会原样保留。','Cases for missing files, metadata differences and reader limits. Findings are preserved.');
     $('data-library-list').innerHTML=rows.slice(0,limit).map(r=>{
       const reports=Array.isArray(r.recent_reports)?r.recent_reports:[];
+      const workflows=Array.isArray(r.workflow_groups)?r.workflow_groups:[];
       const target=r.available?r.url:r.latest_run_url||r.url;
-      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span><a class="data-library-label" href="${esc(href(target))}"><strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`} </small></a>${reports.length?reportRows(reports.slice(0,2)):''}${reports.length>2?`<details class="data-library-older"><summary>${t('更早的报告','Earlier reports')} · ${reports.length-2}</summary>${reportRows(reports.slice(2))}</details>`:''}</div>`;
+      const reportsMarkup=workflows.length?workflowRows(workflows):`${reports.length?reportRows(reports.slice(0,2)):''}${reports.length>2?`<details class="data-library-older"><summary>${t('更早的报告','Earlier reports')} · ${reports.length-2}</summary>${reportRows(reports.slice(2))}</details>`:''}`;
+      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span><a class="data-library-label" href="${esc(href(target))}"><strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`} </small></a>${reportsMarkup}</div>`;
     }).join('')||`<p class="small muted">${items.length?t('暂无匹配数据','No matching data'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
