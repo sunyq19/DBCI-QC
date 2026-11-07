@@ -1,10 +1,12 @@
 """Presentation contracts: no recomputation, source separation, units and missing data."""
 import copy
+import importlib.util
 import json
 from pathlib import Path
 import sys
 import unittest
 import tempfile
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from ephys_qc.visualizations import visualization_specs
 from ephys_qc.visualizations.render import render_gallery, bars, spectrum
@@ -30,8 +32,15 @@ class VisualizationTests(unittest.TestCase):
         files=['w001--M02_selection.json','w002--M02_selection.json','w001--M04_gnosis_band_power.json','w002--M04_gnosis_band_power.json']
         reads=[]
         def load(n):reads.append(n);return {}
-        render_gallery({'artifacts':[dict(name=n) for n in files]},load,selected=['band_power'],window='w002--')
+        result={'scope':'recording','recording':{'start_seconds':0,'duration_seconds':240},
+                'windows':[{'id':'w001','start_seconds':0,'duration_seconds':120},
+                           {'id':'w002','start_seconds':120,'duration_seconds':120}],
+                'artifacts':[dict(name=n) for n in files]}
+        page=render_gallery(result,load,selected=['band_power'],window='w002--')
         self.assertEqual(reads,['w002--M04_gnosis_band_power.json'])
+        self.assertIn('当前图表：原记录 120–240 秒',page)
+        self.assertIn('不是整份记录的汇总图',page)
+        self.assertNotIn('当前图表：原记录 0–240 秒',page)
         with self.assertRaises(ValueError):render_gallery({'artifacts':[]},load,window='../')
     def test_units_and_unsafe_labels(self):
         a=spectrum([1,2],[[1e-12,1e-11]],['C3'],1e12)
@@ -45,6 +54,16 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(sum(s['status']=='available' for s in v),10)
         self.assertFalse({s['id'] for s in v}&{m['id'] for m in methods()})
         with self.assertRaises(ValueError):render_gallery({},lambda _: {},selected=['radar'])
+
+    def test_gallery_groups_keep_figures_available_but_expand_only_psd(self):
+        html=render_gallery({},lambda _: {},selected=['waveform','psd','timeline'])
+        self.assertIn('<details class="panel" id="viz_psd" open>',html)
+        self.assertIn('<details class="panel" id="viz_waveform" >',html)
+        self.assertIn('<details class="panel" id="viz_timeline" >',html)
+        self.assertIn('href="#viz_timeline" data-panel-link',html)
+        self.assertIn('<script src="/visualizations.js" defer></script>',html)
+        self.assertNotIn('<script>',html)
+        self.assertIn('本窗口没有已保存的波形图',html)
 
     def test_spectral_reader_preserves_window_counts_without_scan_arrays(self):
         from ephys_qc.report_view import line_summary
@@ -63,5 +82,23 @@ class VisualizationTests(unittest.TestCase):
         self.assertEqual(b['channels'][0]['percent'],100)
         self.assertNotIn('parameterization',loaded)
         self.assertNotIn('scan_frequencies_hz',loaded['line_noise']['observations'][0])
+
+    @unittest.skipUnless(importlib.util.find_spec('ijson'), 'requires the visualization extra')
+    def test_large_muscle_reader_streams_bounded_positions_and_preserves_total(self):
+        from ephys_qc.visualizations.render import timeline
+        rows=[{'channel_name':'C3','start_seconds':i,'stop_seconds':i+.5,'unneeded':[0]*20} for i in range(551)]
+        rows.append({'channel_name':'C3','start_seconds':None,'stop_seconds':600})
+        with tempfile.TemporaryDirectory() as td:
+            path=Path(td)/'w000001--M06_muscle.json'
+            path.write_text(json.dumps({'filtered_signal':[0]*1000,'candidates':rows}))
+            with patch('ephys_qc.visualizations.evidence.SMALL_LIMIT',1), \
+                 patch('ephys_qc.visualizations.evidence.json.load',side_effect=AssertionError('must stream')):
+                loaded=read_evidence(path)
+        self.assertEqual(len(loaded['candidates']),500)
+        self.assertEqual(loaded['_visualization_candidate_count'],551)
+        self.assertEqual(set(loaded['candidates'][0]),{'channel_name','start_seconds','stop_seconds'})
+        html=timeline(loaded['candidates'],0,600,64,loaded['_visualization_candidate_count'])
+        self.assertIn('显示 500 / 551 条候选',html)
+        self.assertNotIn('filtered_signal',loaded)
 
 if __name__=='__main__':unittest.main()

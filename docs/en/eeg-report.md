@@ -1,6 +1,6 @@
 # EEG QC report requirements
 
-Project specification · Version eeg-report/1.4 · 31 October 2026
+Project specification · Version eeg-report/1.5 · 7 November 2026 · Not expert-reviewed
 
 [Scalp EEG specification](/en/standards) · [Check rules](/en/standards/eeg-checks) · [Scoring rules](/en/standards/eeg-scoring) · [Sources and basis](/en/standards/eeg-evidence) · [Back to workbench](/)
 
@@ -9,6 +9,8 @@ Project specification · Version eeg-report/1.4 · 31 October 2026
 This document specifies content and traceability requirements for basic technical QC reports on human continuous scalp EEG. Reports shall describe checks actually executed in the run. They do not replace clinical diagnosis, authorization for a data use or external standards certification.
 
 The main report should remain concise; detailed methods, parameters and evidence may be expandable or linked. Six parts shall be identifiable: recording overview, coverage and applicability, individual evidence, candidates and waveforms, methods and sources, and human review and limitations.
+
+Current EEG window and whole-record reports follow “Overview → Check results → Priority review → Methods and details → Total composition”. The main result table contains only the check, component score and finding; original counts, units and calculations remain expandable. Missing optional prerequisites affect the corresponding check without marking the entire report as restricted. Execution failures remain explicit.
 
 “Required” means recording an information item or its missing state, not inventing a non-empty value. “Conditionally required” means required when the relevant method executes or finding occurs. Not run, failed, insufficient conditions and completed with zero candidates shall remain distinct.
 
@@ -100,9 +102,9 @@ Zero candidates only means that declared rules produced no candidates within the
 
 ### Project trial score
 
-The current version is `project-weighted/1.1`; definitions, equations, missing-data rules and examples are maintained in [EEG scoring rules](/en/standards/eeg-scoring).
+The current version is `project-weighted/1.1`; definitions, equations, missing-data rules, examples and validation requirements are maintained in [EEG scoring rules](/en/standards/eeg-scoring). Reports shall display “Project-defined v1.1”. Total composition is shown as a percentage share of the total, with equal proportions described as “N checks counted equally”. Original relative weights and the configuration identity remain in traceability data. A scored check without a valid result retains its configured share; that share is not silently redistributed.
 
-For each channel calculate invalid/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − candidate amount / assessed amount)`; the total is the frozen weighted mean. Selected channels and positive-weight components require valid evidence. Missing evidence receives no credit or replacement weights.
+For each channel calculate nonfinite/constant sample burden, flagged line-window burden and high-frequency candidate-time burden. Each component is `100 × (1 − candidate amount / assessed amount)`; the total is the frozen weighted mean. Only the three basic components are included by default; optional methods are included through explicit weights. Missing positive-weight results withhold the total without redistributing weights.
 
 Retain component numerators, denominators, units, assessed scope and missing reasons. Additional checks such as ADC limits, reference-group comparisons and auxiliary timing remain separately reported. No industry acceptance threshold or application success probability is assigned.
 
@@ -162,18 +164,24 @@ The report package shall retain `result.json`, a readable report, frozen plan, e
 
 Before release or handoff, checks shall cover consistent source fingerprints and selection, units and coordinates, correspondence between checks and actual methods, visible skipped/failed items, accurate display ranges, valid evidence links, null values not replaced by zero and traceable rule versions. These are report and engineering consistency checks, not detection-performance validation.
 
-## PDF export and result table
+## PDF export and result presentation
 
-Scalp EEG window and whole-record reports support a two-page PDF using the same score and evidence as the page. Page 1 contains scope, scores, deductions and measurements; page 2 contains candidate locations, original waveform excerpts and a reviewer section. Export does not modify frozen results. Each deduction equals 100 minus the component score. Missing measurements remain unassessed.
+EEG window and whole-record reports provide PDF downloads using the same scores and detection evidence as the page. The PDF has three sections: check results; candidate locations and figures; and total composition and measurement evidence. Tables paginate automatically according to their content. Checks actually included in the total are shown first. Other methods with outputs are listed separately and marked as excluded from the total; presentation is not limited to the first three components. Export does not modify original results.
 
-The first two high-frequency candidates are illustrated, or line-noise candidates if none exist. Waveform access re-verifies the frozen source. Unavailable sources omit the figure with an explanation. Install `pip install -e ".[reports]"`; `DBCI_QC_PDF_FONT` can specify a Chinese-capable TrueType font.
+The main table does not duplicate scores as deductions or mix internal parameters such as “weight 1” into findings. Missing results remain unassessed, not zero deductions. Candidate figures show the first two high-frequency candidates, or line-noise candidates when none are available. If the original file fails source verification, the waveform is omitted with an explanation while existing detection results are retained.
+
+The Gnosis extension workflow retains shared basic checks, while its scoring components can be configured independently. Reports shall distinguish the original input signal from a method's internal analysis copy and identify the source tool. Totals calculated by this platform from method candidate fractions shall not be described as the source tool's official scores. The gallery displays an analysis window and shall state its original time range. Descriptive spectra and band-power plots are not quality scores; differences between before/after curves do not by themselves establish quality improvement.
+
+Install the PDF dependencies with `pip install -e ".[reports]"`. `DBCI_QC_PDF_FONT` can specify a Chinese-capable TrueType font. Exported Chinese text shall be checked for correct rendering.
 
 ## Whole-record background execution
 
-New inputs default to full duration of the selected signal stream. Native, non-overlapping windows are processed in the background while the local service runs; closing the page does not cancel the job. Quick precheck remains available.
+The default is the full duration of the selected file and signal stream. Native continuous segments are divided into non-overlapping blocks for background execution, preserving the original sampling clock. Closing the page does not cancel the job; the local service must remain running. Quick precheck evaluates only the selected interval.
 
-`project-weighted/1.1` pools native numerators and denominators before computing components and the configured weighted mean. Window scores are not averaged. Detector thresholds remain unchanged. Missing windows, source gaps, incomplete source verification or unassessable tail components withhold the whole-record total, while measurements and coverage remain visible.
+Whole-record scoring uses `project-weighted/1.1`: candidate and assessed amounts are pooled across channels and windows before computing component unflagged fractions and their frozen weighted mean. Window scores shall not be averaged directly; short final windows use their actual denominators. A scoring upgrade does not change detector thresholds.
 
-Channel components, the lowest component and per-window scores expose local findings without arbitrary extra penalties. Window boundaries and method-specific exclusions remain documented. Compare only matching configurations; this is not a multi-file population score.
+The total requires complete execution and source verification, with valid measurements for every positive-weight check in every window. Failures, unexecuted ranges, source gaps or unscorable short final windows leave the whole-record total null while preserving component results and coverage. Execution coverage shall be distinguished from a method's valid samples and duration.
 
-For v1.1, weights and method outputs follow the scoring rules above. Default EEG scoring covers three components; optional outputs and their actual denominators are listed separately. Additional PDF pages preserve all optional scores. All-zero weights disable the total, and positive-weight missing data never cause automatic redistribution.
+Reports also show the lowest channel component, channel component table, per-window scores and original candidate locations. Overall components use the ratio of candidate amount to assessed amount; local measurements remain independently visible. A score of 100 means that these checks produced no deduction candidates, not that the data suit every application.
+
+Block boundaries affect filtering, robust statistics and candidates; the high-frequency method excludes edges. Comparisons shall use a fixed block configuration. This functionality covers one recording, not a population score across a multi-file queue. Batch comparison under matching conditions is maintained separately.

@@ -5,6 +5,36 @@ import re
 from urllib.parse import quote
 
 
+def frozen_view(store, identifier):
+    """Read the saved presentation data without recomputing QC or scores.
+
+    Large candidate arrays stay on disk. The original report and evidence are
+    untouched; the current template can also present older completed runs.
+    """
+    import copy
+    import ijson
+    path = store.root / 'jobs' / identifier / 'result.json'
+    try:
+        if path.is_symlink(): return None
+        stat = path.stat(); signature = (stat.st_size, stat.st_mtime_ns)
+        with store.lock:
+            if not hasattr(store, 'presentation_views'): store.presentation_views = {}
+            cached = store.presentation_views.get(identifier)
+            if cached and cached[0] == signature: return copy.deepcopy(cached[1])
+        with path.open('rb') as handle:
+            view = next(ijson.items(handle, 'report_view', use_float=True), None)
+        if not isinstance(view, dict) or not view.get('score'): return None
+        version = view['score'].get('version', '')
+        if version not in {'eeg-basic-screen/0.1', 'eeg-basic-screen/0.2'} and not version.startswith('project-weighted/'):
+            return None  # Preserve an unknown historical report in its original format.
+        with store.lock:
+            if len(store.presentation_views) >= 16: store.presentation_views.pop(next(iter(store.presentation_views)))
+            store.presentation_views[identifier] = (signature, view)
+        return copy.deepcopy(view)
+    except (OSError, ValueError, ijson.JSONError):
+        return None
+
+
 def report_file(store, identifier):
     if store.job(identifier)['status'] != 'completed':
         raise ValueError('任务尚未完成，没有可用的最终报告。')
@@ -20,13 +50,15 @@ def served_report(store, identifier, language='zh-CN'):
     report = report_file(store, identifier).read_text(encoding='utf-8')
     from project_score_cache import load
     published = load(store, identifier)
-    if published:
+    view = published.get('report_view') if published else frozen_view(store, identifier)
+    if view:
         from ephys_qc.report_view import render_report_view
-        report = render_report_view(published['report_view'], pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations')
-        wave = next((a['name'] for a in published.get('artifacts',[]) if a['name'].endswith('waveform.png')), None)
+        report = render_report_view(view, evidence_url=f'/api/v1/jobs/{identifier}/report-evidence.png', pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations')
+        wave = next((name for name in view.get('artifacts',[]) if name.endswith('waveform.png')), None)
         if wave:
             report = report.replace('<section id="review">', f'<section id="review"><details><summary>查看起始波形</summary><p>所选信号起始片段；候选位置见下表。</p><img loading="lazy" src="{escape(wave,quote=True)}" alt="记录起始波形"></details>')
-        report = report.replace('</main>', f'<p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · 本页是保留原始检测证据的评分修订版。</p></main>')
+        note = '本页是保留原始检测证据的评分修订版。' if published else '使用当前版式展示运行时保存的结果，检测与分数未改动。'
+        report = report.replace('</main>', f'<p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · {note}</p></main>')
     declared = store.job(identifier).get('plan', {}).get('input_modality', {})
     modality = declared.get('value') if isinstance(declared, dict) else declared
     if modality in {'ecog', 'seeg', 'extracellular'}:

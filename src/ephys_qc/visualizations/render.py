@@ -1,5 +1,6 @@
 """Read-only SVG/HTML presentation of stored QC evidence (no detector imports)."""
 from html import escape
+import json
 import math
 from urllib.parse import urlencode
 from .catalog import VERSION, visualization_specs, LEI, GNOSIS, PROJECT
@@ -89,12 +90,12 @@ def spectrum(frequencies,powers,names,factor):
     parts.append(text(840,303,'Hz',text_anchor='end',fill=MUTED))
     return svg(''.join(parts),375,'通道功率谱密度')+f'<p class="caption">显示前 {n} / {len(names)} 道；悬停曲线查看通道。两条路线的处理和统计时段可能不同，不直接合并。</p>'
 
-def timeline(candidates,start,stop,limit):
+def timeline(candidates,start,stop,limit,total_count=None):
     rows=[c for c in candidates if finite(c.get('start_seconds')) and finite(c.get('stop_seconds')) and c['stop_seconds']>c['start_seconds']]
     if not rows:return missing('未检出带有效时间位置的候选区间。')
     if not finite(start) or not finite(stop) or stop<=start:return missing('原始记录时间范围未提供。')
     names=list(dict.fromkeys(c['channel_name'] for c in rows))[:limit]
-    all_count=len(rows);rows=[c for c in rows if c['channel_name'] in names][:500]
+    all_count=max(len(rows),total_count) if isinstance(total_count,int) else len(rows);rows=[c for c in rows if c['channel_name'] in names][:500]
     sx=lambda t:125+min(1,max(0,(t-start)/(stop-start)))*680;parts=[];h=65+len(names)*28
     for i in range(5):
         t=start+(stop-start)*i/4;x=sx(t);parts += [line(x,25,x,h-30),text(x,17,num(t),text_anchor='middle',fill=MUTED)]
@@ -147,6 +148,35 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         d=evidence(f'{module}_gnosis_{key}.json')
         return d if d.get('status')=='completed' and d.get('calculated') is True else {}
     def metrics(key):return gnosis(key).get('metrics',{})
+    def processing_note(data, *, spectral=False):
+        """Explain saved input history without inferring an unrecorded preparation."""
+        preparation=data.get('preprocessing',{})
+        metric=data.get('metrics',{})
+        selection=metric.get('spectral_input')
+        selection_label={
+            'artifact_complement':'避开候选伪差后的片段',
+            'all_prepared_samples':'全部分析片段，未按伪差筛选',
+        }.get(selection,'片段选择方式未记录')
+        note='输入：分析副本，原始文件保持不变。' if data.get('input_unchanged') is True or preparation.get('source_unchanged') is True else '输入：灵犀云方法保存的分析结果。'
+        if spectral:
+            seconds=metric.get('effective_duration_seconds')
+            note += f' 统计使用{selection_label}' + (f'，共 {seconds:g} 秒。' if finite(seconds) else '。')
+        details={k:data[k] for k in ('preprocessing','parameters','notes') if data.get(k)}
+        if spectral:
+            details['spectral_input']=selection
+            details['used_intervals']=metric.get('used_intervals')
+        history=[]
+        if finite(preparation.get('sampling_rate_hz')):
+            history.append(f'分析采样率 {preparation["sampling_rate_hz"]:g} Hz')
+        if all(finite(preparation.get(k)) for k in ('highpass_hz','lowpass_hz')):
+            history.append(f'准备频带 {preparation["highpass_hz"]:g}–{preparation["lowpass_hz"]:g} Hz')
+        if preparation.get('common_average') is True:history.append('准备时采用平均参考')
+        if preparation.get('ica') is False:history.append('未使用 ICA')
+        detail_html=('<details class="figure-details"><summary>处理与统计范围</summary>'
+                     + (f'<p>{esc("；".join(history))}。</p>' if history else '')
+                     + ('<p>多个片段按方法设置拼接计算，频谱曲线不用于定位原始时间。</p>' if spectral and selection=='artifact_complement' else '')
+                     + f'<pre>{esc(json.dumps(details,ensure_ascii=False,indent=2))}</pre></details>') if details else ''
+        return f'<p class="caption input-note">{esc(note)}</p>'+detail_html
     def section(title,body,source):
         url=GNOSIS if source=='灵犀云' else LEI
         return f'<div class="figure"><div class="figure-head"><h3>{esc(title)}</h3><a href="{url}" target="_blank" rel="noreferrer">{esc(source)}</a></div>{body}</div>'
@@ -163,15 +193,15 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
             g=gnosis('line_length')
             if g:
                 flags={c['channel_name'] for c in g.get('candidates',[])}
-                out+=section('平滑线长总量',bars([(k,v,k in flags) for k,v in g['metrics'].get('line_length_by_channel',{}).items()],'原版线长值',limit=limit),'灵犀云')
+                out+=section('平滑线长总量',processing_note(g)+bars([(k,v,k in flags) for k,v in g['metrics'].get('line_length_by_channel',{}).items()],'原版线长值',limit=limit),'灵犀云')
             return out or missing('先运行通道质量或灵犀云线长方法。')
         if key=='psd':
             out='';d=evidence('M04_spectral.json');p=d.get('psd',{});sel=evidence('M02_selection.json');mapping={c['channel_id']:c['raw_name'] for c in sel.get('channels',[])}
             if p.get('power_v2_hz'):
-                out+=section('原始输入 · Welch PSD',spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),[mapping.get(c,c) for c in p.get('channel_ids',[])],1e12),'雷佳欣')
+                out+=section('原始输入 · Welch PSD','<p class="caption input-note">使用输入文件中的信号，此图不执行清洗。PSD 描述频率能量，不是质量分。</p>'+spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),[mapping.get(c,c) for c in p.get('channel_ids',[])],1e12),'雷佳欣')
             g=next((gnosis(k) for k in ['band_power','psd_deviation','reference_ranges'] if gnosis(k)),{})
             if g:
-                p=g['metrics'];out+=section('分析副本 · Welch PSD',spectrum(p.get('frequencies_hz'),p.get('psd_uv2_hz'),g['channel_names'],1)+f'<p class="caption">统计时长 {num(p.get("effective_duration_seconds"))} 秒；片段选择：{esc(p.get("spectral_input",""))}。</p>','灵犀云')
+                p=g['metrics'];out+=section('分析副本 · Welch PSD',processing_note(g,spectral=True)+spectrum(p.get('frequencies_hz'),p.get('psd_uv2_hz'),g['channel_names'],1)+'<p class="caption">PSD 描述频率能量，不是质量分。处理和取样片段不同，不能将曲线更平滑直接解释为质量更好。</p>','灵犀云')
             return out or missing('先运行 PSD 相关检查。')
         if key=='interference':
             from ..report_view import line_summary
@@ -183,20 +213,20 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                 g=gnosis(m)
                 if not g:continue
                 body=bars([(n,100*v if finite(v) else None,finite(v) and v>0) for n,v in g['metrics'].get('ratio_by_channel',{}).items()], '%',limit=limit,upper=100) if key=='artifact_burden' else timeline(g.get('candidates',[]),g.get('range',{}).get('start_seconds'),g.get('range',{}).get('stop_seconds'),limit)
-                out+=section(label,body,'灵犀云')
+                out+=section(label,processing_note(g)+body,'灵犀云')
             if key=='timeline':
                 d=evidence('M06_muscle.json');rec=evidence('M02_selection.json').get('recording',{});start=rec.get('start_seconds');dur=rec.get('duration_seconds')
-                if d:out+=section('高频突发候选',timeline(d.get('candidates',[]),start,start+dur if finite(start) and finite(dur) else None,limit),'雷佳欣')
+                if d:out+=section('高频突发候选',timeline(d.get('candidates',[]),start,start+dur if finite(start) and finite(dur) else None,limit,d.get('_visualization_candidate_count')),'雷佳欣')
             return out or missing('先运行对应的伪差或高频检查。')
         if key in ['band_power','band_amplitude','psd_distance']:
             method,field,unit={'band_power':('band_power','relative_power','%'),'band_amplitude':('band_amplitude','mean_amplitude_uv','μV'),'psd_distance':('psd_deviation','psd_distance','log10 PSD 距离')}[key]
             g=gnosis(method);rows=metrics(method).get(field,[])
             if key=='band_power':rows=[{**r,'value':r['value']*100 if finite(r.get('value')) else None} for r in rows]
-            return section({'band_power':'相对频带功率','band_amplitude':'平均绝对幅值','psd_distance':'通道频谱距离'}[key],heatmap(rows,unit,limit=limit,fixed_max=100 if key=='band_power' else None,flags=[c['channel_name'] for c in g.get('candidates',[])]),'灵犀云')
+            return section({'band_power':'相对频带功率','band_amplitude':'平均绝对幅值','psd_distance':'通道频谱距离'}[key],(processing_note(g,spectral=True) if g else '')+heatmap(rows,unit,limit=limit,fixed_max=100 if key=='band_power' else None,flags=[c['channel_name'] for c in g.get('candidates',[])]),'灵犀云')
         if key=='reference_ranges':
             rows=metrics('reference_ranges').get('reference_comparison',[])
             if not rows:return missing('先运行灵犀云参考分布对照。当前仅绘制区间；不生成虚构的群体密度曲线。')
-            return ''.join(section(label+' · '+band,ranges(rows,f,band,limit),'灵犀云') for f,label in [('bpre','相对功率 / 比例'),('bpamp','幅值 / μV'),('psdist','PSD 距离')])
+            return processing_note(gnosis('reference_ranges'),spectral=True)+''.join(section(label+' · '+band,ranges(rows,f,band,limit),'灵犀云') for f,label in [('bpre','相对功率 / 比例'),('bpamp','幅值 / μV'),('psdist','PSD 距离')])
         return missing('尚未接入。')
     if automatic:
         if window+'waveform.png' in declared:selected.append('waveform')
@@ -208,23 +238,34 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         for key,method in [('band_power','band_power'),('band_amplitude','band_amplitude'),('psd_distance','psd_deviation'),('reference_ranges','reference_ranges')]:
             if gnosis(method):selected.append(key)
     panels=[]
+    visible=[s for s in specs if s['key'] in selected]
+    expanded='psd' if 'psd' in selected else visible[0]['key'] if visible else None
     for s in specs:
         if s['key'] not in selected:continue
         try:body=render(s['key'])
         except (ValueError,TypeError,KeyError,IndexError,OverflowError):body=missing('保存的证据结构或数值不符合该图要求；未生成图表。')
-        panels.append(f'<section class="panel" id="{s["id"]}"><header><span>{s["id"].replace("viz_","").upper()}</span><h2>{esc(s["name"])}</h2><p>{esc(s["description"])}</p></header>{body}</section>')
+        panels.append(f'<details class="panel" id="{s["id"]}" {"open" if s["key"]==expanded else ""}><summary><span class="panel-title">{esc(s["name"])}</span><span class="panel-description">{esc(s["description"])}</span></summary><div class="panel-body">{body}</div></details>')
+    links=''.join(f'<a href="#{s["id"]}" data-panel-link>{esc(s["name"])}</a>' for s in visible)
     checkboxes=''.join(f'<label class="choice"><input type="checkbox" name="show" value="{s["key"]}" {"checked" if s["key"] in selected else ""}>{esc(s["name"])}</label>' for s in specs if s['status']=='available')
     planned=''.join(f'<p><b>{esc(s["name"])}</b> · {esc(s["conditions"])}</p>' for s in specs if s['status']=='planned')
-    window_options=''.join(f'<option value="{esc(w)}" {"selected" if w==window else ""}>{"当前窗口" if not w else esc(w.rstrip("-"))}</option>' for w in windows)
+    window_metadata={w['id']+'--':w for w in result.get('windows',[]) if isinstance(w,dict) and isinstance(w.get('id'),str)}
+    def interval_label(prefix):
+        rec=window_metadata.get(prefix, result.get('recording',{}) if not prefix else {})
+        start,duration=rec.get('start_seconds'),rec.get('duration_seconds')
+        return f'{start:g}–{start+duration:g} 秒' if finite(start) and finite(duration) and duration>0 else None
+    window_options=''.join(f'<option value="{esc(w)}" {"selected" if w==window else ""}>{esc(interval_label(w) or ("当前窗口" if not w else w.rstrip("-")))}</option>' for w in windows)
     limits=''.join(f'<option {"selected" if n==limit else ""}>{n}</option>' for n in [16,32,64,128])
     bands=''.join(f'<option {"selected" if b==band else ""}>{b}</option>' for b in BANDS)
     label=result.get('recording',{});caption=f'{label.get("channel_count","—")} 道 · {label.get("sampling_rate_hz","—")} Hz'
     warning='<p class="empty">部分证据无法读取，受影响图表显示未评。</p>' if errors else ''
-    scope_note='整份报告按窗口显示原始证据，不将各窗频谱或时间比例简单平均。' if result.get('scope')=='recording' else '展示本次分析窗口的已保存结果。'
-    return f'''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>结果可视化 · 质控台</title><style>{CSS}</style><body>
+    period=interval_label(window)
+    scope_note=(f'当前图表：原记录 {period}。' if period else '当前图表：所选分析窗口，时间范围未记录。')
+    if result.get('scope')=='recording':scope_note+=' 按窗口展示，不是整份记录的汇总图。'
+    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>结果可视化 · 质控台</title><style>{CSS}</style></head><body>
 <nav><a href="{esc(back_url)}">← 返回质控报告</a><span>DBCI-QC · 结果可视化</span></nav><main>
-<div class="intro"><span class="eyebrow">VISUALIZATION</span><h1>选择您要看的图</h1><p>{esc(caption)} · {esc(scope_note)}</p><p>读取已有结果，切换图表不会重新质控或改变分数。</p></div>
+<div class="intro"><span class="eyebrow">VISUALIZATION</span><h1>结果可视化</h1><p>{esc(caption)}</p><p class="scope-note">{esc(scope_note)}</p><p>读取已有结果，切换图表不会重新质控或改变分数。</p></div>
 <form action="{esc(action)}" method="get" class="controls"><input type="hidden" name="configured" value="1"><div class="choices">{checkboxes}</div><div class="toolbar"><label>分析窗口 <select name="window">{window_options}</select></label><label>最多显示通道 <select name="limit">{limits}</select></label><label>参考对照频带 <select name="band">{bands}</select></label><button>更新图表</button></div><details><summary>待接入的图</summary>{planned}</details></form>
-{warning}{''.join(panels) if panels else missing('请选择至少一种图表。')}<footer>{VERSION} · 数值和候选均来自保存的检测结果；图表配色不定义新的质量标准。</footer></main></body></html>'''
+<div class="module-links" aria-label="图表模块">{links}</div>{warning}{''.join(panels) if panels else missing('请选择至少一种图表。')}<footer>{VERSION} · 数值和候选均来自保存的检测结果；图表配色不定义新的质量标准。</footer></main>
+<script src="/visualizations.js" defer></script></body></html>'''
 
-CSS='''*{box-sizing:border-box}body{margin:0;background:#f4f7fc;color:#17324d;font:15px/1.65 system-ui,-apple-system,sans-serif}nav{height:66px;background:#fff;border-bottom:1px solid #dce5f2;display:flex;justify-content:space-between;align-items:center;padding:0 5vw}a{color:#2563eb;text-decoration:none}nav span,.caption,footer{color:#64748b;font-size:13px}main{max-width:1180px;margin:40px auto;padding:0 28px}h1{font-size:32px;margin:8px 0}h2{font-size:22px;margin:2px 0}h3{font-size:16px;margin:0}p{margin:8px 0}.eyebrow,header>span{font-size:11px;letter-spacing:2px;color:#5678ab}.intro{margin:0 0 26px}.intro p{color:#64748b}.controls,.panel{background:white;border:1px solid #dce5f2;border-radius:16px;margin:22px 0;padding:26px}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.choice{display:flex;align-items:center;gap:10px;cursor:pointer}input{accent-color:#2563eb;width:17px;height:17px}.toolbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:24px;padding-top:20px;border-top:1px solid #edf1f7}select,button{font:inherit;border-radius:8px;padding:8px 12px;border:1px solid #cad8eb;background:white}button{background:#2563eb;color:white;border:0;cursor:pointer;margin-left:auto}.panel header p{color:#64748b;font-size:14px}.figure{margin-top:24px;border-top:1px solid #e8edf6;padding-top:18px;overflow-x:auto}.figure-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.figure-head a{font-size:12px}svg{display:block;width:100%;min-width:620px;height:auto}img.waveform{width:100%;height:auto}.empty{border-radius:8px;padding:20px;background:#f7f9fc;color:#64748b}details{margin-top:20px;color:#64748b;font-size:13px}summary{cursor:pointer}footer{text-align:center;margin:32px 0}@media(max-width:760px){main{padding:0 14px;margin:24px auto}.choices{grid-template-columns:repeat(2,1fr)}.controls,.panel{padding:18px}nav span{display:none}h1{font-size:27px}}@media print{nav,.controls{display:none}body{background:white}main{max-width:none;padding:0}.panel{break-inside:avoid}.figure{overflow:visible}svg{min-width:0}}'''
+CSS='''*{box-sizing:border-box}body{margin:0;background:#f4f7fc;color:#17324d;font:14px/1.65 system-ui,-apple-system,sans-serif}nav{height:66px;background:#fff;border-bottom:1px solid #dce5f2;display:flex;justify-content:space-between;align-items:center;padding:0 5vw}a{color:#2563eb;text-decoration:none}nav span,.caption,footer{color:#64748b;font-size:13px}main{max-width:1180px;margin:40px auto;padding:0 28px}h1{font-size:24px;margin:8px 0}h2{font-size:22px;margin:2px 0}h3{font-size:16px;margin:0}p{margin:8px 0}.eyebrow,header>span{font-size:11px;letter-spacing:2px;color:#5678ab}.intro{margin:0 0 26px}.intro p{color:#64748b}.controls,.panel{background:white;border:1px solid #dce5f2;border-radius:6px;margin:18px 0;padding:22px}.intro .scope-note{color:#243449;background:#eef3fb;border-left:3px solid #2459bc;padding:9px 12px}.figure-details{margin:8px 0 18px}.figure-details pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;background:#f5f7fa;padding:12px;font:12px/1.6 ui-monospace,monospace}.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.choice{display:flex;align-items:center;gap:10px;cursor:pointer}input{accent-color:#2563eb;width:17px;height:17px}.toolbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-top:24px;padding-top:20px;border-top:1px solid #edf1f7}select,button{font:inherit;border-radius:8px;padding:8px 12px;border:1px solid #cad8eb;background:white}button{background:#2563eb;color:white;border:0;cursor:pointer;margin-left:auto}.panel{color:#17324d;font-size:14px}.panel>summary{display:flex;align-items:center;gap:16px;list-style:none;position:relative;padding-right:26px}.panel>summary::-webkit-details-marker{display:none}.panel>summary::after{content:"+";position:absolute;right:0;font-size:21px;color:#64748b}.panel[open]>summary::after{content:"−"}.panel-title{font-size:16px;font-weight:600;flex-shrink:0}.panel-description{color:#64748b;font-size:13px}.panel-body{padding-top:4px}.module-links{display:flex;gap:8px 20px;flex-wrap:wrap;font-size:13px;margin:24px 0}.module-links a{border-bottom:1px solid transparent}.module-links a:hover{border-color:#2563eb}summary:focus-visible,a:focus-visible{outline:2px solid #2563eb;outline-offset:4px}.figure{margin-top:24px;border-top:1px solid #e8edf6;padding-top:18px;overflow-x:auto}.figure-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.figure-head a{font-size:12px}svg{display:block;width:100%;min-width:620px;height:auto}img.waveform{width:100%;height:auto}.empty{border-radius:8px;padding:20px;background:#f7f9fc;color:#64748b}details{margin-top:20px;color:#64748b;font-size:13px}summary{cursor:pointer}footer{text-align:center;margin:32px 0}@media(max-width:760px){main{padding:0 14px;margin:24px auto}.choices{grid-template-columns:repeat(2,1fr)}.controls,.panel{padding:18px}nav span{display:none}h1{font-size:24px}.panel>summary{align-items:flex-start;flex-direction:column;gap:4px}}@media print{nav,.controls{display:none}body{background:white}main{max-width:none;padding:0}.panel{break-inside:avoid}.module-links{display:none}.panel>.panel-body{display:block!important}.figure{overflow:visible}svg{min-width:0}}'''

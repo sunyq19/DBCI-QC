@@ -8,7 +8,36 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `读取文件后可设置计分项目。	Set scoring components after reading a file.
+  const pairs = `可选计分项	Optional scoring checks
+证据不足，暂不能评分	Insufficient evidence to score
+疑似异常通道占比	Candidate channel fraction
+疑似异常通道占比（按分段时长汇总）	Candidate channel fraction, weighted by segment duration
+各通道疑似异常时长占比	Candidate duration across channels
+疑似异常时长占比	Candidate duration fraction
+被标记的分析分段占比	Flagged analysis-segment fraction
+被标记的采样点占比	Flagged sample fraction
+被标记的检查片段占比	Flagged check-window fraction
+本方法标记比例	Fraction flagged by this method
+计分设置	Scoring settings
+调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。	Adjust each check's influence on the total. Equal values count equally; the resulting share appears on the right.
+设为大于 0 时会启用对应方法。不同方法可能检查同一问题，请按需选择。	A value above zero enables the method. Methods may check the same issue; choose as needed.
+0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。	Zero excludes a check from the total. All included checks must complete; all-zero values show individual results only.
+计分比重须为 0–100	Relative importance must be between 0 and 100.
+计分比例	Share of total
+结果说明	Findings
+检查项	Check
+不计入	Not included
+未设置总分	No total configured
+仅 1 项计入	One check included
+按所选项目汇总	Combined selected checks
+其他检查结果	Additional check results
+原始计分数据	Original scoring data
+总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。	The total is the sum of each score multiplied by its share. Equal settings count equally; zero excludes a check.
+参与计分的项目全部完成后才生成总分。分数只代表所选检查，尚未经过专家校准。	A total is generated only when all included checks complete. Scores cover the selected checks and have not been expert-calibrated.
+未发现无效数值或恒值采样点	No invalid values or constant-value samples detected
+未发现疑似工频干扰	No line-noise candidates detected
+未发现高频突发候选	No high-frequency burst candidates detected
+读取文件后可设置计分项目。	Set scoring components after reading a file.
 分项 = 100 ×（1 − 候选占比）；总分按权重平均。	Component = 100 × (1 − candidate fraction); the total is a weighted mean.
 正权重会选中对应方法。不同方法可能命中同一问题，请按项目需要选择。	A positive weight selects its method. Methods may detect the same issue; choose according to project needs.
 0 表示不纳入；正权重项目缺失，不生成总分。全部为 0 时仅展示分项。	Zero excludes a component. Missing positive-weight results withhold the total. All-zero weights show components only.
@@ -1901,6 +1930,11 @@ EDF技术头与选道	EDF technical header and channel selection
 ];
   // END reviewed research methods
   const reportPairs = [
+    ["共同基础检查","Shared basic checks"],["分段得分","Window score"],
+    ["发现待复核信号","Signal findings to review"],["计分项目未检出候选","No candidates in the scored checks"],
+    ["部分项目未评分","Some checks could not be scored"],
+    ["其他检查结果与局部信号仍可在下方查看。","See the additional checks and local signals below."],
+    ["有效测量不足，已完成的分项结果保留。","Insufficient valid measurements; completed component results are retained."],
     ["整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。","The full recording is processed in the background. You can leave this page while the local service stays running."],
     ["局部关注","Local findings"],["按通道查看分项","Component scores by channel"],["按时段查看分数","Scores by time window"],
     ["完整性","Integrity"],["工频","Line noise"],["基础初评分","Basic screening score"],["逐窗报告","Window report"],
@@ -1949,6 +1983,18 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^共同基础检查：(.+)$/, (_,text) => `Shared basic checks: ${translate(text,"en")}`],
+    [/^(疑似异常通道占比(?:（按分段时长汇总）)?|各通道疑似异常时长占比|疑似异常时长占比|被标记的分析分段占比|被标记的采样点占比|被标记的检查片段占比|本方法标记比例) ([\d,.]+)%$/, (_,label,n) => `${dictionary[label]} ${n}%`],
+
+    [/^占总分 ([\d,.]+)%$/, (_,n) => `${n}% of total`],
+    [/^(\d+) 项同等计入$/, (_,n) => `${n} checks counted equally`],
+    [/^(.+)计分比重$/, (_,name) => `${translate(name,"en")} relative importance`],
+    [/^无效数值 ([\d,—]+) 个$/, (_,n) => `${n} invalid values`],
+    [/^恒值采样点 ([\d,—]+) 个$/, (_,n) => `${n} constant-value samples`],
+    [/^疑似工频干扰涉及 ([\d,—]+) 个通道$/, (_,n) => `Line-noise candidates in ${n} channels`],
+    [/^疑似高频突发 ([\d,—]+) 处$/, (_,n) => `${n} high-frequency burst candidates`],
+    [/^涉及 ([\d,—]+) 个通道$/, (_,n) => `${n} channels involved`],
+
     [/^(\d+) 项可检查(?: · (\d+) 项缺条件)?$/, (_,a,b) => `${a} checks available${b ? ` · ${b} missing prerequisites` : ""}`],
     [/^(\d+) 项缺条件$/, (_,a) => `${a} missing prerequisites`],
     [/^非有限值 ([\d,—]+) · 恒值 ([\d,—]+) 个样本$/, (_,a,b) => `Nonfinite ${a} · Constant ${b} samples`],

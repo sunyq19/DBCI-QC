@@ -449,13 +449,12 @@ class Store:
     def result(self, id_, *, compact=False):
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')
-        if compact:
-            from project_score_cache import load
-            published = load(self, id_)
-            if published:
-                for artifact in published.get('artifacts',[]):
-                    artifact['url'] = f'/api/v1/jobs/{id_}/artifacts/{quote(artifact["name"])}'
-                return published
+        from project_score_cache import load
+        published = load(self, id_)
+        if compact and published:
+            for artifact in published.get('artifacts',[]):
+                artifact['url'] = f'/api/v1/jobs/{id_}/artifacts/{quote(artifact["name"])}'
+            return published
         result_path = self.root / 'jobs' / id_ / 'result.json'
         if compact:
             # Candidate observations can dwarf the report (tens of thousands of
@@ -469,17 +468,49 @@ class Store:
             if cached and cached[0] == stamp:
                 data = copy.deepcopy(cached[1])
             else:
-                data = read_json(result_path)
-                if isinstance(data.get('candidate_index'), list):
-                    data['candidate_index_count'] = len(data.pop('candidate_index'))
+                import ijson
+                from ijson.common import ObjectBuilder
+                builder = ObjectBuilder()
+                pending_candidates = skipping_candidates = saw_candidates = False
+                candidate_count = 0
+                with result_path.open('rb') as handle:
+                    for prefix, event, value in ijson.parse(handle, use_float=True):
+                        if prefix == '' and event == 'map_key' and value == 'candidate_index':
+                            pending_candidates = True
+                            continue
+                        if pending_candidates:
+                            pending_candidates = False
+                            if event == 'start_array':
+                                skipping_candidates = saw_candidates = True
+                                continue
+                            # Preserve non-array values from older files verbatim.
+                            builder.event('map_key', 'candidate_index')
+                        if skipping_candidates:
+                            if prefix == 'candidate_index.item' and event not in {'end_map', 'end_array', 'map_key'}:
+                                candidate_count += 1
+                            if prefix == 'candidate_index' and event == 'end_array':
+                                skipping_candidates = False
+                            continue
+                        builder.event(event, value)
+                data = builder.value
+                if saw_candidates:
+                    data['candidate_index_count'] = candidate_count
                     data['candidate_index_artifact'] = 'candidate-index.json' if any(
                         a.get('name') == 'candidate-index.json' for a in data.get('artifacts', [])) else None
+                after = result_path.stat()
+                if stamp != (after.st_mtime_ns, after.st_size):
+                    raise ValueError('结果文件发生变化，请重新加载。')
                 with self.lock:
                     if len(self.result_summaries) >= 8: self.result_summaries.pop(next(iter(self.result_summaries)))
                     self.result_summaries[id_] = (stamp, copy.deepcopy(data))
         else:
             data = read_json(result_path)
-        if data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
+        saved_view = published.get('report_view') if published else data.get('report_view')
+        if isinstance(saved_view, dict) and saved_view.get('score'):
+            # Browsing must use the same published/frozen scores as HTML and PDF.
+            # The full result retains every original detector field and array.
+            data['report_view'] = copy.deepcopy(saved_view)
+        elif data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
             from ephys_qc.report_view import build_report_view, VIEW_VERSION
             root = self.root / 'jobs' / id_
             names = ['result.json', 'artifacts/M03_continuity.json', 'artifacts/M04_spectral.json',
@@ -494,6 +525,7 @@ class Store:
                 except FileNotFoundError:
                     signature.append(None)
             with self.lock:
+                if not hasattr(self, 'report_views'): self.report_views = {}
                 cached = self.report_views.get(id_)
             if not cached or cached[0] != signature:
                 view = build_report_view(data, root / 'artifacts', self.job(id_).get('label', id_))
@@ -744,8 +776,12 @@ class Handler(BaseHTTPRequestHandler):
         export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png)', path)
         if export_match:
             identifier, export_kind = export_match.groups()
-            result = self.store.result(identifier, compact=True)
-            view = result.get('report_view')
+            if self.store.job(identifier)['status'] != 'completed':
+                raise ValueError('任务尚未完成，没有可用的最终报告。')
+            from project_score_cache import load
+            from saved_reports import frozen_view
+            published = load(self.store, identifier)
+            view = published.get('report_view') if published else frozen_view(self.store, identifier)
             if not view:
                 raise ValueError('当前 PDF 导出支持头皮 EEG 报告。')
             from ephys_qc.report_export import evidence_figure, pdf_bytes
@@ -805,7 +841,7 @@ class Handler(BaseHTTPRequestHandler):
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
         static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]

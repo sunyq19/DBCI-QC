@@ -13,6 +13,21 @@ from saved_reports import served_report
 
 
 class ScorePublicationTests(unittest.TestCase):
+    def test_current_template_reuses_frozen_view_without_recalculating_or_mutating(self):
+        fixture=ReportViewTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        view=fixture.view()
+        (fixture.job/'result.json').write_text(json.dumps({**fixture.result,'report_view':view}))
+        original={p:p.read_bytes() for p in fixture.job.rglob('*') if p.is_file()}
+        store=Store.__new__(Store);store.root=fixture.root;store.lock=threading.RLock()
+        store.jobs={fixture.jid:{'id':fixture.jid,'status':'completed','label':'Example'}}
+        with patch('ephys_qc.report_view.build_report_view',side_effect=AssertionError('must use saved view')):
+            page=served_report(store,fixture.jid)
+        self.assertIn('检查发现',page)
+        self.assertIn('测量明细与统计单位',page)
+        self.assertNotIn('测量与扣分原因',page)
+        self.assertIn('/visualizations',page)
+        for path,content in original.items():self.assertEqual(path.read_bytes(),content)
+
     def test_frozen_source_retained_cached_api_and_html_agree_and_invalidate(self):
         fixture=ReportViewTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
         (fixture.job/'request.json').write_text('{}')

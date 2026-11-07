@@ -245,6 +245,10 @@ def finalize(result,rows,*,coverage_complete=True):
 
 def report_section(score):
     from html import escape
+    from .report_export import score_composition
     point=lambda v:'—' if v is None else f'{v:.2f}'
-    rows=''.join(f'<tr><th>{escape(p["name"])}</th><td>{point(p["value"])}</td><td>{p["weight"]:g}</td><td>{escape(p["reason"])}</td></tr>' for p in score['components'])
-    return f'<section class="project-score" style="max-width:1100px;margin:24px auto;padding:24px;background:white"><h2>项目自定义评分 · {point(score["value"])}</h2><p>{escape(score.get("missing_reason") or score["formula"])}</p><table><thead><tr><th>方法</th><th>分数 / 100</th><th>权重</th><th>计分依据</th></tr></thead><tbody>{rows}</tbody></table><p>{escape(score["version"])} · {escape(score["configuration_id"])}</p></section>'
+    total=sum(p.get('weight',0) for p in score['components'] if p.get('weight',0)>0)
+    rows=''.join(f'<tr><th>{escape(p["name"])}</th><td>{point(p["value"])}</td><td>{escape(p["reason"])}</td></tr>' for p in score['components'])
+    shares=''.join(f'<li>{escape(p["name"])}：{100*p["weight"]/total:.1f}%</li>' for p in score['components'] if p.get('weight',0)>0)
+    composition=f'<details><summary>总分组成</summary><p>{escape(score_composition(score))}</p><ul>{shares}</ul><p>未列入的项目仅展示结果；缺项不补分、不重新分配比例。</p></details>'
+    return f'<section class="project-score" style="max-width:1100px;margin:24px auto;padding:24px;background:white"><h2>项目自定义评分 · {point(score["value"])}</h2><p>{escape(score.get("missing_reason") or score_composition(score))}</p><table><thead><tr><th>检查项目</th><th>分项得分 / 100</th><th>检查说明</th></tr></thead><tbody>{rows}</tbody></table>{composition}<p>{escape(score["version"])} · {escape(score["configuration_id"])}</p></section>'

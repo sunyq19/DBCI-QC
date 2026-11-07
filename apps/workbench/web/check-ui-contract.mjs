@@ -827,7 +827,7 @@ check("project weights are explicit, editable and invalidate an existing plan",a
 check("non EEG cannot inherit scalp scoring and module capability is visible",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
   t.state.draftConfig.scoring={version:'project-weighted/1.0',weights:{integrity:1,line_noise:1,hf_burst:1}};
-  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('正权重项目缺失'));
+  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('参与计分的项目必须全部完成'));
   t.state.catalog.modules[2].scoring={can_output_score:false,role:'evidence'};t.showModule('M03');assert(t.get('module-dialog-content').innerHTML.includes('不计分，输出测量与复核线索'));
 });
 check("examples and uploads share native disclosure hierarchy",()=>{
@@ -847,6 +847,39 @@ check("current report schema displays the weighted score and optional method tab
   const t=harness();t.state.result={modules:[],report_view:{schema_version:'eeg-report-view/5',score:{version:'project-weighted/1.1',value:78.75,formula:'weighted',components:[{name:'信号完整性',value:100,weight:1},{name:'工频干扰',value:60,weight:2},{name:'高频突发',value:95,weight:1},{name:'灵犀云伪差',value:82,weight:0,reason:'test'}]},recording:{channel_count:2,sampling_rate_hz:100,start_seconds:0,duration_seconds:10},finite:{nonfinite:0,constant:0},line:{hits:1,total:3,affected_channels:1},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
   t.renderResult();const text=t.get('result-content').innerHTML;
   assert(text.includes('78.75'));assert(text.includes('项目自定义 v1.1'));assert(text.includes('灵犀云伪差'));assert(!text.includes('总分尚未校准'));
+  assert(text.includes('占总分 50%'));assert(text.includes('不计入'));assert(!text.includes(' · 权重 '));
+  t.state.result.report_view.score.components[3].weight=4;t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('<td>占总分 50%</td>'));assert(!t.get('result-content').innerHTML.includes('<td>占总分 100%</td>'));
+  t.state.result.report_view.score.components[3].weight=0;t.state.result.report_view.score.components[1].weight=1;t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('3 项同等计入'));
+  // A Gnosis-only scoring profile must surface all five included checks, even
+  // when one has missing evidence; unused core checks stay supplementary.
+  const components=t.state.result.report_view.score.components;
+  components.forEach(p=>p.weight=0);
+  components.splice(3,1,...['gnosis_line_length','gnosis_artifact','gnosis_low_band','gnosis_high_band','gnosis_psd_deviation'].map((id,i)=>({id,name:id,value:i===4?null:80,weight:1,candidate_fraction:i===4?null:.2,unit:i===0?'channel_block_seconds':'channel_seconds'})));
+  Object.assign(t.state.result.report_view,{headline:'Old core headline',summary:'Old core summary',priority:'工频优先复核：A 命中 1/3 窗。',local_quality:{lowest:{name:'A',lowest_component:{name:'工频',value:60}}}});
+  t.renderResult();
+  const gnosis=t.get('result-content').innerHTML, main=gnosis.split('<div class="qc-score-parts">')[1].split('<p class="qc-score-note">')[0];
+  assert.equal((main.match(/<article>/g)||[]).length,5);assert(!main.includes('未发现无效数值'));assert(!main.includes('疑似工频干扰涉及'));
+  assert(main.includes('证据不足，暂不能评分'));assert(gnosis.includes('占总分 20%'));assert(!gnosis.includes('占总分 25%'));
+  const conclusion=gnosis.split('<div class="qc-score-conclusion">')[1].split('</div>')[0];
+  assert(conclusion.includes('gnosis_line_length'));assert(!conclusion.includes('Old core summary'));
+  assert(gnosis.includes('共同基础检查 · 局部关注'));assert(conclusion.includes('共同基础检查：工频优先复核'));
+  components.filter(part=>part.weight>0).forEach(part=>{part.value=100;part.candidate_fraction=0;});t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('计分项目未检出候选'));
+  components.at(-1).value=null;t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('部分项目未评分'));
+  // Historical aggregate metadata can overstate short-tail coverage. Display
+  // valid windows by score ID without changing the frozen result or score.
+  const view=t.state.result.report_view;
+  view.checks=[{name:'gnosis_high_band',value:'7/7 个窗口可计分，0 秒',state:'部分未评'},
+    {name:'gnosis_psd_deviation',value:'7/7 个窗口可计分，0 秒',state:'部分未评'}];
+  view.window_scores=Array.from({length:7},(_,i)=>({start_seconds:i*120,duration_seconds:i===6?13:120,value:i===6?null:100,
+    components:components.map(part=>({id:part.id,value:i===6&&['gnosis_high_band','gnosis_psd_deviation'].includes(part.id)?null:100}))}));
+  const saved=JSON.stringify(view);t.renderResult();
+  const checks=t.get('result-content').innerHTML.split('<div class="qc-check-list">')[1].split('</div></div>')[0];
+  assert.equal((checks.match(/6\/7 个窗口可计分，720 秒/g)||[]).length,2);
+  assert(!checks.includes('7/7 个窗口可计分，0 秒'));assert.equal(JSON.stringify(view),saved);
 });
 check('running history opens on entry and polling respects manual collapse',async()=>{
   const job={id:'running-task',status:'running',label:'Running task',plan:{plan_id:'saved',nodes:[],selected_modules:[]},modules:[]};

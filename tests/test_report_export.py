@@ -3,6 +3,7 @@ import copy
 import importlib.util
 import json
 import math
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -26,7 +27,61 @@ class ReportExportTests(unittest.TestCase):
         data=pdf_bytes(view,figure_notes=['来源不可用'],job_id=self.jid)
         self.assertTrue(data.startswith(b'%PDF-'))
         self.assertEqual(view,before)
-        self.assertIn(b'/Count 2',data)
+        count=re.search(rb'/Count (\d+)',data)
+        self.assertIsNotNone(count)
+        self.assertGreaterEqual(int(count[1]),3)
+        self.assertLessEqual(int(count[1]),4)
+
+    def test_human_findings_keep_measurements_and_missing_configured_share(self):
+        from ephys_qc.project_scoring import apply_to_view, VERSION
+        from ephys_qc.report_export import score_composition
+        view=apply_to_view(self.view(),{'version':VERSION,'weights':{'integrity':1,'line_noise':2,'hf_burst':1}})
+        before=copy.deepcopy(view)
+        rows=score_rows(view)
+        self.assertEqual([r['share'] for r in rows],[.25,.5,.25])
+        self.assertIn('通道检查窗',rows[1]['finding'])
+        self.assertNotIn('权重',rows[1]['reason'])
+        self.assertIn(' / ',rows[1]['measurement'])
+        view['score']['components'][1]['value']=None
+        self.assertEqual(score_rows(view)[1]['share'],.5)
+        self.assertEqual(score_composition(before['score']),'总分由 3 个分项按设定比例汇总。')
+
+    def test_archived_v01_keeps_its_mean_formula_and_actual_fraction(self):
+        from ephys_qc.report_export import score_composition
+        from ephys_qc.report_view import render_report_view
+        view=self.view()
+        view['score']['version']='eeg-basic-screen/0.1'
+        view['score']['components'][1]['value']=50
+        for row in view['score']['components']:row.pop('candidate_fraction',None)
+        before=copy.deepcopy(view)
+        self.assertIn('平均分',score_composition(view['score']))
+        self.assertIn('50.00%',score_rows(view)[1]['finding'])
+        page=render_report_view(view)
+        self.assertIn('项目试行 v0.1',page)
+        self.assertNotIn('使用均方根',page)
+        self.assertNotIn('取最低分项',page)
+        self.assertEqual(view,before)
+
+    def test_missing_full_record_component_locates_the_actual_unassessed_segment(self):
+        view=self.view();part=view['score']['components'][2]
+        part['value']=None
+        view['window_scores']=[{'start_seconds':720.,'duration_seconds':13.,'components':[
+            {'id':'hf_burst','value':None,'reason':'原版方法未完成：ValueError: Degenerate band statistic'}]}]
+        before=copy.deepcopy(view);row=score_rows(view)[2]
+        self.assertIn('720–733 秒',row['finding'])
+        self.assertIn('高频统计未得到有效结果',row['finding'])
+        self.assertIn('0 / 1',row['measurement'])
+        self.assertEqual(view,before)
+
+    def test_visible_coverage_uses_valid_windows_not_scheduled_window_count(self):
+        from ephys_qc.report_export import display_checks
+        view=self.view();name=view['score']['components'][2]['name']
+        view['checks']=[{'name':name,'value':'2/2 个窗口可计分，0 秒'}]
+        view['window_scores']=[{'duration_seconds':120.,'components':[{'id':'hf_burst','value':95.}]},
+                               {'duration_seconds':13.,'components':[{'id':'hf_burst','value':None}]}]
+        before=copy.deepcopy(view)
+        self.assertEqual(display_checks(view)[0]['value'],'1/2 个窗口可计分，120 秒')
+        self.assertEqual(view,before)
 
     @unittest.skipUnless(importlib.util.find_spec('matplotlib'), 'optional plotting dependency')
     def test_figure_maps_channel_identity_and_refuses_unverified_source(self):

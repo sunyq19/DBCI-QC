@@ -86,9 +86,9 @@ class ProjectScoreTests(unittest.TestCase):
         # 100 integrity; 2/3 good channel-windows; 90 HF; weights 1:2:1.
         self.assertAlmostEqual(revised['score']['value'],(100+2*100*2/3+90)/4)
         report=render_report_view(revised)
-        self.assertIn('按配置权重平均',report)
+        self.assertIn('3 项计入总分',report)
         self.assertNotIn('总分取最低分项',report)
-        self.assertIn('工频干扰 2',report)
+        self.assertIn('<th>工频干扰</th><td>50.0%</td>',report)
         self.assertTrue(pdf_bytes(revised).startswith(b'%PDF'))
         result=copy.deepcopy(fixture.result);result['qc_config']={'scoring':config((1,2,1))}
         live=build_report_view(result,fixture.artifacts)

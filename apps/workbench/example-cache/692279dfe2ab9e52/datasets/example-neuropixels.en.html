@@ -1,0 +1,154 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Neuropixels · Dataset report</title><style>/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --workspace: #f3f5f8;
+  --surface: #fff;
+  --wash: #f5f7fa;
+  --ink: #243449;
+  --muted: #5b687b;
+  --sub: var(--muted);
+  --line: #dfe5ed;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --primary-line: #b8cae7;
+  --success: #176b5b;
+  --success-light: #edf7f3;
+  --success-line: #bfdcd0;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --amber-line: #e8d7b8;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+</style><script src="/examples/692279dfe2ab9e52/assets/dataset-report.js" defer></script></head><body class="dataset-report">
+<header class="report-header"><a href="/">← Workbench</a><span>Dataset report</span><nav><a href="/examples/692279dfe2ab9e52/datasets/example-neuropixels.en.html">中文</a><button id="print-report">Print / PDF</button></nav></header>
+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / Public sample</p><h1>Neuropixels</h1><p class="secondary">Human voltage excerpts · AP / LF</p></div></div>
+<dl class="dataset-facts"><div><dt>Subjects</dt><dd>3</dd></div><div><dt>Recordings</dt><dd>3</dd></div><div><dt>Sample duration</dt><dd>26 s</dd></div><div><dt>Formats</dt><dd>SpikeGLX</dd></div></dl><p class="report-conclusion">3 signal reports available · No mismatches in assessed metadata</p>
+<section id="checks"><h2>Checks performed</h2><div class="table-scroll" tabindex="0" role="region" aria-label="Check results"><table class="check-table"><tbody><tr><th><small>D01</small>File completeness</th><td>Expected files present; recordings readable</td><td class="outcome">9 / 9 files match the inventory</td></tr><tr><th><small>D02</small>Within-subject metadata</th><td>Identifiers, channel table, units, sample rates and event timing</td><td class="outcome">Insufficient companion metadata</td></tr><tr><th><small>D03</small>Within-group comparison</th><td>Compare declared groups; keep sources, modalities and AP/LF separate</td><td class="outcome">1 checks agree</td></tr><tr><th><small>M03–M07</small>Signal checks</th><td>EEG: integrity, spectra, channels and artifacts. Other modalities: integrity, spectra and contact statistics</td><td class="outcome">3 / 3 reports</td></tr></tbody></table></div></section>
+
+<section id="recordings"><h2>Recording results <span>3</span></h2><p class="secondary">ECoG, sEEG and Neuropixels currently receive technical measurements without scalp-EEG rejection thresholds. Adjacent equal values can reflect quantization, not bad channels.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Recording results"><table class="record-table"><thead><tr><th>Subject / recording</th><th>Scope</th><th>Signal findings</th><th></th></tr></thead><tbody><tr><th>Pt03<small>Pt03-ap</small></th><td>SpikeGLX · 384 channels · 30,000 Hz · 2 s<small>Full sample checked</small></td><td>0 NaN / Inf samples · PSD: 384 channels</td><td><a class="report-link" href="/examples/692279dfe2ab9e52/records/dd6da476008c443ea4f73885114f4f36.en.html">View report</a></td></tr><tr><th>Pt01<small>Pt01-lf</small></th><td>SpikeGLX · 384 channels · 2,500 Hz · 20 s<small>Full sample checked</small></td><td>0 NaN / Inf samples · PSD: 384 channels</td><td><a class="report-link" href="/examples/692279dfe2ab9e52/records/bea61e55b1394552af5d5a26c1e2e9f1.en.html">View report</a></td></tr><tr><th>Pt02<small>Pt02-ap</small></th><td>SpikeGLX · 384 channels · 30,000 Hz · 4 s<small>Full sample checked</small></td><td>0 NaN / Inf samples · PSD: 384 channels</td><td><a class="report-link" href="/examples/692279dfe2ab9e52/records/73fa92d5a9a445478367fae95501ea78.en.html">View report</a></td></tr></tbody></table></div></section>
+<details class="disclosure"><summary>Metadata not assessed · 13 types</summary><p class="secondary">Includes absent companion tables, ambiguous mappings and groups without repeated recordings. These checks are not passes and do not imply poor signal quality.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Unassessed metadata"><table><tbody><tr><th>Subject/session binding</th><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td><td>3</td></tr><tr><th>Participant index</th><td>未提供或未验证对应表。</td><td>3</td></tr><tr><th>Session index</th><td>未提供或未验证对应表。</td><td>3</td></tr><tr><th>Scan index</th><td>未提供或未验证记录表。</td><td>3</td></tr><tr><th>Channel table fields</th><td>通道表需有唯一非空 name，以及 type、units 列。</td><td>3</td></tr><tr><th>Channel names/order</th><td>通道表缺失或结构无效，未作比较。</td><td>3</td></tr><tr><th>Physical units</th><td>通道表缺失或结构无效，未作比较。</td><td>3</td></tr><tr><th>Sampling rates</th><td>通道表缺失或结构无效，未作比较。</td><td>3</td></tr><tr><th>Recording duration</th><td>文件不可读取或配套表未声明时长。</td><td>3</td></tr><tr><th>Comparable recordings</th><td>只有一份记录，无法验证重复记录间一致性。</td><td>4</td></tr><tr><th>Within-group sampling rates</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>Within-group units</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>Group table schema</th><td>核对同组通道表字段；可选列差异保留复核。</td><td>2</td></tr></tbody></table></div></details><details class="disclosure"><summary>Scope and sources</summary><p>三名受试者的公开裁剪片段：Pt01 LF 400–420秒、Pt02 AP 300–304秒、Pt03 AP 60–62秒。完整检查仅指各片段全长，不代表完整原记录；AP/LF 分组。</p><p>These public samples do not represent the complete upstream study.</p><p><a href="https://zenodo.org/records/5899237" rel="noreferrer">Human Neuropixels public crops</a></p><h3>Groups and compared fields</h3><ul><li><strong>AP 电压片段</strong> · sample rates, units</li><li><strong>LF 电压片段</strong> · sample rates, units</li></ul><p>No score is pooled across subjects or modalities. This page is not a human review.</p></details>
+<details class="disclosure"><summary>Full audit trail</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Audit trail"><table><tbody><tr><td>D01</td><th>Expected files</th><td>Pt03:crop</td><td>pass</td><td>3/3 个应有文件已核对。</td></tr><tr><td>D01</td><th>Expected files</th><td>Pt01:crop</td><td>pass</td><td>3/3 个应有文件已核对。</td></tr><tr><td>D01</td><th>Expected files</th><td>Pt02:crop</td><td>pass</td><td>3/3 个应有文件已核对。</td></tr><tr><td>D01</td><th>Recording structure</th><td>Pt03-ap</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>Recording structure</th><td>Pt01-lf</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>Recording structure</th><td>Pt02-ap</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D02</td><th>Subject/session binding</th><td>Pt03-ap</td><td>unassessed</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>Participant index</th><td>Pt03-ap</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Session index</th><td>Pt03-ap</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Scan index</th><td>Pt03-ap</td><td>unassessed</td><td>未提供或未验证记录表。</td></tr><tr><td>D02</td><th>Channel table fields</th><td>Pt03-ap</td><td>unassessed</td><td>通道表需有唯一非空 name，以及 type、units 列。</td></tr><tr><td>D02</td><th>Channel names/order</th><td>Pt03-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Physical units</th><td>Pt03-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Sampling rates</th><td>Pt03-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Recording duration</th><td>Pt03-ap</td><td>unassessed</td><td>文件不可读取或配套表未声明时长。</td></tr><tr><td>D02</td><th>Event time/channel</th><td>Pt03-ap</td><td>not_applicable</td><td>本检查方案未要求该记录的外部事件表。</td></tr><tr><td>D02</td><th>Subject/session binding</th><td>Pt01-lf</td><td>unassessed</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>Participant index</th><td>Pt01-lf</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Session index</th><td>Pt01-lf</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Scan index</th><td>Pt01-lf</td><td>unassessed</td><td>未提供或未验证记录表。</td></tr><tr><td>D02</td><th>Channel table fields</th><td>Pt01-lf</td><td>unassessed</td><td>通道表需有唯一非空 name，以及 type、units 列。</td></tr><tr><td>D02</td><th>Channel names/order</th><td>Pt01-lf</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Physical units</th><td>Pt01-lf</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Sampling rates</th><td>Pt01-lf</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Recording duration</th><td>Pt01-lf</td><td>unassessed</td><td>文件不可读取或配套表未声明时长。</td></tr><tr><td>D02</td><th>Event time/channel</th><td>Pt01-lf</td><td>not_applicable</td><td>本检查方案未要求该记录的外部事件表。</td></tr><tr><td>D02</td><th>Subject/session binding</th><td>Pt02-ap</td><td>unassessed</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>Participant index</th><td>Pt02-ap</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Session index</th><td>Pt02-ap</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Scan index</th><td>Pt02-ap</td><td>unassessed</td><td>未提供或未验证记录表。</td></tr><tr><td>D02</td><th>Channel table fields</th><td>Pt02-ap</td><td>unassessed</td><td>通道表需有唯一非空 name，以及 type、units 列。</td></tr><tr><td>D02</td><th>Channel names/order</th><td>Pt02-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Physical units</th><td>Pt02-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Sampling rates</th><td>Pt02-ap</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Recording duration</th><td>Pt02-ap</td><td>unassessed</td><td>文件不可读取或配套表未声明时长。</td></tr><tr><td>D02</td><th>Event time/channel</th><td>Pt02-ap</td><td>not_applicable</td><td>本检查方案未要求该记录的外部事件表。</td></tr><tr><td>D02</td><th>Comparable recordings</th><td>Pt03 / crop / ap</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D02</td><th>Comparable recordings</th><td>Pt01 / crop / lf</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D02</td><th>Comparable recordings</th><td>Pt02 / crop / ap</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>Within-group channels</th><td>ap</td><td>not_applicable</td><td>本比较组允许该项差异。</td></tr><tr><td>D03</td><th>Within-group sampling rates</th><td>ap</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>Within-group units</th><td>ap</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>Within-group reference</th><td>ap</td><td>not_applicable</td><td>本比较组允许该项差异。</td></tr><tr><td>D03</td><th>Group table schema</th><td>ap</td><td>unassessed</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>Comparable recordings</th><td>lf</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>Group table schema</th><td>lf</td><td>unassessed</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>Possible duplicate recordings</th><td>dataset</td><td>pass</td><td>相同文件内容仅作为重复线索，不据此判定受试者身份。</td></tr></tbody></table></div><p class="secondary">Manifest fingerprint: d79591f39f870677f5da9a268deeea24a01f45ce432ba1f18ee84aa47c5f1a93<br>Dataset run: 11ae69ced3e44c1f89de2913ea245d8d</p></details>
+<footer>Based on saved checks; opening this page does not rerun the algorithms. <a href="#snapshot-info">Open dataset workspace</a></footer><details class="disclosure"><summary>Sources and licenses</summary><ul><li><a href="https://zenodo.org/records/5899237">Human Neuropixels public crops</a> ·  · CC0-1.0</li></ul></details></main><p id="snapshot-info" style="max-width:1100px;margin:24px auto;padding:16px;color:#607087;font-size:12px">Saved public-data example. Reports and images are cached; original files and runtime evidence are not part of this snapshot.</p></body></html>
