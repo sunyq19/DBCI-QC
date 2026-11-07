@@ -2,20 +2,18 @@
 
 function expandFigure(hash) {
   const panel = document.getElementById(hash.slice(1));
-  if(panel?.matches('.chart-group')) {
-    const first=panel.querySelector('details.panel');if(first)first.open=true;
-    document.querySelectorAll('[data-panel-link]').forEach(link=>link.setAttribute('aria-current',String(link.hash===hash)));
-    panel.scrollIntoView({block:'start'});
+  if (!panel?.matches('.chart-group, details.panel')) return;
+  // Retain existing shared links while normal browsing uses nested disclosures.
+  for (let node = panel; node; node = node.parentElement) {
+    if (node.tagName === 'DETAILS') node.open = true;
   }
-  if (panel?.matches('details.panel')) {
-    panel.open = true;
-    panel.scrollIntoView({block:'start'});
+  if (panel.matches('.chart-group')) {
+    const first = panel.querySelector('details.panel');
+    if (first) first.open = true;
   }
+  panel.scrollIntoView({block:'start'});
 }
 
-document.querySelectorAll('[data-panel-link]').forEach(link => {
-  link.addEventListener('click', () => expandFigure(link.hash));
-});
 if (window.location.hash) expandFigure(window.location.hash);
 window.addEventListener('hashchange', () => expandFigure(window.location.hash));
 

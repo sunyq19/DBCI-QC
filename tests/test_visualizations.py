@@ -63,7 +63,11 @@ class VisualizationTests(unittest.TestCase):
         self.assertIn('<details class="panel" id="viz_psd" >',html)
         self.assertIn('<details class="panel" id="viz_waveform" >',html)
         self.assertIn('<details class="panel" id="viz_timeline" open>',html)
-        self.assertIn('href="#chart-locations" data-panel-link',html)
+        self.assertIn('<details class="chart-group" id="chart-locations" open>',html)
+        self.assertIn('<details class="chart-group" id="chart-spectra" >',html)
+        self.assertIn('<summary><h2>问题定位</h2><span class="chart-count">2 项</span></summary><div class="chart-group-body">',html)
+        self.assertNotIn('data-panel-link',html)
+        self.assertNotIn('module-links',html)
         self.assertIn('<script src="/visualizations.js" defer></script>',html)
         self.assertNotIn('<script>',html)
         self.assertIn('本窗口没有已保存的波形图',html)
@@ -81,6 +85,7 @@ class VisualizationTests(unittest.TestCase):
         self.assertIn('name="embedded" value="1"',page)
         self.assertIn('action="/charts"',page)
         self.assertIn('id="viz_psd"',page)
+        self.assertIn('<details class="chart-group" id="chart-spectra" open>',page)
 
     def test_declared_checks_keep_deep_link_targets_when_no_candidates_found(self):
         page=render_gallery({'artifacts':[{'name':'M04_spectral.json'},{'name':'M06_muscle.json'}]},
