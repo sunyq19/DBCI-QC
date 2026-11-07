@@ -38,6 +38,7 @@ class NavigationTests(unittest.TestCase):
             self.assertEqual(len(chosen['hf_candidates']),1)
             self.assertEqual(chosen['hf_candidates'][0]['start_seconds'],1)
             self.assertEqual(chosen['line_channels'],[])
+            self.assertTrue(render.call_args.kwargs['compact'])
         self.assertEqual(self.view,before)
         with self.assertRaises(KeyError):focused_figure(self.view,None,100)
 
@@ -55,8 +56,13 @@ class NavigationTests(unittest.TestCase):
         self.assertIn('private-hash-example',report)
         self.assertNotIn('本机原文件不变',visible)
         self.assertIn('问题定位',visible)
-        self.assertIn('0–4 s',visible)
-        self.assertIn('1–3 s',visible)
+        self.assertIn('0–4 秒',visible)
+        self.assertIn('1–3 秒',visible)
+        self.assertNotIn('完整候选列表',visible)
+        self.assertNotIn('测量明细与统计单位',visible)
+        self.assertIn('完整候选列表',report)
+        self.assertIn('测量明细与统计单位',report)
+        self.assertNotIn('>查看波形</a>',report)
         self.assertLess(report.index('id="review"'),report.index('id="checks"'))
 
     def test_no_false_waveform_link_when_identity_or_interval_is_missing(self):

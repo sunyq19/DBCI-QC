@@ -110,7 +110,7 @@ def display_checks(view):
     return result
 
 
-def evidence_figure(view, workspace):
+def evidence_figure(view, workspace, *, compact=False):
     """First two HF candidates, or two line candidates; source indices never inferred.
 
     Every request re-verifies the frozen input via the bounded waveform reader.
@@ -143,14 +143,19 @@ def evidence_figure(view, workspace):
         return None, notes
     # Matplotlib font and renderer state are shared by HTTP worker threads.
     with _RENDER_LOCK:
-        fig = Figure(figsize=(10, 2.1*len(panels)), dpi=160, layout='constrained')
+        fig = Figure(figsize=(8.8, 3.0) if compact else (10, 2.1*len(panels)), dpi=160, layout='constrained')
         FigureCanvasAgg(fig)
         for i,(c,w) in enumerate(panels):
             ax=fig.add_subplot(len(panels),1,i+1)
             ax.plot(w['times_seconds'],w['values'],color='#245ad3',linewidth=.65)
             ax.axvspan(c['start_seconds'],c['stop_seconds'],color='#f1ba58',alpha=.28)
-            ax.set_title(f'{c["channel_name"]}  |  {c["label"]}: {c["start_seconds"]:g}-{c["stop_seconds"]:g} s',loc='left',fontsize=11)
-            ax.set_ylabel(w['unit']); ax.set_xlabel('Original recording time (s)')
+            if not compact:
+                ax.set_title(f'{c["channel_name"]}  |  {c["label"]}: {c["start_seconds"]:g}-{c["stop_seconds"]:g} s',loc='left',fontsize=11)
+            ax.set_ylabel(w['unit']); ax.set_xlabel('s' if compact else 'Original recording time (s)')
+            if compact:
+                ax.tick_params(labelsize=9, colors='#52647d')
+                ax.set_ylabel(w['unit'], fontsize=9, color='#52647d')
+                ax.set_xlabel('s', fontsize=9, color='#52647d')
             ax.grid(alpha=.15); ax.spines[['top','right']].set_visible(False)
         buffer=BytesIO();fig.savefig(buffer,format='png',facecolor='white')
     return buffer.getvalue(),notes

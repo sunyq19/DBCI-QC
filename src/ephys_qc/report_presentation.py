@@ -43,7 +43,7 @@ def focused_figure(view, workspace, index):
         selected['hf_candidates'] = [c]
     else:
         selected['line_channels'] = [dict(channel_id=c['channel_id'], name=c['channel_name'], example=c)]
-    return evidence_figure(selected, workspace)
+    return evidence_figure(selected, workspace, compact=True)
 
 
 def compact_report(report, view, *, focus_url=None, visualization_url=None):
@@ -70,7 +70,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     checks = section('score-table')
     # Put channel/time drill-downs in the detail section, after the actionable findings.
     extra = ''
-    marker = '<details><summary>按通道'
+    marker = '<details'
     if marker in checks:
         at = checks.index(marker); extra, checks = checks[at:], checks[:at]
     original_review = section('review')
@@ -81,28 +81,33 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     rows = []
     for i,c in enumerate(targets):
         title = f'{c["channel_name"]} · {c["label"]} · {c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒'
-        button = (f'<a class="finding-action" href="{esc(focus_url(i))}" data-finding="{i}" data-title="{esc(title)}" aria-controls="finding-preview" aria-current="{str(i == 0).lower()}">查看波形</a>' if focus_url else '')
-        rows.append(f'<tr class="{"is-selected" if i == 0 and focus_url else ""}"><th>{esc(c["channel_name"])}</th><td>{esc(c["label"])}<small>{esc(c["finding"])}</small></td><td>{c["start_seconds"]:g}–{c["stop_seconds"]:g} s</td><td>{button}</td></tr>')
+        measure = c['finding'] + (' · 代表窗口' if c['kind'] == 'line' else ' · 候选片段')
+        contents=f'<span class="finding-item-top"><strong>{esc(c["channel_name"])}</strong><span>{c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒</span></span><small>{esc(c["finding"])}</small>'
+        if i == 0 or c['kind'] != targets[i-1]['kind']:
+            rows.append(f'<div class="finding-group-label">{esc(c["label"])}</div>')
+        rows.append((f'<a class="finding-item" href="{esc(focus_url(i))}" data-finding="{i}" data-title="{esc(title)}" data-measure="{esc(measure)}" data-position="{i+1} / {len(targets)}" aria-controls="finding-preview" aria-current="{str(i == 0).lower()}" aria-label="{esc(title)}">{contents}</a>' if focus_url else f'<div class="finding-item">{contents}</div>'))
     preview = ''
     if rows and focus_url:
         c=targets[0];title=f'{c["channel_name"]} · {c["label"]} · {c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒'
-        preview=f'<div class="finding-preview" id="finding-preview" data-state="ready" aria-busy="false"><div class="figure-heading"><h3>波形预览</h3><span>选择下方候选，在此查看</span></div><p id="finding-title" class="finding-selection">{esc(title)}</p><div class="finding-stage"><img id="finding-image" src="{esc(focus_url(0))}" alt="{esc(title)}"><p id="finding-status" role="status" aria-live="polite"></p></div><p class="finding-caption">阴影标出待复核区间 · 横轴为原始记录时间</p></div>'
-    locator = (preview+'<div class="finding-list-heading"><h3>候选位置</h3><span>工频展示代表窗口，高频展示候选片段</span></div><div class="table-wrap finding-list" tabindex="0" role="region" aria-label="候选位置列表"><table class="finding-table"><thead><tr><th>通道</th><th>检查发现</th><th>记录时间</th><th></th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>' if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
+        measure = c['finding'] + (' · 代表窗口' if c['kind'] == 'line' else ' · 候选片段')
+        preview=f'<div class="finding-preview" id="finding-preview" data-state="ready" aria-busy="false"><div class="figure-heading"><h3 id="finding-title">{esc(title)}</h3><span id="finding-position">1 / {len(targets)}</span></div><p id="finding-measure">{esc(measure)}</p><div class="finding-stage"><img id="finding-image" src="{esc(focus_url(0))}" alt="{esc(title)}"><p id="finding-status" role="status" aria-live="polite"></p></div><p class="finding-caption"><span class="candidate-swatch" aria-hidden="true"></span>候选区间<span>原始记录时间（秒）</span></p></div>'
+    locator = ('<div class="finding-workspace"><div class="finding-sidebar"><div class="finding-list-label">候选位置<span>点击切换波形</span></div><div class="finding-list" role="region" aria-label="候选位置列表" tabindex="0">'+''.join(rows)+'</div></div>'+preview+'</div>' if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
 
     if '灵犀' in route:
         locator='<p class="muted">以下为共同基础检查定位。灵犀云异常区间见下方图表。</p>'+locator
-    review = f'<section id="review"><h2>问题定位</h2>{locator}<details><summary>完整候选列表与测量</summary>{original_review}</details>{extra}</section>'
+    review = f'<section id="review"><h2>问题定位</h2>{locator}</section>'
     charts = ''
     if visualization_url:
         charts=inline_charts(visualization_url)
-    details=f'<section id="checks"><h2>方法与依据</h2><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{section("scoring")}</details></section>'
-    aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">方法与依据</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
+    scoring=re.sub(r'<h2>.*?</h2>','',section('scoring'),count=1,flags=re.S)
+    details=f'<details id="checks" class="report-details-section"><summary>报告详情<span class="disclosure-hint">完整明细、方法与版本</span></summary><div class="report-details-body"><div class="report-detail-group"><h3>结果明细</h3><details><summary>完整候选列表</summary>{original_review}</details>{extra}</div><div class="report-detail-group"><h3>检查依据</h3><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{scoring}</details><div id="report-archive-slot"></div></div></div></details>'
+    aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">报告详情</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
     body=f'<div class="shell">{aside}<main>{overview}<section id="score-table">{checks}</section>{review}{charts}{details}<footer>DBCI-QC · 项目检查结果，候选需复核</footer></main></div>'
     head=report[:report.index('</head>')]
     return head+f'<style>{CSS}</style><script src="/report-interactions.js" defer></script></head><body>{body}</body></html>'
 
 
-CSS='''
+CSS = """
 html{scrollbar-gutter:stable;scroll-behavior:auto}body{background:#fff;font:14px/1.6 var(--font-ui,system-ui,sans-serif);color:#243449}
 .shell{grid-template-columns:148px minmax(0,1fr);max-width:1280px;padding:24px 28px;gap:28px}
 main{min-width:0}aside strong{font-size:16px}aside nav{gap:12px;font-size:13px;margin-top:18px}
@@ -115,32 +120,45 @@ h1{font-size:22px;margin:0}h2{font-size:16px;margin:0 0 10px}h3{font-size:14px;m
 .report-conclusion{border:0;background:none;padding:0;margin:0}.report-conclusion h2{margin:0 0 6px}.report-conclusion p{font-size:13px}
 .facts{margin:0;padding-top:10px;gap:5px 18px;font-size:12px}.filename{margin-top:4px;font-size:13px}
 table{table-layout:fixed;font-size:13px;min-width:480px}th,td{padding:9px 10px;overflow-wrap:anywhere}th{font-weight:500}thead th{background:#f5f7fa;font-size:12px}td small{display:block;font-size:12px}
-.result-points{font-size:16px}.table-wrap{max-width:100%;overflow-x:auto;scrollbar-width:thin}.finding-table th:first-child{width:16%}.finding-table td:nth-child(2){width:40%}.finding-table td:last-child{width:90px;text-align:right}
-.finding-table tr.is-selected{background:#eef3fb}.finding-action{white-space:nowrap}.finding-preview{border:1px solid #dfe5ed;padding:12px;margin-top:12px;background:#fff;scroll-margin-top:20px}.figure-heading{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}.figure-heading span{font-size:12px;color:#5b687b}.finding-preview img{display:block;width:100%;height:auto;min-height:120px;aspect-ratio:100/21;object-fit:contain}.finding-preview p:empty{display:none}.finding-preview p{font-size:12px;color:#5b687b}
-.report-chart-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.report-chart-links a{border:1px solid #dfe5ed;padding:10px 12px;border-radius:4px;display:grid;gap:2px}.report-chart-links a:hover{background:#eef3fb;text-decoration:none}.report-chart-links strong{font-size:13px;font-weight:500}.report-chart-links span{font-size:12px;color:#5b687b}
-.report-chart-section{border-bottom:1px solid #dfe5ed;padding:0 0 18px;margin:0 0 18px}.report-chart-section>summary{font-size:16px;font-weight:600}.report-chart-frame{width:100%;height:180px;border:0;display:block;margin-top:12px}.report-chart-section [data-chart-status]{font-size:13px;color:#5b687b}
-details{margin-top:10px;padding-top:10px}summary{font-size:13px}section>p.muted{font-size:12px;margin:0 0 10px}.scope,.footnote{font-size:12px}pre{font-size:12px}.failure{font-size:13px;padding:8px 10px}footer{font-size:12px;margin-top:12px}section[id],details[id]{scroll-margin-top:20px}
-@media(max-width:900px){.shell{display:block;padding:18px 16px}.shell aside{margin-bottom:18px}.shell aside nav{display:flex;flex-wrap:wrap;margin-top:8px;gap:8px 16px}.report-title{flex-wrap:wrap}}
-@media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.report-chart-links{grid-template-columns:1fr}.finding-preview img{min-height:80px}}
-@media print{.report-actions,aside,.finding-action,script{display:none}.shell{display:block;max-width:none;padding:0}details>summary{color:#243449}.report-summary{grid-template-columns:180px 1fr}.finding-preview{break-inside:avoid}}
-'''
-
-CSS += """
-#score-table> .table-wrap>table th:first-child{width:22%}#score-table> .table-wrap>table th:nth-child(2){width:17%}#score-table> .table-wrap>table th:nth-child(3){width:13%}
+.result-points{font-size:16px}.table-wrap{max-width:100%;overflow-x:auto;scrollbar-width:thin}
+#score-table>.table-wrap>table th:first-child{width:22%}#score-table>.table-wrap>table th:nth-child(2){width:17%}#score-table>.table-wrap>table th:nth-child(3){width:13%}
 .result-weight{white-space:nowrap;color:#42546b;font-variant-numeric:tabular-nums}
-.finding-preview{position:sticky;top:12px;z-index:2;margin:12px 0 0;padding:12px 14px;border-radius:5px;border:1px solid #cbd8e8;border-top:3px solid #2b62bf;box-shadow:0 3px 10px #2434490a}
-.finding-preview .figure-heading{margin:0}.finding-preview .figure-heading h3{font-size:14px}
-.finding-preview .finding-selection{margin:6px 0;color:#243449;font-size:13px;font-weight:500}
-.finding-stage{height:clamp(150px,22vw,230px);position:relative;display:grid;place-items:center;background:#fafbfd;border:1px solid #edf1f6}
-.finding-stage #finding-image{width:100%;height:100%;min-height:0;aspect-ratio:auto;object-fit:contain;grid-area:1/1}
-.finding-stage #finding-status{grid-area:1/1;padding:12px;text-align:center;color:#52647d;font-size:13px;z-index:1}
+#review{border-bottom:0;padding-bottom:0;margin-bottom:24px}
+.finding-workspace{display:grid;grid-template-columns:220px minmax(0,1fr);height:354px;overflow:hidden;border:1px solid #dce3ec;border-radius:6px;background:#fff}
+.finding-sidebar{min-width:0;min-height:0;background:#f7f9fc;border-right:1px solid #dce3ec;display:flex;flex-direction:column}
+.finding-list-label{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 8px;font-size:12px;font-weight:500;color:#42546b}.finding-list-label span{font-size:11px;color:#748094;font-weight:400}
+.finding-list{overflow:auto;min-height:0;padding:0 6px 8px;scrollbar-width:thin;scrollbar-color:#c0cbd9 transparent;scrollbar-gutter:stable}
+.finding-group-label{font-size:11px;font-weight:500;color:#64748b;padding:9px 7px 5px}
+.finding-item{display:block;margin:2px 0;padding:8px 9px;border-radius:4px;color:#34465d;text-decoration:none;border-left:2px solid transparent}
+.finding-item:hover,.finding-item:focus-visible{background:#eaf0f8;text-decoration:none;outline-offset:-2px}
+.finding-item[aria-current="true"]{background:#e4edfc;border-left-color:#2459bc;color:#174894}
+.finding-item-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.finding-item-top strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}.finding-item-top span{font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.finding-item small{display:block;font-size:11px;color:#64748b;margin-top:2px}.finding-item[aria-current="true"] small{color:#4b6587}
+.finding-preview{position:static;min-width:0;min-height:0;display:flex;flex-direction:column;padding:15px 16px 10px;background:#fff;scroll-margin-top:16px}
+.figure-heading{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-height:24px}
+.finding-preview .figure-heading h3{font-size:13px;font-weight:600;line-height:1.5;margin:0;color:#243449;overflow-wrap:anywhere}.figure-heading>span{font-size:11px;color:#7b8798;white-space:nowrap;font-variant-numeric:tabular-nums}
+#finding-measure{font-size:12px;color:#64748b;margin:3px 0 6px;min-height:18px}
+.finding-stage{flex:1;min-height:0;position:relative;display:grid;place-items:center;background:#fff}
+.finding-stage #finding-image{width:100%;height:100%;min-height:0;object-fit:contain;grid-area:1/1;display:block}
+.finding-stage #finding-status{grid-area:1/1;margin:0;padding:12px;text-align:center;color:#52647d;font-size:13px;z-index:1}.finding-stage #finding-status:empty{display:none}
 .finding-preview[data-state="loading"] #finding-image,.finding-preview[data-state="error"] #finding-image{opacity:0}
 .finding-preview[data-state="loading"] #finding-status::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid #d9e3f3;border-top-color:#2459bc;border-radius:50%;margin-right:8px;vertical-align:-2px;animation:finding-spin .8s linear infinite}
-.finding-preview .finding-caption{font-size:12px;margin:5px 0 0;color:#64748b}
-.finding-list-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:16px 0 8px}.finding-list-heading span{font-size:12px;color:#64748b}
-.finding-list{max-height:330px;overflow:auto;border:1px solid #e1e7ef;border-radius:4px}.finding-table{margin:0}.finding-table thead{position:sticky;top:0;z-index:1}.finding-table a[aria-current="true"]{font-weight:600;color:#174894;text-decoration:none}
-.finding-table tr.is-selected th:first-child{box-shadow:inset 3px 0 #2b62bf}.finding-table tr.is-selected{background:#edf4ff}
+.finding-caption{display:flex;align-items:center;gap:5px;font-size:11px;color:#748094;margin:5px 0 0}.finding-caption>span:last-child{margin-left:auto}.candidate-swatch{width:10px;height:7px;background:#f7dfaf;display:inline-block}
+.report-chart-section,.report-details-section{border:0;border-bottom:1px solid #dfe5ed;padding:0;margin:0}
+.report-chart-section{border-top:1px solid #dfe5ed}
+.report-chart-section>summary,.report-details-section>summary{font-size:14px;font-weight:500;line-height:22px;color:#243449;min-height:48px;padding:12px 0;display:flex;align-items:baseline;gap:12px}
+.report-chart-section>summary:hover,.report-details-section>summary:hover{color:#2459bc}
+.disclosure-hint{font-size:12px;font-weight:400;color:#748094}
+.report-chart-frame{width:100%;height:180px;border:0;display:block;margin:4px 0 14px}.report-chart-section [data-chart-status]{font-size:13px;color:#5b687b}
+.report-details-body{padding:0 0 16px}.report-detail-group{padding:10px 14px;background:#f8fafc;border:1px solid #e6ebf1;border-radius:4px;margin:0 0 10px}
+.report-details-body .report-detail-group>h3{font-size:12px;font-weight:600;color:#64748b;margin:0 0 6px}
+.report-detail-group details{padding:8px 0;margin:0;border-top:1px solid #e3e9f0}.report-details-body .report-detail-group summary{font-size:13px;color:#34465d;min-height:22px}
+.report-detail-group details[open]>summary{margin-bottom:8px}.report-detail-group details details{margin-left:10px;border-top:0}.report-detail-group h2{font-size:14px}.report-detail-group h3{font-size:13px}
+section>p.muted{font-size:12px;margin:0 0 10px}.scope,.footnote{font-size:12px}pre{font-size:12px}.failure{font-size:13px;padding:8px 10px}footer{font-size:12px;margin-top:18px}section[id],details[id]{scroll-margin-top:20px}
 @keyframes finding-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.finding-preview[data-state="loading"] #finding-status::before{animation:none}}
-@media(max-width:600px){.finding-preview{top:6px;padding:9px}.finding-stage{height:150px}.finding-list{max-height:270px}.figure-heading>span{font-size:11px}}
-@media print{.finding-preview{position:static;box-shadow:none}.finding-stage{height:auto;display:block}.finding-stage #finding-image{height:auto;opacity:1!important}.finding-list{max-height:none;overflow:visible}#finding-status{display:none!important}}
+@media(max-width:1050px){.finding-workspace{grid-template-columns:195px minmax(0,1fr)}.finding-preview{padding:12px 10px 10px}}
+@media(max-width:900px){.shell{display:block;padding:18px 16px}.shell aside{margin-bottom:18px}.shell aside nav{display:flex;flex-wrap:wrap;margin-top:8px;gap:8px 16px}.report-title{flex-wrap:wrap}}
+@media(max-width:760px){.finding-workspace{display:flex;flex-direction:column;height:auto}.finding-preview{order:-1;height:276px;flex:none}.finding-sidebar{border-right:0;border-top:1px solid #dce3ec}.finding-list{max-height:200px}.finding-item-top span{font-size:12px}.finding-list-label{padding-bottom:4px}.disclosure-hint{display:none}}
+@media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.figure-heading>span{font-size:11px}.finding-caption{font-size:10px}}
+@media print{.report-actions,aside,script{display:none}.shell{display:block;max-width:none;padding:0}.report-summary{grid-template-columns:180px 1fr}.finding-workspace{height:auto;display:block;overflow:visible;break-inside:avoid}.finding-sidebar{display:none}.finding-preview{display:block}.finding-stage{display:block}.finding-stage #finding-image{height:auto;opacity:1!important}#finding-status{display:none!important}.report-details-body{padding:0}.report-detail-group{background:#fff}}
 """

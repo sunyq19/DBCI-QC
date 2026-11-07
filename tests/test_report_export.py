@@ -69,7 +69,7 @@ class ReportExportTests(unittest.TestCase):
         for i,page in enumerate(pages,1):self.assertRegex(page,rf'{i}\s*/\s*2\s*$')
         self.assertEqual(view,before)
 
-    def test_weights_belong_to_result_rows_and_preview_precedes_candidates(self):
+    def test_weights_belong_to_result_rows_and_candidates_share_one_inspector(self):
         from ephys_qc.project_scoring import apply_to_view, VERSION
         from ephys_qc.report_view import render_report_view
         from ephys_qc.report_export import score_weight_label
@@ -84,7 +84,10 @@ class ReportExportTests(unittest.TestCase):
         results=page.split('<section id="score-table">')[1].split('</section>')[0]
         self.assertIn('>权重</th>',results)
         self.assertIn('class="result-weight">50.0%</td>',results)
-        self.assertLess(page.index('id="finding-preview"'),page.index('<table class="finding-table"'))
+        self.assertIn('class="finding-workspace"',page)
+        self.assertIn('class="finding-item"',page)
+        self.assertNotIn('class="finding-table"',page)
+        self.assertNotIn('>查看波形</a>',page)
         self.assertIn('id="finding-status" role="status"',page)
         self.assertIn('aria-controls="finding-preview" aria-current="true"',page)
         self.assertEqual(view,before)

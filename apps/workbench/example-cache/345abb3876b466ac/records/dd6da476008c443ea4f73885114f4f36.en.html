@@ -1,0 +1,162 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pt03_recording60-62s.imec0.ap.bin · Recording report</title><style>/* Keep the viewport width stable when disclosures or dialogs change scrolling. */
+html { scrollbar-gutter: stable; }
+/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --workspace: #f3f5f8;
+  --surface: #fff;
+  --wash: #f5f7fa;
+  --ink: #243449;
+  --muted: #5b687b;
+  --sub: var(--muted);
+  --line: #dfe5ed;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --primary-line: #b8cae7;
+  --success: #176b5b;
+  --success-light: #edf7f3;
+  --success-line: #bfdcd0;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --amber-line: #e8d7b8;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+
+/* Stable, compact report canvas: disclosures grow vertically inside the page. */
+html { scrollbar-gutter:stable; }
+main { width:100%; max-width:1200px; margin:20px auto; }
+.dataset-facts { gap:16px; margin:16px 0; padding-top:12px; }
+.dataset-facts dd { font-size:18px; }
+.report-conclusion { margin:16px 0; padding:10px 12px; font-size:13px; }
+section { margin-top:20px; }
+h2 { margin-bottom:10px; }
+th,td { padding:9px 10px; }
+.disclosure { padding:12px 0; }
+.disclosure:first-of-type { margin-top:20px; }
+.table-scroll { width:100%; min-width:0; }
+table { table-layout:fixed; }
+.report-link:hover { background:var(--primary-light); border-color:var(--primary); text-decoration:none; }
+</style><script src="/examples/345abb3876b466ac/assets/dataset-report.js" defer></script><script src="/examples/345abb3876b466ac/assets/report-interactions.js" defer></script><link rel="stylesheet" href="/examples/345abb3876b466ac/assets/ui-tokens.css"><link rel="stylesheet" href="/examples/345abb3876b466ac/assets/workbench-ui.css"></head><body class="dataset-report"><nav class="saved-report-nav" aria-label="QC navigation"><a href="/examples/345abb3876b466ac/datasets/example-neuropixels.en.html">← Dataset report</a></nav><main><p class="eyebrow">DBCI-QC / Neuropixels</p><h1>Pt03_recording60-62s.imec0.ap.bin</h1><p class="secondary">Pt03_recording60-62s.imec0.ap.bin</p><dl class="dataset-facts"><div><dt>Modality</dt><dd>Neuropixels</dd></div><div><dt>Channels</dt><dd>384</dd></div><div><dt>Computed duration</dt><dd>2 s</dd></div><div><dt>Sample rate</dt><dd>30,000 Hz</dd></div></dl><p class="report-conclusion">Numerical and signal measurements available</p><p class="secondary">Technical measurements without scalp-EEG bad-channel thresholds, clinical acceptance decisions or cross-modality scores.</p><section><h2>Results</h2><details id="charts" class="report-chart-section" data-report-charts><summary>Charts</summary><p data-chart-status role="status">Loading charts…</p><iframe data-chart-src="/examples/345abb3876b466ac/visualizations/dd6da476008c443ea4f73885114f4f36.embedded.en.html" title="Charts" class="report-chart-frame" scrolling="no"></iframe></details><div class="table-scroll" tabindex="0" role="region" aria-label="Results"><table class="check-table"><tbody><tr><th>Numerical integrity</th><td>Non-finite samples such as NaN / Inf</td><td class="outcome">0 samples</td></tr><tr><th>Spectra and interference</th><td>Per-channel PSD; line-frequency measurements within the available band</td><td class="outcome">384 channels measured</td></tr><tr><th>Contact statistics</th><td>Amplitude, RMS and peak-to-peak voltage by contact</td><td class="outcome">384 contacts measured</td></tr></tbody></table></div></section><section><h2>Waveform preview</h2><p class="secondary">Saved first-window preview; channel and time labels define its scope, not the entire recording.</p><img alt="First-window voltage traces" src="/examples/345abb3876b466ac/artifacts/dd6da476008c443ea4f73885114f4f36/w000001--waveform.png" style="width:100%;height:auto"></section><details class="disclosure"><summary>Contact measurements</summary><p class="secondary">First 10 source-ordered channels in the first window; amplitude alone does not establish bad contacts.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Contact measurements"><table><thead><tr><th>Channel</th><th>RMS / µV</th><th>Peak-to-peak / µV</th></tr></thead><tbody><tr><th>AP0</th><td>65.547</td><td>375</td></tr><tr><th>AP1</th><td>18.836</td><td>217.969</td></tr><tr><th>AP2</th><td>59.228</td><td>353.906</td></tr><tr><th>AP3</th><td>32.656</td><td>304.687</td></tr><tr><th>AP4</th><td>128.603</td><td>367.969</td></tr><tr><th>AP5</th><td>58.061</td><td>182.812</td></tr><tr><th>AP6</th><td>73.463</td><td>288.281</td></tr><tr><th>AP7</th><td>42.468</td><td>189.844</td></tr><tr><th>AP8</th><td>100.947</td><td>175.781</td></tr><tr><th>AP9</th><td>25.599</td><td>147.656</td></tr></tbody></table></div><span class="snapshot-unavailable" title="Not included in this example">Full measurements</span></details><details class="disclosure"><summary>Scope and execution</summary><p>Local file duration 2 s · Computed 2 s · Not executed 0 s · Source gaps 0 s</p><p>Completed windows were scanned; stored constant-interval locations reached the evidence limit. Total counts and limits remain in the original evidence.</p><p>Equal adjacent values can reflect quantization; contacts are not excluded on this basis. Candidate evidence and method states are preserved; missing checks are not passes.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Window records"><table><tbody><tr><th>w000001</th><td>0–2 s</td><td>partial</td><td><a href="/examples/345abb3876b466ac/artifacts/dd6da476008c443ea4f73885114f4f36/w000001--report.html">Saved window report</a></td></tr></tbody></table></div><p><span class="snapshot-unavailable" title="Not included in this example">Coverage</span> · <span class="snapshot-unavailable" title="Not included in this example">Methods and results</span> · <a href="/examples/345abb3876b466ac/artifacts/dd6da476008c443ea4f73885114f4f36/report.html">Original run report</a></p></details><footer><span>DBCI-QC</span><button id="print-report">Print / PDF</button></footer></main><details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>About this example</summary><p>Reports and images are included. Raw signals and machine-readable audit files are not included.</p></details></body></html>

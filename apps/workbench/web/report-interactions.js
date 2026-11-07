@@ -22,7 +22,7 @@ window.addEventListener('message', event => {
   }
 });
 
-// A stable preview above the candidate list. Old images never represent a new selection.
+// A stable inspector pairs each candidate with its waveform.
 let findingRequest = 0;
 const findingLinks = [...document.querySelectorAll('[data-finding]')];
 const findingImage = document.getElementById('finding-image');
@@ -47,12 +47,13 @@ findingLinks.forEach(link => {
     event.preventDefault();
     const request = ++findingRequest, pending = new Image();
     document.getElementById('finding-title').textContent = link.dataset.title;
+    const measure=document.getElementById('finding-measure'),position=document.getElementById('finding-position');
+    if(measure)measure.textContent=link.dataset.measure||'';
+    if(position)position.textContent=link.dataset.position||'';
     findingState('loading',reportText('正在载入波形…','Loading waveform…'));
     findingLinks.forEach(other=>other.setAttribute('aria-current',String(other===link)));
-    document.querySelectorAll('.finding-table .is-selected').forEach(row=>row.classList.remove('is-selected'));
-    link.closest('tr')?.classList.add('is-selected');
     // Scroll only when selecting; a late image must never pull the page away.
-    findingPanel.scrollIntoView({block:'nearest',behavior:'instant'});
+    if(window.matchMedia?.('(max-width: 760px)')?.matches)findingPanel.scrollIntoView({block:'nearest',behavior:'instant'});
     pending.onload = () => {
       if(request !== findingRequest)return;
       findingImage.src=pending.src;findingImage.alt=link.dataset.title;
