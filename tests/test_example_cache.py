@@ -3,6 +3,7 @@ import hashlib,json,re,sys,tempfile,time,unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from urllib.parse import urlsplit, unquote
 REPO=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(REPO/'src'),str(REPO/'apps/workbench')]
 from example_cache import manifest,homepage,asset,DEFAULT_ROOT
@@ -24,8 +25,15 @@ class ExampleCacheTests(unittest.TestCase):
                 text=path.read_text()
                 self.assertNotRegex(text,r'/(?:home|media|tmp)/')
                 for url in re.findall(r'(?:src|href)=["\']([^"\']+)',text):
-                    if url.startswith('/examples/'):self.assertTrue(asset(store,url).is_file(),url)
-                    elif url.startswith('/'):self.assertTrue(url=='/' or url.startswith('/standards'),url)
+                    if url.startswith('/examples/'):
+                        parsed=urlsplit(url);target=asset(store,parsed.path)
+                        self.assertTrue(target.is_file(),url)
+                        if parsed.fragment and target.suffix=='.html':
+                            self.assertTrue(re.search(r'id=["\']'+re.escape(unquote(parsed.fragment))+r'["\']',target.read_text()),url)
+                    elif url.startswith('/'):self.assertTrue(urlsplit(url).path=='/' or url.startswith('/standards'),url)
+                    if url.startswith('#'):
+                        self.assertNotEqual(url,'#snapshot-info','Unavailable evidence must not pretend to be a working link')
+                        self.assertTrue(re.search(r'id=["\']'+re.escape(unquote(url[1:]))+r'["\']',text),url)
         self.assertEqual({r['modality'] for r in data['examples']},{'scalp_eeg','ecog','seeg','extracellular'})
 
     def test_html_contains_examples_before_javascript_or_personal_directory(self):

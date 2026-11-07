@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import unittest
 import tempfile
+from types import SimpleNamespace
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from ephys_qc.visualizations import visualization_specs
@@ -64,6 +65,36 @@ class VisualizationTests(unittest.TestCase):
         self.assertIn('<script src="/visualizations.js" defer></script>',html)
         self.assertNotIn('<script>',html)
         self.assertIn('本窗口没有已保存的波形图',html)
+
+    def test_return_navigation_leaves_embedded_frame(self):
+        page=render_gallery({},lambda _: {},selected=[],back_url='/api/v1/jobs/example/report')
+        self.assertIn('href="/api/v1/jobs/example/report" target="_top"',page)
+
+    def test_declared_checks_keep_deep_link_targets_when_no_candidates_found(self):
+        page=render_gallery({'artifacts':[{'name':'M04_spectral.json'},{'name':'M06_muscle.json'}]},
+                            lambda _: {'status':'ok','candidates':[]})
+        for target in ['viz_psd','viz_interference','viz_timeline']:
+            self.assertIn('id="'+target+'"',page)
+        self.assertIn('未检出带有效时间位置的候选区间',page)
+
+    def test_http_gallery_uses_saved_view_without_generic_result_parse(self):
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'apps/workbench'))
+        from visualization_page import dispatch_visualizations
+        path='/api/v1/jobs/'+'a'*32+'/visualizations'
+        view={'scope':'recording','recording':{'duration_seconds':120},
+              'window_scores':[{'id':'w000001','start_seconds':0,'duration_seconds':120}],
+              'artifacts':['w000001--M04_spectral.json']}
+        store=SimpleNamespace(job=lambda _: {'status':'completed'},
+                              result=lambda *a,**kw:self.fail('must not parse the generic result'))
+        handler=SimpleNamespace(store=store,path=path+'?lang=zh-CN',
+                                send_bytes=lambda *a:None)
+        with patch('project_score_cache.load',return_value=None), \
+             patch('saved_reports.frozen_view',return_value=view), \
+             patch('visualization_page.render_gallery',return_value='ok') as render:
+            self.assertTrue(dispatch_visualizations(handler,path))
+        result=render.call_args.args[0]
+        self.assertEqual(result['windows'],view['window_scores'])
+        self.assertEqual(result['artifacts'],[{'name':'w000001--M04_spectral.json'}])
 
     def test_spectral_reader_preserves_window_counts_without_scan_arrays(self):
         from ephys_qc.report_view import line_summary

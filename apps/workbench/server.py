@@ -773,7 +773,7 @@ class Handler(BaseHTTPRequestHandler):
                 from review_workspace import waveform_for_input
                 return self.json(waveform_for_input(record, **self.waveform_query()))
             return self.json(public_input(record))
-        export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png)', path)
+        export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png|report-focus-\d+\.png)', path)
         if export_match:
             identifier, export_kind = export_match.groups()
             if self.store.job(identifier)['status'] != 'completed':
@@ -786,10 +786,14 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('当前 PDF 导出支持头皮 EEG 报告。')
             from ephys_qc.report_export import evidence_figure, pdf_bytes
             try:
-                figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
+                if export_kind.startswith('report-focus-'):
+                    from ephys_qc.report_presentation import focused_figure
+                    figure, figure_notes = focused_figure(view, self.store.workspace(identifier), int(export_kind[13:-4]))
+                else:
+                    figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
             except (OSError, KeyError, ValueError, RuntimeError, ImportError):
                 figure, figure_notes = None, ['对应波形暂不可用；原始检测结果仍保留。']
-            if export_kind == 'report-evidence.png':
+            if export_kind.endswith('.png'):
                 if not figure:
                     # Return an accessible text image instead of a broken-image icon.
                     svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="90"><text x="24" y="48" font-size="18" fill="#687b92">候选波形暂不可用，请检查原始文件。</text></svg>'
@@ -841,7 +845,7 @@ class Handler(BaseHTTPRequestHandler):
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
         static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]

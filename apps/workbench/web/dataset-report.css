@@ -95,3 +95,18 @@ img { max-width: 100%; height: auto; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
 }
+
+/* Stable, compact report canvas: disclosures grow vertically inside the page. */
+html { scrollbar-gutter:stable; }
+main { width:100%; max-width:1200px; margin:20px auto; }
+.dataset-facts { gap:16px; margin:16px 0; padding-top:12px; }
+.dataset-facts dd { font-size:18px; }
+.report-conclusion { margin:16px 0; padding:10px 12px; font-size:13px; }
+section { margin-top:20px; }
+h2 { margin-bottom:10px; }
+th,td { padding:9px 10px; }
+.disclosure { padding:12px 0; }
+.disclosure:first-of-type { margin-top:20px; }
+.table-scroll { width:100%; min-width:0; }
+table { table-layout:fixed; }
+.report-link:hover { background:var(--primary-light); border-color:var(--primary); text-decoration:none; }

@@ -35,21 +35,20 @@
         <label class="file-picker" for="intake-file">
           <span class="file-picker-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M19 4H9a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10L19 4Z"/><path d="M19 4v7h6M16 23V14m-4 4 4-4 4 4"/></svg></span>
           <strong id="file-picker-title">选择本机文件</strong>
-          <span id="file-picker-hint">单个记录，或包含配套文件的 ZIP</span>
+          <span id="file-picker-hint">一份记录选文件，多份记录打包 ZIP</span>
           <span id="file-picker-name" data-i18n-skip hidden></span>
           <input id="intake-file" type="file" accept=".edf,.bdf,.vhdr,.set,.fif,.meta,.nwb,.zip" aria-labelledby="file-picker-title" aria-describedby="file-picker-hint file-picker-name upload-capabilities">
         </label>
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
       <div class="upload-meta"><p id="upload-limit-note" class="small muted">仅在本机处理 · 最大 2 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
-      <p class="small muted" id="retention-note">上传副本保留 7 天，报告保留；本机原文件不变。</p>
       <p id="intake-status" class="small muted" role="status"></p>
       <div id="upload-support" class="upload-support">
         <dl id="upload-capabilities" class="upload-capabilities">
           <div><dt>质控模态</dt><dd>头皮 EEG · ECoG / sEEG · Neuropixels 电压</dd></div>
           <div><dt>读取格式</dt><dd class="upload-format-list" data-i18n-skip><span>EDF / EDF+</span><span>BDF</span><span>BrainVision</span><span>EEGLAB</span><span>FIF</span><span>NWB</span><span>SpikeGLX</span></dd></div>
         </dl>
-        <details class="upload-requirements"><summary>文件要求与支持范围</summary>
+        <details class="upload-requirements"><summary>文件要求与支持范围</summary><p class="small muted" id="retention-note">上传文件保留 7 天，报告长期保留。</p>
           <ul>
             <li>BrainVision：将 .vhdr、.vmrk 和头文件指定的数据文件（通常为 .eeg）一起打包 ZIP。</li>
             <li>EEGLAB：连续记录 .set 可直接上传；有外置 .fdt 时一起打包 ZIP。</li>
@@ -67,7 +66,7 @@
       <p id="pipeline-caption" class="board-caption">上传文件后，先提取基本信息。</p>
       <nav id="result-tabs" class="result-tabs" role="tablist" aria-label="检查结果" hidden><button data-result-tab="overview" role="tab" aria-selected="true">概览</button><button data-result-tab="review" role="tab" aria-selected="false">问题复核</button><button data-result-tab="visuals" role="tab" aria-selected="false">可视化</button></nav>
       <section id="result-review" hidden></section>
-      <section id="result-visuals" hidden><iframe id="result-visual-frame" title="本次结果可视化" loading="lazy"></iframe></section>
+      <section id="result-visuals" hidden><p class="visual-workspace-link"><a id="result-visual-link" target="_blank" rel="noopener">在完整页面查看图表</a></p><iframe id="result-visual-frame" title="本次结果可视化" loading="lazy"></iframe></section>
       <section id="result-content" class="result-content" aria-label="本次质控结果" hidden></section>
       <div id="intake-error" class="notice error" role="alert" hidden></div>
       <section id="record-summary" class="record-summary" aria-label="自动提取的信息" hidden></section>

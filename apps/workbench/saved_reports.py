@@ -53,12 +53,12 @@ def served_report(store, identifier, language='zh-CN'):
     view = published.get('report_view') if published else frozen_view(store, identifier)
     if view:
         from ephys_qc.report_view import render_report_view
-        report = render_report_view(view, evidence_url=f'/api/v1/jobs/{identifier}/report-evidence.png', pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations')
+        report = render_report_view(view, evidence_url=f'/api/v1/jobs/{identifier}/report-evidence.png', pdf_url=f'/api/v1/jobs/{identifier}/report.pdf', visualization_url=f'/api/v1/jobs/{identifier}/visualizations', focus_url=lambda i:f'/api/v1/jobs/{identifier}/report-focus-{i}.png')
         wave = next((name for name in view.get('artifacts',[]) if name.endswith('waveform.png')), None)
         if wave:
-            report = report.replace('<section id="review">', f'<section id="review"><details><summary>查看起始波形</summary><p>所选信号起始片段；候选位置见下表。</p><img loading="lazy" src="{escape(wave,quote=True)}" alt="记录起始波形"></details>')
+            report = report.replace('<section id="checks">', f'<section id="checks"><details><summary>查看起始波形</summary><p>起始片段；问题位置见上方定位表。</p><img loading="lazy" src="{escape(wave,quote=True)}" alt="记录起始波形"></details>')
         note = '本页是保留原始检测证据的评分修订版。' if published else '使用当前版式展示运行时保存的结果，检测与分数未改动。'
-        report = report.replace('</main>', f'<p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · {note}</p></main>')
+        report = report.replace('</main>', f'<details class="report-archive"><summary>版本与存档</summary><p><a href="/api/v1/jobs/{identifier}/artifacts/report.html">运行时原始报告</a> · {note}</p></details></main>')
     declared = store.job(identifier).get('plan', {}).get('input_modality', {})
     modality = declared.get('value') if isinstance(declared, dict) else declared
     if modality in {'ecog', 'seeg', 'extracellular'}:

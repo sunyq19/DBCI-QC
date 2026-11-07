@@ -8,7 +8,11 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `可选计分项	Optional scoring checks
+  const pairs = `一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
+点击“读取文件”，下一步确认通道和模态	Click Read file, then confirm channels and modality
+上传文件保留 7 天，报告长期保留。	Uploaded files are kept for 7 days; reports are retained.
+在完整页面查看图表	Open full chart workspace
+可选计分项	Optional scoring checks
 证据不足，暂不能评分	Insufficient evidence to score
 疑似异常通道占比	Candidate channel fraction
 疑似异常通道占比（按分段时长汇总）	Candidate channel fraction, weighted by segment duration

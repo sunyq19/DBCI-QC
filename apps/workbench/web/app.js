@@ -543,7 +543,7 @@
     $("intake-file").disabled = state.submitting;
     const pickedFile = $("intake-file").files?.[0];
     $("file-picker-title").textContent = pickedFile ? "已选择文件" : "选择本机文件";
-    $("file-picker-hint").textContent = pickedFile ? "点击更换文件" : "单个记录，或包含配套文件的 ZIP";
+    $("file-picker-hint").textContent = pickedFile ? "点击“读取文件”，下一步确认通道和模态" : "一份记录选文件，多份记录打包 ZIP";
     $("file-picker-name").textContent = pickedFile ? `${pickedFile.name} · ${size(pickedFile.size)}` : "";
     $("file-picker-name").hidden = !pickedFile;
     $("intake-restore-button").disabled = state.intakeBusy || state.submitting;
@@ -1211,6 +1211,7 @@
     if(tab==="visuals"){
       const frame=$("result-visual-frame"),url=`/api/v1/jobs/${encodeURIComponent(state.job.id)}/visualizations`;
       if(frame.getAttribute('src')!==url)frame.setAttribute('src',url);
+      $("result-visual-link")?.setAttribute('href',url);
       $("result-visuals").hidden=false;
     }
   }
@@ -1224,7 +1225,7 @@
     const result = state.result, container = $("result-content");
     container.hidden = !result;
     if (!result) { container.innerHTML = ""; return; }
-    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3","eeg-report-view/4","eeg-report-view/5"].includes(result.report_view?.schema_version)) {
+    if (["eeg-report-view/1","eeg-report-view/2","eeg-report-view/3","eeg-report-view/4","eeg-report-view/5","eeg-report-view/6"].includes(result.report_view?.schema_version)) {
       container.innerHTML = scoredResultHtml(result.report_view, result);
       $("workflow-panel").open = false;
       $("record-summary").hidden = true;

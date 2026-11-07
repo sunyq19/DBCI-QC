@@ -85,7 +85,11 @@ body.qc-app, body.qc-document {
 .qc-app .connection.online .status-dot { width: 6px; height: 6px; background: var(--success); box-shadow: none; }
 
 /* Single entry. Supporting tools are quiet rows; the pipeline retains its rail. */
-.qc-app .studio-layout { grid-template-columns: minmax(340px, .8fr) minmax(0, 1.35fr); gap: 16px 28px; }
+.qc-app .studio-layout { width:100%; grid-template-columns: minmax(0, .8fr) minmax(0, 1.35fr); grid-template-rows:min-content 1fr; gap:16px 24px; }
+.qc-app .studio-controls { contain:inline-size; width:100%; }
+.qc-app .studio-controls :is(.rail-section,.disclosure-content,.toolkit-methods,.toolkit-stage,.toolkit-module-body) { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.qc-app .studio-controls .toolkit-module-grid { grid-template-columns:minmax(0,1fr); }
+.qc-app .studio-layout > .pipeline-board { scrollbar-gutter:stable; }
 .qc-app .studio-layout > .upload-panel { padding: 20px; border-color: var(--line); box-shadow: none; }
 .qc-app .upload-heading { margin-bottom: 16px; gap: 9px; }
 .qc-app .step-index { background: none; color: var(--muted); font-size: var(--text-note); width: auto; height: auto; font-weight: 400; }
@@ -355,12 +359,12 @@ body.qc-app, body.qc-document {
 @media screen {
   body.qc-signal-report { background: var(--surface); color: var(--ink); font: var(--text-body)/1.65 var(--font-ui); }
   .qc-signal-report > nav[aria-label="QC navigation"] { height: auto; min-height: var(--header-height); display: flex; align-items: center; flex-wrap: wrap; padding: 12px var(--page-inset); border-bottom: 1px solid var(--line); font-size: var(--text-control); background: var(--surface); }
-  .qc-signal-report .shell { max-width: var(--page-width); padding: 28px var(--page-inset); grid-template-columns: 180px minmax(0,1fr); gap: 32px; }
+  .qc-signal-report .shell { max-width:1280px; padding:24px var(--page-inset); grid-template-columns:148px minmax(0,1fr); gap:28px; }
   .qc-signal-report aside strong { font-size: var(--text-section); font-weight: 600; }
   .qc-signal-report aside nav { font-size: var(--text-control); gap: 14px; margin-top: 22px; }
-  .qc-signal-report :is(header, section) { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none; padding: 0 0 24px; margin-bottom: 24px; }
+  .qc-signal-report :is(header, section) { border:0; border-bottom:1px solid var(--line); border-radius:0; box-shadow:none; padding:0 0 18px; margin-bottom:18px; }
   .qc-signal-report h1 { font-size: var(--text-title); font-weight: 600; }
-  .qc-signal-report h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+  .qc-signal-report h2 { font-size:16px; font-weight:600; margin-bottom:10px; }
   .qc-signal-report h3 { font-size: var(--text-section); font-weight: 600; }
   .qc-signal-report .score strong { font-size: 44px; font-weight: 600; letter-spacing: -.5px; }
   .qc-signal-report .scores strong { font-size: 24px; font-weight: 600; }
@@ -397,10 +401,10 @@ body.qc-app, body.qc-document {
 
 @media (max-width: 1100px) {
   :root { --page-inset: 24px; }
-  .qc-app .studio-layout { grid-template-columns: minmax(320px,.85fr) minmax(0,1.15fr); gap: 16px 20px; }
+  .qc-app .studio-layout { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); gap:16px 20px; }
 }
 @media (max-width: 1000px) {
-  .qc-app .studio-layout { grid-template-columns: minmax(0,1fr); }
+  .qc-app .studio-layout { grid-template-columns:minmax(0,1fr); grid-template-rows:auto; }
   .qc-app .studio-layout > .pipeline-board { position: static; max-height: none; overflow: visible; }
   .qc-app .dataset-layout { grid-template-columns: 220px minmax(0,1fr); gap: 20px; }
 }
@@ -498,3 +502,19 @@ html[lang="en"] .comparison-en {display:inline}
   .qc-app .studio-controls .rail-section > summary > small { display: none; }
   .qc-app .upload-first .intro { align-items: flex-start; flex-wrap: wrap; }
 }
+
+/* Results use a compact document rhythm, including the embedded summary. */
+.qc-app .qc-score-hero { gap:16px; margin:14px 0; }
+.qc-app .qc-score-total { min-width:120px; padding-right:16px; }
+.qc-app .qc-score-total > strong { font-size:36px; }
+.qc-app .qc-score-conclusion h3 { font-size:16px; margin-bottom:6px; }
+.qc-app .qc-score-conclusion p { margin-top:4px; line-height:1.6; }
+.qc-app .qc-score-parts { gap:12px; padding-top:14px; margin-top:14px; }
+.qc-app .qc-score-parts strong { font-size:22px; }
+.qc-app .result-summary { padding:10px 0; border:0; border-top:1px solid var(--line); border-radius:0; }
+.qc-app .qc-result-findings { margin-top:16px; }
+.qc-app .report-archive { font-size:12px; }
+html[lang="en"] .comparison-en { display:flex; }
+@media screen and (max-width:900px) { .qc-signal-report .shell { display:block; padding:18px 16px; } }
+.qc-app #result-visual-frame { height:65vh; min-height:360px; max-height:650px; border-radius:0; background:white; }
+.qc-app .visual-workspace-link { margin:10px 0; text-align:right; font-size:13px; }

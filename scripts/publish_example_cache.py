@@ -8,7 +8,7 @@ records are not included; runtime JSON/parameters are excluded from public HTML.
 import argparse,copy,hashlib,json,pathlib,re,shutil,sys,tempfile,threading
 from datetime import datetime,timezone
 from html import escape,unescape
-from urllib.parse import urljoin,urlsplit,unquote
+from urllib.parse import urljoin,urlsplit,unquote,parse_qs
 REPO=pathlib.Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(REPO/'src'),str(REPO/'apps/workbench')]
 
@@ -59,7 +59,7 @@ def comparison_page(spec, views, source, language):
 <p class="route-score"><span>{t('本方案评分','Score for this configuration')}</span><strong class="{score_class}">{esc(result)}</strong></p>
 {coverage_note}<p class="score-basis">{esc(basis)}</p><div class="route-actions"><a class="primary" href="/api/v1/jobs/{jid}/report">{t('查看报告','Report')}</a><a href="/api/v1/jobs/{jid}/report.pdf" download>PDF</a><a href="/api/v1/jobs/{jid}/visualizations">{t('查看图表','Charts')}</a></div></section>''')
     differences=[
-        (t('输入处理','Signal preparation'),t('直接检查输入信号，保留原文件。','Checks the input signal; the source file is preserved.'),t('保留共同基础检查；扩展方法另用 ≤256 Hz、1–70 Hz、平均参考的分析副本。','Keeps common base checks; extensions use a separate copy at ≤256 Hz, 1–70 Hz and common-average reference.')),
+        (t('输入处理','Signal preparation'),t('直接检查输入信号。','Checks the input signal.'),t('保留共同基础检查；扩展方法另用 ≤256 Hz、1–70 Hz、平均参考的分析副本。','Keeps common base checks; extensions use a separate copy at ≤256 Hz, 1–70 Hz and common-average reference.')),
         (t('主要检查','Main checks'),t('完整性、工频、高频突发；另列 PREP 坏道候选等结果。','Integrity, line interference and high-frequency bursts; PREP channel candidates remain separately reported.'),t('增加线长、伪差区间、低频/高频异常、PSD 通道差异与频带特征。','Adds line length, artifact intervals, low/high-band abnormalities, PSD channel differences and band features.')),
         (t('计分组成','Scored components'),t('信号完整性、工频干扰、高频突发，三项等比例。','Integrity, line interference and high-frequency bursts, equally weighted.'),t('线长、伪差区间、低频异常、高频异常、PSD 差异，五项等比例。基础分项另列。','Line length, artifact intervals, low-band, high-band and PSD differences, equally weighted. Base results remain separate.')),
         (t('重点图表','Key charts'),t('原始 PSD、工频命中比例、通道指标、候选波形及时间轴。','Input PSD, line-detection ratios, channel metrics, candidate waveforms and a timeline.'),t('分析副本 PSD、异常时间占比、频带功率/幅值、PSD 差异、参考区间。','Prepared-copy PSD, abnormal-time fractions, band power/amplitude, PSD differences and reference ranges.')),
@@ -83,6 +83,7 @@ def publish(config,destination):
     from saved_reports import served_report, frozen_view
     from project_score_cache import load
     from ephys_qc.report_export import pdf_bytes, evidence_figure
+    from ephys_qc.report_presentation import focused_figure
     from ephys_qc.visualizations.render import render_gallery
     from ephys_qc.visualizations.evidence import read_evidence
     store=snapshot(config);examples=featured_reports(store)
@@ -125,31 +126,51 @@ def publish(config,destination):
             return figures[jid]
         def gallery(jid,language):
             view=report_view(jid)
-            if not view:return '#snapshot-info'
             name=f'visualizations/{jid}.{language}.html'
             if name not in done:
                 done.add(name)
-                result={k:view.get(k) for k in ('scope','recording')}
-                result.update(windows=view.get('window_scores',[]),artifacts=[{'name':n} for n in view['artifacts']])
+                if view:
+                    result={k:view.get(k) for k in ('scope','recording')}
+                    result.update(windows=view.get('window_scores',[]),artifacts=[{'name':n} for n in view['artifacts']])
+                else:
+                    result=store.result(jid,compact=True)
                 options=comparison_jobs.get(jid,{})
+                selected=copy.deepcopy(options.get('visualizations'))
+                if selected is not None:
+                    names=[a['name'] for a in result.get('artifacts',[])]
+                    for stem,keys in [('M04_spectral.json',('psd','interference')),('M06_muscle.json',('timeline',))]:
+                        if any(n.endswith(stem) for n in names):
+                            selected.extend(k for k in keys if k not in selected)
                 html=render_gallery(result,lambda n:read_evidence(store.artifact(jid,n)),
-                    selected=options.get('visualizations'),window=options.get('window',''),limit=options.get('limit',32),
+                    selected=selected,window=options.get('window',''),limit=options.get('limit',32),
                     back_url=f'/api/v1/jobs/{jid}/report',asset_url=lambda n:f'/api/v1/jobs/{jid}/artifacts/{n}')
                 html=re.sub(r'<form\b.*?</form>','',html,flags=re.S|re.I)
                 html=html.replace('读取已有结果，切换图表不会重新质控或改变分数。','已保存的图表快照，不重新计算或更改分数。')
                 put(name,clean(html,f'/api/v1/jobs/{jid}/visualizations',language))
             return replacement+name
-        def resource(value,origin,language):
+        def _resource(value,origin,language):
             value=unescape(value)
             if value.startswith(('#','https://','http://','data:')):return value
-            path=unquote(urlsplit(urljoin('https://local'+origin,value)).path)
+            parsed=urlsplit(urljoin('https://local'+origin,value))
+            path=unquote(parsed.path)
+            requested_language=parse_qs(parsed.query).get('lang',[language])[0]
+            if requested_language in {'zh-CN','en'}:language=requested_language
             m=re.fullmatch(r'/api/v1/packages/([\w-]+)/overview/report',path)
             if m and m[1] in overviews:return replacement+f'datasets/{m[1]}.{language}.html'
-            m=re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report|report\.pdf|report-evidence\.png|visualizations|artifacts/([\w.\-]+))',path)
+            m=re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report|report\.pdf|report-evidence\.png|report-focus-\d+\.png|visualizations|artifacts/([\w.\-]+))',path)
             if m and m[1] in jobids:
                 jid,action,filename=m.groups()
                 if action=='report':return replacement+f'records/{jid}.{language}.html'
                 if action=='visualizations':return gallery(jid,language)
+                if action.startswith('report-focus-'):
+                    index=int(action[13:-4]);key=(jid,index)
+                    if key not in figures:
+                        try:figures[key]=focused_figure(report_view(jid),store.workspace(jid),index)
+                        except (OSError,KeyError,ValueError,RuntimeError,ImportError):figures[key]=(None,[])
+                    image,_=figures[key]
+                    if image is None:return '#snapshot-info'
+                    name=f'records/{jid}.focus-{index}.png';put(name,image)
+                    return replacement+name
                 if action=='report-evidence.png':
                     image,_=figure(jid)
                     if image is None:return '#snapshot-info'
@@ -173,19 +194,29 @@ def publish(config,destination):
                     done.add(name)
                     put(name,clean(src.read_text(),path,language) if src.suffix=='.html' else src.read_bytes())
                 return replacement+name
-            if path in {'/ui-tokens.css','/workbench-ui.css','/dataset-report.css','/dataset-report.js','/visualizations.js','/standards-nav.js'}:
+            if path in {'/ui-tokens.css','/workbench-ui.css','/dataset-report.css','/dataset-report.js','/visualizations.js','/report-interactions.js','/standards-nav.js'}:
                 src=REPO/'apps/workbench/web'/path[1:]
                 if src.is_file():put('assets'+path,src.read_bytes());return replacement+'assets'+path
             if path.startswith('/standards'):return path
             if path=='/':return '/'
             return '#snapshot-info'
+        def resource(value,origin,language):
+            result=_resource(value,origin,language)
+            fragment=urlsplit(unescape(value)).fragment
+            # Preserve figure anchors and expanded-module targets after freezing.
+            if fragment and not result.startswith('#') and not value.startswith(('http:','https:')):
+                result+='#'+fragment
+            return result
         def clean(html,origin,language):
             html=re.sub(r'<pre\b[^>]*>.*?</pre>','',html,flags=re.S|re.I)
+            # A public example has no user's live run workspace to restore.
+            html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run)\s*</a>','',html)
             html=re.sub(r'''\b(src|href)=(['"])([^'"]+)\2''',lambda m:m[1]+'='+m[2]+escape(resource(m[3],origin,language),quote=True)+m[2],html)
             html=re.sub(r'<img\b[^>]*\bsrc=[\"\']#snapshot-info[\"\'][^>]*>','',html,flags=re.I)
+            html=re.sub(r'<a\b[^>]*\bhref=[\"\']#snapshot-info[\"\'][^>]*>(.*?)</a>',lambda m:'<span class="snapshot-unavailable" title="'+('Not included in this example' if language=='en' else '此示例未附带该文件')+'">'+m[1]+'</span>',html,flags=re.S|re.I)
             html=re.sub(r'/(?:home|media|tmp)/[^\s<>"\'&]+','[本地来源路径]',html)
-            note=('Saved public-data example. Reports and images are cached; original files and runtime evidence are not part of this snapshot.' if language=='en' else '公开数据示例快照。报告与图像已缓存；本页不包含原始数据和运行证据文件。')
-            return html.replace('</body>',f'<p id="snapshot-info" style="max-width:1100px;margin:24px auto;padding:16px;color:#607087;font-size:12px">{note}</p></body>')
+            note=('Reports and images are included. Raw signals and machine-readable audit files are not included.' if language=='en' else '示例包含报告与图像；未附带原始信号及机器可读的运行证据文件。')
+            return html.replace('</body>',f'<details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>'+('About this example' if language=='en' else '示例文件说明')+f'</summary><p>{note}</p></details></body>')
         for language in ['zh-CN','en']:
             for pid,o in overviews.items():
                 # rendering is a pure saved-evidence view, no algorithm execution

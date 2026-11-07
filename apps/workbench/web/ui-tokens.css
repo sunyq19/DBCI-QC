@@ -1,3 +1,5 @@
+/* Keep the viewport width stable when disclosures or dialogs change scrolling. */
+html { scrollbar-gutter: stable; }
 /* Shared workbench language. Load after feature CSS; no remote fonts. */
 :root {
   color-scheme: light;
