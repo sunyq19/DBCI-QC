@@ -17,17 +17,19 @@ Confirm source channels, voltage units, rate and range. Preserve evidence or unk
 analysis_profile is seeg-basic/1. method_config.seeg uses psd_window_seconds=4 and line_frequencies_hz=[50,60]. These are calculation settings, not healthy ranges. Scalp-specific thresholds are not substitutes.
 
 
-### Basic recommended scheme v0.1 (2026-11-07)
+### Basic recommended scheme v0.2 (2026-11-07)
 
-Read and confirm modality, contacts, units and reference → numerical integrity and sustained flatness → PSD, line-frequency neighborhoods and contact statistics → report. Add M07 only for verified, registered event tables.
+Read and confirm modality, contacts, units and reference → numerical integrity, sustained flatness and file-range plateaus → PSD, line-frequency neighborhoods and contact statistics → report. Add M07 only for verified, registered event tables.
 
 M03 recommends the original MNE `annotate_amplitude` with `flat=0 V`, `peak=None`, `min_duration=0.05 s`, `bad_percent=5`. The 50 ms setting follows MNE-BIDS `inspect_dataset`. The 5% value routes findings to channel candidates or temporal annotations; it is not a clinical cutoff. Explicit custom parameters are preserved in each run.
 
 Flatness is evaluated within each analysis window. Channel-only candidates do not imply exact abnormal intervals; merged temporal annotations do not identify a contact. Brief runs split across window boundaries may be missed. Empty candidates do not establish overall quality.
 
+EDF/BDF additionally checks runs at verified file encoding limits. Within-group amplitude outliers require explicit groups and confirmed comparable references. Original FieldTrip adjacent-change screening remains opt-in; it is not an automatic diagnosis of artifacts. See [intracranial check rules](/en/standards/ieeg-checks) for exact conditions and formulas.
+
 No default overall score. MNE contact-candidate and merged-interval fractions expose optional score outputs with default weight 0; they cannot be summed as contaminated duration. PSD, narrowband power and RMS remain descriptive measurements.
 
-Reports include scope, five check results, candidate locations, contact measurements, window-specific charts and provenance. Pooled RMS is weighted by finite sample count. The peak-to-peak summary is the maximum window value, not whole-record peak-to-peak.
+Reports include scope, itemized check results, candidate locations, contact measurements, window-specific charts and provenance. Pooled RMS is weighted by finite sample count. The peak-to-peak summary is the maximum window value, not whole-record peak-to-peak.
 
 Sources: [MNE annotate_amplitude](https://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html), [MNE-BIDS inspect_dataset](https://mne.tools/mne-bids/stable/generated/mne_bids.inspect_dataset.html). This is an executable project draft, without expert approval or bad-contact ground-truth validation.
 

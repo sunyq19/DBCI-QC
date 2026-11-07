@@ -8,7 +8,24 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `分项 / 100	Component / 100
+  const pairs = `文件量程端点平台	File encoding-limit plateaus
+分组触点幅度离群	Within-group contact amplitude outliers
+颅内检查规则	Intracranial check rules
+定位连续落在文件标定上下限的采样点，提示可能削顶。	Locate runs at the file calibration limits as possible clipping candidates.
+在明确比较组内列出幅度明显偏离的触点，供复核。	List contacts with markedly different amplitudes within declared comparison groups for review.
+检查非有限值、MNE持续平线；EDF/BDF可核对文件量程端点平台。	Check non-finite values and sustained flatness with MNE; EDF/BDF supports file encoding-limit checks.
+逐触点统计；明确比较组后可选组内幅度离群，参考未确认时只测量。	Contact statistics; optional group outliers require explicit comparison groups. Unconfirmed references provide measurements only.
+建议完整性、平线、量程、频谱与触点检查；FieldTrip跳变与分组离群可单独选择。	Recommend integrity, flatness, encoding range, spectra and contact checks. FieldTrip transients and group outliers are optional.
+可选检查方法	Optional checks
+选择方法会同时选中所属模块；实际适用性以执行计划为准。	Selecting a method also enables its module. Applicability is checked in the execution plan.
+触点比较组	Contact comparison groups
+组名	Group name
+同组触点须具有可比较的参考与采集条件。请按采集资料填写；每组至少4道。	Group contacts only when references and acquisition conditions are comparable. Use acquisition records; at least four contacts per group.
+已确认各组内的参考与采集条件可比较	References and acquisition conditions within each group are confirmed comparable
+未确认时仅展示测量，不判离群。分组修改后需重新确认。	Without confirmation, only measurements are shown. Confirm again after changing groups.
+请为每个分析触点填写比较组。	Assign a comparison group to every selected contact.
+分组设置已保留。	Group settings saved.
+分项 / 100	Component / 100
 检查发现	Findings
 占综合分的比例	Share of the overall score
 单文件最大 2 GiB · 数据集总量最大 10 GiB	Up to 2 GiB per file · 10 GiB per dataset
@@ -2214,7 +2231,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

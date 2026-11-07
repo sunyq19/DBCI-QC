@@ -22,6 +22,8 @@ _ROWS = [
  ('gnosis_psd_deviation','gnosis_psd_deviation','M05','灵犀云 · PSD 异常通道','channels','channels',SCALP),
  ('faster_channels','faster_channels','M05','FASTER 通道候选','channels','channels',SCALP),
  ('fieldtrip_zvalue','fieldtrip_zvalue','M06','FieldTrip 跳变区间','seconds','intervals',['scalp_eeg','ecog','seeg']),
+ ('ieeg_range_plateau','ieeg_range_plateau','M03','文件量程端点平台','channel_samples','encoding_samples',['ecog','seeg']),
+ ('ieeg_group_outliers','ieeg_group_outliers','M05','分组触点幅度离群','channels','assessed_channels',['ecog','seeg']),
  ('spikeinterface_bad_channels','spikeinterface_bad_channels','M05','SpikeInterface 噪声通道','channels','channels',['extracellular']),
 ]
 SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,reducer=reducer,

@@ -28,6 +28,7 @@ DOCUMENT_PAGES = {
     'eeg-evidence': ('eeg-evidence.md', 'EEG来源依据', 'EEG evidence sources'),
     'eeg-scoring': ('eeg-scoring.md', 'EEG评分规则', 'EEG scoring rules'),
     'eeg-report': ('eeg-report.md', 'EEG报告要求', 'EEG report requirements'),
+    'ieeg-checks': ('ieeg-checks.md', '颅内检查规则', 'Intracranial check rules'),
     'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
 }
 DOCUMENT_PATHS = {'/standards', '/standards/ecog', '/standards/seeg', '/standards/neuropixels',
@@ -600,6 +601,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                       + '<li>' + text('头皮 EEG', 'Scalp EEG') + '<ol>'
                       + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
                       + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-scoring', 'eeg-report', 'eeg-evidence')) + '</ol></li>'
+                      + '<li>' + text('ECoG / sEEG', 'ECoG / sEEG') + '<ol>' + document_link('ieeg-checks') + '</ol></li>'
                       + '<li>' + text('数据集', 'Dataset') + '<ol>' + document_link('dataset-checks') + '</ol></li>'
                       + document_link('implementation'))
     kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else

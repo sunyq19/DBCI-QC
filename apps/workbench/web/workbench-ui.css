@@ -562,4 +562,11 @@ html[lang="en"] .comparison-en { display:flex; }
 .qc-app .demo-report,.qc-app .data-library-label,.qc-app .library-report-links a{transition:background .15s,color .15s,box-shadow .15s}
 .qc-app .demo-report:active,.qc-app .data-library-label:active,.qc-app .library-report-links a:active{background:#e0ebfc;color:#174b99;box-shadow:inset 0 0 0 1px #afc5e8}
 @keyframes library-refresh-spin{to{transform:rotate(360deg)}}
+.qc-app .ieeg-group-list{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:12px 0}
+.qc-app .ieeg-group-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(100px,1fr);align-items:center;gap:12px;padding:6px 10px;margin:0;border-bottom:1px solid var(--line);font-size:13px}
+.qc-app .ieeg-group-row:last-child{border-bottom:0}
+.qc-app .ieeg-group-row span{overflow-wrap:anywhere;min-width:0}.qc-app .ieeg-group-row small{font-weight:400;color:var(--muted)}
+.qc-app .ieeg-group-row input{width:100%;min-width:0;padding:5px 8px;font-size:13px}
+.qc-app .ieeg-reference-check{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.6;margin:12px 0}
+.qc-app .ieeg-reference-check input{flex:0 0 auto;width:auto;margin-top:4px}
 @media(prefers-reduced-motion:reduce){.qc-app #data-library-refresh,.qc-app .demo-report,.qc-app .data-library-label{transition:none}.qc-app #data-library-refresh[data-state="loading"] svg{animation:none}}

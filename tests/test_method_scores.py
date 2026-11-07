@@ -17,7 +17,7 @@ def score(mid,data,modality='scalp_eeg'):return extension_outputs(mid,data,modal
 
 class MethodScoreTests(unittest.TestCase):
     def test_catalog_all_methods_explicit_and_default_only_three(self):
-        self.assertEqual(len(SPECS),18)
+        self.assertTrue({'ieeg_range_plateau','ieeg_group_outliers'} <= set(SPECS))
         self.assertEqual(sum(s['default_weight']>0 for s in outputs()),3)
         for modality in ['scalp_eeg','ecog','seeg','extracellular']:
             for m in methods(modality):

@@ -37,6 +37,8 @@ def scope(root, artifacts):
 def collect(artifacts, windows):
     """Aggregate disjoint saved windows by stable contact identity, never labels."""
     contacts = {}; flats = []; done = 0; failures = []; complete_samples = 0; invalid = 0
+    extra={key:dict(windows=0,candidates=[],candidate_count=0,measurements=[],reasons=[],artifacts=[])
+           for key in ('ieeg_range_plateau','ieeg_group_outliers','fieldtrip_zvalue')}
     for window in windows:
         prefix = window['id']+'--' if window.get('id') else ''
         stats = read(artifacts/(prefix+'M05_channel_description.json'))
@@ -65,10 +67,25 @@ def collect(artifacts, windows):
                     'parameters':flat.get('parameters',{})})
         elif flat:
             failures.append(flat.get('reason') or flat.get('status','未完成'))
+        for key,summary in extra.items():
+            mid={'ieeg_range_plateau':'M03','ieeg_group_outliers':'M05','fieldtrip_zvalue':'M06'}[key]
+            filename=prefix+mid+'_'+key+'.json'; payload=read(artifacts/filename)
+            if not payload:continue
+            summary['artifacts'].append(filename)
+            mapping={c['adapter_name']:c for c in payload.get('channel_mapping',[])}
+            if payload.get('calculated') and payload.get('status') in {'completed','partial'}:
+                summary['windows']+=1
+                summary['candidate_count']+=payload.get('candidate_total_count',len(payload.get('candidates',[])))
+                summary['measurements']+=payload.get('measurements',[])
+                for c in payload.get('candidates',[]):
+                    channel=mapping.get(c.get('channel_name'),{})
+                    summary['candidates'].append({**c,'name':channel.get('raw_name',c.get('channel_name')),
+                        'channel_id':channel.get('channel_id',c.get('channel_name')),'window':window,'method':key})
+            if payload.get('status')!='completed':summary['reasons'].append(payload.get('reason','未完成'))
     for contact in contacts.values():
         contact['rms']=math.sqrt(contact['squares']/contact['finite']) if contact['finite'] else None
     return dict(contacts=list(contacts.values()), flats=flats, flat_windows=done,
-                flat_failures=failures, sample_count=complete_samples, nonfinite=invalid)
+                flat_failures=failures, sample_count=complete_samples, nonfinite=invalid,extra=extra)
 
 
 def render(store, identifier, language='zh-CN'):
@@ -94,7 +111,7 @@ def render(store, identifier, language='zh-CN'):
     state=t('基础检查已完成','Basic checks complete')
     if coverage.get('unexecuted_seconds',0) or coverage.get('failed_seconds',0):
         state=t('部分时段未完成','Some intervals were not completed')
-    elif data['nonfinite'] or flats:
+    elif data['nonfinite'] or flats or any(s['candidates'] for s in data['extra'].values()):
         state=t('有待复核的信号片段','Signal findings to review')
     flat_result=t(f'{len(bad)} 道 · {len(intervals)} 条区间',f'{len(bad)} contacts · {len(intervals)} intervals') if nflat else t('未完成','Not assessed')
     if nflat and not allflat:flat_result+=t(f'（{nflat}/{len(windows)} 段已检查）',f' ({nflat}/{len(windows)} windows checked)')
@@ -108,21 +125,49 @@ def render(store, identifier, language='zh-CN'):
         (t('工频邻域','Line-frequency neighborhoods'),t(f'{spec_count} 组有效测量',f'{spec_count} valid measurements'),t('测量各触点的 50 / 60 Hz 邻域功率；不将谱峰自动判为噪声。','Measure 50 / 60 Hz band power; a peak is not automatically noise.')),
         (t('触点统计','Contact statistics'),t(f'{len(contacts)} 道',f'{len(contacts)} contacts'),t('RMS、峰峰值及非有限值计数；用于定位和比较。','RMS, peak-to-peak voltage and non-finite counts for review.')),
     ]
+    labels={'ieeg_range_plateau':t('量程端点平台','Encoding-limit plateaus'),
+            'ieeg_group_outliers':t('分组触点离群','Within-group outliers'),
+            'fieldtrip_zvalue':t('相邻跳变线索','Adjacent-change candidates')}
+    explanations={'ieeg_range_plateau':t('连续至少3点落在文件标定端点；提示可能削顶，不等同于硬件饱和。','Runs at file encoding limits; possible clipping, not proven hardware saturation.'),
+        'ieeg_group_outliers':t('仅在明确的比较组内评估；参考未确认的组只保留测量。','Compare only declared groups; unconfirmed reference groups remain descriptive.'),
+        'fieldtrip_zvalue':t('原版 FieldTrip 相邻差分 z 值；发作及刺激也可能触发，须复核。','Original FieldTrip sample-difference z values; seizures or stimulation can also trigger candidates.')}
+    additional=[]
+    for key,s in data['extra'].items():
+        if not s['artifacts']:continue
+        candidates=s['candidates'];additional+=candidates
+        count=t(f'{s["candidate_count"]} 条候选 · {s["windows"]}/{len(windows)} 段计算',f'{s["candidate_count"]} candidates · {s["windows"]}/{len(windows)} windows computed') if s['windows'] else t('未完成','Not assessed')
+        if key=='fieldtrip_zvalue' and s['windows']:
+            seconds=sum(c['stop_seconds']-c['start_seconds'] for c in candidates)
+            count=t(f'{len(candidates)} 段 · 累计 {num(seconds)} 秒',f'{len(candidates)} intervals · {num(seconds)} s total')
+        if key=='ieeg_group_outliers':
+            valid=sum(r.get('status')=='computed' for r in s['measurements'])
+            if not valid:count=t('仅测量，未判离群','Measurements only; no classification')
+        rows.append((labels[key],count,explanations[key]))
     events=[m for w in windows for m in w.get('modules',[]) if m.get('id')=='M07' and m.get('status') not in {'not_selected','skipped'}]
     if events:rows.append((t('事件与时间','Events and time'),t(f'{len(events)} 段已执行',f'{len(events)} windows checked'),t('核对已登记事件表的时间范围；不识别发作或病理活动。','Check registered event times, without classifying seizures or pathological activity.')))
     table=lambda headers,body:('<div class="table-scroll" tabindex="0" role="region" aria-label="'+esc(' / '.join(headers))+'"><table><thead><tr>'+''.join('<th>'+esc(h)+'</th>' for h in headers)+'</tr></thead><tbody>'+body+'</tbody></table></div>')
     results=table([t('检查项目','Check'),t('检查结果','Result'),t('解释','Interpretation')],''.join('<tr>'+''.join('<td>'+esc(c)+'</td>' for c in row)+'</tr>' for row in rows))
     finding_rows=[]
-    for c in flats:
+    all_candidates=flats+additional
+    for c in all_candidates[:200]:
         w=c['window'];a=c.get('start_seconds');b=c.get('stop_seconds')
-        channel=c.get('name') if c.get('localization')=='channel_only' else t('所选通道合并','Across selected contacts')
+        channel=c.get('name') or t('所选通道合并','Across selected contacts')
         period=f'{num(a)}–{num(b)} s' if measured(a) and measured(b) else f'{num(w["start_seconds"])}–{num(w["start_seconds"]+w["duration_seconds"])} s'
         label=t('通道候选；列出检查窗口','Contact candidate; analysis window shown') if c.get('localization')=='channel_only' else t('持续平线区间','Sustained-flat interval')
         if c.get('kind')=='BAD_peak':label=t('相邻跳变区间','Adjacent-change interval')
+        if c.get('method'):label=labels[c['method']]
         finding_rows.append('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (channel,period,label))+'</tr>')
-    findings=table([t('位置','Location'),t('原始记录时间','Original time'),t('发现','Finding')],''.join(finding_rows)) if finding_rows else '<p>'+t('本次已执行的平线检查未检出候选。','No sustained-flat candidates in the assessed windows.')+'</p>' if nflat else '<p>'+t('尚无持续平线检查结果。','No sustained-flat results are available.')+'</p>'
+    headings=[t('位置','Location'),t('原始记录时间','Original time'),t('发现','Finding')]
+    findings=table(headings,''.join(finding_rows[:len(flats)])) if flats else '<p>'+t('本次已执行的平线检查未检出候选。','No sustained-flat candidates in the assessed windows.')+'</p>' if nflat else '<p>'+t('尚无持续平线检查结果。','No sustained-flat results are available.')+'</p>'
+    if additional:
+        findings+='<details class="disclosure"><summary>'+t(f'增强方法候选 · {len(additional)} 条',f'Additional-method candidates · {len(additional)}')+'</summary>'+table(headings,''.join(finding_rows[len(flats):]))+'</details>'
     if data['nonfinite']:
         findings+='<p>'+t('存在非有限值，查看下方触点统计定位通道。','Non-finite values found; see contact statistics below.')+'</p>'
+    if len(all_candidates)>200:
+        findings+='<p class="secondary">'+t(f'显示前200条，共{len(all_candidates)}条；完整位置见报告详情中的证据文件。',f'Showing 200 of {len(all_candidates)} candidates; full positions are in the saved evidence under Report details.')+'</p>'
+    omitted=sum(s['candidate_count']-len(s['candidates']) for s in data['extra'].values())
+    if omitted:
+        findings+='<p class="secondary">'+t(f'另有{omitted}条位置因证据存储预算未逐条保存；完整计数已保留。',f'Another {omitted} positions were not stored individually due to the evidence budget; full counts are retained.')+'</p>'
     if not allflat:
         findings+='<p class="secondary">'+t(f'持续平线完成 {nflat}/{len(windows)} 个窗口；未检查部分不计为正常。',f'Flatness assessed in {nflat}/{len(windows)} windows; missing checks are not passes.')+'</p>'
     # Expose an actual saved waveform, with its original scope, inside the report.
@@ -138,17 +183,21 @@ def render(store, identifier, language='zh-CN'):
     details=f'<p>{background}</p><p>{t("不根据通道名推测邻接关系。","Adjacency is not inferred from contact names.")}</p><p>{t("持续平线参数","Flatness parameters")}: {esc(flatparams or t("本次未配置","Not configured"))}</p><p class="secondary">'+t('基础方案的 50 ms 设置参考 MNE-BIDS 检视流程；5% 用于 MNE 将候选归为通道或时间段，仍需复核。','The baseline 50 ms setting follows MNE-BIDS inspection; MNE uses 5% to route findings to contacts or intervals, still requiring review.')+'</p>'
     details+=f'<p><a href="/standards/{item["modality"]}">{t("方案与依据","Scheme and basis")}</a> · <a href="{url(scope_artifact)}">{t("检查范围与记录","Scope and records")}</a> · <a href="{url("report.html")}">{t("运行时报告","Original run report")}</a></p>'
     if data['flat_failures']:details+='<p>'+esc('；'.join(dict.fromkeys(data['flat_failures'])))+'</p>'
+    for key,s in data['extra'].items():
+        if not s['artifacts']:continue
+        links=' · '.join(f'<a href="{url(name)}">{t("分段","Window")} {i+1}</a>' for i,name in enumerate(s['artifacts']))
+        details+='<details class="disclosure"><summary>'+labels[key]+'</summary><p>'+explanations[key]+'</p><p>'+esc(methods.get('extension_parameters',{}).get(key,{}))+'</p><p>'+esc('；'.join(dict.fromkeys(s['reasons'])))+'</p>'+links+'</details>'
     score_html='';score=read(artifacts/'method-scores.json').get('project_score')
     if score:
         weights=sum(max(0,r.get('weight',0)) for r in score['components'])
         body=''.join('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (r['name'],num(r['value']),num(100*r.get('weight',0)/weights) if weights else '0',r['reason']))+'</tr>' for r in score['components'])
         score_html=report_section('project-score',t('项目自定义评分','Project score')+' · '+num(score['value']),table([t('方法','Method'),'/ 100','%',t('说明','Note')],body),opened=True)
-    initial_window=flats[0]['window']['id']+'--' if flats and flats[0]['window'].get('id') else ''
+    initial_window=all_candidates[0]['window']['id']+'--' if all_candidates and all_candidates[0]['window'].get('id') else ''
     charts_url=f'/api/v1/jobs/{identifier}/visualizations'+('?window='+quote(initial_window) if initial_window else '')
     facts=[(modality,t('模态','Modality')),(info['channels'],t('分析触点','Contacts')),(num(coverage.get('completed_seconds'))+' s',t('已检查时长','Checked duration')),(', '.join(num(r) for r in info['rates_hz'])+' Hz',t('采样率','Sampling rate'))]
     facthtml=''.join(f'<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>' for v,k in facts)
     web=Path(__file__).with_name('web');css=(web/'ui-tokens.css').read_text()+(web/'dataset-report.css').read_text()+SECTION_CSS+EXTRA_CSS
-    return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(job.get('run_name') or item['label'])}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report ieeg-report"><main><p class="eyebrow">DBCI-QC · {modality} {t('基础方案','basic scheme')}</p><h1>{esc(job.get('run_name') or item['label'])}</h1><p class="secondary">{esc(item['label'])}</p><dl class="dataset-facts">{facthtml}</dl><div class="ieeg-result"><strong>{state}</strong><span>{flat_name}：{flat_result}</span></div><p class="secondary">{explanation}</p><ol class="ieeg-flow"><li>{t('读取与确认','Read and confirm')}</li><li>{t('完整性与平线','Integrity and flatness')}</li><li>{t('频谱与触点','Spectra and contacts')}</li><li>{t('汇总与复核','Summarize and review')}</li></ol>{report_section('results',t('检查结果','Results'),results,opened=True)}{score_html}{report_section('locations',t('问题定位','Review locations'),findings,opened=bool(flats or data['nonfinite']))}{inline_charts(charts_url,english=en)}{report_section('details',t('报告详情','Report details'),stats+details)}<footer>DBCI-QC · {t('基础方案试用版，候选需复核','Basic trial scheme; candidates require review')}<button id="print-report">{t('打印 / PDF','Print / PDF')}</button></footer></main></body></html>'''
+    return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(job.get('run_name') or item['label'])}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report ieeg-report"><main><p class="eyebrow">DBCI-QC · {modality} {t('基础方案','basic scheme')}</p><h1>{esc(job.get('run_name') or item['label'])}</h1><p class="secondary">{esc(item['label'])}</p><dl class="dataset-facts">{facthtml}</dl><div class="ieeg-result"><strong>{state}</strong><span>{flat_name}：{flat_result}</span></div><p class="secondary">{explanation}</p><ol class="ieeg-flow"><li>{t('读取与确认','Read and confirm')}</li><li>{t('完整性与量程','Integrity and range')}</li><li>{t('频谱、触点与跳变','Spectra, contacts and transients')}</li><li>{t('汇总与复核','Summarize and review')}</li></ol>{report_section('results',t('检查结果','Results'),results,opened=True)}{score_html}{report_section('locations',t('问题定位','Review locations'),findings,opened=bool(all_candidates or data['nonfinite']))}{inline_charts(charts_url,english=en)}{report_section('details',t('报告详情','Report details'),stats+details)}<footer>DBCI-QC · {t('基础方案试用版，候选需复核','Basic trial scheme; candidates require review')}<button id="print-report">{t('打印 / PDF','Print / PDF')}</button></footer></main></body></html>'''
 
 
 EXTRA_CSS='''

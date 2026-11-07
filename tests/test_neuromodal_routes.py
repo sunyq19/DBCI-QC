@@ -63,7 +63,7 @@ class NewRouteContracts(unittest.TestCase):
 
     def test_cross_modality_parameters_fail_without_silent_conversion(self):
         for modality in ('seeg','extracellular'):
-            for wrong in ({'ecog': {}}, {'continuity': {}}, {'extensions': ['mne_muscle']}, {'comparison_groups': ['all']*3}):
+            for wrong in ({'ecog': {}}, {'continuity': {}}, {'extensions': ['mne_muscle']}, {'comparison_groups': ['all']*(3 if modality=='extracellular' else 2)}):
                 r=recording(modality);r['default_config']['method_config'].update(wrong)
                 self.assertFalse(recommend(r)['can_apply'])
                 with self.assertRaises(ValueError): build_plan(r, ['M03'])

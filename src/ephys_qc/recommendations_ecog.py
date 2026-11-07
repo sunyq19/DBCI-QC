@@ -24,20 +24,20 @@ def recommend_ecog(record, submitted=None):
         config = copy.deepcopy(current['qc_config'])
         if record['modality'] in {'ecog', 'seeg'}:
             from .ieeg_baseline import configure
-            config = configure(config)
+            config = configure(config, record)
         facts = data_facts(record, config)
         if not facts['verified_voltage']:
             raise ValueError('所选信号须具有已核验的电压单位。')
         annotation = record.get('annotation') or {}
         has_annotation = annotation.get('format') in _ANNOTATIONS and bool(annotation.get('path'))
-        selected = ['M03', 'M04', 'M05'] + (['M07'] if has_annotation else [])
+        selected = ['M03', 'M04', 'M05'] + (['M06'] if 'fieldtrip_zvalue' in config['method_config']['extensions'] else []) + (['M07'] if has_annotation else [])
         final = build_plan(record, selected, config)
     except (ValueError, KeyError, TypeError, AttributeError) as error:
         result['missing_fields'] = [_missing('qc_config', 'ECoG输入与配置', str(error), True)]
         result['reason'] = result['summary'] = '配置未通过ECoG入口核验；未自动移除或改写不相容参数。'
         return _finish(result, record, submitted)
 
-    result.update(status='ready', can_apply=True, summary='建议完整性、持续平线、频谱与逐触点检查；有事件表时核对事件时间。',
+    result.update(status='ready', can_apply=True, summary='建议完整性、平线、量程、频谱与触点检查；FieldTrip跳变与分组离群可单独选择。',
                   reason='根据已确认ECoG模态和技术信息生成基础检查计划。',
                   selected_modules=final['selected_modules'], qc_config=final['qc_config'],
                   plan_id=final['plan_id'], data_tags=final['data_tags'],

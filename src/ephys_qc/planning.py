@@ -190,6 +190,15 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     if modality in DESCRIPTIVE:
         methods = config['method_config'] = validate_descriptive_methods(methods, modality, meta)
         labels, minimum = [], 4
+        groups = methods.get('comparison_groups')
+        if groups is not None:
+            if modality not in {'ecog','seeg'}:
+                raise ValueError('This modality does not accept iEEG comparison groups')
+            if isinstance(groups, dict) and set(groups) != {f"{input_record['id']}:ch:{i}" for i in indices}:
+                raise ValueError('comparison_groups keys must match stable source channel IDs')
+            labels = list(groups.values()) if isinstance(groups, dict) else groups
+            if not isinstance(labels,list) or len(labels)!=len(indices) or any(not isinstance(g,str) or not g.strip() for g in labels):
+                raise ValueError('comparison_groups must map every selected contact exactly once')
     else:
         if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters"}:
             raise ValueError("Invalid method_config fields")

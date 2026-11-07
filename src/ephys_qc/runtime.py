@@ -187,6 +187,8 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
         facts = data_facts(record, config)
         facts.update(sampling_rate_hz=state['fs'], n_eeg=len(state['channels']),
                      window_seconds=state['recording']['duration_seconds'], verified_voltage=True)
+        from .ieeg_baseline import encoding_ranges
+        facts['encoding_ranges'] = encoding_ranges(state['channels'])
         channel_mapping = _extension_channel_mapping(state['channels'])
         for id_ in methods.get('extensions', []):
             spec = specs[id_]

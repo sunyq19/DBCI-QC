@@ -46,7 +46,8 @@ def extension_specs():
     from .extra_methods import extension_specs as additional_specs
     from .research_runtime import extension_specs as research_specs
     from .gnosis_catalog import extension_specs as gnosis_specs
-    return copy.deepcopy(_SPECS) + additional_specs() + research_specs() + gnosis_specs()
+    from .ieeg_methods import extension_specs as ieeg_specs
+    return copy.deepcopy(_SPECS) + additional_specs() + research_specs() + gnosis_specs() + ieeg_specs()
 
 
 def _spec(extension_id):
@@ -95,6 +96,9 @@ def _parameters(extension_id, params):
 
 
 def evaluate_extension(extension_id, facts, params=None):
+    from .ieeg_methods import IDS as IEEG_IDS, evaluate_extension as ieeg_call
+    if extension_id in IEEG_IDS:
+        return ieeg_call(extension_id, facts, params)
     from .gnosis_catalog import IDS as GNOSIS_IDS
     if extension_id in GNOSIS_IDS:
         from .gnosis_runtime import evaluate_extension as evaluate_gnosis
@@ -183,6 +187,9 @@ def run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds,
 
 
 def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
+    from .ieeg_methods import IDS as IEEG_IDS, run_extension as ieeg_call
+    if extension_id in IEEG_IDS:
+        return ieeg_call(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)
     from .gnosis_catalog import IDS as GNOSIS_IDS
     if extension_id in GNOSIS_IDS:
         from .gnosis_runtime import run_extension as run_gnosis

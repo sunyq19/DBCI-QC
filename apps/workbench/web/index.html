@@ -116,6 +116,7 @@
           <div id="module-options" class="module-options"><div class="loading-state"><span class="spinner"></span>正在读取模块目录</div></div>
           <p id="module-dependencies" class="dependency-note" hidden></p>
           <div id="extension-options" class="extension-options" hidden></div><p id="extension-selection-note" class="small muted" role="status" hidden></p>
+          <details id="ieeg-groups" class="parameter-editor" hidden><summary>触点比较组</summary><div id="ieeg-group-fields"></div></details>
           <details class="parameter-editor"><summary>修改扩展参数</summary><p class="small muted">JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法默认值。应用后须重新预览计划，服务会核验参数。</p><label class="field-label" for="extension-parameters">扩展参数 JSON</label><textarea id="extension-parameters" rows="7" spellcheck="false">{}</textarea><button id="apply-parameters-button" class="button secondary small-button" disabled>应用参数修改</button><p id="parameter-status" class="small muted" role="status"></p><p id="parameter-error" class="field-error" role="alert" hidden></p></details>
           <div class="manual-planning"><h3>手动推荐与预览</h3><p class="small muted">需要回到推荐配置时，可恢复推荐方案。</p><div class="recommendation-actions"><button id="recommend-button" class="button secondary small-button" disabled>恢复推荐方案</button><button id="apply-recommendation-button" class="button secondary small-button" disabled>采用推荐</button><button id="plan-button" class="button secondary small-button" disabled>预览执行计划</button></div></div>
         </div></details>

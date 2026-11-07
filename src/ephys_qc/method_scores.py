@@ -54,7 +54,27 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
             candidates=payload.get('candidates')
             if not isinstance(candidates,list):raise ValueError('未返回候选清单')
             kind=spec['reducer'];reason='候选按当前方法参数判定；不等于已确认伪迹。'
-            if kind in {'channels','pairs'}:
+            if kind in {'encoding_samples','assessed_channels'}:
+                assessed=payload.get('assessed_channel_names',[])
+                if not assessed or len(set(assessed))!=len(assessed) or not set(assessed)<=set(names):
+                    raise ValueError('缺少有效判定的通道分母')
+                rows=[r for r in payload.get('measurements',[]) if r.get('channel_name') in assessed]
+                if len(rows)!=len(assessed) or {r.get('channel_name') for r in rows}!=set(assessed) or any(r.get('status')!='computed' for r in rows):
+                    raise ValueError('逐道判定证据不完整')
+                if kind=='encoding_samples':
+                    if any(not number(r.get('candidate_sample_count')) or not number(r.get('assessed_sample_count')) or not 0<=r['candidate_sample_count']<=r['assessed_sample_count'] for r in rows):
+                        raise ValueError('端点平台计数无效')
+                    bad=sum(r['candidate_sample_count'] for r in rows);total=sum(r['assessed_sample_count'] for r in rows)
+                    reason='文件量程端点平台样本 / 已核验量程的有限样本；不是硬件饱和率。'
+                else:
+                    if any(not number(r.get('robust_z')) for r in rows):raise ValueError('缺少有效组内偏离值')
+                    affected={c.get('channel_name') for c in candidates}
+                    if not affected<=set(assessed):raise ValueError('候选超出已评通道')
+                    bad,total=len(affected),len(assessed)
+                    reason='离群候选 / 有效组内受检通道；不适用的组不计为通过。'
+                scope['assessed_channel_names']=assessed
+                scope['unassessed_channel_names']=[n for n in names if n not in assessed]
+            elif kind in {'channels','pairs'}:
                 affected=set()
                 for c in candidates:
                     if kind=='pairs':

@@ -246,6 +246,12 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                     rows=[{**c,'channel_name':'所选通道合并'} for c in flat.get('candidates',[]) if c.get('localization')=='interval_only']
                     bounds=flat.get('range',{})
                     out+=section('平线 / 相邻变化候选' if flat.get('parameters',{}).get('peak_volts') is not None else '持续平线候选',timeline(rows,bounds.get('start_seconds'),bounds.get('stop_seconds'),limit)+'<p class="caption">时间标记是所选通道的合并区间。仅标记到通道的结果见报告检查明细。</p>','MNE')
+                for filename,label,source in [('M03_ieeg_range_plateau.json','文件量程端点平台','DBCI-QC / EDF'),('M06_fieldtrip_zvalue.json','相邻跳变线索','FieldTrip')]:
+                    item=evidence(filename)
+                    if item.get('calculated'):
+                        bounds=item.get('range',{})
+                        rows=[{**c,'channel_name':c.get('channel_name') or '所选通道合并'} for c in item.get('candidates',[])]
+                        out+=section(label,timeline(rows,bounds.get('start_seconds'),bounds.get('stop_seconds'),limit),source)
             return out or missing('先运行对应的伪差或高频检查。')
         if key in ['band_power','band_amplitude','psd_distance']:
             method,field,unit={'band_power':('band_power','relative_power','%'),'band_amplitude':('band_amplitude','mean_amplitude_uv','μV'),'psd_distance':('psd_deviation','psd_distance','log10 PSD 距离')}[key]

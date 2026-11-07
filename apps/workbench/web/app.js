@@ -484,10 +484,44 @@
     const methods = extensionMethods(), container = $("extension-options");
     container.hidden = !methods.length;
     if (!methods.length) { container.innerHTML = ""; return; }
-    container.innerHTML = '<h3>可选开源扩展</h3><p class="muted">默认关闭。选择扩展会同时选中所属模块；实际适用性以执行计划为准。</p>' + methods.map(method => {
+    container.innerHTML = '<h3>可选检查方法</h3><p class="muted">选择方法会同时选中所属模块；实际适用性以执行计划为准。</p>' + methods.map(method => {
       const applicability = methodApplicability(method,state.mode === "draft" ? activePlan() : null);
       return `<div class="extension-option"><label class="extension-check" for="extension-${escape(method.id)}"><input id="extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${state.extensions.has(method.id) ? "checked" : ""}><span>${escape(method.name)}</span></label><p>${escape(method.module_id)} · ${escape(method.description)}</p><div class="extension-info">${statusTag(applicability.status)}<button data-detail="${escape(method.module_id)}">条件与来源</button></div></div>`;
     }).join("");
+  }
+
+  function renderIeegGroups() {
+    const box = $("ieeg-groups"), fields = $("ieeg-group-fields");
+    if (!box || !fields) return;
+    box.hidden = !state.input || state.mode !== "draft" || !["ecog","seeg"].includes(state.activeModality) || !state.extensions.has("ieeg_group_outliers");
+    if (box.hidden) { fields.innerHTML = ""; delete fields.dataset.input; return; }
+    // Keep the focused editor mounted when a change invalidates the plan.
+    // Replacing the fields here would interrupt typing and keyboard navigation.
+    if (fields.dataset.input === state.input.id && fields.contains(document.activeElement)) return;
+    const config = currentConfig(), indices = arr(config.selection?.eeg_indices), groups = config.method_config?.comparison_groups;
+    const channels = arr(state.input.metadata?.channels), params = config.method_config?.extension_parameters?.ieeg_group_outliers || {};
+    const values = indices.map((index,i) => Array.isArray(groups) ? groups[i] || "" : groups?.[`${state.input.id}:ch:${index}`] || "");
+    fields.dataset.input = state.input.id;
+    fields.innerHTML = '<p class="small muted">同组触点须具有可比较的参考与采集条件。请按采集资料填写；每组至少4道。</p><div class="ieeg-group-list">' + indices.map((index,i) => {
+      const name = channels.find(c => c.index === index)?.name || String(index);
+      return `<label class="ieeg-group-row"><span data-i18n-skip>${escape(name)} <small>#${index}</small></span><input data-ieeg-group="${index}" type="text" maxlength="100" placeholder="组名" value="${escape(values[i])}" ${state.submitting ? "disabled" : ""}></label>`;
+    }).join("") + `</div><label class="ieeg-reference-check"><input id="ieeg-reference-confirmed" type="checkbox" ${params.reference_confirmed === true ? "checked" : ""} ${state.submitting ? "disabled" : ""}><span>已确认各组内的参考与采集条件可比较</span></label><p class="small muted">未确认时仅展示测量，不判离群。分组修改后需重新确认。</p><p id="ieeg-group-status" class="small muted" role="status"></p>`;
+    const edit = event => {
+      if (state.submitting || state.mode !== "draft") return;
+      if (state.parameterDirty && !applyParameters()) return;
+      const next = currentConfig(), labels = [...fields.querySelectorAll("[data-ieeg-group]")].map(input => input.value.trim());
+      const confirmed = $("ieeg-reference-confirmed");
+      if (event.target !== confirmed) confirmed.checked = false;
+      if (labels.some(Boolean)) next.method_config.comparison_groups = labels;
+      else delete next.method_config.comparison_groups;
+      next.method_config.extension_parameters = {...next.method_config.extension_parameters,
+        ieeg_group_outliers:{...next.method_config.extension_parameters?.ieeg_group_outliers,reference_confirmed:confirmed.checked}};
+      state.draftConfig = next;
+      syncParameterEditor(); invalidatePlan(); renderChannelConfig();
+      $("ieeg-group-status").textContent = labels.some(Boolean) && labels.some(label => !label)
+        ? "请为每个分析触点填写比较组。" : "分组设置已保留。";
+    };
+    fields.querySelectorAll("input").forEach(input => input.addEventListener("change",edit));
   }
 
   function setExtension(id, checked) {
@@ -554,6 +588,7 @@
     $("apply-recommendation-button").disabled = Boolean(busy || unsupportedInput() || !recommendationValid() || state.recommendation?.can_apply !== true || state.recommendationApplied);
     $("apply-recommendation-button").textContent = state.recommendationApplied ? "已采用推荐" : "采用推荐";
     $("apply-parameters-button").disabled = !state.input || busy;
+    $("ieeg-group-fields")?.querySelectorAll("input").forEach(input => { input.disabled = busy; });
     $("input-select").disabled = state.submitting || state.intakeBusy || !visibleInputs().length;
     for (const id of ["start-seconds","duration-seconds","extension-parameters"]) $(id).disabled = state.submitting || !state.input;
     for (const field of Object.keys(CONTEXT_FIELDS)) $(`context-${field}`).disabled = state.submitting || !state.input;
@@ -1142,7 +1177,7 @@
   }
 
   function renderPlan() {
-    renderDataTags(); renderInputUsage(); renderExtensions();
+    renderDataTags(); renderInputUsage(); renderExtensions(); renderIeegGroups();
     const plan = state.mode === "job" ? state.job?.plan : state.plan;
     if (!plan) { $("plan-details").innerHTML = '<p class="muted">点击模块查看输入、输出、依赖与证据。预览计划后会显示实际适用性。</p>'; return; }
     const nodes = planDisplayNodes(plan), counts = ["ready","partial","skipped","unselected"].map(status => ({status,count:nodes.filter(node => node.status === status).length}));
