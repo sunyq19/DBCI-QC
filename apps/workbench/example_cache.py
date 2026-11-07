@@ -34,11 +34,10 @@ def homepage(store, template):
     template=template.replace('<p class="small muted">正在读取示例目录…</p>', ''.join(cards) or '<p class="small muted">尚未发布示例报告。</p>')
     template=template.replace('<span id="demo-reports-count" class="tag subtle">—</span>',f'<span id="demo-reports-count" class="tag subtle">{len(rows)}</span>')
     if rows:template=template.replace('href="#demo-reports" hidden','href="#demo-reports"')
-    comparisons=[]
-    for row in data.get('comparisons',[]):
-        comparisons.append(f'<a class="example-comparison-link comparison-zh" href="{esc(row["url"])}"><span>{esc(row["label"])}</span><small>同一数据 · 两套检查方案</small></a><a class="example-comparison-link comparison-en" href="{esc(row.get("url_en",row["url"]))}"><span>{esc(row.get("label_en",row["label"]))}</span><small>Same data · Two workflows</small></a>')
-    template=template.replace('<!--example-comparisons-->',''.join(comparisons))
-    encoded=json.dumps(data,ensure_ascii=False,separators=(',',':')).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
+    # Completed personal runs belong to the data library, not a second example
+    # entry. Existing published comparison URLs remain archived and readable.
+    visible_data={k:v for k,v in data.items() if k!='comparisons'}
+    encoded=json.dumps(visible_data,ensure_ascii=False,separators=(',',':')).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     return template.replace('</head>',f'<script id="example-cache" type="application/json">{encoded}</script></head>',1)
 
 

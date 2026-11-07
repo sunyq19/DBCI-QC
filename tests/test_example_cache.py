@@ -45,6 +45,10 @@ class ExampleCacheTests(unittest.TestCase):
         self.assertIn('id="example-cache" type="application/json"',html)
         self.assertNotIn('正在读取示例目录',html)
         self.assertNotIn('href="#demo-reports" hidden',html)
+        self.assertNotIn('example-comparison-link',html)
+        self.assertNotIn('comparison-en',html)
+        self.assertNotIn('Same data · Two workflows',html)
+        self.assertNotIn('EEG 方案对照',html)
 
     def test_cache_absence_has_immediate_empty_state_not_computation(self):
         with tempfile.TemporaryDirectory() as directory:

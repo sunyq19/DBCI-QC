@@ -172,6 +172,12 @@ body.qc-app, body.qc-document {
 .qc-app .data-library-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; padding: 14px 0; }
 .qc-app .data-library-label { min-width: 0; }
 .qc-app .data-library-actions { font-size: var(--text-note); }
+.qc-app .data-library-reports { grid-column:2 / -1; min-width:0; border-top:1px solid var(--line); }
+.qc-app .library-report-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0 0; font-size:var(--text-note); }
+.qc-app .library-report-name { display:grid; gap:2px; min-width:0; overflow-wrap:anywhere; }
+.qc-app .library-report-name strong { font-size:var(--text-control); font-weight:500; }
+.qc-app .library-report-name time { color:var(--muted); font-size:var(--text-note); }
+.qc-app .library-report-links { display:flex; gap:12px; flex-shrink:0; }
 .qc-app .library-toolbar { margin-bottom: 12px; justify-content: flex-end; }
 .qc-app #data-search { width: 100%; margin-bottom: 8px; }
 .qc-app .pending-recovery { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -470,12 +476,6 @@ body.qc-app, body.qc-document {
 
 .qc-app .upload-first .intro {display:flex;align-items:center;justify-content:space-between;gap:16px}
 .qc-app #example-shortcut {font-size:13px;white-space:nowrap}
-.qc-app .example-comparison-link {display:flex;align-items:center;gap:12px;padding:12px 14px;margin-top:12px;border:1px solid var(--line);border-radius:var(--radius-control);background:var(--primary-light);color:var(--primary);font-size:var(--text-control);font-weight:500;text-decoration:none}
-.qc-app .example-comparison-link:hover {background:#e4edfc;border-color:#b1c5e9;text-decoration:none}
-.qc-app .example-comparison-link:focus-visible {outline:2px solid var(--primary);outline-offset:3px}
-.comparison-en {display:none}
-html[lang="en"] .comparison-zh {display:none}
-html[lang="en"] .comparison-en {display:inline}
 [data-active-record=true] #example-shortcut {display:none}
 .qc-app #demo-reports:not([open]) #demo-report-list {display:none;}
 

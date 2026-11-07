@@ -74,10 +74,22 @@ def library(store):
         # A prior confirmation's score never substitutes for the current revision.
         attempts = [j for j in jobs if j['input_id']==item['id']]
         latest = max(attempts,key=lambda j:j['created_at']) if attempts else None
+        completed = sorted((j for j in attempts if j['status']=='completed' and
+                            (store.root/'jobs'/j['id']/'artifacts'/'report.html').is_file()),
+                           key=lambda j:j['created_at'],reverse=True)
+        labels = item.get('report_labels', {})
+        reports = []
+        for job in completed[:2]:
+            label = labels.get(job['id'], {})
+            reports.append({'job_id':job['id'], 'label':label.get('zh-CN','检查报告'),
+                            'label_en':label.get('en','QC report'), 'created_at':job['created_at'],
+                            'url':f"/api/v1/jobs/{job['id']}/report",
+                            'visualizations_url':f"/api/v1/jobs/{job['id']}/visualizations"})
         records.append({'id':'record:'+item['id'], 'kind':'record', 'label':item['label'],
                         'available':item.get('availability',{}).get('status')!='unavailable',
                         'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),
                         'status':latest['status'] if latest else 'not_run',
+                        'recent_reports':reports,
                         'updated_at':latest['created_at'] if latest else item.get('provenance',{}).get('received_at',''),
                         'url':'/?'+urlencode({'input':item['id']}),
                         'latest_run_url':(f"/api/v1/jobs/{latest['id']}/report" if latest['status'] == 'completed' else '/?'+urlencode({'job':latest['id']})) if latest else None})

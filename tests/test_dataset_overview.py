@@ -298,6 +298,30 @@ class SummaryTests(unittest.TestCase):
         self.assertIn('Missing auxiliary table', after)
         self.assertNotIn('尚无法判断', before)
 
+    def test_personal_record_groups_completed_reports_without_moving_evidence(self):
+        item=dict(id='personal',label='My EEG',library_origin='user_registered',
+                  report_labels={'a'*32:{'zh-CN':'推荐方案','en':'Recommended workflow'},
+                                 'b'*32:{'zh-CN':'灵犀云方案','en':'Gnosis workflow'}})
+        self.store.inputs[item['id']]=item
+        for i,key in enumerate(['a','b','c']):
+            jid=key*32
+            self.store.jobs[jid]=dict(id=jid,input_id=item['id'],status='completed',created_at=f'2026-11-0{i+1}')
+            if key!='c':
+                path=self.store.root/'jobs'/jid/'artifacts'/'report.html'
+                path.parent.mkdir(parents=True,exist_ok=True);path.write_text('saved report')
+        rows=library(self.store)['items']
+        row=next(r for r in rows if r['id']=='record:personal')
+        self.assertEqual([r['label'] for r in row['recent_reports']],['灵犀云方案','推荐方案'])
+        self.assertEqual(row['recent_reports'][0]['visualizations_url'],'/api/v1/jobs/'+'b'*32+'/visualizations')
+        self.assertTrue(all(r['url'].startswith('/api/v1/jobs/') for r in row['recent_reports']))
+        self.assertEqual((self.store.root/'jobs'/('a'*32)/'artifacts/report.html').read_text(),'saved report')
+        # A revised confirmation must not inherit the previous revision's reports.
+        item.update(record_family='family',record_revision=1)
+        self.store.inputs['revised']=dict(item,id='revised',record_revision=2)
+        rows=library(self.store)['items']
+        self.assertFalse(any(r['id']=='record:personal' for r in rows))
+        self.assertEqual(next(r for r in rows if r['id']=='record:revised')['recent_reports'],[])
+
     def test_summary_api_export_and_local_origin_guard(self):
         self.save_dataset()
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler);server.store=self.store

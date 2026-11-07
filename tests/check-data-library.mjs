@@ -82,3 +82,19 @@ assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
 cacheLanguage='en';cachedEvents['qc:languagechange']();
 assert.match(cachedElement('demo-report-list').innerHTML,/eeg.en.html/);
 console.log('Published cache renders before fetch and survives failed or empty personal responses.');
+
+// Completed alternatives are children of the original data, not example links.
+language='zh-CN';element('library-data').events.click();
+const personal=window.QCDataLibrary.refresh();
+const recent=[['a'.repeat(32),'推荐方案','Recommended workflow'],['b'.repeat(32),'灵犀云方案','Gnosis workflow']].map(([id,label,label_en])=>({
+  job_id:id,label,label_en,created_at:'2026-11-07T04:27:00Z',url:`/api/v1/jobs/${id}/report`,visualizations_url:`/api/v1/jobs/${id}/visualizations`}));
+requests.at(-1)({ok:true,json:async()=>({items:[item('eeg',{status:'completed',recent_reports:recent})],examples:[]})});await personal;
+let grouped=element('data-library-list').innerHTML;
+assert.equal((grouped.match(/class="data-library-item/g)||[]).length,1);
+assert.equal((grouped.match(/class="library-report-row/g)||[]).length,2);
+assert.match(grouped,/推荐方案/);assert.match(grouped,/灵犀云方案/);
+assert(!grouped.includes('Recommended workflow'));assert(!grouped.includes('/examples/'));
+for(const row of recent){assert(grouped.includes(row.url+'?lang=zh-CN'));assert(grouped.includes(row.visualizations_url+'?lang=zh-CN'));}
+language='en';events['qc:languagechange']();grouped=element('data-library-list').innerHTML;
+assert.match(grouped,/Recommended workflow/);assert(!grouped.includes('推荐方案'));
+console.log('Personal data groups saved reports and charts, with one active language.');
