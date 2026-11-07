@@ -760,6 +760,7 @@ class Handler(BaseHTTPRequestHandler):
                                                           'inspection_modalities': ['scalp_eeg', 'ecog', 'seeg', 'extracellular', 'other'],
                                                           'max_upload_bytes': self.store.intakes.limits.max_file_bytes,
                                                           'max_record_bytes': self.store.intakes.limits.max_record_bytes,
+                                                          'max_dataset_bytes': self.store.intakes.limits.max_dataset_bytes,
                                                           'intake_limit_version': self.store.intakes.limits.version, 'local_only': True},
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})

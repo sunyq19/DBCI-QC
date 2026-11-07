@@ -55,7 +55,7 @@ python3.11 scripts/setup_local.py
 | NWB 2 / HDF5 | 单个 `.nwb`，读取后选择连续 ElectricalSeries |
 | SpikeGLX | 一个 AP 或 LF 流的 `.bin` + `.meta` 打包为 ZIP |
 
-单次上传及 ZIP 解压后总量上限均为 **2 GiB**。当前处理连续记录；EDF+D/BDF+D、分段 SET、分卷 FIF、NWB-Zarr、`.cbin` 和分选后的神经元单元尚未支持。格式不决定模态，读取后需要确认。详见[文件要求](docs/file-formats.md)。
+**单文件最大 2 GiB，数据集总量最大 10 GiB**。一份记录及其配套文件合计不超过 2 GiB；单记录 ZIP 按解压后的大小核算。当前处理连续记录；EDF+D/BDF+D、分段 SET、分卷 FIF、NWB-Zarr、`.cbin` 和分选后的神经元单元尚未支持。格式不决定模态，读取后需要确认。详见[文件要求](docs/file-formats.md)。
 
 没有数据时，可先运行合成示例：
 

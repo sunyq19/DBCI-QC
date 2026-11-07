@@ -8,7 +8,9 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `质检名称	QC run name
+  const pairs = `单文件最大 2 GiB · 数据集总量最大 10 GiB	Up to 2 GiB per file · 10 GiB per dataset
+单文件最大 2 GiB	Up to 2 GiB per file
+质检名称	QC run name
 （可选）	(optional)
 留空使用灰色名称	Leave blank to use the suggested name
 一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings

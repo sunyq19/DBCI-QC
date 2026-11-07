@@ -51,7 +51,7 @@ For custom directories, ports and upgrades, see the [installation guide](docs/en
 | NWB 2 / HDF5 | One `.nwb`; select a continuous ElectricalSeries after reading |
 | SpikeGLX | One AP or LF `.bin` + `.meta` pair in a ZIP |
 
-Upload and uncompressed ZIP limits are **2 GiB** each. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
+Limits are **2 GiB per file and 10 GiB per dataset**. A recording and its companion files must total no more than 2 GiB; recording ZIPs are measured after extraction. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
 
 To try a generated engineering example:
 

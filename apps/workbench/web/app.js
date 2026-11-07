@@ -104,7 +104,8 @@
     state.catalog = catalog; state.activeModality = modality;
     const limit = catalog.capabilities?.intake?.max_upload_bytes;
     if (Number.isSafeInteger(limit) && limit > 0) {
-      $("upload-limit-note").textContent = `仅在本机处理 · 最大 ${size(limit)}`;
+      const datasetLimit = catalog.capabilities.intake.max_dataset_bytes;
+      $("upload-limit-note").textContent = `单文件最大 ${size(limit)}` + (Number.isSafeInteger(datasetLimit) && datasetLimit > 0 ? ` · 数据集总量最大 ${size(datasetLimit)}` : "");
       $("zip-limit-note").textContent = `ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 ${size(catalog.capabilities.intake.max_record_bytes || limit)}。`;
     }
     if (Array.isArray(catalog.modalities)) state.modalityChoices = catalog.modalities;

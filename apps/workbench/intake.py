@@ -336,6 +336,7 @@ class IntakeStore:
                      'capabilities': {'supported_modality': 'scalp_eeg', 'supported_modalities': list(ROUTES), 'inspection_modalities': sorted(MODALITIES),
                                       'readers': list_readers(), 'max_window_seconds': 120,
                                       'max_upload_bytes': self.limits.max_file_bytes,
+                                      'max_dataset_bytes': self.limits.max_dataset_bytes,
                                       'max_record_bytes': self.limits.max_record_bytes,
                                       'intake_limit_version': self.limits.version}}
             from upload_retention import receipt
