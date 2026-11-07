@@ -10,10 +10,12 @@ def dispatch_visualizations(handler,path):
     if not match:return False
     identifier=match.group(1)
     query=parse_qs(urlsplit(handler.path).query,keep_blank_values=True)
-    if set(query)-{'show','configured','window','limit','band','lang'} or any(len(v)!=1 for k,v in query.items() if k!='show'):
+    if set(query)-{'show','configured','window','limit','band','lang','embedded'} or any(len(v)!=1 for k,v in query.items() if k!='show'):
         raise ValueError('图表选择参数无效。')
     if query.get('lang',['zh-CN'])[0] not in {'zh-CN','en'}:
         raise ValueError('不支持此语言。')
+    if query.get('embedded',['0'])[0] not in {'0','1'}:
+        raise ValueError('图表显示方式无效。')
     if handler.store.job(identifier)['status']!='completed':
         raise ValueError('任务尚未完成，没有可用的最终报告。')
     # The gallery only needs the saved presentation manifest, not the potentially
@@ -34,6 +36,7 @@ def dispatch_visualizations(handler,path):
     base=f'/api/v1/jobs/{identifier}'
     page=render_gallery(result,load,selected=query.get('show',[]) if query.get('configured')==['1'] else None,
                         window=query.get('window',[''])[0],limit=int(query.get('limit',['32'])[0]),band=query.get('band',['alpha'])[0],
-                        back_url=base+'/report',action=base+'/visualizations',asset_url=lambda n:base+'/artifacts/'+quote(n))
+                        back_url=base+'/report',action=base+'/visualizations',asset_url=lambda n:base+'/artifacts/'+quote(n),
+                        embedded=query.get('embedded')==['1'])
     handler.send_bytes(page.encode(),'text/html; charset=utf-8')
     return True

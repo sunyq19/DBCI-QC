@@ -1,5 +1,27 @@
 'use strict';
 
+// Charts are a report section. Defer evidence reads until it is opened.
+const chartSections = [...document.querySelectorAll('[data-report-charts]')];
+chartSections.forEach(section => {
+  const frame = section.querySelector('iframe');
+  const status = section.querySelector('[data-chart-status]');
+  section.addEventListener('toggle', () => {
+    if (section.open && !frame.getAttribute('src')) frame.src = frame.dataset.chartSrc;
+  });
+  frame.addEventListener('load', () => {
+    if (frame.getAttribute('src')) status.hidden = true;
+  });
+});
+window.addEventListener('message', event => {
+  if (event.origin !== location.origin || event.data?.type !== 'qc-chart-height') return;
+  const height = event.data.height;
+  if (!Number.isFinite(height) || height < 1 || height > 100000) return;
+  for (const section of chartSections) {
+    const frame = section.querySelector('iframe');
+    if (event.source === frame.contentWindow) frame.style.height = Math.ceil(height) + 'px';
+  }
+});
+
 // Links still open the selected image if JavaScript is unavailable.
 let findingRequest = 0;
 document.querySelectorAll('[data-finding]').forEach(link => {
@@ -29,8 +51,8 @@ document.querySelectorAll('[data-finding]').forEach(link => {
 });
 
 // Anchor links must reveal their target when it lives inside a closed disclosure.
-function revealReportTarget() {
-  const target = document.getElementById(location.hash.slice(1));
+function revealReportTarget(hash) {
+  const target = document.getElementById((typeof hash === 'string' ? hash : location.hash).slice(1));
   if (!target) return;
   for (let node = target; node; node = node.parentElement) {
     if (node.tagName === 'DETAILS') node.open = true;
@@ -38,4 +60,7 @@ function revealReportTarget() {
   target.scrollIntoView({block:'start'});
 }
 window.addEventListener('hashchange', revealReportTarget);
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener('click', () => revealReportTarget(link.hash));
+});
 if (location.hash) revealReportTarget();

@@ -1,0 +1,162 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MNE_sEEG_sample_ieeg.fif · 记录报告</title><style>/* Keep the viewport width stable when disclosures or dialogs change scrolling. */
+html { scrollbar-gutter: stable; }
+/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --workspace: #f3f5f8;
+  --surface: #fff;
+  --wash: #f5f7fa;
+  --ink: #243449;
+  --muted: #5b687b;
+  --sub: var(--muted);
+  --line: #dfe5ed;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --primary-line: #b8cae7;
+  --success: #176b5b;
+  --success-light: #edf7f3;
+  --success-line: #bfdcd0;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --amber-line: #e8d7b8;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+
+/* Stable, compact report canvas: disclosures grow vertically inside the page. */
+html { scrollbar-gutter:stable; }
+main { width:100%; max-width:1200px; margin:20px auto; }
+.dataset-facts { gap:16px; margin:16px 0; padding-top:12px; }
+.dataset-facts dd { font-size:18px; }
+.report-conclusion { margin:16px 0; padding:10px 12px; font-size:13px; }
+section { margin-top:20px; }
+h2 { margin-bottom:10px; }
+th,td { padding:9px 10px; }
+.disclosure { padding:12px 0; }
+.disclosure:first-of-type { margin-top:20px; }
+.table-scroll { width:100%; min-width:0; }
+table { table-layout:fixed; }
+.report-link:hover { background:var(--primary-light); border-color:var(--primary); text-decoration:none; }
+</style><script src="/examples/db5be6dee7c0b47e/assets/dataset-report.js" defer></script><script src="/examples/db5be6dee7c0b47e/assets/report-interactions.js" defer></script><link rel="stylesheet" href="/examples/db5be6dee7c0b47e/assets/ui-tokens.css"><link rel="stylesheet" href="/examples/db5be6dee7c0b47e/assets/workbench-ui.css"></head><body class="dataset-report"><nav class="saved-report-nav" aria-label="QC navigation"><a href="/examples/db5be6dee7c0b47e/datasets/example-seeg.zh-CN.html">← 返回数据集报告</a></nav><main><p class="eyebrow">DBCI-QC / sEEG</p><h1>MNE_sEEG_sample_ieeg.fif</h1><dl class="dataset-facts"><div><dt>模态</dt><dd>sEEG</dd></div><div><dt>分析通道</dt><dd>119</dd></div><div><dt>已计算时长</dt><dd>60.001 s</dd></div><div><dt>采样率</dt><dd>999.412 Hz</dd></div></dl><p class="report-conclusion">数值与信号统计已生成</p><p class="secondary">本报告描述技术质量，不采用头皮 EEG 坏道阈值，不给出临床合格判定或跨模态总分。</p><section><h2>检查结果</h2><details id="charts" class="report-chart-section" data-report-charts><summary>图表分析</summary><p data-chart-status role="status">正在载入图表…</p><iframe data-chart-src="/examples/db5be6dee7c0b47e/visualizations/d59c6af254f14e498bb61c586a8b4f09.embedded.zh-CN.html" title="图表分析" class="report-chart-frame" scrolling="no"></iframe></details><div class="table-scroll" tabindex="0" role="region" aria-label="检查结果"><table class="check-table"><tbody><tr><th>数值完整性</th><td>NaN / Inf 等不能计算的数值</td><td class="outcome">0 个样本</td></tr><tr><th>频谱与干扰</th><td>逐通道功率谱；在可测频带内测量工频邻域</td><td class="outcome">119 道已计算</td></tr><tr><th>接触点统计</th><td>各接触点的幅度、RMS 与峰峰值</td><td class="outcome">119 道已计算</td></tr></tbody></table></div></section><section><h2>波形预览</h2><p class="secondary">首段已保存波形；不代表全部通道和整份记录，图内标明通道与时间。</p><img alt="首段电压波形" src="/examples/db5be6dee7c0b47e/artifacts/d59c6af254f14e498bb61c586a8b4f09/w000001--waveform.png" style="width:100%;height:auto"></section><details class="disclosure"><summary>接触点测量示例</summary><p class="secondary">首段前 10 道，保留源通道顺序；用于描述，不按幅度直接判坏。</p><div class="table-scroll" tabindex="0" role="region" aria-label="接触点测量"><table><thead><tr><th>通道</th><th>RMS / µV</th><th>峰峰值 / µV</th></tr></thead><tbody><tr><th>LENT 1</th><td>7,951.175</td><td>344.526</td></tr><tr><th>LENT 2</th><td>7,094.231</td><td>548.158</td></tr><tr><th>LENT 3</th><td>1,650.447</td><td>639.606</td></tr><tr><th>LENT 4</th><td>3,558.474</td><td>485.42</td></tr><tr><th>LENT 5</th><td>2,937.025</td><td>617.807</td></tr><tr><th>LENT 6</th><td>1,756.125</td><td>526.359</td></tr><tr><th>LENT 7</th><td>5,378.259</td><td>720.421</td></tr><tr><th>LAMY 1</th><td>6,485.463</td><td>238.723</td></tr><tr><th>LAMY 2</th><td>5,162.988</td><td>234.469</td></tr><tr><th>LAMY 3</th><td>5,124.56</td><td>281.257</td></tr></tbody></table></div><span class="snapshot-unavailable" title="此示例未附带该文件">完整测量</span></details><details class="disclosure"><summary>检查范围与执行记录</summary><p>本地文件全长 60.001 s · 已计算 60.001 s · 未执行 0 s · 来源间隙 0 s</p><p>已完成分段的样本已扫描；常值区间的定位明细达到保存上限，完整计数与限制保留在原始证据中。</p><p>相邻样本相等可能来自量化；未据此直接剔除通道。所有候选与方法状态保留，缺项不计为通过。</p><div class="table-scroll" tabindex="0" role="region" aria-label="分段记录"><table><tbody><tr><th>w000001</th><td>0–60.001 s</td><td>partial</td><td><a href="/examples/db5be6dee7c0b47e/artifacts/d59c6af254f14e498bb61c586a8b4f09/w000001--report.html">原始分段报告</a></td></tr></tbody></table></div><p><span class="snapshot-unavailable" title="此示例未附带该文件">覆盖明细</span> · <span class="snapshot-unavailable" title="此示例未附带该文件">方法与结果</span> · <a href="/examples/db5be6dee7c0b47e/artifacts/d59c6af254f14e498bb61c586a8b4f09/report.html">运行时原始报告</a></p></details><footer><span>DBCI-QC</span><button id="print-report">打印 / PDF</button></footer></main><details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>示例文件说明</summary><p>示例包含报告与图像；未附带原始信号及机器可读的运行证据文件。</p></details></body></html>

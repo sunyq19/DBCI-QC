@@ -10,13 +10,12 @@
     return `<div class="data-library-reports" aria-label="${t('最近的检查报告','Recent QC reports')}">${reports.map(report=>{
       const stamp=new Date(report.created_at);
       const time=Number.isNaN(stamp.valueOf())?'':stamp.toLocaleString(en()?'en-GB':'zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
-      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(en()?report.label_en||report.label:report.label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${t('报告','Report')}</a><a href="${esc(href(report.visualizations_url))}">${t('图表','Charts')}</a></span></div>`;
+      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(en()?report.label_en||report.label:report.label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${t('查看报告','View report')}</a></span></div>`;
     }).join('')}</div>`;
   }
   function renderExamples(){
     const datasets=examples.filter(r=>r.kind==='dataset');
     $('demo-reports').hidden=!datasets.length;
-    $('example-shortcut').hidden=!datasets.length;
     $('demo-reports-count').textContent=String(datasets.length);
     $('demo-reports-title').textContent=t('示例数据集','Example datasets');
     $('demo-reports').setAttribute('aria-label',t('示例数据集','Example datasets'));
@@ -41,8 +40,8 @@
     $('library-category-note').textContent=t('用于验证缺件、信息不一致和读取边界；检查发现会原样保留。','Cases for missing files, metadata differences and reader limits. Findings are preserved.');
     $('data-library-list').innerHTML=rows.slice(0,limit).map(r=>{
       const reports=Array.isArray(r.recent_reports)?r.recent_reports:[];
-      const target=reports.length&&r.available?r.url:r.latest_run_url||r.url, action=reports.length&&r.available?t('打开数据','Open data'):r.latest_run_url?(r.status==='completed'?t('查看报告','View report'):t('查看运行','View run')):t('打开','Open');
-      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span><a class="data-library-label" href="${esc(href(target))}"><strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`} </small></a><span class="data-library-actions"><a class="data-open" href="${esc(href(target))}">${action}</a>${!reports.length && r.latest_run_url && r.available?`<a class="data-secondary" href="${esc(href(en()?r.url_en||r.url:r.url))}">${t('打开数据','Open data')}</a>`:''}</span>${reports.length?reportRows(reports):''}</div>`;
+      const target=r.available?r.url:r.latest_run_url||r.url;
+      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span><a class="data-library-label" href="${esc(href(target))}"><strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`} </small></a>${reports.length?reportRows(reports):''}</div>`;
     }).join('')||`<p class="small muted">${items.length?t('暂无匹配数据','No matching data'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
@@ -56,6 +55,5 @@
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
   try{$('demo-reports').open=window.localStorage.getItem('qc.examples.open')!=='false'}catch{}
   $('demo-reports').addEventListener('toggle',()=>{try{window.localStorage.setItem('qc.examples.open',String($('demo-reports').open))}catch{}});
-  $('example-shortcut').addEventListener('click',()=>{$('demo-reports').open=true});
   window.QCDataLibrary={refresh};renderExamples();refresh();
 })();

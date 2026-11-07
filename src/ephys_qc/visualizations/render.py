@@ -122,7 +122,7 @@ def ranges(rows,feature,band,limit):
     return svg(''.join(parts),h,feature+' '+band)+ '<p class="caption">灰线：参考范围 · 圆点：当前值 · 橙色：范围外。范围外不直接判为质量差。</p>'
 
 
-def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',asset_url=lambda n:n,back_url='',action=''):
+def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',asset_url=lambda n:n,back_url='',action='',embedded=False):
     """load(name) is a caller-provided allowlisted artifact reader. No path from a URL is opened here."""
     specs=visualization_specs();available={s['key'] for s in specs if s['status']=='available'}
     automatic=selected is None
@@ -261,10 +261,11 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
     period=interval_label(window)
     scope_note=(f'当前图表：原记录 {period}。' if period else '当前图表：所选分析窗口，时间范围未记录。')
     if result.get('scope')=='recording':scope_note+=' 按窗口展示，不是整份记录的汇总图。'
-    return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>结果可视化 · 质控台</title><style>{CSS}</style></head><body>
+    embed_field='<input type="hidden" name="embedded" value="1">' if embedded else ''
+    return f'''<!doctype html><html lang="zh-CN" class="{'embedded-charts' if embedded else ''}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>结果可视化 · 质控台</title><style>{CSS}</style></head><body>
 <nav><a href="{esc(back_url)}" target="_top">← 返回质控报告</a><span>DBCI-QC · 图表分析</span></nav><main>
 <div class="intro"><h1>图表分析</h1><p>{esc(caption)}</p><p class="scope-note">{esc(scope_note)}</p></div>
-<form action="{esc(action)}" method="get" class="controls"><input type="hidden" name="configured" value="1"><div class="toolbar"><label>查看时段 <select name="window">{window_options}</select></label><label>显示通道 <select name="limit">{limits}</select></label><label>参考频带 <select name="band">{bands}</select></label><button>更新图表</button></div><details><summary>选择图表</summary><div class="choices">{checkboxes}</div></details></form>
+<form action="{esc(action)}" method="get" class="controls"><input type="hidden" name="configured" value="1">{embed_field}<div class="toolbar"><label>查看时段 <select name="window">{window_options}</select></label><label>显示通道 <select name="limit">{limits}</select></label><label>参考频带 <select name="band">{bands}</select></label><button>更新图表</button></div><details><summary>选择图表</summary><div class="choices">{checkboxes}</div></details></form>
 <div class="module-links" aria-label="图表模块">{links}</div>{warning}{''.join(panels) if panels else missing('请选择至少一种图表。')}<footer>{VERSION} · 数值和候选均来自保存的检测结果；图表配色不定义新的质量标准。</footer></main>
 <script src="/visualizations.js" defer></script></body></html>'''
 
@@ -272,3 +273,5 @@ CSS='''*{box-sizing:border-box}body{margin:0;background:#f4f7fc;color:#17324d;fo
 
 # Compact document spacing; stable scrollbar placement when modules expand.
 CSS += """html{scrollbar-gutter:stable}body{background:#fff;color:#243449}nav{height:56px;padding:0 24px}main{max-width:1200px;margin:24px auto;padding:0 24px}.intro{margin-bottom:16px}.intro h1{font-size:22px}.controls{padding:12px 16px;margin:14px 0}.toolbar{margin:0;padding:0;border:0;gap:12px}select,button{padding:5px 8px;border-radius:4px;font-size:13px}.choices{margin-top:12px;gap:8px}.panel{padding:12px 16px;margin:10px 0;border-radius:4px}.panel-title{font-size:14px}.figure{margin-top:14px;padding-top:12px}.figure-head{margin-bottom:10px}.figure-head h3{font-size:14px}.module-links{margin:16px 0;gap:8px 16px}.scope-note{font-size:13px}.empty{padding:12px;border-radius:4px}details{margin-top:12px}.snapshot-unavailable{color:#798495}footer{margin:20px 0;font-size:12px}"""
+
+CSS += """.embedded-charts{scrollbar-gutter:auto}.embedded-charts body{display:flow-root;min-height:0}.embedded-charts nav,.embedded-charts footer,.embedded-charts .intro h1,.embedded-charts .intro>p:not(.scope-note){display:none}.embedded-charts main{max-width:none;margin:0;padding:0}.embedded-charts .intro{margin:0 0 10px}.embedded-charts .panel{margin:10px 0}.embedded-charts .panel-title{flex-shrink:1}.embedded-charts .module-links{margin:12px 0}"""

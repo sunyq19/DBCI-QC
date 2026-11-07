@@ -64,6 +64,11 @@ def served_report(store, identifier, language='zh-CN'):
     if modality in {'ecog', 'seeg', 'extracellular'}:
         from descriptive_report import render
         report = render(store, identifier, language) or report
+        from ephys_qc.report_presentation import inline_charts
+        chart_link=f'<p><a href="/api/v1/jobs/{identifier}/visualizations">'
+        report=re.sub(re.escape(chart_link)+r'.*?</a></p>',
+                      lambda _:inline_charts(f'/api/v1/jobs/{identifier}/visualizations',english=language=='en'),report)
+        report=report.replace('</head>','<script src="/report-interactions.js" defer></script></head>',1)
     # Every relative resource is still checked against the artifact manifest by
     # its endpoint. This rewrite grants no access to new files or host paths.
     def resource(match):

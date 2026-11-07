@@ -33,7 +33,6 @@ def homepage(store, template):
         cards.append(f'<a class="demo-report" href="{esc(r["url"])}"><span class="demo-report-copy"><strong>{esc(r["label"])}<small class="example-format">{esc(r["formats"])}</small></strong><span>{esc(r["description"])}</span><small>{r["subjects"]} 个体 · {r["records"]} 份记录 · 报告 {r["reported"]}/{r["records"]}</small></span><span class="demo-report-end">查看报告</span></a>')
     template=template.replace('<p class="small muted">正在读取示例目录…</p>', ''.join(cards) or '<p class="small muted">尚未发布示例报告。</p>')
     template=template.replace('<span id="demo-reports-count" class="tag subtle">—</span>',f'<span id="demo-reports-count" class="tag subtle">{len(rows)}</span>')
-    if rows:template=template.replace('href="#demo-reports" hidden','href="#demo-reports"')
     # Completed personal runs belong to the data library, not a second example
     # entry. Existing published comparison URLs remain archived and readable.
     visible_data={k:v for k,v in data.items() if k!='comparisons'}

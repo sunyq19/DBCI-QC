@@ -169,15 +169,17 @@ body.qc-app, body.qc-document {
 .qc-app .data-library-label:is(:hover, :focus-visible) strong { color: var(--primary-dark); }
 .qc-app .data-library-label small { color: var(--muted); }
 .qc-app .data-kind { color: var(--muted); background: var(--wash); border-radius: 3px; font-weight: 400; }
-.qc-app .data-library-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; padding: 14px 0; }
+.qc-app .data-library-item { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; padding: 14px 0; }
 .qc-app .data-library-label { min-width: 0; }
-.qc-app .data-library-actions { font-size: var(--text-note); }
 .qc-app .data-library-reports { grid-column:2 / -1; min-width:0; border-top:1px solid var(--line); }
 .qc-app .library-report-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0 0; font-size:var(--text-note); }
 .qc-app .library-report-name { display:grid; gap:2px; min-width:0; overflow-wrap:anywhere; }
 .qc-app .library-report-name strong { font-size:var(--text-control); font-weight:500; }
 .qc-app .library-report-name time { color:var(--muted); font-size:var(--text-note); }
 .qc-app .library-report-links { display:flex; gap:12px; flex-shrink:0; }
+.report-chart-section { margin:16px 0; padding:0 0 16px; border-bottom:1px solid var(--line); }
+.report-chart-section>summary { font-size:16px; font-weight:600; }
+.report-chart-frame { display:block; width:100%; height:180px; border:0; margin-top:12px; }
 .qc-app .library-toolbar { margin-bottom: 12px; justify-content: flex-end; }
 .qc-app #data-search { width: 100%; margin-bottom: 8px; }
 .qc-app .pending-recovery { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -475,8 +477,6 @@ body.qc-app, body.qc-document {
 @media print {.saved-report-nav {display:none}}
 
 .qc-app .upload-first .intro {display:flex;align-items:center;justify-content:space-between;gap:16px}
-.qc-app #example-shortcut {font-size:13px;white-space:nowrap}
-[data-active-record=true] #example-shortcut {display:none}
 .qc-app #demo-reports:not([open]) #demo-report-list {display:none;}
 
 .qc-app .scoring-weight-fields {display:grid;gap:10px;margin:14px 0;}
@@ -498,7 +498,6 @@ body.qc-app, body.qc-document {
   .qc-app .demo-report { flex-direction: column; align-items: stretch; gap: 8px; }
   .qc-app .demo-report-end { align-self: flex-end; }
   .qc-app .data-library-item { grid-template-columns: auto minmax(0,1fr); }
-  .qc-app .data-library-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px 16px; text-align: left; }
   .qc-app .studio-controls .rail-section > summary > small { display: none; }
   .qc-app .upload-first .intro { align-items: flex-start; flex-wrap: wrap; }
 }

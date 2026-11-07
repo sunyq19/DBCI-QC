@@ -2,6 +2,15 @@
 from html import escape
 import math
 import re
+from urllib.parse import urlencode
+
+
+def inline_charts(url, *, english=False):
+    """A report section; figures load only when this section is expanded."""
+    src=url+('&' if '?' in url else '?')+urlencode({'embedded':'1'})
+    title='Charts' if english else '图表分析'
+    loading='Loading charts…' if english else '正在载入图表…'
+    return f'<details id="charts" class="report-chart-section" data-report-charts><summary>{title}</summary><p data-chart-status role="status">{loading}</p><iframe data-chart-src="{escape(src,quote=True)}" title="{title}" class="report-chart-frame" scrolling="no"></iframe></details>'
 
 
 def focus_targets(view):
@@ -48,6 +57,8 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     headline = re.search(r'<h1>(.*?)</h1>', header, re.S).group(1)
     conclusion = re.search(r'<h1>.*?</h1><p>(.*?)</p>', header, re.S).group(1)
     actions = ''.join(re.findall(r'<a class="tag".*?</a>', header))
+    if visualization_url:
+        actions=actions.replace(f'href="{esc(visualization_url)}"','href="#charts"')
     facts = re.search(r'<div class="facts">(.*?)</div>', header, re.S).group(1)
     scope = re.search(r'<p class="scope">([^<]*检查[^<]*)</p>', header)
     failures = ''.join(re.findall(r'<p class="failure">.*?</p>', header, re.S))
@@ -83,10 +94,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     review = f'<section id="review"><h2>问题定位</h2>{locator}<details><summary>完整候选列表与测量</summary>{original_review}</details>{extra}</section>'
     charts = ''
     if visualization_url:
-        links=[('viz_interference','工频分布','哪些通道受到影响'),('viz_timeline','异常时间轴','异常集中在哪些时段'),('viz_psd','频谱对照','查看各通道的频率能量')]
-        artifacts=view.get('artifacts',[])
-        links=[link for link in links if any(name.endswith('M04_spectral.json') for name in artifacts) if link[0]!='viz_timeline'] + ([links[1]] if any(name.endswith('M06_muscle.json') or name.endswith('M06_gnosis_artifact.json') for name in artifacts) else [])
-        charts='<section id="charts"><h2>图表分析</h2><div class="report-chart-links">'+''.join(f'<a href="{esc(visualization_url)}#{key}"><strong>{title}</strong><span>{hint}</span></a>' for key,title,hint in links)+'</div></section>'
+        charts=inline_charts(visualization_url)
     details=f'<section id="checks"><h2>方法与依据</h2><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{section("scoring")}</details></section>'
     aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">方法与依据</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
     body=f'<div class="shell">{aside}<main>{overview}<section id="score-table">{checks}</section>{review}{charts}{details}<footer>DBCI-QC · 项目检查结果，候选需复核</footer></main></div>'
@@ -110,6 +118,7 @@ table{table-layout:fixed;font-size:13px;min-width:480px}th,td{padding:9px 10px;o
 .result-points{font-size:16px}.table-wrap{max-width:100%;overflow-x:auto;scrollbar-width:thin}.finding-table th:first-child{width:16%}.finding-table td:nth-child(2){width:40%}.finding-table td:last-child{width:90px;text-align:right}
 .finding-table tr.is-selected{background:#eef3fb}.finding-action{white-space:nowrap}.finding-preview{border:1px solid #dfe5ed;padding:12px;margin-top:12px;background:#fff;scroll-margin-top:20px}.figure-heading{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px}.figure-heading span{font-size:12px;color:#5b687b}.finding-preview img{display:block;width:100%;height:auto;min-height:120px;aspect-ratio:100/21;object-fit:contain}.finding-preview p:empty{display:none}.finding-preview p{font-size:12px;color:#5b687b}
 .report-chart-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.report-chart-links a{border:1px solid #dfe5ed;padding:10px 12px;border-radius:4px;display:grid;gap:2px}.report-chart-links a:hover{background:#eef3fb;text-decoration:none}.report-chart-links strong{font-size:13px;font-weight:500}.report-chart-links span{font-size:12px;color:#5b687b}
+.report-chart-section{border-bottom:1px solid #dfe5ed;padding:0 0 18px;margin:0 0 18px}.report-chart-section>summary{font-size:16px;font-weight:600}.report-chart-frame{width:100%;height:180px;border:0;display:block;margin-top:12px}.report-chart-section [data-chart-status]{font-size:13px;color:#5b687b}
 details{margin-top:10px;padding-top:10px}summary{font-size:13px}section>p.muted{font-size:12px;margin:0 0 10px}.scope,.footnote{font-size:12px}pre{font-size:12px}.failure{font-size:13px;padding:8px 10px}footer{font-size:12px;margin-top:12px}section[id],details[id]{scroll-margin-top:20px}
 @media(max-width:900px){.shell{display:block;padding:18px 16px}.shell aside{margin-bottom:18px}.shell aside nav{display:flex;flex-wrap:wrap;margin-top:8px;gap:8px 16px}.report-title{flex-wrap:wrap}}
 @media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.report-chart-links{grid-template-columns:1fr}.finding-preview img{min-height:80px}}

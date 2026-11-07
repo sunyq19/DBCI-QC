@@ -59,7 +59,7 @@ class ComparisonPublicationTests(unittest.TestCase):
     def test_snapshot_freezes_charts_pdf_and_evidence_without_runtime_links(self):
         def report(store,jid,language):
             base=f'/api/v1/jobs/{jid}'
-            return f'<html><head></head><body><nav class="saved-report-nav"></nav><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
+            return f'<html><head></head><body><nav class="saved-report-nav"></nav><iframe data-chart-src="{base}/visualizations?embedded=1"></iframe><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
         def gallery(*args,**kwargs):
             return f'<html><head><script src="/visualizations.js" defer></script></head><body><form><button>Recompute</button></form><p>原记录 0–120 秒，非整份汇总</p><svg></svg><a href="{kwargs["back_url"]}">Report</a></body></html>'
         with tempfile.TemporaryDirectory() as temp:
@@ -83,14 +83,15 @@ class ComparisonPublicationTests(unittest.TestCase):
             from example_cache import homepage
             html=homepage(SimpleNamespace(settings={'example_cache_dir':str(out)}),(REPO/'apps/workbench/web/index.html').read_text())
             self.assertEqual(html.count('class="demo-report"'),1)
-            self.assertIn('class="example-comparison-link comparison-zh"',html)
-            self.assertIn(data['comparisons'][0]['url'],html)
+            self.assertNotIn('example-comparison-link',html)
             for jid in self.ids:
                 self.assertEqual((release/f'records/{jid}.pdf').read_bytes(),b'%PDF-fixture')
                 self.assertIn(data['comparisons'][0]['url'],(release/f'records/{jid}.zh-CN.html').read_text())
                 self.assertEqual((release/f'records/{jid}.evidence.png').read_bytes(),b'PNG')
                 graph=(release/f'visualizations/{jid}.zh-CN.html').read_text()
                 self.assertNotIn('<form',graph);self.assertIn('0–120 秒',graph)
+                self.assertTrue((release/f'visualizations/{jid}.embedded.zh-CN.html').is_file())
+                self.assertIn(f'/visualizations/{jid}.embedded.zh-CN.html', (release/f'records/{jid}.zh-CN.html').read_text())
             for path in release.rglob('*.html'):
                 text=path.read_text()
                 self.assertNotIn('/api/v1/jobs/',text)

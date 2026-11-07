@@ -577,7 +577,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(data)))
         self.send_header('Cache-Control', (headers or {}).get('Cache-Control', 'no-store'))
         self.send_header('X-Content-Type-Options', 'nosniff')
-        frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations", urlsplit(self.path).path) else "none"
+        frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations|/examples/[a-f0-9]{16}/visualizations/[a-f0-9]{32}\.embedded\.(?:zh-CN|en)\.html", urlsplit(self.path).path) else "none"
         self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors '{frame_policy}'; base-uri 'none'")
         for name, value in (headers or {}).items():
             if name.lower() != 'cache-control': self.send_header(name, value)

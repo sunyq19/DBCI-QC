@@ -24,7 +24,7 @@ class ExampleCacheTests(unittest.TestCase):
             if path.suffix=='.html':
                 text=path.read_text()
                 self.assertNotRegex(text,r'/(?:home|media|tmp)/')
-                for url in re.findall(r'(?:src|href)=["\']([^"\']+)',text):
+                for url in re.findall(r'(?:data-chart-src|src|href)=["\']([^"\']+)',text):
                     if url.startswith('/examples/'):
                         parsed=urlsplit(url);target=asset(store,parsed.path)
                         self.assertTrue(target.is_file(),url)
@@ -49,6 +49,7 @@ class ExampleCacheTests(unittest.TestCase):
         self.assertNotIn('comparison-en',html)
         self.assertNotIn('Same data · Two workflows',html)
         self.assertNotIn('EEG 方案对照',html)
+        self.assertNotIn('example-shortcut',html)
 
     def test_cache_absence_has_immediate_empty_state_not_computation(self):
         with tempfile.TemporaryDirectory() as directory:

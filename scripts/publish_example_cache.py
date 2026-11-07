@@ -124,9 +124,9 @@ def publish(config,destination):
                 try:figures[jid]=evidence_figure(view,store.workspace(jid)) if view else (None,[])
                 except (OSError,KeyError,ValueError,RuntimeError,ImportError):figures[jid]=(None,['波形未随快照发布；原始测量结果保留。'])
             return figures[jid]
-        def gallery(jid,language):
+        def gallery(jid,language,embedded=False):
             view=report_view(jid)
-            name=f'visualizations/{jid}.{language}.html'
+            name=f'visualizations/{jid}{".embedded" if embedded else ""}.{language}.html'
             if name not in done:
                 done.add(name)
                 if view:
@@ -143,7 +143,7 @@ def publish(config,destination):
                             selected.extend(k for k in keys if k not in selected)
                 html=render_gallery(result,lambda n:read_evidence(store.artifact(jid,n)),
                     selected=selected,window=options.get('window',''),limit=options.get('limit',32),
-                    back_url=f'/api/v1/jobs/{jid}/report',asset_url=lambda n:f'/api/v1/jobs/{jid}/artifacts/{n}')
+                    embedded=embedded,back_url=f'/api/v1/jobs/{jid}/report',asset_url=lambda n:f'/api/v1/jobs/{jid}/artifacts/{n}')
                 html=re.sub(r'<form\b.*?</form>','',html,flags=re.S|re.I)
                 html=html.replace('读取已有结果，切换图表不会重新质控或改变分数。','已保存的图表快照，不重新计算或更改分数。')
                 put(name,clean(html,f'/api/v1/jobs/{jid}/visualizations',language))
@@ -161,7 +161,7 @@ def publish(config,destination):
             if m and m[1] in jobids:
                 jid,action,filename=m.groups()
                 if action=='report':return replacement+f'records/{jid}.{language}.html'
-                if action=='visualizations':return gallery(jid,language)
+                if action=='visualizations':return gallery(jid,language,parse_qs(parsed.query).get('embedded')==['1'])
                 if action.startswith('report-focus-'):
                     index=int(action[13:-4]);key=(jid,index)
                     if key not in figures:
@@ -211,7 +211,7 @@ def publish(config,destination):
             html=re.sub(r'<pre\b[^>]*>.*?</pre>','',html,flags=re.S|re.I)
             # A public example has no user's live run workspace to restore.
             html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run)\s*</a>','',html)
-            html=re.sub(r'''\b(src|href)=(['"])([^'"]+)\2''',lambda m:m[1]+'='+m[2]+escape(resource(m[3],origin,language),quote=True)+m[2],html)
+            html=re.sub(r'''\b(data-chart-src|src|href)=(['"])([^'"]+)\2''',lambda m:m[1]+'='+m[2]+escape(resource(m[3],origin,language),quote=True)+m[2],html)
             html=re.sub(r'<img\b[^>]*\bsrc=[\"\']#snapshot-info[\"\'][^>]*>','',html,flags=re.I)
             html=re.sub(r'<a\b[^>]*\bhref=[\"\']#snapshot-info[\"\'][^>]*>(.*?)</a>',lambda m:'<span class="snapshot-unavailable" title="'+('Not included in this example' if language=='en' else '此示例未附带该文件')+'">'+m[1]+'</span>',html,flags=re.S|re.I)
             html=re.sub(r'/(?:home|media|tmp)/[^\s<>"\'&]+','[本地来源路径]',html)

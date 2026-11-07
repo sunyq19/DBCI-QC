@@ -70,6 +70,13 @@ class VisualizationTests(unittest.TestCase):
         page=render_gallery({},lambda _: {},selected=[],back_url='/api/v1/jobs/example/report')
         self.assertIn('href="/api/v1/jobs/example/report" target="_top"',page)
 
+    def test_embedded_gallery_stays_within_report_when_controls_change(self):
+        page=render_gallery({},lambda _: {},selected=['psd'],embedded=True,action='/charts')
+        self.assertIn('<html lang="zh-CN" class="embedded-charts">',page)
+        self.assertIn('name="embedded" value="1"',page)
+        self.assertIn('action="/charts"',page)
+        self.assertIn('id="viz_psd"',page)
+
     def test_declared_checks_keep_deep_link_targets_when_no_candidates_found(self):
         page=render_gallery({'artifacts':[{'name':'M04_spectral.json'},{'name':'M06_muscle.json'}]},
                             lambda _: {'status':'ok','candidates':[]})

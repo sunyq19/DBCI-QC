@@ -45,7 +45,7 @@ const req=window.QCDataLibrary.refresh();requests.at(-1)({ok:true,json:async()=>
  {kind:'dataset',label:'未运行',label_en:'Ready to run',url:'/datasets?package=new',subjects:1,records:2,reported:0,available:true},
  {kind:'dataset',label:'缺文件',label_en:'Missing files',url:'/datasets?package=gone',subjects:1,records:1,reported:0,available:false}]})});await req;
 assert.match(element('data-library-list').innerHTML,/ordinary-failure/);
-assert.match(element('data-library-list').innerHTML,/job=report/);
+assert.match(element('data-library-list').innerHTML,/input=ordinary-report/);
 assert(!element('data-library-list').innerHTML.includes('injected-case'));
 assert(!element('demo-report-list').innerHTML.includes('88.51'));
 assert.match(element('demo-report-list').innerHTML,/Reports 1\/2/);
@@ -94,7 +94,10 @@ assert.equal((grouped.match(/class="data-library-item/g)||[]).length,1);
 assert.equal((grouped.match(/class="library-report-row/g)||[]).length,2);
 assert.match(grouped,/推荐方案/);assert.match(grouped,/灵犀云方案/);
 assert(!grouped.includes('Recommended workflow'));assert(!grouped.includes('/examples/'));
-for(const row of recent){assert(grouped.includes(row.url+'?lang=zh-CN'));assert(grouped.includes(row.visualizations_url+'?lang=zh-CN'));}
+for(const row of recent){assert(grouped.includes(row.url+'?lang=zh-CN'));assert(!grouped.includes(row.visualizations_url));}
+assert(!grouped.includes('data-library-actions'));
+assert(!grouped.includes('打开数据'));
+assert.match(grouped,/href="\/\?input=eeg&amp;lang=zh-CN"/);
 language='en';events['qc:languagechange']();grouped=element('data-library-list').innerHTML;
 assert.match(grouped,/Recommended workflow/);assert(!grouped.includes('推荐方案'));
 console.log('Personal data groups saved reports and charts, with one active language.');
