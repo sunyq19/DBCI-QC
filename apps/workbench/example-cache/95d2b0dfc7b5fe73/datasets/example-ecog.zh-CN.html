@@ -1,0 +1,148 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ECoG · 数据集报告</title><style>/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --surface: #fff;
+  --wash: #f7f8fa;
+  --ink: #252b34;
+  --muted: #68717e;
+  --sub: var(--muted);
+  --line: #e4e7ec;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+</style><script src="/examples/95d2b0dfc7b5fe73/assets/dataset-report.js" defer></script></head><body class="dataset-report">
+<header class="report-header"><a href="/">← 质控台</a><span>数据集报告</span><nav><a href="/examples/95d2b0dfc7b5fe73/datasets/example-ecog.zh-CN.html">EN</a><button id="print-report">打印 / PDF</button></nav></header>
+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / 公开样本示例</p><h1>ECoG</h1><p class="secondary">临床发作 · 每人三份记录</p></div></div>
+<dl class="dataset-facts"><div><dt>个体</dt><dd>2</dd></div><div><dt>记录</dt><dd>6</dd></div><div><dt>样本总时长</dt><dd>1,396.33 s</dd></div><div><dt>文件格式</dt><dd>BrainVision</dd></div></dl><p class="report-conclusion">6 份信号报告已生成 · 1 类资料问题需核对</p>
+<section id="checks"><h2>检查了什么</h2><div class="table-scroll" tabindex="0" role="region" aria-label="检查结果"><table class="check-table"><tbody><tr><th><small>D01</small>文件完整性</th><td>清单中的文件是否齐全，记录能否读取</td><td class="outcome">44 / 44 个文件与清单相符</td></tr><tr><th><small>D02</small>个体资料核对</th><td>编号、通道表、单位、采样率和事件时间</td><td class="outcome">6 项需核对</td></tr><tr><th><small>D03</small>同组记录比较</th><td>按声明的比较组核对；不同来源、模态或 AP/LF 不混比</td><td class="outcome">3 项一致</td></tr><tr><th><small>M03–M07</small>信号检查</th><td>EEG：完整性、频谱、通道及伪迹；其他模态：完整性、频谱和接触点统计</td><td class="outcome">6 / 6 份报告</td></tr></tbody></table></div></section>
+<section id="findings"><h2>需要核对</h2><article class="finding"><h3>单位标注不一致 <span>6 份记录</span></h3><p>文件头与配套表的单位标注不同；尚不能据此认定波形错误。 nV / uV</p><p class="secondary">请数据提供方核对原始单位、标定系数和导出说明，再决定是否需要修正。</p></article></section>
+<section id="recordings"><h2>逐份结果 <span>6</span></h2><p class="secondary">ECoG、sEEG、Neuropixels 当前提供技术描述，不套用头皮 EEG 的判坏阈值；相邻恒值可能来自量化，不直接判为坏道。</p><div class="table-scroll" tabindex="0" role="region" aria-label="逐份结果"><table class="record-table"><thead><tr><th>个体 / 记录</th><th>检查范围</th><th>信号结果摘要</th><th></th></tr></thead><tbody><tr><th>sub-ummc003<small>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 224.78 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/5ee2e68d50af48bea86ed0bac52c7be2.zh-CN.html">查看报告</a></td></tr><tr><th>sub-ummc003<small>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 200.97 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/095716380e7b4f3daa9784911b244433.zh-CN.html">查看报告</a></td></tr><tr><th>sub-ummc003<small>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 264.79 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/c5f16c7937474d3993aeb5e5bb8b89b1.zh-CN.html">查看报告</a></td></tr><tr><th>sub-ummc006<small>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 356.23 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/6a53ad8559d846f288bb917dafc2649e.zh-CN.html">查看报告</a></td></tr><tr><th>sub-ummc006<small>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 240.98 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/663cc0e87ad54cd3b7512d70bb719479.zh-CN.html">查看报告</a></td></tr><tr><th>sub-ummc006<small>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</small></th><td>BrainVision · 126 道 · 249.88 Hz · 108.58 s<small>已检查样本全长</small></td><td>NaN / Inf 0 点 · PSD 126 道</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/220ffb106d254d5e9d0f098f9ce5eb01.zh-CN.html">查看报告</a></td></tr></tbody></table></div></section>
+<details class="disclosure"><summary>本次未核对的资料 · 5 类</summary><p class="secondary">包括缺少配套表、无法唯一匹配或没有同组重复记录的检查；未计为通过，也不等于信号质量差。</p><div class="table-scroll" tabindex="0" role="region" aria-label="未核对资料"><table><tbody><tr><th>会话表对应</th><td>未提供或未验证对应表。</td><td>6</td></tr><tr><th>个体内单位</th><td>部分记录缺少可比较字段。</td><td>2</td></tr><tr><th>个体内参考</th><td>部分记录缺少可比较字段。</td><td>2</td></tr><tr><th>组内单位</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>组内参考</th><td>部分记录缺少可比较字段。</td><td>1</td></tr></tbody></table></div></details><details class="disclosure"><summary>检查范围与来源</summary><p>OpenNeuro ds003029 v1.0.7 的两名 ECoG 受试者，各三份发作记录及原配套表；仅评估此公开子集。</p><p>仅代表这些公开样本；不代表原始研究的完整数据集。</p><p><a href="https://openneuro.org/datasets/ds003029/versions/1.0.7" rel="noreferrer">https://openneuro.org/datasets/ds003029/versions/1.0.7</a></p><h3>比较组及核对字段</h3><ul><li><strong>ECoG · 原始记录</strong> · 采样率, 单位, 参考</li></ul><p>未计算跨个体或跨模态总分；本页未进行人工核验。</p></details>
+<details class="disclosure"><summary>完整检查记录</summary><div class="table-scroll" tabindex="0" role="region" aria-label="检查记录"><table><tbody><tr><td>D01</td><th>应到文件</th><td>dataset:shared_metadata</td><td>pass</td><td>6/6 个应有文件已核对。</td></tr><tr><td>D01</td><th>应到文件</th><td>sub-ummc003:recording_package</td><td>pass</td><td>19/19 个应有文件已核对。</td></tr><tr><td>D01</td><th>应到文件</th><td>sub-ummc006:recording_package</td><td>pass</td><td>19/19 个应有文件已核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc003_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-02-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>会话表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>通道表字段</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>conflict</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-03-raw</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>个体内通道配置</th><td>sub-ummc003 / ses-presurgery / ecog-raw</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D02</td><th>个体内采样率</th><td>sub-ummc003 / ses-presurgery / ecog-raw</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D02</td><th>个体内单位</th><td>sub-ummc003 / ses-presurgery / ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D02</td><th>个体内参考</th><td>sub-ummc003 / ses-presurgery / ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D02</td><th>个体内通道配置</th><td>sub-ummc006 / ses-presurgery / ecog-raw</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D02</td><th>个体内采样率</th><td>sub-ummc006 / ses-presurgery / ecog-raw</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D02</td><th>个体内单位</th><td>sub-ummc006 / ses-presurgery / ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D02</td><th>个体内参考</th><td>sub-ummc006 / ses-presurgery / ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>组内通道配置</th><td>ecog-raw</td><td>not_applicable</td><td>本比较组允许该项差异。</td></tr><tr><td>D03</td><th>组内采样率</th><td>ecog-raw</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D03</td><th>组内单位</th><td>ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>组内参考</th><td>ecog-raw</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>组内配套表结构</th><td>ecog-raw</td><td>pass</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>重复记录线索</th><td>dataset</td><td>pass</td><td>相同文件内容仅作为重复线索，不据此判定受试者身份。</td></tr></tbody></table></div><p class="secondary">清单指纹: 1a5c6c1a44caa21d3561ff635844b1e486cdca3c97a5f677e87ae4646f33d6b6<br>检查任务: 5a23f02056334c98a4581edb69a2fc23</p></details>
+<footer>依据已保存的检查结果；打开页面不会重新运行算法。 <a href="#snapshot-info">进入检查工作区</a></footer><details class="disclosure"><summary>来源与许可</summary><ul><li><a href="https://openneuro.org/datasets/ds003029/versions/1.0.7">ds003029</a> · 1.0.7 · CC0</li></ul></details></main><p id="snapshot-info" style="max-width:1100px;margin:24px auto;padding:16px;color:#607087;font-size:12px">公开数据示例快照。报告与图像已缓存；本页不包含原始数据和运行证据文件。</p></body></html>

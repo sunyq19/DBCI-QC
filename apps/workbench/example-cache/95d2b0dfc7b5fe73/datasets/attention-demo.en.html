@@ -1,0 +1,148 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scalp EEG · Dataset report</title><style>/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --surface: #fff;
+  --wash: #f7f8fa;
+  --ink: #252b34;
+  --muted: #68717e;
+  --sub: var(--muted);
+  --line: #e4e7ec;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+</style><script src="/examples/95d2b0dfc7b5fe73/assets/dataset-report.js" defer></script></head><body class="dataset-report">
+<header class="report-header"><a href="/">← Workbench</a><span>Dataset report</span><nav><a href="/examples/95d2b0dfc7b5fe73/datasets/attention-demo.en.html">中文</a><button id="print-report">Print / PDF</button></nav></header>
+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / Public sample</p><h1>Scalp EEG</h1><p class="secondary">Attention task · two participants</p></div></div>
+<dl class="dataset-facts"><div><dt>Subjects</dt><dd>2</dd></div><div><dt>Recordings</dt><dd>2</dd></div><div><dt>Sample duration</dt><dd>1,486 s</dd></div><div><dt>Formats</dt><dd>EDF</dd></div></dl><p class="report-conclusion">2 signal reports available · 1 metadata issues to review</p>
+<section id="checks"><h2>Checks performed</h2><div class="table-scroll" tabindex="0" role="region" aria-label="Check results"><table class="check-table"><tbody><tr><th><small>D01</small>File completeness</th><td>Expected files present; recordings readable</td><td class="outcome">18 / 18 files match the inventory</td></tr><tr><th><small>D02</small>Within-subject metadata</th><td>Identifiers, channel table, units, sample rates and event timing</td><td class="outcome">2 checks need review</td></tr><tr><th><small>D03</small>Within-group comparison</th><td>Compare declared groups; keep sources, modalities and AP/LF separate</td><td class="outcome">2 checks agree</td></tr><tr><th><small>M03–M07</small>Signal checks</th><td>EEG: integrity, spectra, channels and artifacts. Other modalities: integrity, spectra and contact statistics</td><td class="outcome">2 / 2 reports</td></tr></tbody></table></div></section>
+<section id="findings"><h2>Needs review</h2><article class="finding"><h3>Channel table needs review <span>2 recordings</span></h3><p>The channel table does not establish a unique mapping; dependent comparisons were not completed. Repeated names: REF</p><p class="secondary">Check repeated names or missing fields; signal reports remain available.</p></article></section>
+<section id="recordings"><h2>Recording results <span>2</span></h2><p class="secondary">Interference and artifact detections are review candidates. Checks requiring unknown references or absent auxiliary channels are not counted as passes.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Recording results"><table class="record-table"><thead><tr><th>Subject / recording</th><th>Scope</th><th>Signal findings</th><th></th></tr></thead><tbody><tr><th>sub-01<small>sub-01-offline-run01</small></th><td>EDF · 62 channels · 512 Hz · 733 s<small>Full sample checked</small></td><td>Narrowband candidates detected · 3 high-frequency intervals</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/3c389db9af894de7b7386c1d188ab374.en.html">View report</a></td></tr><tr><th>sub-02<small>sub-02-offline-run01</small></th><td>EDF · 62 channels · 512 Hz · 753 s<small>Full sample checked</small></td><td>Narrowband candidates detected · 551 high-frequency intervals</td><td><a class="report-link" href="/examples/95d2b0dfc7b5fe73/records/789d4534433441879120cb78cfef9b0e.en.html">View report</a></td></tr></tbody></table></div></section>
+<details class="disclosure"><summary>Metadata not assessed · 9 types</summary><p class="secondary">Includes absent companion tables, ambiguous mappings and groups without repeated recordings. These checks are not passes and do not imply poor signal quality.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Unassessed metadata"><table><tbody><tr><th>Session index</th><td>未提供或未验证对应表。</td><td>2</td></tr><tr><th>Channel names/order</th><td>通道表缺失或结构无效，未作比较。</td><td>2</td></tr><tr><th>Physical units</th><td>通道表缺失或结构无效，未作比较。</td><td>2</td></tr><tr><th>Sampling rates</th><td>通道表缺失或结构无效，未作比较。</td><td>2</td></tr><tr><th>Comparable recordings</th><td>只有一份记录，无法验证重复记录间一致性。</td><td>2</td></tr><tr><th>Within-group channels</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>Within-group sampling rates</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>Within-group units</th><td>部分记录缺少可比较字段。</td><td>1</td></tr><tr><th>Group table schema</th><td>核对同组通道表字段；可选列差异保留复核。</td><td>1</td></tr></tbody></table></div></details><details class="disclosure"><summary>Scope and sources</summary><p>OpenNeuro ds002034 v1.0.3：sub-01、sub-02 的 ses-01 / offline / run-01 两份完整记录。仅检查这两份记录及已下载配套文件，不代表原研究的全部个体或全部运行。</p><p>These public samples do not represent the complete upstream study.</p><p></p><h3>Groups and compared fields</h3><ul><li><strong>同任务 EEG · offline / run-01</strong> · channels, sample rates, units, reference</li></ul><p>No score is pooled across subjects or modalities. This page is not a human review.</p></details>
+<details class="disclosure"><summary>Full audit trail</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Audit trail"><table><tbody><tr><td>D01</td><th>Expected files</th><td>selected-pilot</td><td>pass</td><td>18/18 个应有文件已核对。</td></tr><tr><td>D01</td><th>Recording structure</th><td>sub-01-offline-run01</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>Recording structure</th><td>sub-02-offline-run01</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D02</td><th>Subject/session binding</th><td>sub-01-offline-run01</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>Participant index</th><td>sub-01-offline-run01</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>Session index</th><td>sub-01-offline-run01</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Scan index</th><td>sub-01-offline-run01</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>Channel table fields</th><td>sub-01-offline-run01</td><td>conflict</td><td>通道表名称重复：REF；不能按名称唯一对应。</td></tr><tr><td>D02</td><th>Channel names/order</th><td>sub-01-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Physical units</th><td>sub-01-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Sampling rates</th><td>sub-01-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Recording duration</th><td>sub-01-offline-run01</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>Event time/channel</th><td>sub-01-offline-run01</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>Subject/session binding</th><td>sub-02-offline-run01</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>Participant index</th><td>sub-02-offline-run01</td><td>pass</td><td>所选对象在对应表中唯一存在。</td></tr><tr><td>D02</td><th>Session index</th><td>sub-02-offline-run01</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>Scan index</th><td>sub-02-offline-run01</td><td>pass</td><td>核对记录表是否唯一指向当前主文件。</td></tr><tr><td>D02</td><th>Channel table fields</th><td>sub-02-offline-run01</td><td>conflict</td><td>通道表名称重复：REF；不能按名称唯一对应。</td></tr><tr><td>D02</td><th>Channel names/order</th><td>sub-02-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Physical units</th><td>sub-02-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Sampling rates</th><td>sub-02-offline-run01</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>Recording duration</th><td>sub-02-offline-run01</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>Event time/channel</th><td>sub-02-offline-run01</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>Comparable recordings</th><td>sub-01 / ses-01 / offline</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D02</td><th>Comparable recordings</th><td>sub-02 / ses-01 / offline</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>Within-group channels</th><td>offline</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>Within-group sampling rates</th><td>offline</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>Within-group units</th><td>offline</td><td>unassessed</td><td>部分记录缺少可比较字段。</td></tr><tr><td>D03</td><th>Within-group reference</th><td>offline</td><td>pass</td><td>按明确比较组核对；通道名称相同而顺序不同列为复核。</td></tr><tr><td>D03</td><th>Group table schema</th><td>offline</td><td>unassessed</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>Possible duplicate recordings</th><td>dataset</td><td>pass</td><td>相同文件内容仅作为重复线索，不据此判定受试者身份。</td></tr></tbody></table></div><p class="secondary">Manifest fingerprint: 63ebad8dd9362b2852e7b698a81547585d20e961529369c0b176ef27cef8cb58<br>Dataset run: eb57cc25cdcb4b2e975bed1a4db6bb51</p></details>
+<footer>Based on saved checks; opening this page does not rerun the algorithms. <a href="#snapshot-info">Open dataset workspace</a></footer><details class="disclosure"><summary>Sources and licenses</summary><ul><li><a href="https://openneuro.org/datasets/ds002034/versions/1.0.3">ds002034</a> · 1.0.3 · CC0</li></ul></details></main><p id="snapshot-info" style="max-width:1100px;margin:24px auto;padding:16px;color:#607087;font-size:12px">Saved public-data example. Reports and images are cached; original files and runtime evidence are not part of this snapshot.</p></body></html>

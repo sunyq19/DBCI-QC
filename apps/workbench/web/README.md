@@ -65,4 +65,13 @@ node apps/workbench/web/check-ui-contract.mjs
 - 首页保持上传优先和常驻流程图。模块详情先显示功能与输入输出，原理、来源和参数按需展开。
 - 数据集总览、记录和审核共用选项卡样式；在窄屏按来源、结果顺序排列。规范页保留目录和打印排版。
 
-样式验证使用 `tests/check-workbench-layout.mjs` 的实际加载顺序。状态交互仍由现有工作台、数据集及审核测试覆盖；静态检查不能代替浏览器视觉验收。
+首页侧栏统一使用 `details.rail-section`：标题、计数、展开符号和内容边距共用同一规则。不要再为“示例数据集”“我的数据”等单个 ID 追加标题或内边距覆盖。示例位于窄侧栏，保持单列；表格使用局部滚动容器，避免让整页横向滚动。
+
+`tests/check-workbench-layout.mjs` 保留结构约束。真实选择器匹配与样式优先级改由 `tests/test_ui_cascade.py` 检查，覆盖 `:is()`、`:has()`、展开状态、伪元素和多个宽度。首次运行先安装开发依赖：
+
+```sh
+.venv/bin/python -m pip install -r tests/requirements-ui.txt
+PYTHONPATH=src:tests .venv/bin/python -m unittest test_ui_cascade test_report_layout
+```
+
+该检查可以发现后加规则覆盖统一样式，不能测量实际文字换行、浏览器几何或证明视觉效果。状态交互仍由工作台、数据集及审核测试覆盖；浏览器视觉验收须单独完成。修改报告样式后，应通过 `scripts/publish_example_cache.py` 重新发布展示快照。

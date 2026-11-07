@@ -80,7 +80,7 @@
       <details id="plan-disclosure" class="plan-disclosure" hidden><summary>配置与适用条件</summary><div id="plan-details" class="plan-details" aria-live="polite"></div></details>
     </aside>
     <div class="studio-controls">
-    <details id="registered-records" class="panel supporting-panel landing-secondary legacy-record-selector" hidden><summary>已读取记录</summary><div class="disclosure-content">
+    <details id="registered-records" class="panel supporting-panel rail-section landing-secondary legacy-record-selector" hidden><summary><span>已读取记录</span></summary><div class="disclosure-content">
       <div id="example-presets" class="example-presets" hidden></div>
       <label class="field-label" for="input-select">记录</label>
       <select id="input-select" disabled><option value="">选择已登记记录</option></select>
@@ -109,7 +109,7 @@
           </div></details>
           <details class="configuration-details"><summary>通道、参考与配置 <span id="channel-count"></span></summary><div id="channel-config" class="channel-config"><p class="muted">选择记录后显示明确配置。</p></div></details>
         </section>
-        <details id="advanced-settings" class="panel modules-panel advanced-panel"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
+        <details id="advanced-settings" class="panel modules-panel advanced-panel rail-section"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
           <p class="small muted advanced-intro">修改后会保留你的配置；重新预览计划即可继续。</p>
           <details id="scoring-settings" class="parameter-editor"><summary>评分与权重</summary><div id="scoring-controls"></div></details>
           <div id="module-options" class="module-options"><div class="loading-state"><span class="spinner"></span>正在读取模块目录</div></div>
@@ -133,10 +133,10 @@
         </section>
       </div>
     </div>
-    <details id="demo-reports" class="panel demo-reports supporting-panel landing-secondary" aria-label="示例数据集" open data-i18n-skip>
+    <details id="demo-reports" class="panel demo-reports supporting-panel rail-section landing-secondary" aria-label="示例数据集" open data-i18n-skip>
       <summary><span id="demo-reports-title">示例数据集</span><span id="demo-reports-count" class="tag subtle">—</span></summary><div class="disclosure-content"><p id="demo-reports-caption" class="small muted">公开数据的实际检查报告。</p><div id="demo-report-list"><p class="small muted">正在读取示例目录…</p></div></div>
     </details>
-    <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="我的数据">
+    <details id="data-library" class="panel data-library supporting-panel rail-section landing-secondary" aria-label="我的数据">
       <summary><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
       <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
       <p id="library-category-note" class="small muted" hidden></p>
@@ -145,11 +145,11 @@
       <button id="data-library-more" type="button" class="text-button" hidden>显示更多</button>
       <div class="pending-recovery"><button id="pending-intakes-button" class="text-button">恢复已读取文件</button><div id="pending-intakes" class="pending-intakes" hidden></div></div>
     </div></details>
-    <details id="run-history-panel" class="panel supporting-panel landing-secondary"><summary>检查记录</summary><div class="disclosure-content">
+    <details id="run-history-panel" class="panel supporting-panel rail-section landing-secondary"><summary><span>检查记录</span></summary><div class="disclosure-content">
     <section id="runs-section" class="runs-grid">
       <section class="panel current-run-panel" aria-labelledby="current-run-title">
         <div class="panel-title-row"><div><h2 id="current-run-title">当前运行</h2></div><span id="job-status" class="tag subtle">等待开始</span></div>
-        <div id="job-empty" class="empty-state"><div class="empty-icon" aria-hidden="true">↗</div><h3>检查结果会显示在这里</h3><p>开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。</p></div>
+        <div id="job-empty" class="empty-state"><h3>暂无检查记录</h3><p>开始检查后，在这里查看进度与报告。</p></div>
         <div id="job-content" hidden>
           <div class="job-title-row"><h3 id="job-label" data-i18n-skip></h3><span id="job-created" class="small muted"></span></div>
           <p id="job-message" class="job-message" aria-live="polite"></p>
@@ -170,7 +170,7 @@
       </section>
     </section>
     </div></details>
-    <details id="toolkit-section" class="panel toolkit-panel supporting-panel landing-secondary"><summary><span id="toolkit-title">方法工具箱</span><span id="toolkit-count" class="tag subtle" hidden>读取目录中</span></summary><div class="disclosure-content"><div class="toolkit-scope"><span id="toolkit-modality" class="tag subtle">方法目录</span></div>
+    <details id="toolkit-section" class="panel toolkit-panel supporting-panel rail-section landing-secondary"><summary><span id="toolkit-title">方法工具箱</span><span id="toolkit-count" class="tag subtle" hidden>读取目录中</span></summary><div class="disclosure-content"><div class="toolkit-scope"><span id="toolkit-modality" class="tag subtle">方法目录</span></div>
 <div class="toolkit-filters"><label>适用模态 <select id="toolkit-modality-filter"><option value="current">当前记录 / 默认目录</option></select></label><label>检查目的 <select id="toolkit-category"><option value="all">全部目的</option><option value="data_intake">数据与元信息</option><option value="signal_integrity">信号完整性</option><option value="spectrum_interference">频谱与干扰</option><option value="channel_quality">通道质量</option><option value="artifacts">伪迹线索</option><option value="events_sync">事件与时间</option><option value="reporting">结果与报告</option></select></label><label>接入状态 <select id="toolkit-implementation"><option value="available">已接入</option><option value="all">全部状态</option><option value="planned">待接入</option></select></label></div><div id="toolkit-methods" class="toolkit-methods"><p class="small muted">连接本地服务后显示方法目录。</p></div>    </div></details>
     </div>
     </div>

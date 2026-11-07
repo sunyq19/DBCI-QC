@@ -1007,6 +1007,8 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 当前运行	Current run
 等待开始	Not started
 检查结果会显示在这里	Results will appear here
+暂无检查记录	No checks yet
+开始检查后，在这里查看进度与报告。	Start a check to view its progress and report here.
 开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。	Start a check to view progress, results and the report. Previous runs remain available in history.
 已选模块的执行进度，非质量分数	Execution progress of selected modules, not a quality score
 取消运行	Cancel run

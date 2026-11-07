@@ -8,6 +8,13 @@ const window={QCI18n:{getLanguage:()=>language},addEventListener(k,v){events[k]=
 const context={URL,window,document:{getElementById:element},fetch:()=>new Promise(resolve=>requests.push(resolve))};
 vm.runInNewContext(source,context);
 const flush=async()=>{for(let i=0;i<10;i++)await Promise.resolve()};
+// A failed initial request must not leave a permanent loading indicator.
+element('data-library-list').innerHTML='<p>正在加载数据…</p>';
+requests.shift()({ok:false});await flush();
+assert.equal(element('data-library-list').innerHTML,'');
+assert.equal(element('data-library-error').hidden,false);
+assert.equal(element('data-library-more').hidden,true);
+window.QCDataLibrary.refresh();
 const item=(id,extra={})=>({id,kind:'record',label:id,url:'/?input='+id,available:true,status:'not_run',...extra});
 const data=[item('x',{label:'<img onerror="bad()">',url:'https://bad.test',format:'<script>'}),item('set',{kind:'dataset',url:'/datasets?package=p',subjects:2,records:5}),...Array.from({length:8},(_,i)=>item('record'+i))];
 requests.shift()({ok:true,json:async()=>({items:data})});await flush();
@@ -15,6 +22,11 @@ assert.match(element('data-library-list').innerHTML,/&lt;img/);assert(!element('
 assert(!element('data-library-list').innerHTML.includes('https://bad.test'));assert.match(element('data-library-list').innerHTML,/href="#"/);
 assert.equal((element('data-library-list').innerHTML.match(/class="data-library-item/g)||[]).length,6);
 assert.equal(element('data-library-more').hidden,false);
+// A later outage preserves the previously loaded directory.
+const loadedMarkup=element('data-library-list').innerHTML;
+const laterFailure=window.QCDataLibrary.refresh();requests.shift()({ok:false});await laterFailure;
+assert.equal(element('data-library-list').innerHTML,loadedMarkup);
+assert.equal(element('data-library-error').hidden,false);
 element('data-library-more').events.click();assert.equal((element('data-library-list').innerHTML.match(/class="data-library-item/g)||[]).length,10);
 element('data-search').value='dataset';element('data-search').events.input();assert.match(element('data-library-list').innerHTML,/set/);assert(!element('data-library-list').innerHTML.includes('record0'));
 language='en';events['qc:languagechange']();assert.match(element('data-library-list').innerHTML,/Dataset/);assert.match(element('data-library-list').innerHTML,/lang=en/);
@@ -57,11 +69,16 @@ const cachedElement=id=>{if(!cachedNodes.has(id))cachedNodes.set(id,{value:'',ev
 const frozen={schema_version:'example-cache/1',examples:[{kind:'dataset',label:'缓存 EEG',label_en:'Cached EEG',subjects:2,records:2,reported:2,available:true,url:'/examples/0123456789abcdef/datasets/eeg.zh-CN.html',url_en:'/examples/0123456789abcdef/datasets/eeg.en.html'}]};
 cachedElement('example-cache').textContent=JSON.stringify(frozen);
 let cacheLanguage='zh-CN';
-vm.runInNewContext(source,{URL,window:{QCI18n:{getLanguage:()=>cacheLanguage},addEventListener(k,v){cachedEvents[k]=v}},document:{getElementById:cachedElement},fetch:()=>new Promise(resolve=>resolvePrivate=resolve)});
+const cachedWindow={QCI18n:{getLanguage:()=>cacheLanguage},addEventListener(k,v){cachedEvents[k]=v}};
+vm.runInNewContext(source,{URL,window:cachedWindow,document:{getElementById:cachedElement},fetch:()=>new Promise(resolve=>resolvePrivate=resolve)});
 assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
 assert.match(cachedElement('demo-report-list').innerHTML,/href="\/examples\/0123456789abcdef\/datasets\/eeg.zh-CN.html/);
+resolvePrivate({ok:false});await flush();
+assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
+assert.equal(cachedElement('data-library-list').innerHTML,'');
+cachedWindow.QCDataLibrary.refresh();
 resolvePrivate({ok:true,json:async()=>({items:[],examples:[]})});await flush();
 assert.match(cachedElement('demo-report-list').innerHTML,/缓存 EEG/);
 cacheLanguage='en';cachedEvents['qc:languagechange']();
 assert.match(cachedElement('demo-report-list').innerHTML,/eeg.en.html/);
-console.log('Published cache renders before fetch and survives empty personal responses.');
+console.log('Published cache renders before fetch and survives failed or empty personal responses.');

@@ -2,6 +2,7 @@
 from html.parser import HTMLParser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 import sys
 import tempfile
 import threading
@@ -379,7 +380,9 @@ class StandardsRouteTests(unittest.TestCase):
         self.assertIn('javascript', headers['Content-Type'])
         self.assertEqual(script, PRINT_SCRIPT.encode('utf-8'))
         self.assertEqual(self.request('/standards-navigation.js')[2], NAVIGATION_SCRIPT.encode('utf-8'))
-        self.assertRegex(self.request('/')[2].decode('utf-8'), r'<a\b[^>]*href="/standards/overview"[^>]*>质控标准</a>')
+        # Only the homepage needs published-example settings; standards remain standalone.
+        with patch.object(self.server, 'store', SimpleNamespace(settings={}), create=True):
+            self.assertRegex(self.request('/')[2].decode('utf-8'), r'<a\b[^>]*href="/standards/overview"[^>]*>质控标准</a>')
 
     def test_routes_are_read_only_and_do_not_expose_other_repository_files(self):
         for path in ['/standards', '/standards.md', '/standards/modules/M01', '/standards/modules/M09.md']:

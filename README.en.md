@@ -6,7 +6,7 @@
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev17**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
+Development version: **1.0.0rc3.dev18**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
 
 ## Quick start
 

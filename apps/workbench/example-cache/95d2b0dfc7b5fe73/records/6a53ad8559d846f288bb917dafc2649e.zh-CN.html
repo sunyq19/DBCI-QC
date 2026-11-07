@@ -1,0 +1,139 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01_ieeg.vhdr · 记录报告</title><style>/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --surface: #fff;
+  --wash: #f7f8fa;
+  --ink: #252b34;
+  --muted: #68717e;
+  --sub: var(--muted);
+  --line: #e4e7ec;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+</style><script src="/examples/95d2b0dfc7b5fe73/assets/dataset-report.js" defer></script><link rel="stylesheet" href="/examples/95d2b0dfc7b5fe73/assets/ui-tokens.css"><link rel="stylesheet" href="/examples/95d2b0dfc7b5fe73/assets/workbench-ui.css"></head><body class="dataset-report"><nav class="saved-report-nav" aria-label="QC navigation"><a href="/examples/95d2b0dfc7b5fe73/datasets/example-ecog.zh-CN.html">← 返回数据集报告</a><a href="/">本次检查</a></nav><main><p class="eyebrow">DBCI-QC / ECoG</p><h1>sub-ummc006_ses-presurgery_task-ictal_acq-ecog_run-01_ieeg.vhdr</h1><dl class="dataset-facts"><div><dt>模态</dt><dd>ECoG</dd></div><div><dt>分析通道</dt><dd>126</dd></div><div><dt>已计算时长</dt><dd>356.226 s</dd></div><div><dt>采样率</dt><dd>249.875 Hz</dd></div></dl><p class="report-conclusion">数值与信号统计已生成</p><p class="secondary">本报告描述技术质量，不采用头皮 EEG 坏道阈值，不给出临床合格判定或跨模态总分。</p><section><h2>检查结果</h2><div class="table-scroll" tabindex="0" role="region" aria-label="检查结果"><table class="check-table"><tbody><tr><th>数值完整性</th><td>NaN / Inf 等不能计算的数值</td><td class="outcome">0 个样本</td></tr><tr><th>频谱与干扰</th><td>逐通道功率谱；在可测频带内测量工频邻域</td><td class="outcome">126 道已计算</td></tr><tr><th>接触点统计</th><td>各接触点的幅度、RMS 与峰峰值</td><td class="outcome">126 道已计算</td></tr></tbody></table></div></section><section><h2>波形预览</h2><p class="secondary">首段已保存波形；不代表全部通道和整份记录，图内标明通道与时间。</p><img alt="首段电压波形" src="/examples/95d2b0dfc7b5fe73/artifacts/6a53ad8559d846f288bb917dafc2649e/w000001--waveform.png" style="width:100%;height:auto"></section><details class="disclosure"><summary>接触点测量示例</summary><p class="secondary">首段前 10 道，保留源通道顺序；用于描述，不按幅度直接判坏。</p><div class="table-scroll" tabindex="0" role="region" aria-label="接触点测量"><table><thead><tr><th>通道</th><th>RMS / µV</th><th>峰峰值 / µV</th></tr></thead><tbody><tr><th>F1</th><td>1,857.858</td><td>17,422</td></tr><tr><th>F2</th><td>6,981.475</td><td>17,422</td></tr><tr><th>F3</th><td>4,771.569</td><td>17,422</td></tr><tr><th>F4</th><td>2,055.308</td><td>17,422</td></tr><tr><th>F5</th><td>2,722.141</td><td>17,422</td></tr><tr><th>F6</th><td>4,598.46</td><td>17,422</td></tr><tr><th>SF1</th><td>1,368.09</td><td>17,118.142</td></tr><tr><th>SF2</th><td>5,822.17</td><td>17,307.422</td></tr><tr><th>SF3</th><td>6,166.044</td><td>17,422</td></tr><tr><th>SF4</th><td>2,074.518</td><td>17,422</td></tr></tbody></table></div><a href="#snapshot-info">完整测量</a></details><details class="disclosure"><summary>检查范围与执行记录</summary><p>本地文件全长 356.226 s · 已计算 356.226 s · 未执行 0 s · 来源间隙 0 s</p><p></p><p>相邻样本相等可能来自量化；未据此直接剔除通道。所有候选与方法状态保留，缺项不计为通过。</p><div class="table-scroll" tabindex="0" role="region" aria-label="分段记录"><table><tbody><tr><th>w000001</th><td>0–120 s</td><td>completed</td><td><a href="/examples/95d2b0dfc7b5fe73/artifacts/6a53ad8559d846f288bb917dafc2649e/w000001--report.html">原始分段报告</a></td></tr><tr><th>w000002</th><td>120–240 s</td><td>completed</td><td><a href="/examples/95d2b0dfc7b5fe73/artifacts/6a53ad8559d846f288bb917dafc2649e/w000002--report.html">原始分段报告</a></td></tr><tr><th>w000003</th><td>240–356.226 s</td><td>completed</td><td><a href="/examples/95d2b0dfc7b5fe73/artifacts/6a53ad8559d846f288bb917dafc2649e/w000003--report.html">原始分段报告</a></td></tr></tbody></table></div><p><a href="#snapshot-info">覆盖明细</a> · <a href="#snapshot-info">方法与结果</a> · <a href="/examples/95d2b0dfc7b5fe73/artifacts/6a53ad8559d846f288bb917dafc2649e/report.html">运行时原始报告</a></p></details><footer><span>基于已保存证据生成；原始报告保持不变。</span><button id="print-report">打印 / PDF</button></footer></main><p id="snapshot-info" style="max-width:1100px;margin:24px auto;padding:16px;color:#607087;font-size:12px">公开数据示例快照。报告与图像已缓存；本页不包含原始数据和运行证据文件。</p></body></html>

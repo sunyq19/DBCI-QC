@@ -17,6 +17,9 @@ body.qc-app, body.qc-document {
 .qc-app h2 { font-size: var(--text-section); line-height: 1.5; }
 .qc-app h3 { font-size: var(--text-body); }
 .qc-app :is(.small, .field-error, .action-hint) { font-size: var(--text-note); }
+.qc-app small { font-size: var(--text-note); line-height: 1.6; }
+.qc-app :is(.panel, .section-heading > div, .board-heading > h2, .studio-controls, .dataset-main, .dataset-controls) { min-width: 0; }
+.qc-app :is(.extraction-filename, .job-title-row h3, .data-library-label strong, .demo-report-copy, .method-source a) { overflow-wrap: anywhere; }
 .qc-app a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .qc-app a.brand:hover, .qc-app a.button:hover { text-decoration: none; }
 .qc-app :is(button, a, input, select, textarea, summary):focus-visible {
@@ -67,7 +70,8 @@ body.qc-app, body.qc-document {
 .qc-app details > summary::-webkit-details-marker { display: none; }
 .qc-app details > summary::after { content: '+'; position: static; margin-left: auto; flex: none; color: var(--muted); font: 400 16px/1 var(--font-ui); }
 .qc-app details[open] > summary::after { content: '−'; transform: none; }
-.qc-app .dataset-table summary::before { content: none; }
+.qc-app .dataset-table details > summary::before,
+.qc-app .dataset-table details[open] > summary::before { content: none; }
 .qc-app .notice { border-radius: var(--radius-control); font-size: var(--text-control); }
 .qc-app .empty-icon { background: transparent; color: var(--muted); border-radius: 0; font-size: 22px; width: auto; height: auto; line-height: 1.5; }
 .qc-app footer { font-size: var(--text-note); color: var(--muted); padding: 20px 0 24px; gap: 12px; flex-wrap: wrap; }
@@ -106,40 +110,57 @@ body.qc-app, body.qc-document {
 .qc-app .upload-capabilities dd { color: var(--ink); }
 .qc-app .upload-requirements { font-size: var(--text-note); margin-top: 10px; }
 .qc-app .upload-requirements > summary { color: var(--muted); }
-.qc-app .studio-controls :is(.supporting-panel, .demo-reports, .advanced-panel) {
+.qc-app .studio-controls .rail-section {
   border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent;
-  padding: 16px 0; margin: 0; box-shadow: none;
+  padding: 0; margin: 0; box-shadow: none;
 }
-.qc-app .studio-controls :is(.supporting-panel, .advanced-panel) > summary { font-size: var(--text-control); color: var(--ink); font-weight: 500; }
-.qc-app .advanced-panel > summary, .qc-app .supporting-panel > summary { padding-right: 0; }
-.qc-app .supporting-panel > summary::after, .qc-app .advanced-panel > summary::after { content: '+'; font-size: 16px; color: var(--muted); }
-.qc-app .supporting-panel[open] > summary::after, .qc-app .advanced-panel[open] > summary::after { content: '−'; transform: none; }
-.qc-app .supporting-panel[open] > .disclosure-content { padding-top: 16px; }
+.qc-app .studio-controls .rail-section > summary {
+  display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 16px 20px;
+  font-family: var(--font-ui); font-size: var(--text-body); line-height: 1.5; font-weight: 500; color: var(--ink);
+}
+.qc-app .studio-controls .rail-section > summary > :first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.qc-app .studio-controls .rail-section > summary > small { font-size: var(--text-note); font-weight: 400; color: var(--muted); }
+.qc-app .studio-controls .rail-section > summary::before { content: none; }
+.qc-app .studio-controls .rail-section > summary::after {
+  content: '+'; position: static; margin: 0; width: 16px; text-align: center; flex: 0 0 16px;
+  font: 400 16px/1 var(--font-ui); color: var(--muted); transform: none;
+}
+.qc-app .studio-controls .rail-section[open] > summary::after { content: '−'; }
+.qc-app .studio-controls .rail-section > summary:hover { background: var(--wash); }
+.qc-app .studio-controls .rail-section > summary:focus-visible { outline-offset: -3px; }
+.qc-app .studio-controls .rail-section > .disclosure-content,
+.qc-app .studio-controls .rail-section[open] > .disclosure-content { padding: 0 20px 20px; }
+.qc-app .studio-controls .rail-section > .disclosure-content > p.small { font-size: var(--text-note); margin: 0 0 12px; }
 .qc-app .demo-reports h2 { font-size: var(--text-control); }
 .qc-app .demo-reports > p { font-size: var(--text-note); }
-.qc-app #demo-report-list { display: grid; gap: 8px; margin-top: 14px; }
+.qc-app #demo-report-list { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; margin-top: 12px; }
 .qc-app .demo-report {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-control);
   background: #fff; color: var(--ink); text-decoration: none;
 }
 .qc-app a.demo-report:hover { border-color: #a5b9da; background: #f8faff; }
 .qc-app a.demo-report:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .qc-app .demo-report-copy { min-width: 0; display: grid; gap: 5px; }
-.qc-app .demo-report-copy strong { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; font-size: var(--text-control); font-weight: 600; }
+.qc-app .demo-report-copy strong { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: var(--text-control); font-weight: 500; }
 .qc-app .demo-report-copy > span { font-size: var(--text-note); color: var(--ink); line-height: 1.5; }
 .qc-app .demo-report-copy small { font-size: var(--text-note); color: var(--muted); font-weight: 400; }
-.qc-app .demo-report-copy .example-format { font-size: 11px; letter-spacing: .02em; }
+.qc-app .demo-report-copy .example-format { font-size: var(--text-note); letter-spacing: 0; }
 .qc-app .demo-report-end { flex-shrink: 0; color: var(--blue); font-size: var(--text-note); font-weight: 500; }
 .qc-app .demo-report.unavailable { background: var(--surface); }
 .qc-app .demo-report.unavailable .demo-report-end { color: var(--muted); }
-@media (max-width: 480px) { .qc-app .demo-report { gap: 8px; padding: 12px; } .qc-app .demo-report-end { font-size: 11px; } }
 .qc-app .library-tabs { background: var(--wash); border-radius: var(--radius-control); }
 .qc-app .library-tabs button { border-radius: 3px; font-size: var(--text-note); }
 .qc-app .library-tabs button[aria-pressed=true] { color: var(--ink); background: white; box-shadow: none; }
 .qc-app .data-library-label strong { font-size: var(--text-control); font-weight: 500; color: var(--ink); }
 .qc-app .data-library-label small { color: var(--muted); }
 .qc-app .data-kind { color: var(--muted); background: var(--wash); border-radius: 3px; font-weight: 400; }
+.qc-app .data-library-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; padding: 14px 0; }
+.qc-app .data-library-label { min-width: 0; }
+.qc-app .data-library-actions { font-size: var(--text-note); }
+.qc-app .library-toolbar { margin-bottom: 12px; justify-content: flex-end; }
+.qc-app #data-search { width: 100%; margin-bottom: 8px; }
+.qc-app .pending-recovery { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 /* A module is an action in a flow, not a large decorative card. */
 .qc-app .studio-layout > .pipeline-board { padding: 24px; border-color: var(--line); box-shadow: none; }
@@ -195,11 +216,16 @@ body.qc-app, body.qc-document {
 .qc-app .toolkit-module > summary strong { font-size: var(--text-control); font-weight: 500; }
 .qc-app .toolkit-module[open] > summary { background: var(--wash); }
 .qc-app .toolkit-module > summary::after { color: var(--muted); }
+.qc-app .toolkit-module > summary:focus-visible { outline-offset: -3px; }
 .qc-app .toolkit-stage > h3 { font-size: var(--text-control); color: var(--ink); }
 .qc-app .toolkit-module .toolkit-card strong { font-size: var(--text-control); color: var(--ink); }
 .qc-app .toolkit-method-group h4 { font-size: var(--text-note); color: var(--muted); }
 .qc-app .toolkit-module-body > .text-button { font-size: var(--text-note); }
 .qc-app .upload-first #run-history-panel :is(.current-run-panel, .history-panel) { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.qc-app .studio-controls .runs-grid { margin: 0; gap: 24px; }
+.qc-app #run-history-panel .empty-state { padding: 16px 0; text-align: left; }
+.qc-app #run-history-panel .empty-state h3 { font-size: var(--text-control); font-weight: 500; }
+.qc-app #run-history-panel .empty-state p { margin: 4px 0 0; max-width: none; font-size: var(--text-note); }
 .qc-app .history-item { border-radius: var(--radius-control); }
 .qc-app .history-item.active { border-color: #bdcdec; background: var(--primary-light); }
 .qc-app :is(.history-name, .job-module-name, .job-message) { font-size: var(--text-control); }
@@ -310,7 +336,7 @@ body.qc-app, body.qc-document {
 /* Served signal reports share the workbench theme. Frozen exports remain intact. */
 @media screen {
   body.qc-signal-report { background: var(--surface); color: var(--ink); font: var(--text-body)/1.65 var(--font-ui); }
-  .qc-signal-report > nav[aria-label="QC navigation"] { height: var(--header-height); display: flex; align-items: center; padding: 0 var(--page-inset); border-bottom: 1px solid var(--line); font-size: var(--text-control); background: var(--surface); }
+  .qc-signal-report > nav[aria-label="QC navigation"] { height: auto; min-height: var(--header-height); display: flex; align-items: center; flex-wrap: wrap; padding: 12px var(--page-inset); border-bottom: 1px solid var(--line); font-size: var(--text-control); background: var(--surface); }
   .qc-signal-report .shell { max-width: var(--page-width); padding: 28px var(--page-inset); grid-template-columns: 180px minmax(0,1fr); gap: 32px; }
   .qc-signal-report aside strong { font-size: var(--text-section); font-weight: 600; }
   .qc-signal-report aside nav { font-size: var(--text-control); gap: 14px; margin-top: 22px; }
@@ -322,7 +348,10 @@ body.qc-app, body.qc-document {
   .qc-signal-report .scores strong { font-size: 24px; font-weight: 600; }
   .qc-signal-report .scope { background: var(--wash); color: var(--muted); border-radius: var(--radius-control); }
   .qc-signal-report .tag { background: var(--primary-light); border-radius: 3px; }
-  .qc-signal-report summary { font-size: var(--text-control); }
+  .qc-signal-report details > summary { display: flex; align-items: baseline; gap: 12px; font-size: var(--text-control); list-style: none; }
+  .qc-signal-report details > summary::-webkit-details-marker { display: none; }
+  .qc-signal-report details > summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font: 400 16px/1 var(--font-ui); }
+  .qc-signal-report details[open] > summary::after { content: '−'; }
   .qc-signal-report thead th { background: var(--wash); font-size: var(--text-note); }
 }
 
@@ -391,7 +420,7 @@ body.qc-app, body.qc-document {
   #module-dialog { max-width: calc(100vw - 16px); }
   #module-dialog .dialog-header { padding: 16px 18px; }
   #module-dialog-content { padding: 18px; }
-  .module-contract, #module-dialog-content .reader-cards, .method-io { grid-template-columns: minmax(0,1fr); }
+  .module-contract, #module-dialog-content .reader-cards, #module-dialog-content .method-io { grid-template-columns: minmax(0,1fr); }
   .module-contract { gap: 16px; }
   .module-contract > .dialog-section:last-child { margin-top: 0; }
 }
@@ -413,23 +442,35 @@ body.qc-app, body.qc-document {
 }
 
 /* Frozen report navigation shares the same type and spacing as the workbench. */
-.saved-report-nav {display:flex;align-items:center;gap:24px;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--line);font:13px var(--font-ui)}
+.saved-report-nav {display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;min-height:var(--header-height);padding:12px var(--page-inset);background:var(--surface);border-bottom:1px solid var(--line);font:var(--text-control)/1.5 var(--font-ui)}
+.saved-report-nav button {margin-left:auto;font:inherit;border:1px solid var(--control-line);border-radius:var(--radius-control);padding:5px 12px;color:var(--ink);background:var(--surface);cursor:pointer;}
 @media print {.saved-report-nav {display:none}}
 
 .qc-app .upload-first .intro {display:flex;align-items:center;justify-content:space-between;gap:16px}
 .qc-app #example-shortcut {font-size:13px;white-space:nowrap}
 [data-active-record=true] #example-shortcut {display:none}
-@media(min-width:900px) {.qc-app #demo-report-list {grid-template-columns:1fr 1fr}}
-
-/* One disclosure hierarchy for examples and user uploads. */
-.qc-app :is(#demo-reports,#data-library) { padding:20px; }
-.qc-app :is(#demo-reports,#data-library) > summary {font:500 var(--text-body)/1.5 var(--font-ui);color:var(--ink);display:flex;align-items:center;gap:12px;}
-.qc-app :is(#demo-reports,#data-library) > summary::after {margin-left:auto;}
-.qc-app .demo-report-copy strong,.qc-app .data-library-label strong {font-size:var(--text-control);font-weight:500;}
 .qc-app #demo-reports:not([open]) #demo-report-list {display:none;}
 
 .qc-app .scoring-weight-fields {display:grid;gap:10px;margin:14px 0;}
-.qc-app .scoring-weight-fields label {display:flex;justify-content:space-between;align-items:center;font-size:var(--text-control);}
-.qc-app .scoring-weight-fields label span {display:flex;align-items:center;gap:10px;}
+.qc-app .scoring-weight-fields label {display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:0;overflow-wrap:anywhere;font-size:var(--text-control);}
+.qc-app .scoring-weight-fields label span {display:flex;align-items:center;gap:10px;flex:0 0 auto;}
 .qc-app .scoring-weight-fields input {width:72px;min-height:32px;}
 .qc-app .scoring-weight-fields small {width:36px;color:var(--muted);}
+
+@media (max-width: 620px) {
+  .qc-app .studio-controls .rail-section > summary { padding-inline: 18px; }
+  .qc-app .studio-controls .rail-section > .disclosure-content,
+  .qc-app .studio-controls .rail-section[open] > .disclosure-content { padding-inline: 18px; }
+  .qc-app .result-tabs, .qc-app .dataset-tabs { flex-wrap: wrap; gap: 0 20px; }
+  .qc-app .job-title-row { flex-wrap: wrap; gap: 4px 12px; }
+  .qc-app .job-modules { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .qc-app .scoring-weight-fields input { width: 60px; }
+}
+@media (max-width: 480px) {
+  .qc-app .demo-report { flex-direction: column; align-items: stretch; gap: 8px; }
+  .qc-app .demo-report-end { align-self: flex-end; }
+  .qc-app .data-library-item { grid-template-columns: auto minmax(0,1fr); }
+  .qc-app .data-library-actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px 16px; text-align: left; }
+  .qc-app .studio-controls .rail-section > summary > small { display: none; }
+  .qc-app .upload-first .intro { align-items: flex-start; flex-wrap: wrap; }
+}

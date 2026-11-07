@@ -679,7 +679,6 @@
     $("analysis-workspace").hidden = !historical && !selected;
     $("input-metadata").hidden = historical || !selected;
     $("run-history-panel").hidden = false;
-    if (historical && ACTIVE.has(state.job?.status)) $("run-history-panel").open = true;
     $("main").setAttribute("data-active-record", String(Boolean(historical || selected || state.intake || state.filePending)));
     $("example-presets").hidden = true;
     $("intake-confirmation").hidden = historical || !state.intake || state.intake.status === "registered" || needsStreamSelection();
@@ -1593,6 +1592,8 @@
         if (!await ensureCatalog(modality,()=>request === state.jobRequest)) return;
       }
       state.job = job; state.pollFailures = 0; renderJob(); renderHistory(); renderRecommendation(); openModuleFromHash();
+      // Open once when entering a running task; polling preserves manual collapse.
+      if (ACTIVE.has(job.status)) $("run-history-panel").open = true;
       setJobLocation(job.id);
       if (job.status === "completed") await loadResult(job.id);
       schedulePoll();
