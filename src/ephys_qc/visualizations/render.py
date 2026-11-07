@@ -179,16 +179,29 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         return f'<p class="caption input-note">{esc(note)}</p>'+detail_html
     sources={}
     def section(title,body,source):
-        url=GNOSIS if source=='灵犀云' else LEI
-        sources[url]='GnosisNeuroDynamicSE' if url==GNOSIS else 'BrainElecQC / PREP'
+        if source == '连续电压':
+            url='https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.welch.html'
+            sources[url]='DBCI-QC 连续电压统计 / SciPy Welch'
+        elif source == 'MNE':
+            url='https://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html'
+            sources[url]='MNE annotate_amplitude'
+        elif source == 'DBCI-QC':
+            sources[PROJECT]='DBCI-QC'
+        else:
+            url=GNOSIS if source=='灵犀云' else LEI
+            sources[url]='GnosisNeuroDynamicSE' if url==GNOSIS else 'BrainElecQC / PREP'
         return f'<div class="figure"><div class="figure-head"><h3>{esc(title)}</h3></div>{body}</div>'
     def render(key):
         if key=='waveform':
             name=window+'waveform.png'
             if name not in declared:return missing('本窗口没有已保存的波形图；可返回报告查看候选波形。')
-            return section('原始波形预览',f'<img class="waveform" src="{esc(asset_url(name))}" alt="已保存的原始波形预览"><p class="caption">起始最多15秒与前几个通道；完整候选位置见异常时间轴。</p>','雷佳欣 / DBCI-QC')
+            return section('原始波形预览',f'<img class="waveform" src="{esc(asset_url(name))}" alt="已保存的原始波形预览"><p class="caption">起始最多15秒与前几个通道；展示范围以图中时间和通道为准。</p>','DBCI-QC')
         if key=='channel_metrics':
             d=evidence('M05_bad_channels.json');rows=d.get('channels',[]);out=''
+            contacts=evidence('M05_channel_description.json').get('channels',[])
+            if contacts:
+                for field,label in [('rms_volts','触点 RMS'),('peak_to_peak_volts','触点峰峰值')]:
+                    out+=section(label,bars([(c['channel_name'],c[field]*1e6 if finite(c.get(field)) else None,False) for c in contacts],'μV',limit=limit)+'<p class="caption">所选分析窗口的电压统计；幅度差异不直接判定为坏道。</p>','连续电压')
             if rows:
                 for field,label,unit in [('robust_amplitude_uv','稳健幅值','μV'),('hf_ratio','高频残差比例','比例'),('low_correlation_fraction','低相关窗口占比','%')]:
                     out+=section(label,bars([(r['channel_name'],r.get(field)*100 if field=='low_correlation_fraction' and finite(r.get(field)) else r.get(field),bool(r.get('flags'))) for r in rows],unit,limit=limit),'雷佳欣 / PREP')
@@ -200,14 +213,23 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         if key=='psd':
             out='';d=evidence('M04_spectral.json');p=d.get('psd',{});sel=evidence('M02_selection.json');mapping={c['channel_id']:c['raw_name'] for c in sel.get('channels',[])}
             if p.get('power_v2_hz'):
-                out+=section('原始输入 · Welch PSD','<p class="caption input-note">使用输入文件中的信号，此图不执行清洗。PSD 描述频率能量，不是质量分。</p>'+spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),[mapping.get(c,c) for c in p.get('channel_ids',[])],1e12),'雷佳欣')
+                names=[c.get('channel_name',c.get('channel_id','—')) for c in p['channels']] if 'channels' in p else [mapping.get(c,c) for c in p.get('channel_ids',[])]
+                out+=section('原始输入 · Welch PSD','<p class="caption input-note">使用输入文件中的信号，此图不执行清洗。PSD 描述频率能量，不是质量分。</p>'+spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),names,1e12),'连续电压' if 'channels' in p else '雷佳欣')
             g=next((gnosis(k) for k in ['band_power','psd_deviation','reference_ranges'] if gnosis(k)),{})
             if g:
                 p=g['metrics'];out+=section('分析副本 · Welch PSD',processing_note(g,spectral=True)+spectrum(p.get('frequencies_hz'),p.get('psd_uv2_hz'),g['channel_names'],1)+'<p class="caption">PSD 描述频率能量，不是质量分。处理和取样片段不同，不能将曲线更平滑直接解释为质量更好。</p>','灵犀云')
             return out or missing('先运行 PSD 相关检查。')
         if key=='interference':
             from ..report_view import line_summary
-            d=line_summary(evidence('M04_spectral.json').get('line_noise',{}))
+            payload=evidence('M04_spectral.json').get('line_noise',{})
+            observations=payload.get('observations',[])
+            if any('band_power_v2' in c for c in observations):
+                out=''
+                for hz in sorted({c['nominal_hz'] for c in observations if finite(c.get('nominal_hz'))}):
+                    rows=[c for c in observations if c.get('nominal_hz')==hz]
+                    out+=section(f'{hz:g} Hz 邻域功率',bars([(c['channel_name'],c['band_power_v2']*1e12 if c.get('status')=='computed' and finite(c.get('band_power_v2')) else None,False) for c in rows],'μV²',limit=limit)+'<p class="caption">窄带能量观察，未设置污染阈值；灰色未评不按零处理。</p>','连续电压')
+                return out or missing('没有可测的工频邻域。')
+            d=line_summary(payload)
             return section('工频命中窗 / 可评窗口',bars([(c['name'],c['percent'],bool(c['hits'])) for c in d['channels']],'%',limit=limit,upper=100),'雷佳欣')
         if key in ['artifact_burden','timeline']:
             out=''
@@ -219,6 +241,11 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
             if key=='timeline':
                 d=evidence('M06_muscle.json');rec=evidence('M02_selection.json').get('recording',{});start=rec.get('start_seconds');dur=rec.get('duration_seconds')
                 if d:out+=section('高频突发候选',timeline(d.get('candidates',[]),start,start+dur if finite(start) and finite(dur) else None,limit,d.get('_visualization_candidate_count')),'雷佳欣')
+                flat=evidence('M03_mne_amplitude.json')
+                if flat.get('calculated', True) is True and flat.get('status')=='completed':
+                    rows=[{**c,'channel_name':'所选通道合并'} for c in flat.get('candidates',[]) if c.get('localization')=='interval_only']
+                    bounds=flat.get('range',{})
+                    out+=section('平线 / 相邻变化候选' if flat.get('parameters',{}).get('peak_volts') is not None else '持续平线候选',timeline(rows,bounds.get('start_seconds'),bounds.get('stop_seconds'),limit)+'<p class="caption">时间标记是所选通道的合并区间。仅标记到通道的结果见报告检查明细。</p>','MNE')
             return out or missing('先运行对应的伪差或高频检查。')
         if key in ['band_power','band_amplitude','psd_distance']:
             method,field,unit={'band_power':('band_power','relative_power','%'),'band_amplitude':('band_amplitude','mean_amplitude_uv','μV'),'psd_distance':('psd_deviation','psd_distance','log10 PSD 距离')}[key]
@@ -232,11 +259,11 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         return missing('尚未接入。')
     if automatic:
         if window+'waveform.png' in declared:selected.append('waveform')
-        if evidence('M05_bad_channels.json').get('channels') or gnosis('line_length'):selected.append('channel_metrics')
+        if evidence('M05_bad_channels.json').get('channels') or evidence('M05_channel_description.json').get('channels') or gnosis('line_length'):selected.append('channel_metrics')
         if window+'M04_spectral.json' in declared or gnosis('band_power') or gnosis('psd_deviation'):selected.append('psd')
         if window+'M04_spectral.json' in declared:selected.append('interference')
         if any(gnosis(k) for k in ['artifact','low_band','high_band']):selected.extend(['artifact_burden','timeline'])
-        elif window+'M06_muscle.json' in declared:selected.append('timeline')
+        elif window+'M06_muscle.json' in declared or window+'M03_mne_amplitude.json' in declared:selected.append('timeline')
         for key,method in [('band_power','band_power'),('band_amplitude','band_amplitude'),('psd_distance','psd_deviation'),('reference_ranges','reference_ranges')]:
             if gnosis(method):selected.append(key)
     groups=[
@@ -244,6 +271,10 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         ('channels','通道比较',('channel_metrics','psd_distance')),
         ('spectra','频谱与频带',('psd','band_power','band_amplitude','reference_ranges')),
     ]
+    if window+'M05_channel_description.json' in declared:
+        for spec in specs:
+            if spec['key']=='channel_metrics':spec.update(name='触点电压统计',description='各触点的 RMS 与峰峰值；幅度差异需结合记录背景解释。')
+            if spec['key']=='interference':spec.update(name='工频邻域功率',description='测量 50 / 60 Hz 邻域能量，不直接判定为工频污染。')
     visible=[s for s in specs if s['key'] in selected]
     visible_keys={s['key'] for s in visible}
     expanded=next((key for _,_,keys in groups for key in keys if key in visible_keys),None)
@@ -279,7 +310,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
     return f'''<!doctype html><html lang="zh-CN" class="{'embedded-charts' if embedded else ''}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>结果可视化 · 质控台</title><link rel="stylesheet" href="/ui-tokens.css"><style>{CSS}</style></head><body>
 <nav><a href="{esc(back_url)}" target="_top">← 返回质控报告</a><span>DBCI-QC · 图表分析</span></nav><main>
 <div class="intro"><h1>图表分析</h1><p>{esc(caption)}</p><p class="scope-note">{esc(scope_note)}</p></div>
-<form action="{esc(action)}" method="get" class="controls"><input type="hidden" name="configured" value="1">{embed_field}<div class="toolbar"><label class="primary-period">查看时段 <select name="window">{window_options}</select></label><button>更新图表</button></div><details class="display-options"><summary>显示选项</summary><div class="secondary-controls"><label>显示通道 <select name="limit">{limits}</select></label><label>参考频带 <select name="band">{bands}</select></label></div><div class="choices">{checkboxes}</div></details></form>
+<form action="{esc(action)}" method="get" class="controls"><input type="hidden" name="configured" value="1">{embed_field}<div class="toolbar"><label class="primary-period">查看时段 <select name="window">{window_options}</select></label><span class="chart-update-status" role="status" aria-live="polite"></span><button type="submit" class="chart-refresh" aria-label="刷新图表"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13 2.4M4.9 15.5a8 8 0 0 0 13 2.4"/></svg><span>刷新图表</span></button></div><details class="display-options"><summary>显示选项</summary><div class="secondary-controls"><label>显示通道 <select name="limit">{limits}</select></label><label>参考频带 <select name="band">{bands}</select></label></div><div class="choices">{checkboxes}</div></details></form>
 {warning}{''.join(group_html) if panels else missing('请选择至少一种图表。')}{source_note}<footer>{VERSION} · 数值和候选均来自保存的检测结果；图表配色不定义新的质量标准。</footer></main>
 <script src="/visualizations.js" defer></script></body></html>'''
 
@@ -308,4 +339,18 @@ body{font-family:var(--font-ui,system-ui,sans-serif)}
 .figure .caption{font-size:12px}.figure-details{margin:6px 0 12px}.figure-details summary{font-size:12px}.method-sources{margin-top:16px;border-top:1px solid #e2e8f0;padding-top:10px}.method-sources summary{font-size:12px}
 .embedded-charts .intro{margin-bottom:8px}.embedded-charts .panel{margin:0}.embedded-charts .chart-group{margin:0}
 @media(max-width:600px){.primary-period{flex-wrap:wrap;gap:4px}.primary-period select{min-width:120px}.toolbar{gap:8px}.choices{grid-template-columns:1fr 1fr}}
+"""
+
+CSS += """
+.controls{border-color:#dce5f0;background:#f7f9fc;border-radius:6px;padding:12px 14px}
+.chart-update-status{font-size:12px;color:#64748b;margin-left:auto;min-width:5em;text-align:right}
+.toolbar .chart-refresh{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:6px 12px;border:1px solid #c4d4ed;background:#fff;color:#2459bc;font-weight:500;margin-left:0;transition:background .15s,box-shadow .15s,transform .1s}
+.chart-refresh svg{width:16px;height:16px;min-width:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chart-refresh:hover{background:#eaf1ff;border-color:#8daee5}.chart-refresh:active{transform:translateY(1px);background:#dce9ff}.chart-refresh:focus-visible,select:focus-visible,.choice:focus-within{outline:2px solid #2563eb;outline-offset:2px}
+.controls[aria-busy="true"] .chart-refresh svg{animation:chart-spin .8s linear infinite}.chart-refresh:disabled{cursor:progress;color:#466eaa;background:#edf3ff}.controls[data-update="error"] .chart-update-status{color:#ae462d}.controls[data-update="done"] .chart-update-status{color:#18705c}
+.choice{padding:7px 9px;border:1px solid #dce3ed;border-radius:5px;background:#fff;transition:background .15s,border-color .15s,color .15s;user-select:none;line-height:1.4;min-height:34px}
+.choice:hover{background:#eef4ff;border-color:#a8bfdf}.choice:has(input:checked){color:#174b99;background:#e9f1ff;border-color:#9bb8e8}.choice:active{background:#dce9ff}.choice input{flex:none;width:15px;height:15px;margin:0}
+.panel>summary,.chart-group>summary{transition:background .15s,color .15s;border-radius:3px}.panel>summary:hover{color:#2459bc;background:#f5f8fd}.panel[open]>summary{color:#174b99}.panel>summary:active,.chart-group>summary:active{background:#eaf1fc}
+@keyframes chart-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.chart-refresh,.choice{transition:none}.controls[aria-busy="true"] .chart-refresh svg{animation:none}}
+@media(max-width:500px){.toolbar{gap:8px}.chart-update-status{order:3;width:100%;text-align:left;min-height:0}.chart-update-status:empty{display:none}.choices{grid-template-columns:1fr}}
 """

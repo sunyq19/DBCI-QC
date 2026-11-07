@@ -1,0 +1,156 @@
+"""Compact intracranial reports from saved measurements; no new QC decisions."""
+from html import escape
+import json
+import math
+from pathlib import Path
+from urllib.parse import quote
+from ephys_qc.report_presentation import report_section, inline_charts, CSS as SECTION_CSS
+
+
+def read(path):
+    if not path.is_file() or path.stat().st_size > 16*1024**2:
+        return {}
+    return json.loads(path.read_text())
+
+
+def measured(value):
+    return type(value) in (float, int) and math.isfinite(value)
+
+
+def scope(root, artifacts):
+    windows=read(artifacts/'window-results.json');coverage=read(artifacts/'coverage.json')
+    if isinstance(windows,list) and coverage:
+        return windows,coverage,'window-results.json'
+    selection=read(artifacts/'M02_selection.json')
+    recording=selection.get('recording',{})
+    duration,start=recording.get('duration_seconds'),recording.get('start_seconds')
+    if not measured(duration) or not measured(start):return [],{},''
+    # Stream module summaries, without retaining the review index or spectra.
+    import ijson
+    with (root/'result.json').open('rb') as stream:
+        modules=[{k:m[k] for k in ('id','status','summary') if k in m}
+                 for m in ijson.items(stream,'modules.item',use_float=True)]
+    return ([{'id':'','start_seconds':start,'duration_seconds':duration,'modules':modules}],
+            {'completed_seconds':duration},'M02_selection.json')
+
+
+def collect(artifacts, windows):
+    """Aggregate disjoint saved windows by stable contact identity, never labels."""
+    contacts = {}; flats = []; done = 0; failures = []; complete_samples = 0; invalid = 0
+    for window in windows:
+        prefix = window['id']+'--' if window.get('id') else ''
+        stats = read(artifacts/(prefix+'M05_channel_description.json'))
+        for row in stats.get('channels', []):
+            count=row.get('sample_count',0); finite=row.get('finite_sample_count',0)
+            complete_samples+=count; invalid+=row.get('nonfinite_sample_count',0)
+            identity=row['channel_id']
+            contact=contacts.setdefault(identity, {'id':identity,'name':row['channel_name'],
+                'source_index':row.get('source_index'), 'squares':0.,'finite':0,'nonfinite':0,
+                'p2p':None,'windows':0})
+            contact['nonfinite']+=row.get('nonfinite_sample_count',0)
+            if measured(row.get('rms_volts')) and finite:
+                contact['squares']+=row['rms_volts']**2*finite
+                contact['finite']+=finite;contact['windows']+=1
+            if measured(row.get('peak_to_peak_volts')):
+                contact['p2p']=max(contact['p2p'] or 0,row['peak_to_peak_volts'])
+        flat=read(artifacts/(prefix+'M03_mne_amplitude.json'))
+        if flat.get('status')=='completed' and flat.get('calculated', True) is True:
+            done+=1
+            mapping={c['adapter_name']:c for c in flat.get('channel_mapping',[])}
+            for candidate in flat.get('candidates',[]):
+                name=candidate.get('channel_name')
+                c=mapping.get(name,{})
+                flats.append({**candidate,'name':c.get('raw_name',name),
+                    'channel_id':c.get('channel_id',name), 'window':window,
+                    'parameters':flat.get('parameters',{})})
+        elif flat:
+            failures.append(flat.get('reason') or flat.get('status','未完成'))
+    for contact in contacts.values():
+        contact['rms']=math.sqrt(contact['squares']/contact['finite']) if contact['finite'] else None
+    return dict(contacts=list(contacts.values()), flats=flats, flat_windows=done,
+                flat_failures=failures, sample_count=complete_samples, nonfinite=invalid)
+
+
+def render(store, identifier, language='zh-CN'):
+    en=language=='en'; t=lambda zh,eng:eng if en else zh
+    esc=lambda value:escape(str(value if value is not None else '—'),quote=True)
+    num=lambda value:f'{value:,.3f}'.rstrip('0').rstrip('.') if measured(value) else '—'
+    root=store.root/'jobs'/identifier; artifacts=root/'artifacts'
+    request=read(root/'request.json');item=request['input'];job=store.job(identifier)
+    windows,coverage,scope_artifact=scope(root,artifacts)
+    if not windows or not coverage:return None
+    data=collect(artifacts,windows);contacts=data['contacts'];flats=data['flats']
+    configs=request.get('qc_config',request.get('plan',{}).get('qc_config',{}));methods=configs.get('method_config',{})
+    flatparams=methods.get('extension_parameters',{}).get('mne_amplitude',{})
+    peak_enabled=flatparams.get('peak_volts') is not None
+    flat_name=t('平线与相邻跳变','Flatness and adjacent changes') if peak_enabled else t('持续平线','Sustained flatness')
+    bad={c['channel_id'] for c in flats if c.get('localization')=='channel_only'}
+    intervals=[c for c in flats if c.get('localization')=='interval_only']
+    nflat=data['flat_windows'];allflat=nflat==len(windows)
+    from dataset_overview import recording_display
+    info=recording_display(store,job,item)
+    modality={'seeg':'sEEG','ecog':'ECoG'}[item['modality']]
+    url=lambda name:f'/api/v1/jobs/{identifier}/artifacts/{quote(name)}'
+    state=t('基础检查已完成','Basic checks complete')
+    if coverage.get('unexecuted_seconds',0) or coverage.get('failed_seconds',0):
+        state=t('部分时段未完成','Some intervals were not completed')
+    elif data['nonfinite'] or flats:
+        state=t('有待复核的信号片段','Signal findings to review')
+    flat_result=t(f'{len(bad)} 道 · {len(intervals)} 条区间',f'{len(bad)} contacts · {len(intervals)} intervals') if nflat else t('未完成','Not assessed')
+    if nflat and not allflat:flat_result+=t(f'（{nflat}/{len(windows)} 段已检查）',f' ({nflat}/{len(windows)} windows checked)')
+    spectral=[m.get('summary',{}) for w in windows for m in w.get('modules',[]) if m.get('id')=='M04']
+    psd_min=min((r.get('psd_computed_channel_count',0) for r in spectral),default=None)
+    spec_count=sum(r.get('line_computed_observation_count',0) for r in spectral)
+    rows=[
+        (t('数值完整性','Numerical integrity'),t(f'{data["nonfinite"]:,} 个非有限值',f'{data["nonfinite"]:,} non-finite samples') if contacts else t('未评','Not assessed'),t('检查 NaN / Inf；短暂重复采样值另存明细，不直接判为坏道。','Check NaN / Inf. Short runs of equal samples remain descriptive evidence.')),
+        (flat_name,flat_result,t('MNE 持续相邻差值检测；通道候选和时间候选分别保留。','Original MNE consecutive-difference detection; contact and interval candidates are kept separately.')),
+        (t('功率谱密度','Power spectral density'),t(f'每段至少 {num(psd_min)} 道',f'At least {num(psd_min)} contacts per window'),t('Welch PSD；查看频率能量分布，不套用头皮 EEG 的频谱阈值。','Welch PSD describes spectral energy without scalp-EEG thresholds.')),
+        (t('工频邻域','Line-frequency neighborhoods'),t(f'{spec_count} 组有效测量',f'{spec_count} valid measurements'),t('测量各触点的 50 / 60 Hz 邻域功率；不将谱峰自动判为噪声。','Measure 50 / 60 Hz band power; a peak is not automatically noise.')),
+        (t('触点统计','Contact statistics'),t(f'{len(contacts)} 道',f'{len(contacts)} contacts'),t('RMS、峰峰值及非有限值计数；用于定位和比较。','RMS, peak-to-peak voltage and non-finite counts for review.')),
+    ]
+    events=[m for w in windows for m in w.get('modules',[]) if m.get('id')=='M07' and m.get('status') not in {'not_selected','skipped'}]
+    if events:rows.append((t('事件与时间','Events and time'),t(f'{len(events)} 段已执行',f'{len(events)} windows checked'),t('核对已登记事件表的时间范围；不识别发作或病理活动。','Check registered event times, without classifying seizures or pathological activity.')))
+    table=lambda headers,body:('<div class="table-scroll" tabindex="0" role="region" aria-label="'+esc(' / '.join(headers))+'"><table><thead><tr>'+''.join('<th>'+esc(h)+'</th>' for h in headers)+'</tr></thead><tbody>'+body+'</tbody></table></div>')
+    results=table([t('检查项目','Check'),t('检查结果','Result'),t('解释','Interpretation')],''.join('<tr>'+''.join('<td>'+esc(c)+'</td>' for c in row)+'</tr>' for row in rows))
+    finding_rows=[]
+    for c in flats:
+        w=c['window'];a=c.get('start_seconds');b=c.get('stop_seconds')
+        channel=c.get('name') if c.get('localization')=='channel_only' else t('所选通道合并','Across selected contacts')
+        period=f'{num(a)}–{num(b)} s' if measured(a) and measured(b) else f'{num(w["start_seconds"])}–{num(w["start_seconds"]+w["duration_seconds"])} s'
+        label=t('通道候选；列出检查窗口','Contact candidate; analysis window shown') if c.get('localization')=='channel_only' else t('持续平线区间','Sustained-flat interval')
+        if c.get('kind')=='BAD_peak':label=t('相邻跳变区间','Adjacent-change interval')
+        finding_rows.append('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (channel,period,label))+'</tr>')
+    findings=table([t('位置','Location'),t('原始记录时间','Original time'),t('发现','Finding')],''.join(finding_rows)) if finding_rows else '<p>'+t('本次已执行的平线检查未检出候选。','No sustained-flat candidates in the assessed windows.')+'</p>' if nflat else '<p>'+t('尚无持续平线检查结果。','No sustained-flat results are available.')+'</p>'
+    if data['nonfinite']:
+        findings+='<p>'+t('存在非有限值，查看下方触点统计定位通道。','Non-finite values found; see contact statistics below.')+'</p>'
+    if not allflat:
+        findings+='<p class="secondary">'+t(f'持续平线完成 {nflat}/{len(windows)} 个窗口；未检查部分不计为正常。',f'Flatness assessed in {nflat}/{len(windows)} windows; missing checks are not passes.')+'</p>'
+    # Expose an actual saved waveform, with its original scope, inside the report.
+    prefix=windows[0]['id']+'--' if windows and windows[0].get('id') else ''
+    wave=prefix+'waveform.png'
+    if (artifacts/wave).is_file():
+        findings+=f'<details class="disclosure"><summary>{t("查看首段波形","First-window waveform")}</summary><img class="ieeg-waveform" src="{url(wave)}" alt="{t("保存的首段波形","Saved first-window traces")}"><p class="secondary">{t("展示通道与时间以图中标记为准。","Channel and time labels define the preview scope.")}</p></details>'
+    statsrows=''.join('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (c['name'],c['source_index'],num(c['rms']*1e6 if measured(c['rms']) else None),num(c['p2p']*1e6 if measured(c['p2p']) else None),c['nonfinite']))+'</tr>' for c in contacts)
+    stats='<p class="secondary">'+t('RMS 按有效样本数合并；峰峰值列出各分析窗的最大值。保持源通道顺序，不按幅度自动判坏。','RMS pooled by finite sample count; peak-to-peak is the maximum window value. Source order is preserved; amplitude alone does not label bad contacts.')+'</p>'+table([t('触点','Contact'),t('源索引','Source index'),'RMS / μV',t('最大窗峰峰值 / μV','Max window peak-to-peak / μV'),'NaN / Inf'],statsrows)
+    stats='<details class="disclosure ieeg-contacts"><summary>'+t('逐触点测量','Contact measurements')+'</summary>'+stats+'</details>'
+    explanation=t('默认输出分项测量与复核位置，不设置颅内信号的统一合格线。发作活动与生理高频不自动扣分。','Default output is measurements and review locations, without a universal intracranial pass threshold. Seizure activity and physiological high frequencies are not automatically penalized.')
+    background=t('sEEG 按深部触点分析；电极杆、参考和解剖位置须由采集资料提供。','sEEG analysis is contact-wise; shaft, reference and anatomical context require acquisition metadata.') if item['modality']=='seeg' else t('ECoG 按表面触点分析；网格、条带和参考关系须由采集资料提供。','ECoG analysis is contact-wise; grid, strip and reference relationships require acquisition metadata.')
+    details=f'<p>{background}</p><p>{t("不根据通道名推测邻接关系。","Adjacency is not inferred from contact names.")}</p><p>{t("持续平线参数","Flatness parameters")}: {esc(flatparams or t("本次未配置","Not configured"))}</p><p class="secondary">'+t('基础方案的 50 ms 设置参考 MNE-BIDS 检视流程；5% 用于 MNE 将候选归为通道或时间段，仍需复核。','The baseline 50 ms setting follows MNE-BIDS inspection; MNE uses 5% to route findings to contacts or intervals, still requiring review.')+'</p>'
+    details+=f'<p><a href="/standards/{item["modality"]}">{t("方案与依据","Scheme and basis")}</a> · <a href="{url(scope_artifact)}">{t("检查范围与记录","Scope and records")}</a> · <a href="{url("report.html")}">{t("运行时报告","Original run report")}</a></p>'
+    if data['flat_failures']:details+='<p>'+esc('；'.join(dict.fromkeys(data['flat_failures'])))+'</p>'
+    score_html='';score=read(artifacts/'method-scores.json').get('project_score')
+    if score:
+        weights=sum(max(0,r.get('weight',0)) for r in score['components'])
+        body=''.join('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (r['name'],num(r['value']),num(100*r.get('weight',0)/weights) if weights else '0',r['reason']))+'</tr>' for r in score['components'])
+        score_html=report_section('project-score',t('项目自定义评分','Project score')+' · '+num(score['value']),table([t('方法','Method'),'/ 100','%',t('说明','Note')],body),opened=True)
+    initial_window=flats[0]['window']['id']+'--' if flats and flats[0]['window'].get('id') else ''
+    charts_url=f'/api/v1/jobs/{identifier}/visualizations'+('?window='+quote(initial_window) if initial_window else '')
+    facts=[(modality,t('模态','Modality')),(info['channels'],t('分析触点','Contacts')),(num(coverage.get('completed_seconds'))+' s',t('已检查时长','Checked duration')),(', '.join(num(r) for r in info['rates_hz'])+' Hz',t('采样率','Sampling rate'))]
+    facthtml=''.join(f'<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>' for v,k in facts)
+    web=Path(__file__).with_name('web');css=(web/'ui-tokens.css').read_text()+(web/'dataset-report.css').read_text()+SECTION_CSS+EXTRA_CSS
+    return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(job.get('run_name') or item['label'])}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report ieeg-report"><main><p class="eyebrow">DBCI-QC · {modality} {t('基础方案','basic scheme')}</p><h1>{esc(job.get('run_name') or item['label'])}</h1><p class="secondary">{esc(item['label'])}</p><dl class="dataset-facts">{facthtml}</dl><div class="ieeg-result"><strong>{state}</strong><span>{flat_name}：{flat_result}</span></div><p class="secondary">{explanation}</p><ol class="ieeg-flow"><li>{t('读取与确认','Read and confirm')}</li><li>{t('完整性与平线','Integrity and flatness')}</li><li>{t('频谱与触点','Spectra and contacts')}</li><li>{t('汇总与复核','Summarize and review')}</li></ol>{report_section('results',t('检查结果','Results'),results,opened=True)}{score_html}{report_section('locations',t('问题定位','Review locations'),findings,opened=bool(flats or data['nonfinite']))}{inline_charts(charts_url,english=en)}{report_section('details',t('报告详情','Report details'),stats+details)}<footer>DBCI-QC · {t('基础方案试用版，候选需复核','Basic trial scheme; candidates require review')}<button id="print-report">{t('打印 / PDF','Print / PDF')}</button></footer></main></body></html>'''
+
+
+EXTRA_CSS='''
+.ieeg-report main>.report-section{margin:0;padding:0;border-bottom:1px solid #dfe5ed}.ieeg-report main>.report-section>summary{padding:14px 0;min-height:52px}.ieeg-report main>.report-section>summary>h2{font:600 16px/24px var(--font-ui,system-ui,sans-serif);margin:0}.ieeg-report main>.report-section>summary:hover{color:#2459bc}.ieeg-report main{max-width:1120px;margin:24px auto;padding:0 28px 32px}.ieeg-report .dataset-facts{margin:16px 0;padding:14px 0;border-bottom:1px solid #dfe5ed;gap:16px}.ieeg-report .dataset-facts dd{font-size:19px}.ieeg-report table{table-layout:auto}.ieeg-report th,.ieeg-report td{padding:10px 12px}.ieeg-report td:first-child{white-space:nowrap}.ieeg-report .ieeg-result{display:flex;align-items:baseline;gap:18px;padding:8px 0}.ieeg-result strong{font-size:17px}.ieeg-result span{font-size:13px;color:#42546b}.ieeg-report main>.secondary{font-size:12px}.ieeg-flow{display:flex;list-style:none;margin:16px 0 22px;padding:0;flex-wrap:wrap;gap:0}.ieeg-flow li{font-size:12px;color:#28538b;background:#eef3fb;padding:7px 12px}.ieeg-flow li+li:before{content:'→';margin-right:12px;color:#7893b9}.ieeg-flow li:first-child{border-radius:4px 0 0 4px}.ieeg-flow li:last-child{border-radius:0 4px 4px 0}.ieeg-waveform{width:100%;height:auto}.ieeg-contacts .table-scroll{max-height:420px;overflow:auto}.ieeg-contacts thead{position:sticky;top:0;background:white}.ieeg-report .disclosure{margin:8px 0;padding:12px 0}.ieeg-report footer{display:flex;align-items:center;justify-content:space-between;margin-top:20px;font-size:12px;color:#64748b}.ieeg-report .report-section-body>p{font-size:13px}.ieeg-report .ieeg-result span{font-variant-numeric:tabular-nums}@media(max-width:600px){.ieeg-report main{padding:0 16px 24px}.ieeg-report .dataset-facts{grid-template-columns:repeat(2,1fr)}.ieeg-result{flex-wrap:wrap;gap:4px!important}}@media print{.ieeg-flow{display:none}.ieeg-report .ieeg-contacts .table-scroll{max-height:none;overflow:visible}.ieeg-report table{min-width:0}.ieeg-report .report-section-body{display:block!important}}
+'''

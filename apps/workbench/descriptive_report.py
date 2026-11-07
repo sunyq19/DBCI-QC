@@ -6,6 +6,12 @@ from urllib.parse import quote
 
 
 def render(store, identifier, language='zh-CN'):
+    declared=store.job(identifier).get('plan', {}).get('input_modality', {})
+    modality=declared.get('value') if isinstance(declared,dict) else declared
+    if modality in {'ecog','seeg'}:
+        from ieeg_report import render as render_ieeg
+        report=render_ieeg(store,identifier,language)
+        if report:return report
     from dataset_overview import recording_display
     en = language == 'en'; t = lambda a,b:b if en else a
     esc = lambda value:escape(str(value if value is not None else '—'), quote=True)

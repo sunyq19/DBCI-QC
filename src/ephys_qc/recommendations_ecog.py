@@ -8,9 +8,11 @@ from .tagging import data_facts
 def recommend_ecog(record, submitted=None):
     from .recommendations import _empty, _finish, _missing, _ANNOTATIONS
     result = _empty(record, 'needs_input', '先核实ECoG模态、分析通道及电压单位。')
-    result['policy_version'] = 'ecog-basic-metadata-rules/1.0'
+    result['policy_version'] = 'ecog-basic-metadata-rules/1.1'
     result['scope']['supported_modality'] = 'ecog'
     result['scope']['analysis_profile'] = 'ecog-basic/1'
+    from .ieeg_baseline import VERSION
+    result['scope']['baseline_recipe'] = VERSION
     metadata = record.get('metadata')
     format_ = metadata.get('format') if isinstance(metadata, dict) else None
     if format_ not in result['scope']['supported_metadata_formats']:
@@ -20,6 +22,9 @@ def recommend_ecog(record, submitted=None):
     try:
         current = build_plan(record, [], submitted)
         config = copy.deepcopy(current['qc_config'])
+        if record['modality'] in {'ecog', 'seeg'}:
+            from .ieeg_baseline import configure
+            config = configure(config)
         facts = data_facts(record, config)
         if not facts['verified_voltage']:
             raise ValueError('所选信号须具有已核验的电压单位。')
@@ -32,13 +37,14 @@ def recommend_ecog(record, submitted=None):
         result['reason'] = result['summary'] = '配置未通过ECoG入口核验；未自动移除或改写不相容参数。'
         return _finish(result, record, submitted)
 
-    result.update(status='ready', can_apply=True, summary='建议基础完整性、频谱观察与逐触点统计；不使用头皮EEG坏道或伪迹阈值。',
+    result.update(status='ready', can_apply=True, summary='建议完整性、持续平线、频谱与逐触点检查；有事件表时核对事件时间。',
                   reason='根据已确认ECoG模态和技术信息生成基础检查计划。',
                   selected_modules=final['selected_modules'], qc_config=final['qc_config'],
                   plan_id=final['plan_id'], data_tags=final['data_tags'],
                   method_applicability=final['method_applicability'], plan_warnings=final['warnings'],
                   analysis_scope=final.get('scope', 'window'), window_count=final.get('window_count', 1),
-                  coverage_plan=final.get('coverage_plan'), current_extensions=[], extension_selection_changed=False)
+                  coverage_plan=final.get('coverage_plan'), current_extensions=current['qc_config']['method_config']['extensions'],
+                  extension_selection_changed=config['method_config']['extensions'] != current['qc_config']['method_config']['extensions'])
     for method in final['method_applicability']:
         entry = {'id': method['id'], 'module_id': method['module_id'], 'name': method['name'],
                  'reason': method['reason'], 'applicability': method['status'],

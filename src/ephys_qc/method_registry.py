@@ -89,7 +89,7 @@ def methods(modality='scalp_eeg'):
     ]
     from .extensions import extension_specs
     for extension in extension_specs():
-        if extension.get('research_modalities'):
+        if extension.get('research_modalities') and extension['id'] != 'mne_amplitude':
             continue
         spec = dict(extension)
         spec.update(optional_extension=True, implementation='available', category='optional')
@@ -126,6 +126,14 @@ def methods(modality='scalp_eeg'):
                            upstream_call='ephys_qc.readers.open_reader；ephys_qc.modules.m02.read_window',
                            implementation_origin='按实际格式使用BrainElecQC或MNE读取器；ECoG测量不调用头皮判坏阈值。')
         common = [_adapt(row, modality) for row in common]
+        if modality in {'ecog','seeg'}:
+            flat = next(row for row in rows if row['id'] == 'mne_amplitude')
+            flat = enrich_method(_classification(flat, modality))
+            flat.update(name='MNE 持续平线 / 相邻变化', inputs=['已标定连续电压','原生采样率','明确持续时间'])
+            flat['documentation'].update(when_to_use='已确认ECoG或sEEG的有限连续电压；基础方案仅检查持续平线。',
+                                        when_not_to_use='非有限样本、跨时钟混合；不能以此识别癫痫放电或生理高频。')
+            flat['documentation']['references'].append({'title':'MNE-BIDS 持续平线检视设置','url':'https://mne.tools/mne-bids/stable/generated/mne_bids.inspect_dataset.html','kind':'官方文档'})
+            common.append(flat)
         if modality == 'extracellular':
             for row in common:
                 if row['id'] in {'edf_reader', 'voltage_calibration'}:

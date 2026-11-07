@@ -43,18 +43,18 @@ class ECoGIntegrationTests(unittest.TestCase):
         self.assertFalse(result['scope']['signal_read'])
         self.assertNotIn('M06', result['selected_modules'])
         self.assertNotIn('M07', result['selected_modules'])
-        self.assertEqual(result['qc_config']['method_config']['extensions'], [])
+        self.assertEqual(result['qc_config']['method_config']['extensions'], ['mne_amplitude'])
         self.assertEqual(build_plan(record, result['selected_modules'], result['qc_config'])['plan_id'], result['plan_id'])
         self.assertTrue(any(m['id'] == 'ecog_welch_psd' for m in result['recommended_methods']))
         self.assertFalse({'prep_nonspatial', 'hf_burst', 'spectral_model'} & {m['id'] for m in result['method_applicability']})
         self.assertEqual(record, before)
 
     def test_scalp_parameters_rejected_without_silent_cleanup(self):
-        record = recording(); record['default_config']['method_config']['extensions'] = ['mne_amplitude']
+        record = recording(); record['default_config']['method_config']['extensions'] = ['mne_muscle']
         result = recommend(record)
         self.assertEqual(result['status'], 'needs_input')
         self.assertFalse(result['can_apply'])
-        self.assertEqual(record['default_config']['method_config']['extensions'], ['mne_amplitude'])
+        self.assertEqual(record['default_config']['method_config']['extensions'], ['mne_muscle'])
 
     def test_event_registration_is_separate_from_disease(self):
         record = recording()

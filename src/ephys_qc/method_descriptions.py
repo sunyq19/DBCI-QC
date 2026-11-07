@@ -271,7 +271,7 @@ _DOCUMENTATION = {
 
     "mne_amplitude": _doc(
         "用成熟库补充相邻样本突变和平线筛查，并保留时间段与通道两种输出。",
-        "直接调用MNE annotate_amplitude，按相邻样本差值判定peak/flat并结合最小时长与坏样本比例；平台默认peak=None、flat=0、min_duration=0.1秒、bad_percent=5。",
+        "直接调用MNE annotate_amplitude，按相邻样本差值判定peak/flat并结合最小时长与坏样本比例；头皮默认peak=None、flat=0、min_duration=0.1秒、bad_percent=5；ECoG/sEEG基础推荐将最短时长设为0.05秒，实际以本次配置为准。",
         "它不是固定时间窗峰峰值法。MNE可能只返回坏通道候选而没有区间；时间注释可跨通道合并，不能伪造成逐道精确定位。",
         "已核验电压单位和采样率，理解量化精度、采集与处理历史时；默认设置主要补查精确平线。",
         "不能用本项覆盖缓慢漂移或所有高幅度伪迹；没有时间注释不等于没有通道候选，也不能把默认值当临床标准。",

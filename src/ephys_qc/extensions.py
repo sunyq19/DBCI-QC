@@ -13,8 +13,9 @@ import warnings
 
 _SPECS = [
     {"id": "mne_amplitude", "name": "MNE 相邻采样变化 / 平线", "module_id": "M03", "category": "optional",
+     "research_modalities": ["scalp_eeg", "ecog", "seeg"],
      "description": "按相邻采样点差分定位平线/变化候选，分别保留时间标注与通道建议；默认未启用peak阈值。",
-     "inputs": ["已标定为V的EEG", "原生采样率", "明确阈值及最短持续时间"],
+     "inputs": ["已标定为V的头皮EEG或颅内连续电压", "原生采样率", "明确阈值及最短持续时间"],
      "outputs": ["跨通道合并时间候选", "通道级候选（可能没有具体时段）"],
      "requirements": ["电压单位核实并标定为V", "保留原生采样的EEG", "明确平线/变化阈值及最短持续时间"],
      "source": {"name": "MNE-Python annotate_amplitude", "url": "https://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html", "license": "BSD-3-Clause"},
@@ -106,6 +107,9 @@ def evaluate_extension(extension_id, facts, params=None):
         return evaluate_extra(extension_id, facts, params)
     parameters = _parameters(extension_id, params)
     verdict = {"status": "blocked", "reason": "", "parameters": parameters}
+    modality = facts.get('modality', 'scalp_eeg') if isinstance(facts,dict) else 'scalp_eeg'
+    if modality not in _spec(extension_id).get('research_modalities', ['scalp_eeg']):
+        return {**verdict, 'reason': '此方法尚未接入该模态。'}
     if not isinstance(facts, dict) or facts.get("verified_voltage") is not True:
         return {**verdict, "reason": "电压单位尚未核实为V"}
     try:
@@ -203,7 +207,7 @@ def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds
     if not math.isfinite(start + duration):
         raise ValueError("Original recording stop time must be finite")
     digest = _data_hash(data)
-    preflight = evaluate_extension(extension_id, {"sampling_rate_hz": fs, "n_eeg": len(data),
+    preflight = evaluate_extension(extension_id, {**(facts or {}), "sampling_rate_hz": fs, "n_eeg": len(data),
                     "window_seconds": duration, "verified_voltage": True}, config)
     result = {"schema_version": "ephys-extension-result/1.0", "extension_id": extension_id,
               "status": preflight["status"], "reason": preflight["reason"], "parameters": config,
@@ -220,20 +224,22 @@ def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds
     import mne
     result["source"] = _source(extension_id, mne)
     # An owned copy and first_samp=0 prevent source mutation and double offsets.
-    raw = mne.io.RawArray(data.copy(), mne.create_info(names, fs, "eeg"), first_samp=0, copy="both", verbose="ERROR")
+    channel_type = {'ecog': 'ecog', 'seeg': 'seeg'}.get((facts or {}).get('modality'), 'eeg')
+    result['channel_type'] = channel_type
+    raw = mne.io.RawArray(data.copy(), mne.create_info(names, fs, channel_type), first_samp=0, copy="both", verbose="ERROR")
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         if extension_id == "mne_amplitude":
             annotation, bads = mne.preprocessing.annotate_amplitude(
                 raw, peak=config["peak_volts"], flat=config["flat_volts"],
                 bad_percent=config["bad_percent"], min_duration=config["min_duration_seconds"],
-                picks="eeg", verbose="ERROR")
+                picks=list(range(len(names))), verbose="ERROR")
             bad_set = set(bads)
             result["bad_channels"] = [n for n in names if n in bad_set]
             result["status"] = "completed"
             result["reason"] = "相邻差分候选计算完成；未自动应用标注或移除通道"
             result["notes"] += ["相邻样本差分，不是固定窗峰峰值；通道候选的精确异常区间未由MNE返回。",
-                                "初始默认flat=0和最短0.1秒为项目研究参数；5%是软件默认分流阈值，不代表通道临床不可用；实际值见parameters。",
+                                "flat与min_duration为本次配置；5%是软件默认分流阈值，不代表通道临床不可用；实际值见parameters。",
                                 "默认peak=None时仅检查平线；0个时间标注不代表没有通道候选。" if config["peak_volts"] is None else "peak已按给定V阈值启用；不得把候选直接当作最终坏道。"]
         else:
             annotation, scores = mne.preprocessing.annotate_muscle_zscore(
@@ -260,7 +266,7 @@ def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds
         if right <= left:
             continue
         result["candidates"].append({"kind": str(description), "localization": "interval_only",
-            "scope": "across_selected_eeg_channels", "start_seconds": start + left, "stop_seconds": start + right,
+            "scope": "across_selected_channels", "start_seconds": start + left, "stop_seconds": start + right,
             "duration_seconds": right - left, "channel_index": None, "channel_name": None,
             "action": "review", "review_status": "pending"})
     result["candidate_interval_count"] = len(result["candidates"])

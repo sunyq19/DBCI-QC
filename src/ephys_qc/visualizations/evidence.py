@@ -10,6 +10,8 @@ TIMELINE_CANDIDATE_LIMIT = 500
 LINE_FIELDS = (
     'channel_id', 'channel_index', 'channel_name', 'start_sample',
     'stop_sample', 'status', 'flagged', 'amplitude_uv',
+    'nominal_hz', 'half_width_hz', 'band_power_v2', 'peak_frequency_hz',
+    'artifact_classification',
 )
 
 

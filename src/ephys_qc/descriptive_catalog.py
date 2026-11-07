@@ -19,6 +19,9 @@ def _adapt(value, modality):
 
 def module_overrides(module_id, modality):
     result = _adapt(ecog_catalog.module_overrides(module_id), modality)
+    if modality in {'ecog', 'seeg'} and module_id == 'M03':
+        result.update(description='扫描非有限值及重复采样值；推荐启用 MNE 持续平线候选检查。',
+                      outputs=['数值完整性计数', '持续平线通道与区间候选', '原始样本坐标'])
     if modality in {'ecog', 'seeg'} and module_id == 'M06':
         result.update(selectable=True, implementation='available', description='可选FieldTrip差分z值区间线索；不自动判定生理伪迹。',
                       inputs=['已标定连续电压'], outputs=['候选区间与原始样本坐标'])
