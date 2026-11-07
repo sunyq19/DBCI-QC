@@ -46,6 +46,28 @@ class ReportExportTests(unittest.TestCase):
         self.assertEqual(score_rows(view)[1]['share'],.5)
         self.assertEqual(score_composition(before['score']),'总分由 3 个分项按设定比例汇总。')
 
+    def test_weights_belong_to_result_rows_and_preview_precedes_candidates(self):
+        from ephys_qc.project_scoring import apply_to_view, VERSION
+        from ephys_qc.report_view import render_report_view
+        from ephys_qc.report_export import score_weight_label
+        view=apply_to_view(self.view(),{'version':VERSION,'weights':{'integrity':1,'line_noise':2,'hf_burst':1}})
+        before=copy.deepcopy(view)
+        rows=score_rows(view)
+        self.assertEqual([score_weight_label(r,view['score']) for r in rows],['25.0%','50.0%','25.0%'])
+        page=render_report_view(view,focus_url=lambda i:f'/focus-{i}.png',visualization_url='/charts')
+        overview=page.split('<header id="overview"')[1].split('</header>')[0]
+        self.assertNotIn('同等计入',overview)
+        self.assertNotIn('按设定比例',overview)
+        results=page.split('<section id="score-table">')[1].split('</section>')[0]
+        self.assertIn('>权重</th>',results)
+        self.assertIn('class="result-weight">50.0%</td>',results)
+        self.assertLess(page.index('id="finding-preview"'),page.index('<table class="finding-table"'))
+        self.assertIn('id="finding-status" role="status"',page)
+        self.assertIn('aria-controls="finding-preview" aria-current="true"',page)
+        self.assertEqual(view,before)
+        view['score']['components'][1]['value']=None
+        self.assertEqual(score_weight_label(score_rows(view)[1],view['score']),'50.0%')
+
     def test_archived_v01_keeps_its_mean_formula_and_actual_fraction(self):
         from ephys_qc.report_export import score_composition
         from ephys_qc.report_view import render_report_view

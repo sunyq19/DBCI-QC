@@ -58,15 +58,18 @@ class VisualizationTests(unittest.TestCase):
         self.assertFalse({s['id'] for s in v}&{m['id'] for m in methods()})
         with self.assertRaises(ValueError):render_gallery({},lambda _: {},selected=['radar'])
 
-    def test_gallery_groups_keep_figures_available_but_expand_only_psd(self):
+    def test_gallery_groups_prioritize_locations_and_keep_spectra_available(self):
         html=render_gallery({},lambda _: {},selected=['waveform','psd','timeline'])
-        self.assertIn('<details class="panel" id="viz_psd" open>',html)
+        self.assertIn('<details class="panel" id="viz_psd" >',html)
         self.assertIn('<details class="panel" id="viz_waveform" >',html)
-        self.assertIn('<details class="panel" id="viz_timeline" >',html)
-        self.assertIn('href="#viz_timeline" data-panel-link',html)
+        self.assertIn('<details class="panel" id="viz_timeline" open>',html)
+        self.assertIn('href="#chart-locations" data-panel-link',html)
         self.assertIn('<script src="/visualizations.js" defer></script>',html)
         self.assertNotIn('<script>',html)
         self.assertIn('本窗口没有已保存的波形图',html)
+        self.assertLess(html.index('id="chart-locations"'),html.index('id="chart-spectra"'))
+        self.assertIn('<details class="display-options">',html)
+        self.assertIn('<summary>显示选项</summary>',html)
 
     def test_return_navigation_leaves_embedded_frame(self):
         page=render_gallery({},lambda _: {},selected=[],back_url='/api/v1/jobs/example/report')

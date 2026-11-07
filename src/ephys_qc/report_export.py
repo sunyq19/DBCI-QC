@@ -74,6 +74,15 @@ def score_rows(view):
     return rows
 
 
+def score_weight_label(row, score):
+    """Display the saved configured share, including missing and excluded checks."""
+    if score.get('version', '').startswith('project-weighted/'):
+        return f"{row['share'] * 100:.1f}%" if row.get('included') and row.get('share') is not None else '不计入'
+    if score.get('version') == 'eeg-basic-screen/0.1':
+        return f"{100 / len(score['components']):.1f}%"
+    return '—'  # A minimum-of-components score has no additive weights.
+
+
 def score_composition(score):
     """Human-readable proportions; missing components keep their configured share."""
     if score.get('version')=='eeg-basic-screen/0.1':
@@ -216,7 +225,7 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
         rec=view['recording'];start=rec.get('start_seconds',0);stop=start+rec.get('duration_seconds',0)
         story.append(para(f'{view["format"]} · 头皮 EEG · {rec.get("channel_count")} 通道 · {rec.get("sampling_rate_hz"):g} Hz','note'))
         story.append(para(f'本次检查 {start:g}-{stop:g} 秒；原记录 {view["input_duration_seconds"]:g} 秒。','note'))
-        hero=Table([[[para('总分 / 100','note'),para('未汇总' if score['value'] is None else point(score['value']),'score')],para(score_composition(score)+' 本次为项目试行评分，未设合格线。')]],colWidths=[154,353])
+        hero=Table([[[para('总分 / 100','note'),para('未汇总' if score['value'] is None else point(score['value']),'score')],para('本次为项目试行评分，未设合格线。各项权重见下表。')]],colWidths=[154,353])
         hero.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('LEFTPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),12)]))
         story.extend([Spacer(1,10),hero])
         if score.get('value') is None and score.get('missing_reason'):
@@ -234,10 +243,10 @@ def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
             story.append(para(f'已计算 {cov["completed_seconds"]:g}/{cov["total_seconds"]:g} 秒；来源间隙 {cov["gap_seconds"]:g} 秒。','note'))
         story.append(para('计分项目' if weighted else '基础分项','heading'))
         if active:
-            story.append(table([['检查项目','分项 / 100','检查发现']]+[[r['name'],point(r['value']),r['finding']] for r in active],[125,67,315]))
+            story.append(table([['检查项目','分项 / 100','权重','检查发现']]+[[r['name'],point(r['value']),score_weight_label(r,score),r['finding']] for r in active],[108,65,60,274]))
         else:story.append(para('本次未设置总分，已完成的分项见下方。','note'))
         if supplemental and not appendix:
-            story.extend([para('其他检查 · 不计入总分','heading'),table([['检查项目','分项 / 100','检查发现']]+[[r['name'],point(r['value']),r['finding']] for r in supplemental],[125,67,315])])
+            story.extend([para('其他检查 · 不计入总分','heading'),table([['检查项目','分项 / 100','权重','检查发现']]+[[r['name'],point(r['value']),score_weight_label(r,score),r['finding']] for r in supplemental],[108,65,60,274])])
         elif appendix:
             story.append(para(f'另有 {len(supplemental)} 项共同基础检查，结果见附录；不计入本方案总分。','note'))
         story.append(para('分数越低，表示该方法标记的候选负担越大。候选仍需结合原始信号复核。','note'))

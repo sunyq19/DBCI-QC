@@ -63,11 +63,10 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     scope = re.search(r'<p class="scope">([^<]*检查[^<]*)</p>', header)
     failures = ''.join(re.findall(r'<p class="failure">.*?</p>', header, re.S))
     score = view['score']
-    from .report_export import score_composition
     version_label='项目自定义 v'+score['version'].split('/')[-1] if score['version'].startswith('project-weighted/') else '项目试行 v'+score['version'].split('/')[-1]
     route = '灵犀云扩展方案' if any(p['id'].startswith('gnosis_') for p in score['components']) else '基础检查方案'
     overview = f'''<header id="overview" class="report-overview"><div class="report-title"><div><p class="eyebrow">{route}</p><h1>{esc(view.get('run_name') or '信号质量报告')}</h1><p class="filename">{esc(view['label'])}</p></div><div class="report-actions">{actions}</div></div>
-<div class="report-summary"><div class="report-total"><span>综合分</span><strong>{points(score['value'])}<small> / 100</small></strong><span>{esc(score_composition(score))}</span></div><div class="report-conclusion"><h2>{headline}</h2><p>{conclusion}</p>{failures}</div></div><div class="facts">{facts}{'<span>'+scope[1]+'</span>' if scope else ''}</div></header>'''
+<div class="report-summary"><div class="report-total"><span>综合分</span><strong>{points(score['value'])}<small> / 100</small></strong></div><div class="report-conclusion"><h2>{headline}</h2><p>{conclusion}</p>{failures}</div></div><div class="facts">{facts}{'<span>'+scope[1]+'</span>' if scope else ''}</div></header>'''
     checks = section('score-table')
     # Put channel/time drill-downs in the detail section, after the actionable findings.
     extra = ''
@@ -82,13 +81,14 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None):
     rows = []
     for i,c in enumerate(targets):
         title = f'{c["channel_name"]} · {c["label"]} · {c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒'
-        button = (f'<a class="finding-action" href="{esc(focus_url(i))}" data-finding="{i}" data-title="{esc(title)}" aria-controls="finding-preview">查看波形</a>' if focus_url else '')
-        rows.append(f'<tr><th>{esc(c["channel_name"])}</th><td>{esc(c["label"])}<small>{esc(c["finding"])}</small></td><td>{c["start_seconds"]:g}–{c["stop_seconds"]:g} s</td><td>{button}</td></tr>')
+        button = (f'<a class="finding-action" href="{esc(focus_url(i))}" data-finding="{i}" data-title="{esc(title)}" aria-controls="finding-preview" aria-current="{str(i == 0).lower()}">查看波形</a>' if focus_url else '')
+        rows.append(f'<tr class="{"is-selected" if i == 0 and focus_url else ""}"><th>{esc(c["channel_name"])}</th><td>{esc(c["label"])}<small>{esc(c["finding"])}</small></td><td>{c["start_seconds"]:g}–{c["stop_seconds"]:g} s</td><td>{button}</td></tr>')
     preview = ''
     if rows and focus_url:
         c=targets[0];title=f'{c["channel_name"]} · {c["label"]} · {c["start_seconds"]:g}–{c["stop_seconds"]:g} 秒'
-        preview=f'<div class="finding-preview" id="finding-preview"><div class="figure-heading"><h3 id="finding-title">{esc(title)}</h3><span>阴影标出待复核区间</span></div><img id="finding-image" src="{esc(focus_url(0))}" alt="{esc(title)}"><p id="finding-status" role="status" aria-live="polite"></p></div>'
-    locator = ('<p class="muted">点击“查看波形”定位下列区间。工频列出代表窗口，高频列出候选片段。</p><div class="table-wrap"><table class="finding-table"><thead><tr><th>通道</th><th>检查发现</th><th>记录时间</th><th></th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>'+preview if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
+        preview=f'<div class="finding-preview" id="finding-preview" data-state="ready" aria-busy="false"><div class="figure-heading"><h3>波形预览</h3><span>选择下方候选，在此查看</span></div><p id="finding-title" class="finding-selection">{esc(title)}</p><div class="finding-stage"><img id="finding-image" src="{esc(focus_url(0))}" alt="{esc(title)}"><p id="finding-status" role="status" aria-live="polite"></p></div><p class="finding-caption">阴影标出待复核区间 · 横轴为原始记录时间</p></div>'
+    locator = (preview+'<div class="finding-list-heading"><h3>候选位置</h3><span>工频展示代表窗口，高频展示候选片段</span></div><div class="table-wrap finding-list" tabindex="0" role="region" aria-label="候选位置列表"><table class="finding-table"><thead><tr><th>通道</th><th>检查发现</th><th>记录时间</th><th></th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div>' if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
+
     if '灵犀' in route:
         locator='<p class="muted">以下为共同基础检查定位。灵犀云异常区间见下方图表。</p>'+locator
     review = f'<section id="review"><h2>问题定位</h2>{locator}<details><summary>完整候选列表与测量</summary>{original_review}</details>{extra}</section>'
@@ -124,3 +124,23 @@ details{margin-top:10px;padding-top:10px}summary{font-size:13px}section>p.muted{
 @media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.report-chart-links{grid-template-columns:1fr}.finding-preview img{min-height:80px}}
 @media print{.report-actions,aside,.finding-action,script{display:none}.shell{display:block;max-width:none;padding:0}details>summary{color:#243449}.report-summary{grid-template-columns:180px 1fr}.finding-preview{break-inside:avoid}}
 '''
+
+CSS += """
+#score-table> .table-wrap>table th:first-child{width:22%}#score-table> .table-wrap>table th:nth-child(2){width:17%}#score-table> .table-wrap>table th:nth-child(3){width:13%}
+.result-weight{white-space:nowrap;color:#42546b;font-variant-numeric:tabular-nums}
+.finding-preview{position:sticky;top:12px;z-index:2;margin:12px 0 0;padding:12px 14px;border-radius:5px;border:1px solid #cbd8e8;border-top:3px solid #2b62bf;box-shadow:0 3px 10px #2434490a}
+.finding-preview .figure-heading{margin:0}.finding-preview .figure-heading h3{font-size:14px}
+.finding-preview .finding-selection{margin:6px 0;color:#243449;font-size:13px;font-weight:500}
+.finding-stage{height:clamp(150px,22vw,230px);position:relative;display:grid;place-items:center;background:#fafbfd;border:1px solid #edf1f6}
+.finding-stage #finding-image{width:100%;height:100%;min-height:0;aspect-ratio:auto;object-fit:contain;grid-area:1/1}
+.finding-stage #finding-status{grid-area:1/1;padding:12px;text-align:center;color:#52647d;font-size:13px;z-index:1}
+.finding-preview[data-state="loading"] #finding-image,.finding-preview[data-state="error"] #finding-image{opacity:0}
+.finding-preview[data-state="loading"] #finding-status::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid #d9e3f3;border-top-color:#2459bc;border-radius:50%;margin-right:8px;vertical-align:-2px;animation:finding-spin .8s linear infinite}
+.finding-preview .finding-caption{font-size:12px;margin:5px 0 0;color:#64748b}
+.finding-list-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:16px 0 8px}.finding-list-heading span{font-size:12px;color:#64748b}
+.finding-list{max-height:330px;overflow:auto;border:1px solid #e1e7ef;border-radius:4px}.finding-table{margin:0}.finding-table thead{position:sticky;top:0;z-index:1}.finding-table a[aria-current="true"]{font-weight:600;color:#174894;text-decoration:none}
+.finding-table tr.is-selected th:first-child{box-shadow:inset 3px 0 #2b62bf}.finding-table tr.is-selected{background:#edf4ff}
+@keyframes finding-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.finding-preview[data-state="loading"] #finding-status::before{animation:none}}
+@media(max-width:600px){.finding-preview{top:6px;padding:9px}.finding-stage{height:150px}.finding-list{max-height:270px}.figure-heading>span{font-size:11px}}
+@media print{.finding-preview{position:static;box-shadow:none}.finding-stage{height:auto;display:block}.finding-stage #finding-image{height:auto;opacity:1!important}.finding-list{max-height:none;overflow:visible}#finding-status{display:none!important}}
+"""

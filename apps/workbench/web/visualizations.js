@@ -2,6 +2,11 @@
 
 function expandFigure(hash) {
   const panel = document.getElementById(hash.slice(1));
+  if(panel?.matches('.chart-group')) {
+    const first=panel.querySelector('details.panel');if(first)first.open=true;
+    document.querySelectorAll('[data-panel-link]').forEach(link=>link.setAttribute('aria-current',String(link.hash===hash)));
+    panel.scrollIntoView({block:'start'});
+  }
   if (panel?.matches('details.panel')) {
     panel.open = true;
     panel.scrollIntoView({block:'start'});

@@ -22,37 +22,46 @@ window.addEventListener('message', event => {
   }
 });
 
-// Links still open the selected image if JavaScript is unavailable.
+// A stable preview above the candidate list. Old images never represent a new selection.
 let findingRequest = 0;
-document.querySelectorAll('[data-finding]').forEach(link => {
+const findingLinks = [...document.querySelectorAll('[data-finding]')];
+const findingImage = document.getElementById('finding-image');
+const findingPanel = document.getElementById('finding-preview');
+const findingStatus = document.getElementById('finding-status');
+const reportText = (zh,en) => document.documentElement?.lang === 'en' ? en : zh;
+function findingState(state, message='') {
+  if(!findingPanel || !findingStatus)return;
+  findingPanel.dataset.state=state;
+  findingPanel.setAttribute('aria-busy', String(state==='loading'));
+  findingStatus.textContent=message;
+}
+if(findingImage && findingPanel) {
+  findingImage.addEventListener('load',()=>{if(!findingRequest)findingState('ready');});
+  findingImage.addEventListener('error',()=>{if(!findingRequest)findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));});
+  if(!findingImage.complete)findingState('loading',reportText('正在载入波形…','Loading waveform…'));
+  else if(!findingImage.naturalWidth)findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));
+}
+findingLinks.forEach(link => {
   link.addEventListener('click', event => {
-    const image = document.getElementById('finding-image');
-    const panel = document.getElementById('finding-preview');
-    const status = document.getElementById('finding-status');
-    if (!image || !panel || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (!findingImage || !findingPanel || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     const request = ++findingRequest, pending = new Image();
-    status.textContent = '正在载入波形…';
-    // Show the loading state at the preview immediately, even below a long table.
-    panel.scrollIntoView({block:'nearest', behavior:'instant'});
-    const oldText = link.dataset.idleLabel || (link.dataset.idleLabel = link.textContent);
-    link.textContent = '载入中…';
-    document.querySelectorAll('.finding-table .is-selected').forEach(row => row.classList.remove('is-selected'));
+    document.getElementById('finding-title').textContent = link.dataset.title;
+    findingState('loading',reportText('正在载入波形…','Loading waveform…'));
+    findingLinks.forEach(other=>other.setAttribute('aria-current',String(other===link)));
+    document.querySelectorAll('.finding-table .is-selected').forEach(row=>row.classList.remove('is-selected'));
     link.closest('tr')?.classList.add('is-selected');
+    // Scroll only when selecting; a late image must never pull the page away.
+    findingPanel.scrollIntoView({block:'nearest',behavior:'instant'});
     pending.onload = () => {
-      link.textContent = oldText;
-      if (request !== findingRequest) return;
-      image.src = pending.src;
-      image.alt = link.dataset.title;
-      document.getElementById('finding-title').textContent = link.dataset.title;
-      status.textContent = '';
-      panel.scrollIntoView({block:'nearest', behavior:'instant'});
+      if(request !== findingRequest)return;
+      findingImage.src=pending.src;findingImage.alt=link.dataset.title;
+      findingState('ready');
     };
     pending.onerror = () => {
-      link.textContent = oldText;
-      if (request === findingRequest) status.textContent = '此段波形暂不可用，通道与时间位置仍见上表。';
+      if(request === findingRequest)findingState('error',reportText('此段波形未能载入，请重新点击或选择其他候选。','Could not load this waveform. Retry or select another finding.'));
     };
-    pending.src = link.href;
+    pending.src=link.href;
   });
 });
 

@@ -530,3 +530,9 @@ html[lang="en"] .comparison-en { display:flex; }
 .data-library-older{grid-column:1/-1;margin-top:4px}
 .data-library-older summary{font-size:12px;color:#64748b;cursor:pointer}
 .qc-signal-report .report-title h1{overflow-wrap:anywhere}
+
+/* Align the run summary with the full report: weights belong to each result. */
+.qc-main-results{margin-top:16px}.qc-main-results h3{margin:0 0 8px}
+.qc-main-results table{table-layout:fixed;width:100%;min-width:490px}
+.qc-main-results th:first-child{width:23%}.qc-main-results th:nth-child(2){width:18%}.qc-main-results th:nth-child(3){width:14%}
+.qc-main-results td{font-size:13px;vertical-align:top}.qc-main-results .result-points{font-size:15px;font-weight:600}

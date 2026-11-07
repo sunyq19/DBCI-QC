@@ -195,7 +195,8 @@ check("v0.2 score retains its minimum rule, revision marker and standards link",
   const t=harness();t.state.job={id:"score-v02"};
   t.state.result={modules:[],report_view:{schema_version:"eeg-report-view/3",score:{version:"eeg-basic-screen/0.2",value:88.51,components:[{name:"信号完整性",value:100},{name:"工频干扰",value:88.51},{name:"高频突发",value:99.9}]},score_revision:{previous_version:"eeg-basic-screen/0.1",previous_value:99.31},recording:{channel_count:63,sampling_rate_hz:500,start_seconds:0,duration_seconds:281.66},finite:{nonfinite:0,constant:0},line:{hits:353,total:17136,affected_channels:13},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
   t.renderResult();const markup=t.get("result-content").innerHTML;
-  assert(markup.includes("88.51"));assert(markup.includes("项目试行 v0.2"));assert(markup.includes("取最低分项"));
+  assert(markup.includes("88.51"));assert(markup.includes("项目试行 v0.2"));assert(markup.includes("总分取三个分项中的最低值"));
+  assert(markup.indexOf("总分取三个分项中的最低值")>markup.indexOf("<summary>评分计算方法</summary>"));
   assert(markup.includes("均方根"));assert(markup.includes("/standards/eeg-scoring"));assert(markup.includes("原始评分与证据保留"));
   assert(!markup.includes("三项等权平均"));assert(!markup.includes("项目试行 v0.1"));
 });
@@ -848,11 +849,11 @@ check("current report schema displays the weighted score and optional method tab
   const t=harness();t.state.result={modules:[],report_view:{schema_version:'eeg-report-view/5',score:{version:'project-weighted/1.1',value:78.75,formula:'weighted',components:[{name:'信号完整性',value:100,weight:1},{name:'工频干扰',value:60,weight:2},{name:'高频突发',value:95,weight:1},{name:'灵犀云伪差',value:82,weight:0,reason:'test'}]},recording:{channel_count:2,sampling_rate_hz:100,start_seconds:0,duration_seconds:10},finite:{nonfinite:0,constant:0},line:{hits:1,total:3,affected_channels:1},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
   t.renderResult();const text=t.get('result-content').innerHTML;
   assert(text.includes('78.75'));assert(text.includes('项目自定义 v1.1'));assert(text.includes('灵犀云伪差'));assert(!text.includes('总分尚未校准'));
-  assert(text.includes('占总分 50%'));assert(text.includes('不计入'));assert(!text.includes(' · 权重 '));
+  assert(text.includes('50%'));assert(text.includes('不计入'));assert(!text.includes(' · 权重 '));
   t.state.result.report_view.score.components[3].weight=4;t.renderResult();
-  assert(t.get('result-content').innerHTML.includes('<td>占总分 50%</td>'));assert(!t.get('result-content').innerHTML.includes('<td>占总分 100%</td>'));
+  assert(t.get('result-content').innerHTML.includes('<td>50%</td>'));assert(!t.get('result-content').innerHTML.includes('<td>100%</td>'));
   t.state.result.report_view.score.components[3].weight=0;t.state.result.report_view.score.components[1].weight=1;t.renderResult();
-  assert(t.get('result-content').innerHTML.includes('3 项同等计入'));
+  assert(!t.get('result-content').innerHTML.includes('3 项同等计入'));assert(t.get('result-content').innerHTML.includes('>权重</th>'));assert(t.get('result-content').innerHTML.includes('<td>33.3%</td>'));
   // A Gnosis-only scoring profile must surface all five included checks, even
   // when one has missing evidence; unused core checks stay supplementary.
   const components=t.state.result.report_view.score.components;
@@ -860,9 +861,9 @@ check("current report schema displays the weighted score and optional method tab
   components.splice(3,1,...['gnosis_line_length','gnosis_artifact','gnosis_low_band','gnosis_high_band','gnosis_psd_deviation'].map((id,i)=>({id,name:id,value:i===4?null:80,weight:1,candidate_fraction:i===4?null:.2,unit:i===0?'channel_block_seconds':'channel_seconds'})));
   Object.assign(t.state.result.report_view,{headline:'Old core headline',summary:'Old core summary',priority:'工频优先复核：A 命中 1/3 窗。',local_quality:{lowest:{name:'A',lowest_component:{name:'工频',value:60}}}});
   t.renderResult();
-  const gnosis=t.get('result-content').innerHTML, main=gnosis.split('<div class="qc-score-parts">')[1].split('<p class="qc-score-note">')[0];
-  assert.equal((main.match(/<article>/g)||[]).length,5);assert(!main.includes('未发现无效数值'));assert(!main.includes('疑似工频干扰涉及'));
-  assert(main.includes('证据不足，暂不能评分'));assert(gnosis.includes('占总分 20%'));assert(!gnosis.includes('占总分 25%'));
+  const gnosis=t.get('result-content').innerHTML, main=gnosis.split('<tbody>')[1].split('</tbody>')[0];
+  assert.equal((main.match(/<tr>/g)||[]).length,5);assert(!main.includes('未发现无效数值'));assert(!main.includes('疑似工频干扰涉及'));
+  assert(main.includes('证据不足，暂不能评分'));assert(gnosis.includes('20%'));assert(!gnosis.includes('25%'));
   const conclusion=gnosis.split('<div class="qc-score-conclusion">')[1].split('</div>')[0];
   assert(conclusion.includes('gnosis_line_length'));assert(!conclusion.includes('Old core summary'));
   assert(gnosis.includes('共同基础检查 · 局部关注'));assert(conclusion.includes('共同基础检查：工频优先复核'));

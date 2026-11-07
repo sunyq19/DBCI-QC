@@ -5,10 +5,10 @@ import vm from 'node:vm';
 const requests=[];
 const classes=()=>({values:new Set(),add(x){this.values.add(x)},remove(x){this.values.delete(x)}});
 const rows=[{classList:classes()},{classList:classes()}];
-const links=rows.map((row,i)=>({href:`/finding-${i}.png`,textContent:'查看波形',dataset:{title:`C${i} · 1–3 秒`},closest:()=>row,addEventListener(_,fn){this.click=fn}}));
+const links=rows.map((row,i)=>({href:`/finding-${i}.png`,textContent:'查看波形',attrs:{},setAttribute(k,v){this.attrs[k]=v},dataset:{title:`C${i} · 1–3 秒`},closest:()=>row,addEventListener(_,fn){this.click=fn}}));
 const nodes={
- 'finding-image':{src:'original.png'},'finding-title':{textContent:''},'finding-status':{textContent:''},
- 'finding-preview':{scrollIntoView(){this.scrolled=true}},
+ 'finding-image':{src:'original.png',complete:true,naturalWidth:900,addEventListener(name,fn){this[name]=fn}},'finding-title':{textContent:''},'finding-status':{textContent:''},
+ 'finding-preview':{dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},scrolls:0,scrollIntoView(){this.scrolls++}},
 };
 const outer={tagName:'DETAILS',open:false,parentElement:null};
 const target={tagName:'DETAILS',open:false,parentElement:outer,scrollIntoView(){this.scrolled=true}};
@@ -25,12 +25,18 @@ let prevented=0;
 links[0].click({preventDefault(){prevented++}});
 links[1].click({preventDefault(){prevented++}});
 assert.equal(prevented,2);assert.equal(requests.length,2);
+assert.equal(nodes['finding-preview'].dataset.state,'loading');assert.equal(nodes['finding-preview'].attrs['aria-busy'],'true');
+assert.equal(nodes['finding-title'].textContent,'C1 · 1–3 秒','Selected location changes immediately');
+assert.equal(links[1].attrs['aria-current'],'true');assert.equal(links[0].attrs['aria-current'],'false');
+const scrolls=nodes['finding-preview'].scrolls;
 requests[0].onload();assert.equal(nodes['finding-image'].src,'original.png','A late first request cannot overwrite the new selection');
 requests[1].onload();assert.equal(nodes['finding-image'].src,'/finding-1.png');
 assert.equal(nodes['finding-title'].textContent,'C1 · 1–3 秒');assert.equal(nodes['finding-status'].textContent,'');
+assert.equal(nodes['finding-preview'].dataset.state,'ready');assert.equal(nodes['finding-preview'].attrs['aria-busy'],'false');assert.equal(nodes['finding-preview'].scrolls,scrolls,'Loading completion must not scroll the page again');
 assert(rows[1].classList.values.has('is-selected'));assert(!rows[0].classList.values.has('is-selected'));
 links[0].click({ctrlKey:true,preventDefault(){throw Error('Must preserve new-tab action')}});assert.equal(requests.length,2);
-links[0].click({preventDefault(){}});requests[2].onerror();assert(nodes['finding-status'].textContent.includes('暂不可用'));
+links[0].click({preventDefault(){}});requests[2].onerror();assert(nodes['finding-status'].textContent.includes('未能载入'));
+assert.equal(nodes['finding-preview'].dataset.state,'error');
 context.location.hash='#scoring';handlers.hashchange();assert(target.open&&outer.open&&target.scrolled);
 console.log('PASS selected finding image, loading/error feedback, stale request guard, new-tab action and nested anchor expansion');
 assert.equal(frame.src,undefined,'Closed charts must not trigger evidence reads');

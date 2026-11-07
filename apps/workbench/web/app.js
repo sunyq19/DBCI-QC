@@ -1262,18 +1262,12 @@
     return parts.reduce((total,part)=>total+(numeric(part.weight)&&part.weight>0?part.weight:0),0);
   }
   function scoreShareLabel(weight,total) {
-    return numeric(weight)&&weight>0&&total>0 ? `占总分 ${number(weight/total*100,1)}%` : "不计入";
-  }
-  function scoreMixLabel(parts) {
-    const included=parts.filter(part=>numeric(part.weight)&&part.weight>0);
-    if(!included.length)return "未设置总分";
-    if(included.length===1)return "仅 1 项计入";
-    return included.every(part=>part.weight===included[0].weight) ? `${included.length} 项同等计入` : "按所选项目汇总";
+    return numeric(weight)&&weight>0&&total>0 ? `${number(weight/total*100,1)}%` : "不计入";
   }
   function methodScoreTable(parts,allParts=parts) {
     if(!parts.length)return '';
     const total=scoreWeightTotal(allParts);
-    return `<details class="result-summary"><summary>其他检查结果 · ${parts.length}</summary><div class="qc-score-table"><table><thead><tr><th>检查项</th><th>分数 / 100</th><th>计分比例</th><th>结果说明</th></tr></thead><tbody>${parts.map(p=>`<tr><th>${escape(p.name)}</th><td>${numeric(p.value)?Number(p.value).toFixed(2):'—'}</td><td>${scoreShareLabel(p.weight,total)}</td><td>${escape(p.reason||'')}</td></tr>`).join('')}</tbody></table></div></details>`;
+    return `<details class="result-summary"><summary>其他检查结果 · ${parts.length}</summary><div class="qc-score-table"><table><thead><tr><th>检查项</th><th>分数 / 100</th><th title="占综合分的比例">权重</th><th>结果说明</th></tr></thead><tbody>${parts.map(p=>`<tr><th>${escape(p.name)}</th><td>${numeric(p.value)?Number(p.value).toFixed(2):'—'}</td><td>${scoreShareLabel(p.weight,total)}</td><td>${escape(p.reason||'')}</td></tr>`).join('')}</tbody></table></div></details>`;
   }
 
   function scoredResultHtml(view, result) {
@@ -1326,7 +1320,8 @@
       }
       if(failures)headline="部分检查未完成";
     }
-    const cards = mainParts.map(part=>`<article><span>${escape(part.name)}</span><strong>${point(part.value)}<small> / 100</small></strong><div class="qc-score-track"><i style="width:${numeric(part.value) ? Math.max(0,Math.min(100,part.value)) : 0}%"></i></div><p>${escape(partDescription(part))}</p></article>`).join("");
+    const weightLabel=part=>weighted ? scoreShareLabel(part.weight,scoreWeightTotal(parts)) : score.version==="eeg-basic-screen/0.1" ? `${number(100/parts.length,1)}%` : "—";
+    const resultTable=`<div class="qc-score-table qc-main-results"><h3>检查结果</h3><table><thead><tr><th>检查项目</th><th>分项 / 100</th><th title="占综合分的比例">权重</th><th>检查发现</th></tr></thead><tbody>${mainParts.map(part=>`<tr><th>${escape(part.name)}</th><td class="result-points">${point(part.value)}</td><td>${weightLabel(part)}</td><td>${escape(partDescription(part))}</td></tr>`).join("")}</tbody></table></div>`;
     const candidates = arr(view.hf_candidates).slice(0,8).map(c=>`<div><strong data-i18n-skip>${escape(c.channel_name)}</strong><span>${number(c.start_seconds,2)}–${number(c.stop_seconds,2)} s</span><span class="small muted">高频突发</span></div>`).join("");
     const channels = arr(view.line_channels).slice(0,20).map(c=>`<div><strong data-i18n-skip>${escape(c.name)}</strong><span>${c.hits}/${c.total}</span><span class="small muted">命中窗</span></div>`).join("");
     const checks = arr(view.checks).map(c=>{
@@ -1342,12 +1337,12 @@
     const range = `${count(rec.channel_count)} 道 · ${number(rec.sampling_rate_hz)} Hz · ${number(rec.start_seconds)}–${number(numeric(rec.start_seconds) && numeric(rec.duration_seconds) ? rec.start_seconds + rec.duration_seconds : null)} s`;
     return `<div class="qc-report-overview">
       <div class="qc-score-head"><span class="tag ready">${weighted ? "项目自定义 v"+escape(score.version.split("/")[1]) : revised ? "项目试行 v0.2" : "项目试行 v0.1"}</span>${reportUrl ? `<a class="button primary small-button" href="${reportUrl}" target="_blank" rel="noopener">查看完整报告 ↗</a><a class="button small-button" href="${reportUrl}.pdf" download>下载 PDF</a>` : ""}</div>
-      <div class="qc-score-hero"><div class="qc-score-total"><span>${weighted ? "项目自定义评分" : revised ? "EEG 基础质控评分" : "EEG 基础初评分"}</span><strong>${point(score.value)}</strong><small>${weighted ? "/ 100 · "+scoreMixLabel(parts) : revised ? "/ 100 · 取最低分项" : "/ 100 · 三项等权平均"}</small></div><div class="qc-score-conclusion"><h3>${escape(headline)}</h3><p>${summaryParts ? summaryParts.map(part=>`<span>${escape(part)}</span>`).join("：") : escape(summary)}</p>${priority ? `<p class="small muted">${escape(priority)}</p>` : ""}</div></div>
-      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}<div class="qc-score-parts">${cards}</div><p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${methodScoreTable(otherParts,parts)}${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
+      <div class="qc-score-hero"><div class="qc-score-total"><span>${weighted ? "项目自定义评分" : revised ? "EEG 基础质控评分" : "EEG 基础初评分"}</span><strong>${point(score.value)}</strong><small>/ 100</small></div><div class="qc-score-conclusion"><h3>${escape(headline)}</h3><p>${summaryParts ? summaryParts.map(part=>`<span>${escape(part)}</span>`).join("：") : escape(summary)}</p>${priority ? `<p class="small muted">${escape(priority)}</p>` : ""}</div></div>
+      <p class="qc-score-range">${whole ? "整份检查" : "快速预检"} · ${escape(range)}</p>${localNote}${view.score_revision ? `<p class="small muted">本页按新规则重算，原始评分与证据保留。</p>` : ""}${weighted && score.missing_reason ? `<p class="small muted">未生成总分：${escape(score.missing_reason)}</p>` : ""}${resultTable}<p class="qc-score-note">${whole ? "按整份记录的实际测量汇总。项目试行指标，局部问题仍需复核。" : "仅评价本次选区。项目试行指标，局部问题仍需复核。"}</p>${methodScoreTable(otherParts,parts)}${localDetails}${timeDetails}${failures ? '<p class="notice error">部分检查未完成，请展开执行说明。</p>' : ""}
     </div><div class="qc-result-findings"><h3>${hasGnosis ? "共同基础检查 · 重点复核" : "重点复核"}</h3>${candidates ? `<div class="qc-candidate-list">${candidates}</div>` : '<p class="small muted">暂无可展示的高频候选，检查状态见明细。</p>'}
       <details class="result-summary"><summary>工频候选通道</summary>${channels ? `<div class="qc-candidate-list">${channels}</div>` : '<p class="small muted">暂无可展示的工频候选，检查状态见明细。</p>'}<p class="small muted">完整位置与证据见报告。</p></details>
     </div><details class="result-summary"><summary>检查明细与执行说明</summary><div class="qc-check-list">${checks}</div>${arr(view.notes).length ? `<ul>${view.notes.map(n=>`<li>${escape(n)}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<details><summary>模块原始结果</summary><pre>${escape(pretty(result.modules))}</pre></details></details>
-    <details class="result-summary"><summary>评分计算方法</summary><p>${weighted ? "总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。" : revised ? "每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。" : "信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。"}</p><p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">完整评分规则与算例</a></p><p>${weighted ? "参与计分的项目全部完成后才生成总分。" : "三项齐备才计算总分。"}分数只代表所选检查，尚未经过专家校准。</p>${weighted ? `<div class="qc-score-table"><table><thead><tr><th>检查项</th><th>计分比例</th></tr></thead><tbody>${parts.map(p=>`<tr><th>${escape(p.name)}</th><td>${scoreShareLabel(p.weight,scoreWeightTotal(parts))}</td></tr>`).join("")}</tbody></table></div>` : ""}<details><summary>原始计分数据</summary><pre>${escape(pretty(score))}</pre></details></details>`;
+    <details class="result-summary"><summary>评分计算方法</summary><p>${weighted ? "总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。" : revised ? "每通道计算异常占比；分项 = 100 × (1 − 各通道异常占比的均方根)。总分取三个分项中的最低值。" : "信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。"}</p><p><a href="/standards/eeg-scoring" target="_blank" rel="noopener">完整评分规则与算例</a></p><p>${weighted ? "参与计分的项目全部完成后才生成总分。" : "三项齐备才计算总分。"}分数只代表所选检查，尚未经过专家校准。</p><details><summary>原始计分数据</summary><pre>${escape(pretty(score))}</pre></details></details>`;
   }
 
   function extensionResultsHtml(result) {
