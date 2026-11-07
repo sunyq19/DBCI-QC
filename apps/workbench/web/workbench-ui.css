@@ -139,7 +139,7 @@ body.qc-app, body.qc-document {
 .qc-app .studio-controls .rail-section[open] > summary { color: var(--primary-dark); }
 .qc-app .studio-controls .rail-section > summary:focus-visible { outline-offset: -3px; }
 .qc-app .studio-controls .rail-section > .disclosure-content,
-.qc-app .studio-controls .rail-section[open] > .disclosure-content { padding: 0 20px 20px; }
+.qc-app .studio-controls .rail-section[open] > .disclosure-content { padding: 12px 20px 20px; }
 .qc-app .studio-controls .rail-section > .disclosure-content > p.small { font-size: var(--text-note); margin: 0 0 12px; }
 .qc-app .demo-reports h2 { font-size: var(--text-control); }
 .qc-app .demo-reports > p { font-size: var(--text-note); }
