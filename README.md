@@ -4,11 +4,11 @@
 
 [质控流程网页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
-本次源码基线：**2026-11-08 / 1.0.0rc3.dev39**。本地版可安装运行；下一阶段将现有质控台部署为[在线演示版](docs/design/demo-deployment-v1.md)：访客无需账号，共享“我的数据”，仅设一名管理员。部署进度见[准备清单](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
+本次源码基线：**2026-11-08 / 1.0.0rc3.dev40**。本地版可安装运行，[共享演示版部署包](docs/deployment/demo.md)已提供：访客无需账号，共享“我的数据”，仅设一名管理员。部署进度见[准备清单](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
-当前开发版：**1.0.0rc3.dev39**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+当前开发版：**1.0.0rc3.dev40**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
 
 [Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示数值有效性30%、通道状态70%的可调默认评分及候选。分选后unit、漂移与跨流同步尚未接入。
 

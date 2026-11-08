@@ -1,5 +1,6 @@
-"""Local-only modular QC API. The HTTP layer owns no algorithm decisions."""
+"""Modular QC API: local by default, shared demo behind an explicit origin."""
 from datetime import datetime, timezone
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, unquote, quote, parse_qs
@@ -32,6 +33,7 @@ from intake import IntakeStore
 from record_revisions import RecordRevisions, RevisionConflict
 from standards_page import render_standards, NAVIGATION_SCRIPT, DOCUMENT_PAGES
 from package_jobs import PackageJobs
+from deployment import deployment, check_request, UploadGuard, DemoCapacityError
 
 SERVICE = 'ephys-qc-modular-workbench'
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
@@ -80,6 +82,7 @@ def public_intake(value):
 class Store:
     def __init__(self, settings):
         self.settings = settings
+        deployment(settings)
         self.admission_policy = configured_policy(settings)
         self.root = Path(settings['data_dir']).resolve()
         self.packages = PackageJobs(settings)
@@ -93,6 +96,7 @@ class Store:
             self.inputs[item['id']] = item
         self.link_lock = threading.RLock()
         self.intakes = IntakeStore(self.root, limits=self.admission_policy or DEFAULT_INTAKE_LIMITS)
+        self.upload_guard = UploadGuard(settings, self.root, self.intakes.limits)
         for item in self.intakes.registered():
             if item['id'] in self.inputs:
                 raise ValueError('本机提交记录ID与预登记输入冲突。')
@@ -578,13 +582,8 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     def check_local(self):
-        hosts = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
-        if self.headers.get('Host') not in hosts:
-            raise PermissionError('只接受本机地址。')
-        if self.headers.get('Origin') and self.headers['Origin'] not in {'http://' + h for h in hosts}:
-            raise PermissionError('只接受本工作台发起的请求。')
-        if self.headers.get('Sec-Fetch-Site') == 'cross-site':
-            raise PermissionError('不接受跨站请求。')
+        settings = getattr(getattr(self.server, 'store', None), 'settings', {})
+        check_request(settings, self.server.server_port, self.headers)
 
     def send_bytes(self, data, mime='application/json; charset=utf-8', code=200, headers=None):
         self.send_response(code)
@@ -633,6 +632,9 @@ class Handler(BaseHTTPRequestHandler):
         except LimitExceeded as exc:
             self.close_connection = True
             self.json(exc.payload(), 413)
+        except DemoCapacityError as exc:
+            self.close_connection = True
+            self.json({'error': str(exc), 'code': 'demo_capacity'}, exc.status)
         except KeyError:
             self.json({'error': '请求的数据、任务或结果不存在。'}, 404)
         except (ValueError, TypeError, OverflowError) as exc:
@@ -641,7 +643,7 @@ class Handler(BaseHTTPRequestHandler):
             pass
         except Exception as exc:
             print(f'Service exception: {type(exc).__name__}: {exc}', file=sys.stderr, flush=True)
-            self.json({'error': '本地服务处理失败，请查看服务日志。'}, 500)
+            self.json({'error': '服务处理失败，请联系管理员查看日志。'}, 500)
 
     do_GET = dispatch
     do_POST = dispatch
@@ -762,7 +764,8 @@ class Handler(BaseHTTPRequestHandler):
                                                           'max_upload_bytes': self.store.intakes.limits.max_file_bytes,
                                                           'max_record_bytes': self.store.intakes.limits.max_record_bytes,
                                                           'max_dataset_bytes': self.store.intakes.limits.max_dataset_bytes,
-                                                          'intake_limit_version': self.store.intakes.limits.version, 'local_only': True},
+                                                          'intake_limit_version': self.store.intakes.limits.version,
+                                                          'local_only': deployment(self.store.settings)['mode'] == 'local'},
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
@@ -850,6 +853,8 @@ class Handler(BaseHTTPRequestHandler):
             if action == 'summary':
                 return self.json(self.store.result(id_, compact=True))
             if action == 'log':
+                if deployment(self.store.settings)['mode'] == 'shared_demo':
+                    raise PermissionError('运行日志由管理员在服务器查看。')
                 log = self.store.root / 'jobs' / id_ / 'run.log'
                 return self.send_bytes(log.read_bytes()[-100_000:] if log.exists() else b'', 'text/plain; charset=utf-8')
             if action == 'report':
@@ -874,7 +879,8 @@ class Handler(BaseHTTPRequestHandler):
             target = ROOT / 'web' / static[path]
             if path == '/':
                 from example_cache import homepage
-                return self.send_bytes(homepage(self.store, target.read_text()).encode('utf-8'), 'text/html; charset=utf-8')
+                from deployment import homepage as deployment_homepage
+                return self.send_bytes(deployment_homepage(homepage(self.store, target.read_text()), self.store.settings).encode('utf-8'), 'text/html; charset=utf-8')
             return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
         raise KeyError(path)
 
@@ -893,7 +899,10 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '0'))
             filename = unquote(self.headers.get('X-Filename', ''))
             self.connection.settimeout(60)
-            return self.json(self.store.intakes.receive(filename, length, self.rfile), 201)
+            guard = getattr(self.store, 'upload_guard', None)
+            with guard.accept(filename, length) if guard else nullcontext():
+                intake = self.store.intakes.receive(filename, length, self.rfile)
+            return self.json(intake, 201)
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/confirm', path)
         if match:
             return self.json(self.store.confirm_intake(match.group(1), self.body()))
@@ -928,6 +937,7 @@ def main():
                         help='Validate cloud intake limits locally; does not enable cloud hosting or authentication')
     args = parser.parse_args()
     settings = read_json(args.config)
+    deployment(settings)
     if args.admission_policy:
         settings['admission_policy'] = args.admission_policy
     if not Path(settings['python']).is_file():
