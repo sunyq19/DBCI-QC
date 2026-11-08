@@ -21,7 +21,7 @@ function fixtureCatalog() {
 function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = "", search = "", serverInputs = false} = {}) {
   const elements = new Map();
   const get = id => {
-    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},getAttribute(key){return this.attrs[key]??null},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
+    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},dataset:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},getAttribute(key){return this.attrs[key]??null},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
     return elements.get(id);
   };
   ids.forEach(get);
@@ -453,7 +453,7 @@ check("result tabs switch presentation without launching analysis and reset on a
   t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -918,6 +918,26 @@ check("run names survive upload and confirmation, without altering the plan", as
   t.state.history=[{id:"job-1",label:"source.edf",run_name:"<对照方案>",status:"completed"}];t.renderHistory();
   assert(t.get("history-list").innerHTML.includes("&lt;对照方案&gt;"));
   assert(!t.get("history-list").innerHTML.includes("<对照方案>"));
+});
+check("Neuropixels grouped weights stay editable without adding fictitious extensions",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('extracellular');await t.selectInput('extracellular-0',{autoPrepare:false});
+  const specs=[
+    {id:'neuropixels_numeric_integrity',method_id:'neuropixels_numeric_integrity',module_id:'M03',name:'数值有效性',reducer:'np_numeric'},
+    {id:'neuropixels_constant_channels',method_id:'neuropixels_constant_channels',module_id:'M03',name:'整窗恒值通道',reducer:'np_constant'},
+    {id:'neuropixels_channel_state',method_id:'aggregate',module_id:'M08',name:'通道状态',reducer:'np_state'},
+    {id:'spikeinterface_bad_channels',method_id:'spikeinterface_bad_channels',module_id:'M05',name:'AP离群',reducer:'channels'}];
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'neuropixels-voltage-score/0.1',weights:{neuropixels_numeric_integrity:30,neuropixels_channel_state:70}};
+  const field={dataset:{scoreWeight:'neuropixels_channel_state'},value:'50',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
+  assert(box.innerHTML.includes('/standards/neuropixels-scoring'));assert(box.innerHTML.includes('30%'));assert(box.innerHTML.includes('70%'));
+  assert(!box.innerHTML.includes('data-score-weight="spikeinterface_bad_channels"'));
+  t.state.plan={plan_id:'stale'};field.change();
+  assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,50);
+  assert.equal(t.currentConfig().scoring.preset,'neuropixels-voltage-score/0.1');assert.equal(t.state.plan,null);
+  assert(t.state.selected.has('M03'));assert(!t.state.extensions.has('aggregate'));assert(!t.state.extensions.has('neuropixels_channel_state'));
+  field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,0);
+  t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

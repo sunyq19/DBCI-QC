@@ -1,6 +1,6 @@
 # Neuropixels check rules
 
-Project technical specification · Version neuropixels-checks/0.1 · 2026-11-08 · Expert review pending
+Project technical specification · Version neuropixels-checks/0.2 · 2026-11-08 · Expert review pending
 
 ## 1 Implemented checks
 
@@ -22,7 +22,7 @@ The execution environment requires the SpikeInterface research dependency; when 
 
 Processing windows require 1–120 s, at most 256 MiB of float input, a rate supporting the high-pass and at least two chunk durations. Each tail window is checked independently. Random chunks may overlap; 20 × 0.3 s does not establish six independent seconds. Internal detection filtering does not replace the source recording.
 
-Non-finite input, a zero median across the input-channel standard deviations within a shank or upstream failure makes the method unassessed. Fully constant windows remain separate NP04 review findings. AP score = 100 × (1 − unique candidate channels / assessed channels). Across windows, pool candidate-channel × duration and assessed-channel × duration; this is not exact contaminated time. Missing window evidence prevents a whole-record method score. Repeated candidate identities are not counted twice.
+Non-finite input, a zero median across the input-channel standard deviations within a shank or upstream failure makes the method unassessed. Fully constant windows remain separate NP04 review findings. The underlying AP method score = 100 × (1 − unique candidate channels / assessed channels). Across windows, pool candidate-channel × duration and assessed-channel × duration; this is not exact contaminated time. Missing window evidence prevents a whole-record method score. Repeated candidate identities are not counted twice.
 
 ## 3 Not yet implemented
 
@@ -40,3 +40,5 @@ Non-finite input, a zero median across the input-channel standard deviations wit
 [SpikeGLX metadata](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html) supports structure and clock checks. [SpikeInterface](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels) distinguishes std/MAD from coherence+psd, which alone supplies dead/out. [IBL](https://docs.internationalbrainlab.org/_autosummary/ibllib.ephys.ephysqc.html) motivates raw RMS/spectral review. [Allen](https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html) informs future unit dimensions and their limitations.
 
 The eight-channel minimum, one-second execution floor, 256 MiB limit, five-times default and component score are project adapter/configuration choices, not universal acceptance limits. See the [Neuropixels specification](/en/standards/neuropixels).
+
+The default total uses numerical validity 30% and grouped channel status 70%; constant/AP candidates are unioned before weighting. Missing methods are excluded, not assigned 100. See [scoring rules](/en/standards/neuropixels-scoring).

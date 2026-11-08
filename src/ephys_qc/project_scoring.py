@@ -33,7 +33,9 @@ def normalize(config, modality, selected, extensions=()):
         raise ValueError('评分配置须包含有效的 project-weighted 版本及 weights。')
     if 'preset' in config:
         from .ieeg_scoring import PRESETS
-        if modality not in PRESETS or config['preset']!=PRESETS[modality]:
+        from .neuropixels_scoring import PRESET
+        presets={**PRESETS,'extracellular':PRESET}
+        if modality not in presets or config['preset']!=presets[modality]:
             raise ValueError('评分方案版本与模态不匹配。')
     weights = config['weights']
     legacy = config['version'] == LEGACY_VERSION
@@ -49,6 +51,9 @@ def normalize(config, modality, selected, extensions=()):
             raise ValueError(registry[key]['name']+'方法未选择；请启用方法及模块或将权重设为 0。')
     if modality in {'ecog','seeg'}:
         from .ieeg_scoring import validate_family_weights
+        validate_family_weights(weights)
+    if modality=='extracellular':
+        from .neuropixels_scoring import validate_family_weights
         validate_family_weights(weights)
     if legacy and not any(weights.values()):
         raise ValueError('至少一个评分权重须大于 0。')

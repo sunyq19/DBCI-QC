@@ -1,6 +1,6 @@
 # Current implementation and validation scope
 
-Informative document · Version implementation/4 · 2026-11-08 · Software baseline 1.0.0rc3.dev38
+Informative document · Version implementation/5 · 2026-11-08 · Software baseline 1.0.0rc3.dev39
 
 [General requirements](/standards/overview) · [Field dictionary](/standards/fields) · [Method applicability](/standards/applicability)
 
@@ -63,3 +63,5 @@ Engineering and real-file acceptance are recorded in docs/eeg-standard-validatio
 ## 6 Neuropixels initial rules
 
 The [continuous-voltage specification](/en/standards/neuropixels) and [nine check terms](/en/standards/neuropixels-checks) were fixed on 2026-11-08. Separate requirements, implemented detectors and method components; distinguish AP/LF from sorted units. Expert review and independently annotated validation remain outstanding. Real-extract acceptance is in docs/validation/neuropixels-standard-20261108.md.
+
+Neuropixels default scoring now uses numerical validity 30% and deduplicated channel status 70%, with editable weights and missing-component exclusion. AP/LF scopes remain separate. See [scoring rules](/en/standards/neuropixels-scoring) and repository docs/validation/neuropixels-scoring-20261108.md.

@@ -8,7 +8,27 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `数值有效性	Numerical validity
+  const pairs = `通道状态	Channel status
+整窗恒值通道	Fully constant channels
+检查NaN/Inf与整窗恒值；分别提供数值有效性和通道状态的计分证据。	Check NaN/Inf and fully constant windows as evidence for numerical validity and channel status.
+逐道数值计数	Per-channel sample counts
+整窗恒值通道及来源身份	Fully constant channels and source identities
+数值有效性分项	Numerical validity score
+短量化重复只保留测量；有限恒值不在数值有效性中重复扣分。	Short quantization repeats are measurements only; finite constants are not also penalized in numerical validity.
+逐道统计电压；AP满足条件时可用SpikeInterface筛查离群通道。	Per-channel voltage statistics, with eligible AP outliers screened using SpikeInterface.
+逐通道测量	Per-channel measurements
+条件AP离群候选及分项	Conditional AP outlier candidates and score
+RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态，不另加权。	RMS and PSD are descriptive; AP parameters do not apply to LF. AP candidates enter channel status without a separate weight.
+合并恒值与AP候选，按可调权重汇总数值有效性和通道状态。	Merge constant and AP candidates, then combine numerical validity and channel status with adjustable weights.
+去重后的通道状态	Deduplicated channel status
+综合分及有效权重	Overall score and effective shares
+受限检查与证据来源	Unavailable checks and evidence sources
+受限项不计入；项目初版评分尚未经过专家校准。	Unavailable checks are excluded; this initial project score has not been expert-calibrated.
+合并通道候选并计算可调权重的Neuropixels项目评分。	Merge channel candidates and calculate an adjustable Neuropixels project score.
+逐窗按来源通道身份合并整窗恒值与适用AP离群；数值有效性默认30%、通道状态70%。受限项不计入，实际权重重新归一化；project_score保存试行总分。	Union fully constant and eligible AP candidates by source channel in each window. Default shares are 30% numerical validity and 70% channel status. Unavailable checks are excluded and effective shares renormalized; project_score stores the trial total.
+同一通道窗不重复扣分。分数仅表示有效检查的候选负担，未覆盖漂移、同步或分选后单元质量。	A channel counts once per window. The score reflects candidates from valid checks, excluding drift, synchronization and sorted-unit quality.
+默认：数值有效性30%、通道状态70%。整窗恒值与适用的AP离群按通道去重。	Default: numerical validity 30%, channel status 70%. Fully constant channels and applicable AP outliers are deduplicated by channel.
+数值有效性	Numerical validity
 信号稳定性	Signal stability
 颅内评分规则	Intracranial scoring rules
 默认：数值有效性30%、信号稳定性70%。稳定性相关检查只取最低分，不重复计权。	Default: numerical validity 30%, signal stability 70%. Related stability checks use the minimum score and count once.
@@ -2235,7 +2255,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|neuropixels-checks|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|neuropixels-checks|neuropixels-scoring|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

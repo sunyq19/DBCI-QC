@@ -1,10 +1,10 @@
 # Neuropixels continuous-voltage quality-control specification
 
-Project technical specification · Version neuropixels-qc/0.1 · 2026-11-08 · Consultation draft; expert review pending
+Project technical specification · Version neuropixels-qc/0.2 · 2026-11-08 · Consultation draft; expert review pending
 
 ## 1 Scope and assessment object
 
-This project draft defines checks, routing and reporting for verified SpikeGLX AP/LF streams and NWB continuous ElectricalSeries with explicit Neuropixels device evidence. Execution configuration remains `neuropixels-voltage/2`; the recommendation recipe is `neuropixels-basic-recipe/0.1`. It is not a published industry standard or accuracy-calibrated classifier.
+This project draft defines checks, routing and reporting for verified SpikeGLX AP/LF streams and NWB continuous ElectricalSeries with explicit Neuropixels device evidence. Execution configuration remains `neuropixels-voltage/2`; the recommendation recipe is `neuropixels-basic-recipe/0.2`. It is not a published industry standard or accuracy-calibrated classifier.
 
 AP and LF/LFP share intake, timing, integrity, spectrum and contact statistics. AP additionally receives conditional channel-outlier screening. Sorted units are a separate object and are not yet supported. High-frequency AP activity is not scalp muscle artifact; one recording channel is not one neuron. Source-processed LFP remains labelled as processed.
 
@@ -26,9 +26,9 @@ M03–M05 are the base modules. M07 is selected when a supported event table is 
 
 Invalid structure or essential calibration blocks intake. Non-finite values, fully constant windows and AP outliers are findings for review. Missing prerequisites, failed methods and unimplemented checks are unassessed, not normal.
 
-The implemented AP outlier component is `100 × (1 − unique candidate channels / assessed channels)`. Across windows, pool channel counts weighted by window duration. std and MAD are alternative settings, not separate penalties. This component does not measure drift, synchronization, neural-unit quality or precise contaminated time. The default report shows the component without declaring a universal Neuropixels total. Explicit project scoring must disclose selected checks, actual weights and exclusions. LF/LFP does not inherit AP scoring. A zero-valued recording is not healthy merely because it has no NaN.
+The default project score uses numerical validity 30% and channel status 70%, with editable weights. Numerical validity counts NaN/Inf; channel status unions fully constant channels and eligible AP outliers by source identity within each window, then pools channel-window time. LF/LFP uses constant windows only. Underlying checks are not separately weighted.
 
-See [Neuropixels check rules](/en/standards/neuropixels-checks).
+Unavailable components receive zero effective weight and remaining shares are renormalized. Incomplete source-method coverage excludes that method from the whole-record union, retaining its candidates. All-unavailable, all-zero weights or incomplete execution coverage produce no total. The score is limited to the actual checks, not drift, synchronization or neural-unit quality. See [Neuropixels scoring rules](/en/standards/neuropixels-scoring) for formulas, exclusions and examples.
 
 ## 5 Module requirements
 

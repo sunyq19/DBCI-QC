@@ -65,7 +65,7 @@ class IeegScoreTests(unittest.TestCase):
             with self.assertRaises(ValueError):aggregate([row(NUMERIC,100)],bad)
             bad=default_config('seeg' if modality=='ecog' else 'ecog')
             with self.assertRaises(ValueError):normalize(bad,modality,['M03'],['mne_amplitude'])
-        self.assertNotIn('scoring',recommend(recording('extracellular'))['qc_config'])
+        self.assertEqual(recommend(recording('extracellular'))['qc_config']['scoring']['preset'],'neuropixels-voltage-score/0.1')
 
     def test_failed_module_cannot_supply_a_stability_score(self):
         result={'input_modality':'seeg','selected_modules':['M03','M08'],

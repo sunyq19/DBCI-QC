@@ -6,9 +6,9 @@
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
-当前开发版：**1.0.0rc3.dev38**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+当前开发版：**1.0.0rc3.dev39**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
 
-[Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示方法分项及候选。分选后unit、漂移与跨流同步尚未接入。
+[Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示数值有效性30%、通道状态70%的可调默认评分及候选。分选后unit、漂移与跨流同步尚未接入。
 
 打开首页即可查看四类公开数据的缓存示例报告，无需先下载原始数据。EEG 默认三项等权计分，其他可计分方法可在“高级设置 → 评分与权重”中选用。
 
@@ -83,7 +83,7 @@ python3.11 scripts/setup_local.py
 
 EEG 报告包含总览、完整性/工频/高频突发三个评分分项、通道与时段结果、候选波形和评分依据。整份记录在后台分段计算，报告保留实际覆盖和未评原因。
 
-**评分 project-weighted/1.0 是项目试行指标，尚未经专家校准。** 满分表示当前计分项未检出候选，不代表数据全面合格；缺项不补满分。其他模态目前提供基础描述报告，不套用 EEG 总分。详见[评分规则](docs/eeg-scoring.md)与[报告要求](docs/eeg-report.md)。
+**评分 project-weighted/1.2 是项目试行指标，尚未经专家校准。** 满分表示当前计分项未检出候选，不代表数据全面合格；缺项不补满分。ECoG/sEEG及Neuropixels采用各自的项目评分，不套用EEG判据。详见[评分规则](docs/eeg-scoring.md)与[报告要求](docs/eeg-report.md)。
 
 ## 方法与扩展
 
@@ -115,4 +115,6 @@ FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究�
 
 BrainElecQC 作为固定提交的外部依赖安装，不在本仓库复制分发。原始数据、个人配置和运行报告不随代码提供。本项目尚未指定许可证；第三方软件和数据按各自许可使用，见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
-评分在 **高级设置 → 评分与权重** 中配置。当前仅头皮 EEG 的完整性、工频和高频突发可计分：分项按候选占比，总分按权重平均；其他模块保留测量结果。规则及边界见[评分规范](docs/eeg-scoring.md)。
+评分在 **高级设置 → 评分与权重** 中配置。EEG默认三项；ECoG/sEEG默认数值有效性与信号稳定性；Neuropixels默认数值有效性与去重后的通道状态。总分按有效权重平均，受限项不计入。规则及边界见[评分规范](docs/eeg-scoring.md)。
+
+Neuropixels的参与项目、去重与缺项处理见[评分规则](docs/neuropixels-scoring.md)。

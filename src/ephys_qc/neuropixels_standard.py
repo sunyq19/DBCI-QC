@@ -1,8 +1,8 @@
 """Metadata-only Neuropixels voltage recipe; independent from sorted-unit QC."""
 from copy import deepcopy
 
-VERSION = 'neuropixels-qc/0.1'
-RECIPE = 'neuropixels-basic-recipe/0.1'
+VERSION = 'neuropixels-qc/0.2'
+RECIPE = 'neuropixels-basic-recipe/0.2'
 AP_METHOD = 'spikeinterface_bad_channels'
 
 
@@ -15,6 +15,9 @@ def configure(config, record, plan, submitted=None):
     from .tagging import data_facts
     from .research_runtime import evaluate_extension
     result = deepcopy(config)
+    if 'scoring' not in result:
+        from .neuropixels_scoring import default_config
+        result['scoring']=default_config()
     if 'extensions' in (submitted or {}).get('method_config', {}):
         return result
     facts = data_facts(record, result)

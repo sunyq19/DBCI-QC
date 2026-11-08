@@ -159,6 +159,13 @@ def methods(modality='scalp_eeg'):
                         how_it_works='SpikeGLX按量程与增益标定；NWB按conversion、channel_conversion、offset及明确单位标定为V。',
                         upstream_call='ephys_qc.readers.open_reader',
                         implementation_origin='SpikeGLX已用官方readSGLX核对；NWB通过h5py独立核对源切片及单位。')
+                elif row['id'] == 'aggregate':
+                    row['description']='合并通道候选并计算可调权重的Neuropixels项目评分。'
+                    row['documentation'].update(
+                        how_it_works='逐窗按来源通道身份合并整窗恒值与适用AP离群；数值有效性默认30%、通道状态70%。受限项不计入，实际权重重新归一化；project_score保存试行总分。',
+                        upstream_call='ephys_qc.neuropixels_scoring.state_output; ephys_qc.method_scores.aggregate',
+                        version_note='neuropixels-score/0.1; project-weighted/1.2',
+                        interpretation='同一通道窗不重复扣分。分数仅表示有效检查的候选负担，未覆盖漂移、同步或分选后单元质量。')
         return [describe(row, modality) for row in sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])]
     return [describe(row, modality) for row in [enrich_method(_classification(row)) for row in rows] + candidates]
 

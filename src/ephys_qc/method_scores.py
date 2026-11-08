@@ -42,7 +42,7 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
         scope['effective_duration_seconds']=payload['metrics']['effective_duration_seconds']
         scope['used_intervals']=copy.deepcopy(payload['metrics'].get('used_intervals',[]))
     for spec in specs:
-        if spec['reducer']=='ieeg_stability':continue  # Derived after all method evidence is available.
+        if spec['reducer'] in {'ieeg_stability','np_state'}:continue  # Derived after method evidence.
         try:
             if payload.get('status') not in {'completed','partial'} or payload.get('calculated') is False:
                 raise ValueError(payload.get('reason') or '方法未完成')
@@ -150,6 +150,9 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
             else:raise ValueError('该方法尚无可计算的评分适配器')
             score=observation(spec,bad,total,reason=reason,scope=scope,artifact=artifact)
             score['parameters']=copy.deepcopy(payload.get('parameters',{}))
+            if identifier=='spikeinterface_bad_channels':
+                from .neuropixels_scoring import attach_ap_identity
+                attach_ap_identity(score,payload)
             result.append(score)
         except (ValueError,TypeError,KeyError,OverflowError) as error:
             result.append(observation(spec,reason=str(error),scope=scope,artifact=artifact))
@@ -182,6 +185,8 @@ def aggregate(rows,config,*,coverage_complete=True):
     from .ieeg_scoring import NUMERIC, STABILITY, PRESETS, validate_family_weights
     if config.get('preset') in PRESETS.values() or {NUMERIC, STABILITY}.intersection(weights):
         validate_family_weights(weights)
+    from .neuropixels_scoring import NUMERIC as NP_NUMERIC, STATE as NP_STATE, CONSTANT as NP_CONSTANT, validate_family_weights as validate_np
+    if {NP_NUMERIC,NP_STATE,NP_CONSTANT}.intersection(weights):validate_np(weights)
     if len({r['id'] for r in rows})!=len(rows):raise ValueError('同一计分输出不能重复纳入')
     index={r['id']:r for r in rows};parts=[]
     for key in dict.fromkeys([*index,*weights]):
@@ -218,7 +223,7 @@ def pool_windows(windows):
     result=[]
     for key in keys:
         spec=SPECS[key]
-        if spec['reducer']=='ieeg_stability':continue  # Recompute from pooled evidence, not per-window minima.
+        if spec['reducer'] in {'ieeg_stability','np_state'}:continue  # Recompute grouped evidence.
         pieces=[next((r for r in w.get('method_scores',[]) if r['id']==key),None) for w in windows]
         valid=bool(windows) and all(r and r['status']=='computed' and r['value'] is not None and number(r.get('candidate_amount')) and number(r.get('assessed_amount')) and 0<=r['candidate_amount']<=r['assessed_amount'] and r['assessed_amount']>0 and number(w.get('duration_seconds')) and w['duration_seconds']>0 and w.get('status','completed') in {'completed','partial'} for w,r in zip(windows,pieces))
         bad=total=0
@@ -232,6 +237,8 @@ def pool_windows(windows):
         row['window_count']=len(windows);row['assessed_windows']=sum(bool(r and r['status']=='computed') for r in pieces)
         if spec['unit']=='channels':row.update(unit='channel_block_seconds',reason='各分析块的候选通道比例按时长加权；不代表精确异常时长。' if valid else row['reason'])
         result.append(row)
+    from .neuropixels_scoring import STATE, state_output
+    if STATE in keys:result.append(state_output(result,windows=windows))
     return result
 
 
@@ -241,6 +248,9 @@ def payload_outputs(name,payload,modality,recording):
     if modality in {'ecog','seeg'} and name=='M03_continuity.json':
         from .ieeg_scoring import numeric_output
         return [numeric_output(payload,recording,name)]
+    if modality=='extracellular' and name=='M03_continuity.json':
+        from .neuropixels_scoring import continuity_outputs
+        return continuity_outputs(payload,recording,name)
     if modality=='scalp_eeg' and name in {'M03_continuity.json','M04_spectral.json','M06_muscle.json'}:
         from .report_aggregate import channel_evidence
         from .report_view import line_summary
@@ -273,6 +283,11 @@ def finalize(result,rows,*,coverage_complete=True):
     if modality in {'ecog','seeg'}:
         from .ieeg_scoring import STABILITY, stability_output
         index[STABILITY]=stability_output(list(index.values()))
+    if modality=='extracellular':
+        from .neuropixels_scoring import STATE,state_output
+        if STATE not in index:index[STATE]=state_output(list(index.values()))
+        if module_status.get('M08') in {'failed','skipped','cancelled','interrupted'}:
+            index[STATE]=observation(SPECS[STATE],reason='汇总模块未完成。')
     result['method_scores']=[index.get(s['id']) or observation(s,reason='方法未完成或没有完整计分证据。')
         for s in outputs(modality) if enabled(s,selected,extensions)]
     config=result.get('qc_config',{}).get('scoring')

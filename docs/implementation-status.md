@@ -1,6 +1,6 @@
 # 当前实现与验证范围
 
-资料性文件 · 版本 implementation/4 · 2026-11-08 · 软件基线 1.0.0rc3.dev38
+资料性文件 · 版本 implementation/5 · 2026-11-08 · 软件基线 1.0.0rc3.dev39
 
 [总则](/standards/overview) · [字段字典](/standards/fields) · [方法适用规则](/standards/applicability)
 
@@ -63,3 +63,5 @@
 ## 6 Neuropixels首版规则
 
 2026-11-08固定[连续电压规范](/standards/neuropixels)及[9项检查词条](/standards/neuropixels-checks)。标准声明、实际检测和方法分项分别说明；AP/LF及分选后单元分开。模块和规范均待独立标注与专家审核。真实片段验收另存docs/validation/neuropixels-standard-20261108.md。
+
+Neuropixels默认评分已接入：数值有效性30%、去重后的通道状态70%，权重可调、受限分项不计入；AP/LF范围分别保留。见[评分规则](/standards/neuropixels-scoring)和仓库docs/validation/neuropixels-scoring-20261108.md。

@@ -6,7 +6,7 @@
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev38**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG have adjustable grouped scoring presets.
+Development version: **1.0.0rc3.dev39**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
 
 The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
 
@@ -77,7 +77,7 @@ Implementations are separate files in [`src/ephys_qc/modules/`](src/ephys_qc/mod
 
 EEG reports show an overview, integrity/line-interference/high-frequency-burst components, channel and time results, candidate waveforms and scoring rules. Whole-record processing runs in background chunks and retains coverage and unassessed conditions.
 
-**Score project-weighted/1.0 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. Other modalities retain descriptive reports. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
+**Score project-weighted/1.2 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. ECoG/sEEG and Neuropixels use separate project presets. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
 
 ## Methods and extensions
 
@@ -116,6 +116,8 @@ Confirmed dataset recordings can be queued as a reviewed sequential batch, cance
 
 New uploads are retained for **7 days**; reports and saved evidence remain available. Linked originals and legacy development data are excluded from automatic expiry. See [storage and configuration](docs/en/installation.md).
 
-Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Other modules retain measurements. See the [scoring specification](docs/en/eeg-scoring.md).
+Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Neuropixels uses numerical validity 30% and deduplicated channel status 70%; unavailable components are excluded. Other measurements remain unscored. See the [scoring specification](docs/en/eeg-scoring.md).
 
 Published example reports for four modalities are included in `apps/workbench/example-cache`. The homepage renders them without reading raw data or waiting for the personal library. Scalp EEG defaults to three equally weighted components; eligible optional methods support explicit weights under Advanced settings. See [scoring rules](docs/en/eeg-scoring.md).
+
+See [Neuropixels scoring rules](docs/en/neuropixels-scoring.md) for included checks, deduplication and effective weights.

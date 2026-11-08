@@ -53,22 +53,52 @@ def render(store, identifier, language='zh-CN'):
         (t('恒值观察','Constant-run observation'),t(f'{const_count} 个通道窗整窗恒值',f'{const_count} fully constant channel-windows') if n_constant else t('历史记录未保存此汇总','Not stored in this historical run'),t('窗内最长精确恒值 ','Longest exact run within a window: ')+num(max(longest,default=None))+f' s · {n_constant}/{len(windows)} '+t('分析段有汇总','windows with summaries')),
         (t('频谱与通道统计','Spectrum and channel statistics'),t(f"{num(info.get('psd_channels'))} 道PSD · RMS、峰峰值",f"{num(info.get('psd_channels'))} PSD channels · RMS, peak-to-peak"),t('描述性测量；RMS不等于噪声地板','Descriptive; RMS is not a noise floor')),
         (t('AP通道离群','AP channel outliers'),t(f'{len(noise)} 个候选通道窗',f'{len(noise)} candidate channel-windows') if completed else t('未执行或条件不足','Not run or prerequisites missing'),t(f'{completed}/{len(windows)} 分析段完成；按shank分别计算',f'{completed}/{len(windows)} windows assessed, separately by shank') if method_runs else t('LF/LFP不套用AP参数；AP还需shank和窗口条件','AP parameters do not apply to LF/LFP; AP also requires shank and window prerequisites'))]
-    results=table([t('检查项目','Check'),t('检查结果','Result'),t('解释','Interpretation')],result_rows)
-    if component:
+    measurements=table([t('检查项目','Check'),t('检查结果','Result'),t('解释','Interpretation')],result_rows)
+    results=measurements
+    if project:
+        from ephys_qc.neuropixels_scoring import NUMERIC, STATE, CONSTANT, AP
+        labels={NUMERIC:t('数值有效性','Numerical validity'),STATE:t('通道状态','Channel status'),
+                CONSTANT:t('整窗恒值通道','Fully constant channels'),AP:t('AP通道离群','AP channel outliers')}
+        point=lambda v:f'{v:.2f}' if measured(v) else '—'
+        parts=project['components'];state=next((r for r in parts if r['id']==STATE),{})
+        active=state.get('assessed_methods',[])
+        basis=' + '.join(labels.get(k,k) for k in active) or t('暂无有效证据','No valid evidence')
+        primary=[]
+        for r in parts:
+            if not r.get('configured_weight',0)>0 and r['id'] not in {NUMERIC,STATE}:continue
+            if r.get('automatically_excluded'):explanation=t('受限，本次不计入','Unavailable; excluded from this total')
+            elif not measured(r.get('value')):explanation=t('未评','Not assessed')
+            elif r['id']==NUMERIC:explanation=t(f"{100-r['value']:.2f}% 的采样点为NaN或Inf",f"{100-r['value']:.2f}% of samples are NaN or Inf")
+            elif r['id']==STATE:explanation=t(f"{100-r['value']:.2f}% 候选通道窗负担；",f"{100-r['value']:.2f}% candidate channel-window burden; ")+basis
+            else:explanation=t('原方法候选比例','Original method candidate fraction')
+            primary.append((labels.get(r['id'],r['name']),point(r.get('value')),f"{100*r.get('normalized_weight',0):.1f}%",explanation))
+        results='<div class="ieeg-score-panel"><div><span>'+t('Neuropixels 项目评分','Neuropixels project score')+'</span><strong>'+point(project.get('value'))+'<small> / 100</small></strong></div><p>'+t('仅评价本次有效的连续电压检查。','Applies only to the valid voltage checks in this run.')+'</p></div>'
+        results+=table([t('计分项','Component'),t('分项 / 100','Score / 100'),t('有效权重','Effective share'),t('检查发现','Findings')],primary)
+        if state:
+            results+='<p class="secondary">'+t('通道状态：同一通道在同一窗口只计一次。','Channel status: each channel counts once per analysis window.')+'</p>'
+            if not method_runs:results+='<p class="secondary">'+t('本次通道状态仅含整窗恒值；AP离群未启用或不适用。','Channel status uses fully constant windows only; AP outliers are disabled or inapplicable.')+'</p>'
+            for missing in state.get('unavailable_methods',[]):
+                results+='<p class="secondary">'+esc(labels.get(missing['id'],missing['id']))+' · '+t('本次不计入：部分窗口受限或证据不完整。','Excluded: prerequisites or evidence were missing in some windows.')+'</p>'
+        if project.get('excluded_components'):results+='<p class="secondary">'+t('受限计分项的有效权重为0，其余有效项按原比例计算。','Unavailable components have zero effective weight; remaining shares are renormalized.')+'</p>'
+        if project.get('value') is None:results+='<p class="secondary">'+esc(project.get('missing_reason'))+'</p>'
+        results+='<details class="disclosure"><summary>'+t('检查测量与原始分项','Measurements and underlying method scores')+'</summary>'+measurements
+        results+=table([t('原始检查','Underlying check'),'/ 100',t('计分方式','Treatment')],[(labels.get(r['id'],r['name']),point(r.get('value')),(t('单独计入','Separately weighted') if r.get('normalized_weight',0)>0 else t('合并为通道状态，不另加权','Combined in channel status, not separately weighted') if r['id'] in active and state.get('normalized_weight',0)>0 else t('不计入综合分','Not included in the total'))) for r in parts if r['id'] in {CONSTANT,AP}])+'</details>'
+        results+='<p><a href="'+('/en' if en else '')+'/standards/neuropixels-scoring">'+t('评分规则与权重说明','Scoring rules and weights')+'</a></p>'
+    elif component:
         results+='<div class="ieeg-score-panel"><div><span>'+t('AP通道离群分项','AP channel-outlier component')+'</span><strong>'+(f'{score:.2f}' if measured(score) else '—')+'<small> / 100</small></strong></div><p>'+t('未被该方法标记的通道比例；不代表神经元质量。','Channel fraction not flagged by this method; not neuronal-unit quality.')+'</p></div>'
         if not measured(score):results+='<p class="secondary">'+esc(component.get('reason'))+'</p>'
-    if project:
-        results+='<p>'+t('所选项目评分：','Selected-check project score: ')+num(project.get('value'))+' / 100</p>'+table([t('计分项','Component'),'/ 100',t('有效权重','Effective share')],[(r['name'],num(r.get('value')),num(100*r.get('normalized_weight',0))+'%') for r in project['components'] if r.get('configured_weight',0)>0])
     findings=constant+noise
     locations=table([t('通道','Channel'),t('检查窗口（记录时间）','Analysis window (recording time)'),t('发现','Finding')],findings[:200]) if findings else '<p>'+t('本次已执行项目没有待列出的通道候选。','No channel candidates from the checks performed.')+'</p>'
     locations+='<p class="secondary">'+t('AP离群只定位通道；窗口时间是评估范围，不是精确异常起止。','AP outliers localize channels; window times are assessment ranges, not exact artifact onsets/offsets.')+'</p>'
     if len(findings)>200:locations+='<p>'+t(f'显示前200条，共{len(findings)}条。',f'Showing 200 of {len(findings)} rows.')+'</p>'
     first=(windows[0]['id']+'--' if windows[0].get('id') else '')+'waveform.png'
     if (artifacts/first).is_file():locations+='<details class="disclosure"><summary>'+t('查看首段波形','First-window waveform')+'</summary><img class="ieeg-waveform" src="'+url(first)+'" alt="'+t('首段已保存波形，范围以图内标记为准','Saved first-window traces; labels define the preview scope')+'"></details>'
-    details='<p>'+t('本页按neuropixels-qc/0.1组织已保存的原始电压证据；历史缺项不补算。没有执行分选后unit质控、漂移或跨流同步判定。','This page organizes saved voltage evidence under neuropixels-qc/0.1; historical missing checks are not recomputed. Sorted-unit QC, drift and cross-stream synchronization have not been evaluated.')+'</p>'
+    details='<p>'+t('本页按neuropixels-qc/0.2组织已保存的原始电压证据；历史缺项不补算。没有执行分选后unit质控、漂移或跨流同步判定。','This page organizes saved voltage evidence under neuropixels-qc/0.2; historical missing checks are not recomputed. Sorted-unit QC, drift and cross-stream synchronization have not been evaluated.')+'</p>'
     details+='<p>'+t('已计算 / 本地文件时长：','Computed / local file duration: ')+num(coverage.get('completed_seconds'))+' / '+num(info['duration_seconds'])+' s · '+t('来源缺口：','Source gaps: ')+num(coverage.get('gap_seconds',0))+' s</p>'
     details+='<p>'+t('如为来源片段，本次覆盖仅指本地片段。AP离群方法内部抽样，不代表每个样本都接受了该项判定。','For source extracts, coverage applies only to the local extract. AP outlier detection samples internally; it does not classify every individual sample.')+'</p>'
     details+='<p><a href="'+('/en' if en else '')+'/standards/neuropixels">'+t('Neuropixels质控规范','Neuropixels QC specification')+'</a> · <a href="'+url(scope_file)+'">'+t('执行记录','Execution record')+'</a></p>'
+    if project:
+        details+='<p>'+t('评分方案：','Scoring preset: ')+esc(project.get('preset') or project['version'])+'</p>'
     if method_runs:
         body=''.join('<p>'+esc(p.get('parameters',{}))+' · '+esc(p.get('status'))+' · '+esc(p.get('reason'))+'</p><a href="'+url(name)+'">'+t('原始证据','Saved evidence')+'</a>' for name,p in zip(evidence,method_runs))
         details+='<details class="disclosure"><summary>'+t('AP方法参数与状态','AP parameters and status')+'</summary>'+body+'</details>'

@@ -42,7 +42,7 @@ def recommend_descriptive(record, submitted=None):
         result['missing_fields'] = [_missing('metadata.format', '原始文件格式', '须由已接入读取器核验文件格式。', True)]
         return finish(result, record, submitted)
     try:
-        current = build_plan(record, [], submitted)
+        current = build_plan(record, ['M03','M04','M05'] if record['modality']=='extracellular' else [], submitted)
         config = copy.deepcopy(current['qc_config'])
         if record['modality'] in {'ecog', 'seeg'}:
             from .ieeg_baseline import configure
@@ -86,7 +86,7 @@ def recommend_descriptive(record, submitted=None):
                            '工频附近能量只作观察量，不以固定比值自动判定污染。',
                            '默认评分为数值有效性30%、信号稳定性70%；相关候选只取最低分计一次，项目参数尚未经过专家校准。']
     if record['modality']=='extracellular':
-        result['cautions'][-1]='连续电压描述不默认计总分；未验证神经元单元质量。'
+        result['cautions'][-1]='默认总分仅评价所选连续电压检查；未验证神经元单元质量。'
     if facts['reference_scheme'] == 'unknown':
         result['missing_fields'].append(_missing('reference_scheme', '参考构型', '参考尚未核实；基础逐触点描述仍可运行，不进行跨触点相似性判定。'))
     if not facts['preprocessing_verified']:
@@ -102,6 +102,6 @@ def recommend_descriptive(record, submitted=None):
         result['cautions']=result['cautions'][:2]+[
             'AP通道筛查在每个来源shank内独立执行；未知映射时不猜测。',
             '相邻量化值重复不等于丢包；整窗恒值应复核，不能仅看有限值数量。',
-            'AP离群分仅表示未被该方法标记的通道比例，不是Neuropixels或神经元总质量分。',
+            '默认数值有效性30%、通道状态70%；恒值与AP离群按通道去重，受限证据不采用。',
             '尚未执行分选后单元指标、漂移估计、同步字错误解码或跨流时钟校准。']
     return finish(result, record, submitted)

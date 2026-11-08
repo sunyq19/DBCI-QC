@@ -20,7 +20,7 @@ def validate_family_weights(weights):
         raise ValueError('稳定性相关检查只能计入一次；请选择信号稳定性汇总，或单独一个原始检查项。')
 
 
-def numeric_output(payload, recording, artifact):
+def numeric_output(payload, recording, artifact, *, spec_id=NUMERIC):
     from .method_scores import observation
     from .score_registry import SPECS
     rows=payload.get('channels',[])
@@ -30,7 +30,7 @@ def numeric_output(payload, recording, artifact):
     valid=(len(rows)==n and n>0 and all(isinstance(i,str) and i for i in ids)
            and len(set(ids))==n and all(all(type(r.get(k)) is int and r[k]>=0 for k in counts)
            and r['sample_count']>0 and r['finite_sample_count']+r['nonfinite_sample_count']==r['sample_count'] for r in rows))
-    return observation(SPECS[NUMERIC],sum(r['nonfinite_sample_count'] for r in rows) if valid else None,
+    return observation(SPECS[spec_id],sum(r['nonfinite_sample_count'] for r in rows) if valid else None,
         sum(r['sample_count'] for r in rows) if valid else None, artifact=artifact,scope=recording,
         reason='仅统计NaN/Inf占全部受检采样点的比例；重复有限值不在此项扣分。' if valid else '逐道样本计数不完整或不一致。')
 

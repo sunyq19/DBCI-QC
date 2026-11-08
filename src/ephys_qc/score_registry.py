@@ -27,6 +27,9 @@ _ROWS = [
  ('ieeg_range_plateau','ieeg_range_plateau','M03','文件量程端点平台','channel_samples','encoding_samples',['ecog','seeg']),
  ('ieeg_group_outliers','ieeg_group_outliers','M05','分组触点幅度离群','channels','assessed_channels',['ecog','seeg']),
  ('spikeinterface_bad_channels','spikeinterface_bad_channels','M05','SpikeInterface 噪声通道','channels','channels',['extracellular']),
+ ('neuropixels_numeric_integrity','neuropixels_numeric_integrity','M03','数值有效性','channel_samples','np_numeric',['extracellular']),
+ ('neuropixels_constant_channels','neuropixels_constant_channels','M03','整窗恒值通道','channels','np_constant',['extracellular']),
+ ('neuropixels_channel_state','aggregate','M08','通道状态','channels','np_state',['extracellular']),
 ]
 SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,reducer=reducer,
                  modalities=list(modalities),default_weight=1 if reducer=='core' else 0,
@@ -45,6 +48,8 @@ def outputs(modality=None, method_id=None):
 
 def describe(method, modality):
     out=outputs(modality,'ieeg_numeric_integrity' if modality in {'ecog','seeg'} and method['id'] in {'ecog_continuity','seeg_continuity'} else method['id']) if method.get('implementation')=='available' else []
+    if modality=='extracellular' and method['module_id']=='M03' and method.get('implementation')=='available':
+        out=[s for s in outputs(modality) if s['reducer'] in {'np_numeric','np_constant'}]
     reason=('按本方法的有效证据输出项目分数；是否计入由模态方案和评分配置决定。' if out else
             '未实现，不能计分。' if method.get('implementation')!='available' else
             '处理变化量不等于输入质量。' if method['id'] in {'asr_bursts','cleanline','zapline_plus'} else
@@ -55,4 +60,4 @@ def describe(method, modality):
 
 
 def enabled(spec, selected, extensions):
-    return spec['module_id'] in selected and (spec['reducer'] in {'core','prep','ieeg_numeric'} or spec['method_id'] in extensions)
+    return spec['module_id'] in selected and (spec['reducer'] in {'core','prep','ieeg_numeric','np_numeric','np_constant','np_state'} or spec['method_id'] in extensions)
