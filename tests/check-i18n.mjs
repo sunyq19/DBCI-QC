@@ -146,7 +146,8 @@ check('explicit keys and accessibility attributes support dynamic content',()=>{
 });
 check('dynamic count, range, progress, error and candidate messages are English',()=>{
   const api=harness().start();
-  const examples=['5 / 24 项方法','5 类数据 · 11 份本地记录','64 道 EEG','所选时段超出记录范围（0–120.5 秒）。','原始时间轴 100–200 秒 · 共 100 秒','已选模块 7 / 9 已结束 · 2 个未选择 · 执行进度不代表质量','通道对候选：1,234（待复核）','查看 24 个方法的适用性与参数','参数未应用：最外层必须是按扩展 ID 分组的 JSON 对象。','M03 信号完整性，运行中，查看详情'];
+  const examples=['疑似异常通道占比（按分段时长汇总） 12.5%','各通道疑似异常时长占比 0.66%','占总分 33.3%','3 项同等计入','信号完整性计分比重','无效数值 0 个 · 恒值采样点 13,948 个','疑似工频干扰涉及 2 个通道','疑似高频突发 2 处 · 涉及 2 个通道','5 / 24 项方法','5 类数据 · 11 份本地记录','64 道 EEG','所选时段超出记录范围（0–120.5 秒）。','原始时间轴 100–200 秒 · 共 100 秒','已选模块 7 / 9 已结束 · 2 个未选择 · 执行进度不代表质量','通道对候选：1,234（待复核）','查看 24 个方法的适用性与参数','参数未应用：最外层必须是按扩展 ID 分组的 JSON 对象。','M03 信号完整性，运行中，查看详情'];
+  examples.push('共同基础检查 · 局部关注','共同基础检查 · 按通道查看分项','共同基础检查：工频优先复核：CPz 命中 1/3 窗。','发现待复核信号','计分项目未检出候选','部分项目未评分','分段得分');
   for(const text of examples)assert(!/[\u3400-\u9fff]/.test(api.translate(text,'en')),text);
   assert.equal(api.translate('运行记录 · 未知.edf','en'),'Run history · 未知.edf');assert.equal(api.translate('未知.edf · 点击开始检查','en'),'未知.edf · Select Start check');
 });

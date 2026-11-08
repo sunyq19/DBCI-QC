@@ -1,0 +1,56 @@
+name: Local workbench baseline
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'apps/workbench/**'
+      - 'scripts/**'
+      - 'requirements/**'
+      - 'tests/**'
+      - 'examples/**'
+      - 'pyproject.toml'
+      - 'docs/**'
+      - '.github/workflows/local-workbench.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'apps/workbench/**'
+      - 'scripts/**'
+      - 'requirements/**'
+      - 'tests/**'
+      - 'examples/**'
+      - 'pyproject.toml'
+      - 'docs/**'
+      - '.github/workflows/local-workbench.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: workbench-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  local-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install as documented for new users
+        run: python scripts/setup_local.py
+      - name: Install static UI test dependencies
+        run: .venv/bin/python -m pip install -r tests/requirements-ui.txt
+      - name: Run release regression
+        run: .venv/bin/python scripts/check_release.py
+      - name: Start isolated service and run synthetic EDF
+        run: .venv/bin/python scripts/smoke_local.py

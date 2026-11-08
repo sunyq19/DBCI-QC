@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'apps/workbench/web/index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'apps/workbench/web/styles.css'), 'utf8');
+const css = ['styles.css', 'datasets.css', 'ui-tokens.css', 'workbench-ui.css']
+  .map(file => fs.readFileSync(path.join(root, 'apps/workbench/web', file), 'utf8')).join('\n');
 const source = fs.readFileSync(path.join(root, 'apps/workbench/web/app.js'), 'utf8');
 const voidTags = new Set(['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr']);
 const document = {tag:'document',attrs:{},parent:null,children:[]};
@@ -119,6 +120,17 @@ check('desktop studio uses a two-column grid with a spanning graph rail',()=>{
   const box=style(layout,1400),rail=style(pipeline,1400);assert.equal(box.display,'grid');assert(box['grid-template-columns']&&box['grid-template-columns']!=='1fr');
   const span=rail['grid-row']||'';const areas=box['grid-template-areas']||'';
   assert(/span\s+2|1\s*\/\s*3/.test(span)||(/pipeline/.test(areas)&&(areas.match(/pipeline/g)||[]).length>=2),'Graph spans upload and controls rows');
+});
+check('disclosures cannot resize the desktop grid or change scrollbar reservation',()=>{
+  for(const width of [1400,1050]) {
+    const box=style(layout,width);
+    assert(!/minmax\(\s*\d+px/.test(box['grid-template-columns']),'Column widths cannot be expanded by intrinsic detail content');
+    assert.equal(box['grid-template-rows'],'min-content 1fr');
+    assert.equal(style(controls,width).contain,'inline-size');
+    assert.equal(style(pipeline,width)['scrollbar-gutter'],'stable');
+  }
+  const tokens=fs.readFileSync(path.join(root,'apps/workbench/web/ui-tokens.css'),'utf8');
+  assert.match(tokens,/html\s*\{\s*scrollbar-gutter:\s*stable;/,'Reserve the viewport scrollbar before any dialog opens');
 });
 check('desktop rail has bounded viewport height and its own vertical scrolling',()=>{
   const rail=style(pipeline,1400);assert.equal(rail.position,'sticky');assert.equal(rail.top,'24px');assert.equal((rail['max-height']||'').replace(/\s/g,''),'calc(100dvh-48px)');assert.equal(rail['overflow-y']||rail.overflow,'auto');

@@ -297,7 +297,7 @@ Retain domain measurements and provenance; execution coverage uses actual assess
 
 ### Decision basis and reporting
 
-Generic uncalibrated score.value remains null. The separate EEG project trial index eeg-basic-screen/0.2 is in report_view.score: components use one minus RMS channel burden, scaled to 100; the total is the minimum. Missing evidence withholds totals; no industry acceptance cutoff.
+Generic uncalibrated score.value remains null. The separate EEG project score project-weighted/1.2 is in report_view.score: components use one minus candidate fraction, scaled to 100. Unavailable checks have zero effective weight; valid checks are renormalized, with exclusions recorded. No total is produced when all selected checks are unavailable; no industry acceptance cutoff.
 
 Domain states, missing/failure reasons, source-integrity verification, score status and comparison conditions. Separately retain EEG trial score version, components, native counts and historical recalculation markers.
 

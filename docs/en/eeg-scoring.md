@@ -1,91 +1,90 @@
-# EEG basic QC scoring rules
+# Project scoring rules
 
-Project trial · `eeg-basic-screen/0.2` · 31 October 2026
+Project trial rules · `project-weighted/1.2` · 7 November 2026 · Not expert-reviewed
 
-[EEG specification](/en/standards) · [Check terms](/en/standards/eeg-checks) · [Report requirements](/en/standards/eeg-report) · [M08](/en/standards/modules/M08)
+[Technical specification](/en/standards) · [Check entries](/en/standards/eeg-checks) · [Report requirements](/en/standards/eeg-report) · [M08 Component assessment](/en/standards/modules/M08)
 
-## 1 Purpose and scope
+## 1 Scope
 
-This 0–100 index describes the burden and channel concentration of candidates detected by three specified checks in continuous scalp EEG. Higher scores mean less detected burden. It is not a percentage of usable data, clinical normality, downstream performance or external-standard compliance.
+Scores summarize candidate fractions from the selected methods. They are not clinical acceptance decisions, industry standards or percentages of usable data. **Scalp EEG includes only signal integrity, line interference and high-frequency bursts by default, counted equally at approximately 33.3% of the total each.** Other methods may provide component scores but are excluded from the total until explicitly selected by the project.
 
-The scope is the selected channels and time of the selected signal stream. Other checks remain separately reported; omission from the score is not a pass.
+ECoG, sEEG and Neuropixels do not inherit scalp EEG thresholds and have no default overall score. Integrated FieldTrip jump detection for ECoG/sEEG and SpikeInterface noisy-channel detection for Neuropixels may be selected for project scoring when their prerequisites are met. These scores describe the corresponding method's results, not comprehensive quality assessment of that modality.
 
-## 2 Measurements
-
-Detection determines candidates. Scoring aggregates that evidence without changing detector thresholds or fitting the current dataset's score distribution.
-
-| Component | Candidate amount B per channel | Valid amount D per channel | Evidence |
-| --- | --- | --- | --- |
-| Integrity | Union of nonfinite and constant samples, computed as D minus finite nonconstant samples | Assessed samples | M03_continuity.json |
-| Line noise | Windows flagged at any target frequency, deduplicated within channel and window | Computed windows | M04_spectral.json |
-| High-frequency bursts | Duration of merged candidate intervals | Method-valid duration after exclusions and edges | M06_muscle.json |
-
-Overlapping line windows are not artifact duration. High-frequency candidates are not confirmed muscle activity. Amplitude and other original measurements remain available; this index does not grade amplitude severity after a detector has already flagged a window.
-
-## 3 Equations and interpretation
-
-For component j and channel c, let `p[j,c] = B[j,c]/D[j,c]`, with `D > 0` and `0 ≤ B ≤ D`. Channel identity shall be unique and evidence complete. Missing evidence is not zero burden. The channel-level display is `100 × (1 − p[j,c])`.
-
-For N equally weighted selected channels:
+## 2 Equations and configuration
 
 ```text
-R[j] = sqrt((p[j,1]^2 + ... + p[j,N]^2) / N)
-S[j] = 100 × (1 − R[j])
-Q = min(S[integrity], S[line_noise], S[hf_burst])
+Component = 100 × (1 − candidate amount / assessed amount)
+Total = Σ(component × share of total), with all shares summing to 100%
 ```
 
-R is the RMS channel burden. At equal mean burden, concentration in fewer channels increases R. Exponent 2 and minimum-component aggregation are explicit project design choices, not externally mandated or expert-calibrated risk weights.
+Internal weights are finite, nonnegative values from 0 to 100; they do not need to sum to 100. Results display percentages as a share of the total, with equal settings described as “N checks counted equally”. Raw relative weights remain in advanced settings and traceability data. Zero excludes a component; all-zero weights show component results without a total. A positive weight also requires the corresponding method and parent module to be enabled.
 
-The total expresses the weakest of the three assessed dimensions. Perfect dimensions cannot compensate for a problem, and overlapping detections are not cumulatively deducted. Independent problems in separate dimensions are not added either; improving a nonlimiting dimension may leave the total unchanged. Keep all components visible.
+For component scores of 100, 60 and 95 with shares of 25%, 50% and 25%, the total is `100×25% + 60×50% + 95×25% = 78.75`. Internal relative weights are 1, 2 and 1; scaling all weights by the same factor changes neither the shares nor the total. Weights are saved with the plan, parameters and report. Changes require the plan to be checked again and do not automatically start computation.
 
-| Score | Exact meaning |
-| --- | --- |
-| 100 | All required evidence is complete and no scored candidates were detected |
-| 80 | The worst component has RMS channel burden 0.20 |
-| 60 | The worst component has RMS channel burden 0.40 |
-| 0 | At least one component flags all its valid amount in every selected channel |
-| Unassessed | A complete, verifiable total cannot be computed; neither zero nor full marks |
+**Uncomputed results, execution failures and missing valid denominators shall not become scores of 0 or 100.** An unavailable selected result receives an effective weight of zero; remaining valid checks are renormalized using their original relative weights. Requested weights and exclusion reasons are retained. If no valid weighted checks remain, no total is produced. Missing zero-weight results do not prevent scoring other checks. Missing checks, unassessed channels and incomplete time ranges remain visible in the report.
 
-No pass/fail or excellent/good grade is assigned. A score of 80 does not mean 80% usable data.
+## 3 Score output catalogue
 
-## 4 Whole-record pooling and missing evidence
+Each method declares `can_output_score`. A module may contain several methods, and one method may provide several outputs: MNE amplitude detection, for example, provides separate channel and interval components. M08 only aggregates and is not weighted again as another component.
 
-`eeg-pooling/2` first sums native B and D across windows within each stable channel identity, then computes channel burdens, component RMS and the minimum component. Do not average window scores or RMS values. Short final windows use their true denominators.
+| Module | Scoring method / output | Candidate amount / assessed amount | Included by default |
+| --- | --- | --- | --- |
+| M03 | Signal integrity | Union of nonfinite or constant channel-samples / all checked channel-samples | Approximately 33.3% |
+| M04 | Line interference | Channel-windows flagged at one or more target frequencies / assessed channel-windows, deduplicated across frequencies | Approximately 33.3% |
+| M06 | High-frequency bursts | Per-channel candidate interval duration / detector-valid channel-duration | Approximately 33.3% |
+| M05 | PREP nonspatial candidates | Distinct channels flagged by any nonspatial component / assessed channels | No; optional |
+| M03 | MNE amplitude channel candidates | Native bad-channel candidates / assessed channels | No; optional |
+| M03 | MNE amplitude interval candidates | Union of global candidate intervals / assessed duration | No; optional |
+| M06 | MNE high-frequency artifacts | Finite-score samples within candidate intervals / finite-score samples | No; optional |
+| M05 | Channels involved in MNE bridges | Distinct channels in candidate pairs / assessed channels | No; optional |
+| M05 | MNE LOF | Native candidate channels / assessed channels | No; optional |
+| M03 | AutoReject global threshold | Fixed epochs exceeding the threshold / evaluated epochs | No; optional |
+| M05 | Gnosis line length | Native candidate channels / assessed channels | No; optional |
+| M06 | Gnosis artifact intervals | Per-channel duration after merging overlapping intervals / actual analyzed channel-duration | No; optional |
+| M06 | Gnosis low-frequency anomalies | Same denominator rule, using the native low-frequency detector results | No; optional |
+| M06 | Gnosis high-frequency anomalies | Same denominator rule, using the native high-frequency detector results | No; optional |
+| M05 | Gnosis PSD deviation | Candidate channels / channels actually included in spectral comparison | No; optional |
+| M05 | FASTER | Union of native component candidate channels / assessed channels | No; optional |
+| M06 | FieldTrip jumps | Union of candidate intervals on the original timeline / assessed duration | No; optional |
+| M05 | SpikeInterface noisy channels | Channels labelled `noise` by the native method / assessed channels | No; optional |
 
-All required components must be valid in every selected channel and window. Failed source verification, source gaps, unfinished windows, missing evidence or zero valid denominators withhold the total; completed component evidence and coverage remain visible. No missing-item weight redistribution is allowed.
+Seventeen integrated methods provide eighteen score outputs. Scoring capability does not mean that the current input meets a method's execution requirements. The planner still checks sampling rate, duration, reference groups, segments and runtime dependencies. All PREP comparison-group thresholds must be available; otherwise, an absence of candidates cannot be treated as all channels being normal.
 
-Execution coverage differs from method-valid duration. Detector adaptation, multiple comparisons and edge exclusion depend on window boundaries; redetecting a signal after splitting it need not reproduce a single long-window result.
+Gnosis source: [GnosisNeuroDynamicSE](https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE). Its methods preprocess a declared analysis copy and call the upstream functions to generate candidates. Scores are standardized outputs added by this project's adapter, not an official Gnosis overall score. When PSD comparison uses retained segments after artifact rejection, reports retain the actual selected segments and effective duration. Insufficient data for spectral estimation produce no score.
 
-## 5 Fixed examples
+## 4 Outputs not scored directly
 
-Other dimensions are 100. These are arithmetic examples, not clinical labels.
+Welch PSD, spectral fits, band power and amplitude are not themselves quality measures. The population applicability of Gnosis reference distributions is unconfirmed; values outside a reference range do not automatically establish poor quality. Before/after changes from ASR, CleanLine or Zapline+ are not the original data's contamination fraction.
 
-| Line-window candidate distribution | Mean channel burden | Component and total |
-| --- | --- | --- |
-| Four channels, no candidates | 0% | 100 |
-| Four channels, 25% each | 25% | 75 |
-| One of four channels, 100% | 25% | 50 |
-| One of 63 channels, 100% | About 1.59% | About 87.40 |
-| All channels, all windows | 100% | 0 |
+Auxiliary event-locked evidence, event checks, reading and planning, dataset consistency and visualizations continue to provide evidence. They declare `can_output_score=false` when no independent quality definition and valid denominator exist. Unimplemented methods cannot be scored. Dataset structure results are not added to signal scores.
 
-Channel count affects the relative burden of a local problem. Compare matching channel selections, references, methods, parameters, bandwidths and analysis scopes. Removing a problematic channel creates a new configuration, not a replacement for the original result.
+## 5 Whole-record aggregation
 
-## 6 Reporting and versioning
+1. For sample, epoch, channel-window and interval-duration outputs, pool candidate and assessed amounts across analysis blocks before scoring. Do not directly average window scores or convert overlapping line-noise windows into contaminated duration.
+2. For methods returning only channel candidates, compute each block's candidate-channel fraction and weight blocks by their actual analyzed duration. The stored unit is `channel_block_seconds`. It describes channel-candidate burden across blocks, **not exact abnormal duration**.
+3. PSD methods use only retained spectral-input duration as the weight. AutoReject does not count unused final samples as passes; MNE high-frequency detection does not count invalid filter edges as passes.
+4. If a method lacks a valid result in any scheduled block, its whole-record component is unavailable. Source gaps, unexecuted windows or failed source verification withhold the whole-record total. Method-effective scope and whole-record execution coverage are recorded separately.
 
-Retain score and aggregation versions, selection, effective ranges, detector settings and source fingerprints. Components retain native numerators and denominators, RMS and mean channel burden, pooled unflagged fraction, affected count and worst channel. The total identifies limiting components.
+Different detectors may flag the same problem; a weighted mean does not add independent evidence. Optional methods are excluded by default, and projects should state their selected methods and reasons for the weights. Overall scores shall not hide local abnormalities: candidate channels, times and original measurements remain in the report.
 
-Implementation: `src/ephys_qc/scoring.py`; current score: `report_view.score`; channel details: `report_view.local_quality`. Generic legacy `score.value=null` still means that no calibrated cross-modality score is available.
+## 6 Interface and traceability
 
-Recomputed historical views shall identify previous and current versions through `score_revision`, without overwriting frozen artifacts. v0.1 arithmetic-mean scores and v0.2 scores shall not be ranked together. The original equation remains in `docs/archive/eeg-scoring-v0.1.md`.
+Each scoring output uses `method-score/1` and includes at least:
 
-## 7 Basis and validation
+- `id`, `method_id`, `module_id` and `contract_version`;
+- `status`, `value`, `candidate_amount`, `assessed_amount` and `unit`;
+- `scope`, `reason`, `source_artifacts`, and applicable parameter and preprocessing information.
 
-[PREP](https://www.frontiersin.org/journals/neuroinformatics/articles/10.3389/fninf.2015.00016/full), Detecting noisy or outlier channels, supports multiple channel-quality criteria. [HAPPE](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2018.00097/full), HAPPE processing report, supports separately reported channel and data-retention metrics. Neither prescribes this RMS/minimum formula; HAPPE post-cleaning metrics are not direct raw-data-quality scores. See [method evidence](/en/standards/eeg-evidence).
+New runs save outputs in method artifacts, `result.method_scores` and `method-scores.json`. `result.project_score` stores the run's weights and weighted result; EEG reports also expose `report_view.score`. Missing positive-weight outputs remain explicit. HTML, the workbench and PDF use the same rules, display checks actually included in the total first, and list other available component results separately. PDF tables paginate automatically without compressing or omitting components.
 
-Tests shall cover clean/extreme cases, nonincreasing scores with increasing detected burden, concentration, order invariance, missingness, unequal windows, overlap and preservation of frozen evidence. Signal-injection checks shall be distinguished from arithmetic tests: monotonic scoring does not prove that adaptive detectors respond monotonically to raw noise amplitude.
+`project-weighted/1.0` and the earlier `eeg-basic-screen/0.2` retain their original definitions; historical records are not silently converted. The v1.0 archive is `docs/archive/project-scoring-v1.0.md`. An explicit revision to a new version shall retain the original report and revision explanation.
 
-Independent expert agreement, detection sensitivity/specificity and application relevance remain to be validated. This is a reproducible project trial index, not a calibrated universal EEG quality standard.
+## 7 Comparability and calibration
 
-## Processing history amendment (2026-11-06)
+Compare scores only when rule versions, scoring components, weights, detection parameters, selected channels, references, durations, frequency bands and processing states are comparable. The same EEG modality or disease label alone does not establish comparability.
 
-Confirmed filter declarations restrict assessment: excluded line-frequency targets and incomplete high-frequency bands remain unassessed, never clean or 100 by default. Any excluded originally measurable target makes the line component score unassessed, while remaining target measurements are retained. Unknown history permits descriptions of the supplied signal only. The v0.2 formula is unchanged; processing-scope/1.0 and execution versions record eligibility.
+Previously cleaned data may produce no candidates and receive high scores. A score of 100 only means that the selected methods found no candidates; it does not establish interference-free original acquisition. A target frequency band removed by filtering shall not receive a perfect “no line noise” score. No acceptance threshold is set, and severity after detection is not scored. Detector accuracy and agreement between scores and expert judgments still require independent validation.
+
+## v1.2 exclusion example
+
+For requested weights 1:1:1 and results 90, unavailable, 80, effective weights are 1:0:1. The total is 85 with shares 50%, 0%, 50%. The unavailable score remains null with its reason. A valid score of zero is still included. Preserve requested weights, effective weights and automatically excluded component IDs. Compare totals only when their actual included checks and weights match. Earlier rule versions retain their original behavior.

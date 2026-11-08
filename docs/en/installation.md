@@ -56,7 +56,7 @@ If an older configuration uses another Python, setup prints a notice. Point its 
 | Download fails | Check GitHub/package access and rerun setup |
 | Port already used | Stop the other service or change `port` and open the matching URL |
 | Missing dependency / PDF fails | Rerun setup and ensure the configured Python is the installed environment |
-| No example data listed | Upload your own file or use the README's synthetic example or [public examples](../public-examples.md) |
+| Example reports missing | The repository ships four cached modality examples; check that `apps/workbench/example-cache/` was downloaded completely. Upload your own data or use the synthetic EDF to run a new check. |
 
 `requirements/workbench.txt` pins top-level dependencies and a BrainElecQC commit; it is not a full transitive lock. [Research extensions](../optional-methods-runtime.md) require separate setup. Windows and macOS are not verified environments.
 
@@ -78,3 +78,9 @@ These start, inspect and stop the service managed by this launcher. Avoid launch
 ```
 
 See the [toolkit API](../toolkit.md) and [workbench API](../../apps/workbench/README.md).
+
+## Upload retention and personal library
+
+New upload copies expire **7 days** after receipt. While running, the service checks expiry every minute and defers deletion for queued/running jobs. Reports, saved evidence, fingerprints and confirmation records remain. Linked originals, registered dataset folders and legacy files without an ownership receipt are never automatically removed.
+
+My uploads starts empty; development entries, examples and legacy drafts no longer populate it. Their files and reports are preserved. An administrator can explicitly mark a configured `inputs` or `packages` entry with `library_origin: user_registered` to show it as personal data; this does not authorize deleting the linked source. Re-upload expired copies to rerun QC. Cloud user isolation and object-storage lifecycle remain planned.

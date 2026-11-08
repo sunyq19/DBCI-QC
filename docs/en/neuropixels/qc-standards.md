@@ -1,121 +1,103 @@
-# Neuropixels voltage quality-check specification
+# Neuropixels continuous-voltage quality-control specification
 
-Project technical specification · Version neuropixels-voltage/2 · 2026-10-31 · Document revision 2 · Research use
+Project technical specification · Version neuropixels-qc/0.2 · 2026-11-08 · Consultation draft; expert review pending
 
-Shared requirements: [general requirements](/standards/overview), [field dictionary](/standards/fields), [method applicability](/standards/applicability). Actual capabilities are listed separately under [implementation scope](/standards/implementation). Species and age retain source, units and time context; human age categories must not be applied to animals. These metadata requirements do not change existing analysis-profile versions or establish new cross-species thresholds.
+## 1 Scope and assessment object
 
-## 1 Scope
+This project draft defines checks, routing and reporting for verified SpikeGLX AP/LF streams and NWB continuous ElectricalSeries with explicit Neuropixels device evidence. Execution configuration remains `neuropixels-voltage/2`; the recommendation recipe is `neuropixels-basic-recipe/0.2`. It is not a published industry standard or accuracy-calibrated classifier.
 
-For supported Neuropixels SpikeGLX raw AP/LF streams or continuous NWB 2/HDF5 ElectricalSeries with explicit Neuropixels device evidence. NWB voltage may be source-processed LFP; retain processing declarations instead of calling all input raw AP/LF. Internal modality: extracellular; recording system: Neuropixels. No sorting/unit input, spike sorting, drift correction or neuron-quality assessment is implemented. Reader contracts cover explicit probe types 0, 21 and 24. Real-data validation currently covers NP1; NP2 has synthetic decoding tests only.
+AP and LF/LFP share intake, timing, integrity, spectrum and contact statistics. AP additionally receives conditional channel-outlier screening. Sorted units are a separate object and are not yet supported. High-frequency AP activity is not scalp muscle artifact; one recording channel is not one neuron. Source-processed LFP remains labelled as processed.
 
-## 2 Input
+[IBL raw-data QC](https://docs.internationalbrainlab.org/_autosummary/ibllib.ephys.ephysqc.html) separately exposes raw RMS/spectral measurements and sorting metrics. This distinction informs the project scope; the full IBL pipeline is not implemented here.
 
-For SpikeGLX, upload the .bin and same-stem .meta for one complete stream, optionally in a ZIP. For NWB, upload one file and explicitly select one continuous ElectricalSeries. Require device evidence, rate, mapping, calibration and time origin. Keep SpikeGLX analog channels separate from digital sync words. Read NWB electrode-table rows and conversion fields explicitly. Missing calibration or device identity must not be guessed; Units are not continuous voltage.
+## 2 Required information
 
-## 3 Configuration
+Confirm format, selected continuous stream, AP/LF/LFP or unknown band, device model, neural versus digital channel roles, native rate, voltage calibration, source identity, duration and original clock. NWB selection includes the ElectricalSeries path and electrode mapping. Shank/site/geometry enable conditional methods; missing geometry must not be inferred. Preserve reference, processing history, species, age units and experiment context; unknown fields remain unknown.
 
-analysis_profile is neuropixels-voltage/2 and the configuration key is method_config.neuropixels. Default Welch windows are 0.1 seconds for AP and 1 second for LF/LFP or other confirmed Neuropixels voltage; line_frequencies_hz=[50,60]. Preserve effective frequency resolution; these are not universal noise thresholds.
+SpikeGLX frame length, saved words, rate and duration must agree. Digital synchronization words are excluded from voltage statistics; firstSample preserves the original sample origin. See [SpikeGLX metadata](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html).
 
-## 4 Execution and results
+## 3 Default routing
 
-Use the shared upload, confirmation, planning, execution and reporting flow. Default M03–M05; M07 can check registered events. M06 is unimplemented. One stream per plan with its native sample rate; no automatic stream joining or cleaning. score.value remains null.
+Read one stream → confirm channels and clock → integrity, spectrum and contact statistics → conditional AP outlier screening → registered-event checks → report.
+
+M03–M05 are the base modules. M07 is selected when a supported event table is registered. Recommend AP screening only if at least one actual processing window meets the method conditions; an explicit user method list takes precedence. Recheck every window, including short tails. Long recordings retain exact native-sample coverage, gaps and failures. Full-record scanning is distinct from internal random-chunk sampling. Intake limits remain 2 GiB per file and 10 GiB per dataset.
+
+## 4 Interpretation and scoring
+
+Invalid structure or essential calibration blocks intake. Non-finite values, fully constant windows and AP outliers are findings for review. Missing prerequisites, failed methods and unimplemented checks are unassessed, not normal.
+
+The default project score uses numerical validity 30% and channel status 70%, with editable weights. Numerical validity counts NaN/Inf; channel status unions fully constant channels and eligible AP outliers by source identity within each window, then pools channel-window time. LF/LFP uses constant windows only. Underlying checks are not separately weighted.
+
+Unavailable components receive zero effective weight and remaining shares are renormalized. Incomplete source-method coverage excludes that method from the whole-record union, retaining its candidates. All-unavailable, all-zero weights or incomplete execution coverage produce no total. The score is limited to the actual checks, not drift, synchronization or neural-unit quality. See [Neuropixels scoring rules](/en/standards/neuropixels-scoring) for formulas, exclusions and examples.
 
 ## 5 Module requirements
 
 ### 5.1 M01 Data intake and structure checks
 
-For SpikeGLX, check binary length, rate, saved-channel count, mapping, gains and firstSample; preserve sync-word identity. For NWB, check continuous ElectricalSeries, device evidence, electrode mapping, unit conversion and each stream clock. Units do not add continuous channels.
-
-An arbitrary bare .bin is not Neuropixels input. Supported probe types are constrained by the reader. NIDQ, compressed .cbin, NWB-Zarr and other unsupported acquisition formats are outside this version.
+Validate companion files, declared sizes/checksums, frames, gain and signal identity. The current reader recognizes probe types 0, 21 and 24. Real examples cover NP1; NP2 has synthetic contract tests only. Arbitrary bare binaries, cbin, NIDQ and NWB-Zarr are outside the supported input scope.
 
 [Module details](/en/standards/neuropixels/modules/M01)
 
 ### 5.2 M02 Data characterization and check plan
 
-Select one SpikeGLX AP/LF stream or one NWB continuous ElectricalSeries per plan. Compute voltage metrics only on analog neural channels; retain but exclude sync words. Freeze NWB object path, electrode mapping and clock; changing streams requires a new plan. Freeze neuropixels-voltage/2 parameters and sources.
-
-The internal modality is extracellular; Neuropixels is a recording-system label. Do not join AP/LF or different NWB series into one sampling clock. Probe geometry does not establish verified tissue location. Ordinary NWB voltage or LFP is not automatically Neuropixels input.
+Freeze one stream, source channel indices, native clock, selected range, methods and parameters. AP and LF from one experiment are not independent biological samples or automatically synchronized streams. Preserve grouping and processing provenance.
 
 [Module details](/en/standards/neuropixels/modules/M02)
 
 ### 5.3 M03 Basic signal integrity
 
-Scan nonfinite values and exactly equal adjacent runs; locate all evidence in source sample coordinates.
-
-ADC quantization causes equal adjacent samples. Equality does not establish packet loss or bad channels. No fault diagnosis or automatic repair is inferred from these counts.
+Count NaN/Inf and exactly equal consecutive runs. Record the longest run within each processing window and flag channels constant throughout that window for review. Adjacent quantized equality is not proof of dropped samples. Detail-storage limits never reduce measured counts; runs across computation boundaries are not silently merged.
 
 [Module details](/en/standards/neuropixels/modules/M03)
 
 ### 5.4 M04 Within-stream spectrum observations
 
-Use Welch with a Hann window, 50% overlap and per-segment mean removal. Defaults: 0.1-second AP windows, 1-second LF/LFP or other confirmed Neuropixels voltage windows. Record actual resolution.
-
-Short AP windows may not resolve nearby peaks. Acquisition filtering limits interpretation. Line-frequency observations are not noise verdicts; neural high-frequency activity is not a muscle-artifact deduction.
+Welch PSD uses a Hann window, 50% overlap and constant detrending. Default windows are 0.1 s for AP and 1 s for LF/LFP. Report actual frequency resolution and known source filtering. Power around 50/60 Hz is descriptive, not automatic power-line contamination evidence.
 
 [Module details](/en/standards/neuropixels/modules/M04)
 
 ### 5.5 M05 Per-channel statistics
 
-Compute finite count, mean, standard deviation, RMS and peak-to-peak. Never interpret digital sync words as voltages.
+Report finite count, mean, standard deviation, RMS and peak-to-peak. RMS includes neural activity and is not a noise-floor estimate.
 
-RMS includes neural signal and is not an independent noise floor. Optional SpikeInterface AP std/MAD candidates require supported AP input and source shank groups; candidates are not confirmed bad channels. No unit SNR, ISI violations or drift is computed. A source channel is not a sorted unit.
+For AP with source shank mapping, at least eight selected neural channels per shank and an eligible processing window, recommend original SpikeInterface MAD screening. Defaults: 300 Hz high-pass, 20 random 0.3 s chunks, seed 0 and a threshold of five times the within-shank median channel MAD. These are project settings, not acceptance thresholds. Only good/noise labels are implemented; good means below this threshold. IBL coherence+psd and dead/out labels are not implemented. See [SpikeInterface preprocessing](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels).
 
 [Module details](/en/standards/neuropixels/modules/M05)
 
 ### 5.6 M06 Artifact method scope
 
-Not implemented in this version; do not substitute EEG/ECoG artifact methods. No destriping, common-reference transformation or motion correction.
-
-Drift requires suitable spatial/temporal evidence and a validated method. Integrity statistics do not establish drift or spike-sorting accuracy.
+No default destriping, rereferencing, motion correction or spike sorting. Future processing modules remain separate; modification fractions are not quality scores.
 
 [Module details](/en/standards/neuropixels/modules/M06)
 
 ### 5.7 M07 Source event checks
 
-Check fields, time range and source sample mapping for registered or explicitly mapped events. NWB events must use the selected stream origin, not another series clock.
-
-No automatic sync-edge extraction or cross-probe/AP/LF clock calibration. Similar timestamps or the presence of a sync channel do not establish alignment.
+Validate registered event fields, ranges and sample mapping. Digital error-bit decoding and cross-stream/probe clock alignment are not implemented. A sync channel does not prove synchronization.
 
 [Module details](/en/standards/neuropixels/modules/M07)
 
 ### 5.8 M08 Evidence summary and aggregation
 
-Summarize observations, not-assessed states, failures and sources; retain stream-specific scope.
-
-No sorting-quality score, unit yield or usable-neuron conclusion. AP and LF streams are not two independent biological samples.
+Aggregate actual assessed denominators, coverage and missing checks. Distinguish scanning from method-level sampling. Do not convert counts of equal quantized samples into a bad-channel rate.
 
 [Module details](/en/standards/neuropixels/modules/M08)
 
 ### 5.9 M09 Reporting and review
 
-Produce a continuous-voltage report with independent review, the selected stream, source processing and unassessed scope. Source-processed LFP must not be presented as unprocessed acquisition data.
-
-The report does not imply spike sorting or unit QC. Future unit reports must reference sorter version, settings, raw data, clock mapping and independent metric evidence.
+Use four sections: Results, Review locations, Chart analysis and Report details. Show band, channels, actual coverage and principal findings first. Preserve source channels and processing windows; channel-only candidates do not acquire invented event onset/offset times.
 
 [Module details](/en/standards/neuropixels/modules/M09)
 
-## 6 Layers and validation limits
+## 6 Future sorted-unit requirements
 
-The continuous-voltage layer describes voltage and sampling integrity, distinguishing native acquisition from source-processed LFP. A future sorting layer requires unit identity, spike times, sorter versions and source-recording links. Firing rate, presence ratio, ISI violations and SNR require their own inputs and assumptions. Preserve dependencies, clocks and missing values; toolkit defaults are not universal standards. Only the continuous-voltage layer is connected here. Keep real-example acceptance separate from synthetic boundary tests; neither establishes clinical or sorting accuracy.
+Require unit identity, spike times and clock, source recording, sorter version and settings; waveforms, amplitudes and positions depend on the requested metric. Candidate dimensions include firing rate, presence ratio, refractory/ISI violations, amplitude cutoff, isolation and drift. Missing inputs mean unassessed metrics.
 
-[SpikeGLX metadata](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html) · [SpikeInterface recording and sorting](https://spikeinterface.readthedocs.io/en/latest/modules/core.html) · [Neuropixels analysis example](https://spikeinterface.readthedocs.io/en/stable/how_to/analyze_neuropixels.html)
+Do not simply average these metrics. [Allen unit-metric documentation](https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html) discusses metric biases and cautions against relying on peak-channel SNR alone. No dataset-specific filtering threshold is promoted to a universal project cutoff.
 
-## 7 Example scope
+## 7 Validation and versioning
 
-Acceptance examples have distinct purposes. Format fixtures are not neural-quality ground truth.
+Validate real AP, real LF and explicitly labelled boundary cases separately. Technical annotations, simulated artifacts and physiological events are different evidence types. Version changes to detectors, thresholds, sampling, windows and scores; preserve past runs.
 
-| Example | Data range | Validation purpose | Status |
-| --- | --- | --- | --- |
-| Human Pt03 AP | Original binary frames from recording seconds 60–62; companion header records the derived excerpt | Biological signal reading, source time mapping and basic module execution | Independent readback passed; execution is recorded in versioned acceptance |
-| Noise4Sam LF | 5.2652 seconds from a public format fixture | LF calibration, stream identity and basic execution | Independent readback passed; not a physiological benchmark |
-| Human AP short window | A 0.02-second selection within the verified Pt03 excerpt | Short windows and partial reports when frequency resolution is insufficient | Boundary case, not another observation |
-| ACSF AP | Public fixture with a binary SHA1 inconsistent with its declaration | Rejection of inconsistent source identity | Negative fixture, not registered or analyzed |
-| Truncated Noise4Sam AP | Public shortened file with inconsistent original length and hash declarations | Rejection of inconsistent companions | Negative fixture, not registered or analyzed |
+Current NP1 examples include public Pt03 AP 2 s, Pt02 AP 4 s and Pt01 LF 20 s extracts. Completing these local files does not cover the source experiment or validate long-term drift. Noise4Sam and previously identified all-zero NWB extracts are boundary fixtures, not healthy physiological references. Preserve source ranges and derivation records. [Public data source](https://zenodo.org/records/5899237).
 
-Only a specified byte range of Pt03 was downloaded. Do not claim verification of the complete original file MD5. Preserve the source URL, range, original header, derivative metadata changes and excerpt hash. Actual coverage and execution status belong in versioned acceptance records.
-
-[Pt03 public source](https://zenodo.org/records/5899237) · [Neo public format fixtures](https://gin.g-node.org/NeuralEnsemble/ephy_testing_data)
-
-### 7.1 NWB extension in 1.0.0rc3.dev4
-
-The current profile is `neuropixels-voltage/2`; historical `neuropixels-raw/1` jobs keep their frozen interpretation. The Allen probeD NWB LFP retains explicit timestamps and device-extension declarations. Distant sampled windows contain zeros, making this an abnormal-signal boundary, not a normal physiological benchmark. Its electrode-group rate conflicts with the timestamps and should be disclosed. Other real ECoG or ordinary LFP examples do not become Neuropixels inputs. See [NWB examples and provenance](../../nwb-testing.md) for source and derivative details; execution status remains in the versioned acceptance record.
+Shared requirements: [General](/en/standards/overview), [Fields](/en/standards/fields), [Applicability](/en/standards/applicability). Engineering execution is not independent accuracy validation.

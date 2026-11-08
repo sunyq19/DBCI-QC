@@ -4,9 +4,15 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
+Source baseline: **2026-11-08 / 1.0.0rc3.dev39**. The local single-user workbench is available; multi-user cloud deployment remains planned. See the [cloud readiness plan](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
+
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev14**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
+Development version: **1.0.0rc3.dev39**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
+
+The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
+
+Neuropixels AP outlier screening requires the optional SpikeInterface research dependency. If unavailable, that check remains unassessed while the basic measurements are retained. See [research-runtime setup](docs/optional-methods-runtime.md).
 
 ## Quick start
 
@@ -51,7 +57,7 @@ For custom directories, ports and upgrades, see the [installation guide](docs/en
 | NWB 2 / HDF5 | One `.nwb`; select a continuous ElectricalSeries after reading |
 | SpikeGLX | One AP or LF `.bin` + `.meta` pair in a ZIP |
 
-Upload and uncompressed ZIP limits are **2 GiB** each. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
+Limits are **2 GiB per file and 10 GiB per dataset**. A recording and its companion files must total no more than 2 GiB; recording ZIPs are measured after extraction. Continuous recordings only: EDF+D/BDF+D, epoched SET, split FIF, NWB-Zarr, `.cbin` and sorted units are outside the current scope. Format does not establish modality. See [reader contracts](docs/file-formats.md).
 
 To try a generated engineering example:
 
@@ -59,7 +65,7 @@ To try a generated engineering example:
 .venv/bin/python examples/headless_qc.py --output .local/demo
 ```
 
-This generates `.local/demo/synthetic.edf` and runs an integrity check. You can upload that EDF to the workbench. It verifies the workflow, not accuracy on natural artifacts. The output directory must not already exist. See [public examples](docs/public-examples.md) for real data.
+This generates `.local/demo/synthetic.edf` and runs an integrity check. You can upload that EDF to the workbench. It verifies the workflow, not accuracy on natural artifacts. The output directory must not already exist. See [public examples](docs/public-examples.md) for real data. Configured examples open directly from **Example datasets**, following dataset → recordings → report. See the [example dataset guide](docs/example-datasets.md) for the four-modality local demonstration; recordings and generated reports are not bundled with a new clone.
 
 ## Modules and reports
 
@@ -73,7 +79,7 @@ Implementations are separate files in [`src/ephys_qc/modules/`](src/ephys_qc/mod
 
 EEG reports show an overview, integrity/line-interference/high-frequency-burst components, channel and time results, candidate waveforms and scoring rules. Whole-record processing runs in background chunks and retains coverage and unassessed conditions.
 
-**Score v0.2 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. Other modalities retain descriptive reports. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
+**Score project-weighted/1.2 is a project trial metric, not an expert-calibrated standard.** A full score means no candidate was detected by the scored checks, not that all aspects of the data are satisfactory. Missing checks are not assigned full marks. ECoG/sEEG and Neuropixels use separate project presets. See [scoring rules](docs/en/eeg-scoring.md) and [report requirements](docs/en/eeg-report.md).
 
 ## Methods and extensions
 
@@ -106,6 +112,14 @@ BrainElecQC is installed at a fixed commit, not vendored. Raw data, local config
 
 ## Dataset checks
 
-The workbench also provides **Dataset** mode: D01 file completeness → D02 individual consistency → D03 cohort consistency. Register local package roots and explicit expectations in the local configuration, confirm scope, then run checks in the background. Reports include subjects, groups, conflicts and evidence; no signal-quality score is assigned. Whole-package browser upload is not implemented. Core functions are independent of the UI. See [rules](docs/en/dataset-checks.md) and [configuration](docs/dataset-inventory.md).
+Datasets share the same data entry. Open a dataset from **Example datasets** or **Imported data**: D01 file completeness → D02 individual consistency → D03 cohort consistency. Register local package roots and explicit expectations in the local configuration, confirm scope, then run checks in the background. Reports include subjects, groups, conflicts and evidence; no signal-quality score is assigned. Whole-package browser upload is not implemented. Core functions are independent of the UI. See [rules](docs/en/dataset-checks.md) and [configuration](docs/dataset-inventory.md).
 
 Confirmed dataset recordings can be queued as a reviewed sequential batch, cancelled and traced to their reports. EEG results offer overview, candidate review with native-window PSD, and selectable visualizations. Report comparisons group matching configurations; unknown history and excluded frequency bands never become clean scores.
+
+New uploads are retained for **7 days**; reports and saved evidence remain available. Linked originals and legacy development data are excluded from automatic expiry. See [storage and configuration](docs/en/installation.md).
+
+Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Neuropixels uses numerical validity 30% and deduplicated channel status 70%; unavailable components are excluded. Other measurements remain unscored. See the [scoring specification](docs/en/eeg-scoring.md).
+
+Published example reports for four modalities are included in `apps/workbench/example-cache`. The homepage renders them without reading raw data or waiting for the personal library. Scalp EEG defaults to three equally weighted components; eligible optional methods support explicit weights under Advanced settings. See [scoring rules](docs/en/eeg-scoring.md).
+
+See [Neuropixels scoring rules](docs/en/neuropixels-scoring.md) for included checks, deduplication and effective weights.

@@ -1,6 +1,6 @@
 # Current implementation and validation scope
 
-Informative document · Version implementation/3 · 2026-10-31 · Software baseline 1.0.0rc3.dev13
+Informative document · Version implementation/5 · 2026-11-08 · Software baseline 1.0.0rc3.dev39
 
 [General requirements](/standards/overview) · [Field dictionary](/standards/fields) · [Method applicability](/standards/applicability)
 
@@ -23,9 +23,9 @@ The catalog is not a runtime request schema. Existing jobs retain their frozen i
 | Route | Implemented checks | Interpretation boundary |
 | --- | --- | --- |
 | [Scalp EEG](/standards) | Integrity, spectrum, channel candidates, conditional artifact methods and event checks | Method-specific prerequisites; no universal clinical cutoff or cross-species validity claim |
-| [ECoG](/standards/ecog) | Descriptive M03–M05; M07 for registered events; explicitly optional FieldTrip difference candidates in M06 | Pathological activity is not automatically an artifact; contact thresholds and scores remain uncalibrated |
-| [sEEG](/standards/seeg) | Separate route/parameters; descriptive M03–M05, event checks and optional FieldTrip difference candidates | Electrode-shaft relations, pathology and anatomical suitability are incomplete |
-| [Neuropixels voltage](/standards/neuropixels) | Single-stream M03–M05, conditional M07 and optional SpikeInterface AP channel candidates | No M06, sorted-unit QC, drift or cross-stream synchronization; other extracellular systems are not automatically Neuropixels |
+| [ECoG](/standards/ecog) | M03–M05; adjustable project score with 30% numerical validity and 70% signal stability; conditional M07 and optional FieldTrip jumps in M06 | Pathological activity is not automatically an artifact; contact thresholds and scores remain uncalibrated |
+| [sEEG](/standards/seeg) | Separate route/parameters; M03–M05, event checks, optional FieldTrip jumps and trial validity/stability scoring | Electrode-shaft relations, pathology and anatomical suitability are incomplete |
+| [Neuropixels voltage](/standards/neuropixels) | NP01–NP09; M03–M05, conditional M07; recommend SpikeInterface for eligible AP/shank windows, with constant-run summaries and an AP component | No M06, sorted-unit QC, drift or cross-stream synchronization; other extracellular systems are not automatically Neuropixels |
 
 Each job uses one supported modality/compatible channel group or independent continuous stream. Streams are not silently concatenated. Shared M01–M09 identifiers do not establish shared algorithms, parameters or validation scope.
 
@@ -59,3 +59,9 @@ Scalp EEG specification 0.8 includes twelve check terms, fourteen informative so
 This mapping does not determine conformance; conformance remains null. Full species/site confirmation is not yet captured. Missing reference, missing auxiliaries and failures do not become normal findings. Effective parameters come from method artifacts rather than unexpanded plan defaults. Unexported FASTER feature values and actual bridge cutoffs remain unavailable. Engineering regression/public-file execution do not replace expert-label validation.
 
 Engineering and real-file acceptance are recorded in docs/eeg-standard-validation-20261031.md; the frozen example summary is examples/validation/eeg-standard-20261031.json.
+
+## 6 Neuropixels initial rules
+
+The [continuous-voltage specification](/en/standards/neuropixels) and [nine check terms](/en/standards/neuropixels-checks) were fixed on 2026-11-08. Separate requirements, implemented detectors and method components; distinguish AP/LF from sorted units. Expert review and independently annotated validation remain outstanding. Real-extract acceptance is in docs/validation/neuropixels-standard-20261108.md.
+
+Neuropixels default scoring now uses numerical validity 30% and deduplicated channel status 70%, with editable weights and missing-component exclusion. AP/LF scopes remain separate. See [scoring rules](/en/standards/neuropixels-scoring) and repository docs/validation/neuropixels-scoring-20261108.md.

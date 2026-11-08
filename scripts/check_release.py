@@ -22,7 +22,13 @@ def main():
         ['node', 'tests/check-workbench-layout.mjs'],
         ['node', 'tests/check-dataset-ui.mjs'],
         ['node', 'tests/check-dataset-review.mjs'],
+        ['node', 'tests/check-dataset-report.mjs'],
         ['node', 'tests/check-data-library.mjs'],
+        ['node', 'tests/check-report-interactions.mjs'],
+        ['node', 'tests/check-waveform-explorer.mjs'],
+        ['node', 'tests/check-chart-refresh.mjs'],
+        ['node', 'tests/check-ieeg-groups.mjs'],
+        ['node', 'tests/check-ieeg-scoring.mjs'],
         ['git', 'diff', '--check'],
     ]
     for command in checks:

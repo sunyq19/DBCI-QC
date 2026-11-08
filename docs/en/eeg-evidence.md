@@ -184,7 +184,7 @@ Stable record/candidate IDs, original sample coordinates, coverage denominators,
 
 Nonfinite values, numerical flatness, endpoint plateaus and high-frequency ratios each require an explicit implementation source and project parameters. A rule without an external numerical basis remains a project rule; a bibliography cannot substitute for threshold validation. Cross-record comparisons and aggregate scores additionally require calibration and intended-use validation.
 
-The channel RMS, minimum-component total and whole-record pooling in [EEG scoring v0.2](/en/standards/eeg-scoring) are project conventions. PREP, HAPPE and external standards do not prescribe or validate this equation.
+The pooled candidate fractions, configurable weighted mean and whole-record pooling in [EEG project scoring](/en/standards/eeg-scoring) are project conventions. PREP, HAPPE and external standards do not prescribe or validate this equation.
 
 ## 3 Verification level and versions
 
