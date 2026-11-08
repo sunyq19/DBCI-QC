@@ -4,11 +4,11 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-Source baseline: **2026-11-08 / 1.0.0rc3.dev39**. The local workbench is available. The next delivery is a [shared online demo](docs/design/demo-deployment-v1.md) reusing the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
+Source baseline: **2026-11-08 / 1.0.0rc3.dev40**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev39**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
+Development version: **1.0.0rc3.dev40**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
 
 The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
 

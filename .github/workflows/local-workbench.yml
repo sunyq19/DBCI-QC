@@ -54,3 +54,5 @@ jobs:
         run: .venv/bin/python scripts/check_release.py
       - name: Start isolated service and run synthetic EDF
         run: .venv/bin/python scripts/smoke_local.py
+      - name: Verify shared demo uploads and saved reports
+        run: .venv/bin/python scripts/validate_demo.py --output /tmp/dbci-demo-acceptance

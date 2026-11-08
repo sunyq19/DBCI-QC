@@ -8,7 +8,14 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `通道状态	Channel status
+  const pairs = `共享	Shared
+共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。	Shared demo: files and reports are visible to all visitors. Upload public or de-identified data only.
+质控台 · 共享演示	QC Workbench · Shared demo
+连接服务…	Connecting…
+服务已连接	Connected
+服务未连接	Disconnected
+整份记录在后台分段计算。可以离开页面，处理完成后可回来查看报告。	The complete recording runs in the background. You can leave and return for the report.
+通道状态	Channel status
 整窗恒值通道	Fully constant channels
 检查NaN/Inf与整窗恒值；分别提供数值有效性和通道状态的计分证据。	Check NaN/Inf and fully constant windows as evidence for numerical validity and channel status.
 逐道数值计数	Per-channel sample counts

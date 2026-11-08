@@ -2,6 +2,8 @@
 
 (() => {
   const API = "/api/v1";
+  const SHARED_DEMO = document.documentElement?.dataset?.deployment === "shared_demo";
+  const UPLOAD_TIMEOUT_MS = SHARED_DEMO ? 3600000 : 120000;
   const OPTIONAL = ["M03", "M04", "M05", "M06", "M07"];
   const FIXED = ["M01", "M02", "M08", "M09"];
   const ORDER = ["M01", "M02", ...OPTIONAL, "M08", "M09"];
@@ -136,7 +138,7 @@
   function date(value) { const d = new Date(value); return Number.isNaN(d.valueOf()) ? String(value || "时间未提供") : d.toLocaleString(window.QCI18n?.getLanguage() || "zh-CN", {month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}); }
   function statusTag(status) { const known = Object.hasOwn(STATUS, status); return `<span class="tag ${known ? escape(status) : "subtle"}">${escape(STATUS[status] || status || "未提供")}</span>`; }
   function setError(id, message) { $(id).textContent = message || ""; $(id).hidden = !message; }
-  function setConnection(online, text) { const el = $("connection-status"); el.className = `connection ${online ? "online" : "offline"}`; el.lastElementChild.textContent = text || (online ? "本地服务已连接" : "本地服务未连接"); }
+  function setConnection(online, text) { const el = $("connection-status"); el.className = `connection ${online ? "online" : "offline"}`; el.lastElementChild.textContent = text || (SHARED_DEMO ? (online ? "服务已连接" : "服务未连接") : (online ? "本地服务已连接" : "本地服务未连接")); }
 
   async function api(path, options = {}) {
     const {timeoutMs = 20000,binary = false,...requestOptions} = options;
@@ -607,7 +609,7 @@
     $("scope-window").checked = state.scope === "window"; $("scope-recording").checked = state.scope === "recording";
     for (const id of ["scope-window","scope-recording"]) $(id).disabled = !state.input || busy || state.mode !== "draft";
     if (state.scope === "recording") { $("start-seconds").disabled = true; $("duration-seconds").disabled = true; }
-    $("scope-description").textContent = state.scope === "recording" ? "整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。" : "快速预检仅检查所选时段，不代表整份记录。";
+    $("scope-description").textContent = state.scope === "recording" ? (SHARED_DEMO ? "整份记录在后台分段计算。可以离开页面，处理完成后可回来查看报告。" : "整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。") : "快速预检仅检查所选时段，不代表整份记录。";
     renderVisibility();
     renderExtraction();
     renderPipeline();
@@ -981,9 +983,9 @@
   }
 
   function receiveFile(file,request) {
-    if (typeof XMLHttpRequest !== "function") return api("/intakes",{method:"POST",body:file,binary:true,timeoutMs:120000,headers:{"X-Filename":encodeURIComponent(file.name)}});
+    if (typeof XMLHttpRequest !== "function") return api("/intakes",{method:"POST",body:file,binary:true,timeoutMs:UPLOAD_TIMEOUT_MS,headers:{"X-Filename":encodeURIComponent(file.name)}});
     return new Promise((resolve,reject)=>{
-      const xhr=new XMLHttpRequest(); xhr.open("POST",`${API}/intakes`); xhr.timeout=120000;
+      const xhr=new XMLHttpRequest(); xhr.open("POST",`${API}/intakes`); xhr.timeout=UPLOAD_TIMEOUT_MS;
       xhr.setRequestHeader("Content-Type","application/octet-stream"); xhr.setRequestHeader("Accept","application/json"); xhr.setRequestHeader("X-Filename",encodeURIComponent(file.name));
       state.uploadAbort=()=>xhr.abort(); $("cancel-read-button").hidden=false;
       xhr.upload.onprogress=event=>{if(request===state.intakeRequest)$("intake-status").textContent=event.lengthComputable?`正在传输 ${Math.round(event.loaded/event.total*100)}%` : "正在传输文件…";};
