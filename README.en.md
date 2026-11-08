@@ -4,7 +4,7 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-Source baseline: **2026-11-08 / 1.0.0rc3.dev39**. The local single-user workbench is available; multi-user cloud deployment remains planned. See the [cloud readiness plan](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
+Source baseline: **2026-11-08 / 1.0.0rc3.dev39**. The local workbench is available. The next delivery is a [shared online demo](docs/design/demo-deployment-v1.md) reusing the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
