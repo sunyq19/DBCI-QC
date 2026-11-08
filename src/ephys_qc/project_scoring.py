@@ -29,8 +29,12 @@ def normalize(config, modality, selected, extensions=()):
         weights = {s['id']: s['default_weight'] for s in outputs(modality)
                    if s['default_weight'] and s['module_id'] in selected}
         return {'version': VERSION, 'weights': weights} if weights else None
-    if not isinstance(config, dict) or set(config) != {'version', 'weights'} or config['version'] not in (*METHOD_VERSIONS, LEGACY_VERSION):
+    if not isinstance(config, dict) or not {'version', 'weights'} <= set(config) or set(config)-{'version','weights','preset'} or config['version'] not in (*METHOD_VERSIONS, LEGACY_VERSION):
         raise ValueError('评分配置须包含有效的 project-weighted 版本及 weights。')
+    if 'preset' in config:
+        from .ieeg_scoring import PRESETS
+        if modality not in PRESETS or config['preset']!=PRESETS[modality]:
+            raise ValueError('评分方案版本与模态不匹配。')
     weights = config['weights']
     legacy = config['version'] == LEGACY_VERSION
     if not isinstance(weights, dict) or (legacy and (modality != 'scalp_eeg' or set(weights) != set(SPECS))):
@@ -43,6 +47,9 @@ def normalize(config, modality, selected, extensions=()):
             raise ValueError('评分权重须为 0–100 的有限数值；0 表示不纳入。')
         if value and not enabled(registry[key], selected, extensions):
             raise ValueError(registry[key]['name']+'方法未选择；请启用方法及模块或将权重设为 0。')
+    if modality in {'ecog','seeg'}:
+        from .ieeg_scoring import validate_family_weights
+        validate_family_weights(weights)
     if legacy and not any(weights.values()):
         raise ValueError('至少一个评分权重须大于 0。')
     return copy.deepcopy(config)

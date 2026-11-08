@@ -42,6 +42,7 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
         scope['effective_duration_seconds']=payload['metrics']['effective_duration_seconds']
         scope['used_intervals']=copy.deepcopy(payload['metrics'].get('used_intervals',[]))
     for spec in specs:
+        if spec['reducer']=='ieeg_stability':continue  # Derived after all method evidence is available.
         try:
             if payload.get('status') not in {'completed','partial'} or payload.get('calculated') is False:
                 raise ValueError(payload.get('reason') or '方法未完成')
@@ -178,6 +179,9 @@ def aggregate(rows,config,*,coverage_complete=True):
     import hashlib,json
     weights=config['weights']
     if set(weights)-set(SPECS) or any(not number(w) or not 0<=w<=100 for w in weights.values()):raise ValueError('无效评分权重')
+    from .ieeg_scoring import NUMERIC, STABILITY, PRESETS, validate_family_weights
+    if config.get('preset') in PRESETS.values() or {NUMERIC, STABILITY}.intersection(weights):
+        validate_family_weights(weights)
     if len({r['id'] for r in rows})!=len(rows):raise ValueError('同一计分输出不能重复纳入')
     index={r['id']:r for r in rows};parts=[]
     for key in dict.fromkeys([*index,*weights]):
@@ -199,7 +203,7 @@ def aggregate(rows,config,*,coverage_complete=True):
     value=sum(p['value']*p['weight'] for p in active)/total_weight if active and not blocking and coverage_complete else None
     h=index.get('hf_burst',{})
     return dict(version=config['version'],name='项目自定义评分',value=value,status='project_trial' if active else 'unavailable' if any(weights.values()) else 'disabled',components=parts,
-        weights=copy.deepcopy(weights),configuration_id=hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16],
+        preset=config.get('preset'),weights=copy.deepcopy(weights),configuration_id=hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16],
         effective_weights={p['id']:p['weight'] for p in parts},excluded_components=excluded,
         formula=FORMULA,aggregation='method_fraction_then_weighted_mean',coverage_complete=coverage_complete,
         missing_components=missing,missing_reason='未选择计分项' if not any(weights.values()) else '检查范围未完整覆盖' if not coverage_complete else
@@ -213,7 +217,9 @@ def pool_windows(windows):
     keys=list(dict.fromkeys(r['id'] for w in windows for r in w.get('method_scores',[])))
     result=[]
     for key in keys:
-        spec=SPECS[key];pieces=[next((r for r in w.get('method_scores',[]) if r['id']==key),None) for w in windows]
+        spec=SPECS[key]
+        if spec['reducer']=='ieeg_stability':continue  # Recompute from pooled evidence, not per-window minima.
+        pieces=[next((r for r in w.get('method_scores',[]) if r['id']==key),None) for w in windows]
         valid=bool(windows) and all(r and r['status']=='computed' and r['value'] is not None and number(r.get('candidate_amount')) and number(r.get('assessed_amount')) and 0<=r['candidate_amount']<=r['assessed_amount'] and r['assessed_amount']>0 and number(w.get('duration_seconds')) and w['duration_seconds']>0 and w.get('status','completed') in {'completed','partial'} for w,r in zip(windows,pieces))
         bad=total=0
         if valid:
@@ -232,6 +238,9 @@ def pool_windows(windows):
 def payload_outputs(name,payload,modality,recording):
     """Attach outputs at the algorithm boundary while payloads are in memory."""
     count=recording.get('channel_count',0)
+    if modality in {'ecog','seeg'} and name=='M03_continuity.json':
+        from .ieeg_scoring import numeric_output
+        return [numeric_output(payload,recording,name)]
     if modality=='scalp_eeg' and name in {'M03_continuity.json','M04_spectral.json','M06_muscle.json'}:
         from .report_aggregate import channel_evidence
         from .report_view import line_summary
@@ -261,6 +270,9 @@ def finalize(result,rows,*,coverage_complete=True):
     for key,row in list(index.items()):
         if module_status.get(row['module_id']) in {'failed','skipped','cancelled','interrupted'}:
             index[key]=observation(SPECS[key],reason='所属模块未完成，已保存证据需复核。')
+    if modality in {'ecog','seeg'}:
+        from .ieeg_scoring import STABILITY, stability_output
+        index[STABILITY]=stability_output(list(index.values()))
     result['method_scores']=[index.get(s['id']) or observation(s,reason='方法未完成或没有完整计分证据。')
         for s in outputs(modality) if enabled(s,selected,extensions)]
     config=result.get('qc_config',{}).get('scoring')

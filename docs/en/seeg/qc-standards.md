@@ -17,7 +17,7 @@ Confirm source channels, voltage units, rate and range. Preserve evidence or unk
 analysis_profile is seeg-basic/1. method_config.seeg uses psd_window_seconds=4 and line_frequencies_hz=[50,60]. These are calculation settings, not healthy ranges. Scalp-specific thresholds are not substitutes.
 
 
-### Basic recommended scheme v0.2 (2026-11-07)
+### Basic recommended scheme v0.3 (2026-11-08)
 
 Read and confirm modality, contacts, units and reference → numerical integrity, sustained flatness and file-range plateaus → PSD, line-frequency neighborhoods and contact statistics → report. Add M07 only for verified, registered event tables.
 
@@ -27,7 +27,7 @@ Flatness is evaluated within each analysis window. Channel-only candidates do no
 
 EDF/BDF additionally checks runs at verified file encoding limits. Within-group amplitude outliers require explicit groups and confirmed comparable references. Original FieldTrip adjacent-change screening remains opt-in; it is not an automatic diagnosis of artifacts. See [intracranial check rules](/en/standards/ieeg-checks) for exact conditions and formulas.
 
-No default overall score. MNE contact-candidate and merged-interval fractions expose optional score outputs with default weight 0; they cannot be summed as contaminated duration. PSD, narrowband power and RMS remain descriptive measurements.
+The default score uses numerical validity (30%) and signal stability (70%), with adjustable weights. Related evidence contributes once; see [intracranial scoring](/en/standards/ieeg-scoring). MNE contact-candidate and merged-interval fractions expose optional score outputs with default weight 0; they cannot be summed as contaminated duration. PSD, narrowband power and RMS remain descriptive measurements.
 
 Reports include scope, itemized check results, candidate locations, contact measurements, window-specific charts and provenance. Pooled RMS is weighted by finite sample count. The peak-to-peak summary is the maximum window value, not whole-record peak-to-peak.
 
@@ -35,7 +35,7 @@ Sources: [MNE annotate_amplitude](https://mne.tools/stable/generated/mne.preproc
 
 ## 4 Execution and results
 
-Default modules are M03, M04 and M05; add M07 for registered events. M01, M02, M08 and M09 are required. M06 supports explicitly selected FieldTrip difference-interval evidence. Preserve source data, references and bad labels. No automatic cleaning, re-reference or exclusion. The default total is null; explicitly weighted valid score outputs can produce a project score.
+Default modules are M03, M04 and M05; add M07 for registered events. M01, M02, M08 and M09 are required. M06 supports explicitly selected FieldTrip difference-interval evidence. Preserve source data, references and bad labels. No automatic cleaning, re-reference or exclusion. The default produces two component scores and a weighted total; unavailable components are excluded explicitly.
 
 ## 5 Module requirements
 

@@ -17,7 +17,7 @@ Confirm modality, source channel indices, voltage units, native clock and analys
 Use `method_config.ecog`: `psd_window_seconds=4` and `line_frequencies_hz=[50,60]`. PSD uses a Hann window, 50% overlap and per-segment mean removal; short selections report their actual segment length. Narrow-band half-width is max(1 Hz, frequency resolution). Only measurable bands are described, without rejection thresholds. These are project measurement settings, not industry quality standards.
 
 
-### Basic recommended scheme v0.2 (2026-11-07)
+### Basic recommended scheme v0.3 (2026-11-08)
 
 Read and confirm modality, contacts, units and reference → numerical integrity, sustained flatness and file-range plateaus → PSD, line-frequency neighborhoods and contact statistics → report. Add M07 only for verified, registered event tables.
 
@@ -27,7 +27,7 @@ Flatness is evaluated within each analysis window. Channel-only candidates do no
 
 EDF/BDF additionally checks runs at verified file encoding limits. Within-group amplitude outliers require explicit groups and confirmed comparable references. Original FieldTrip adjacent-change screening remains opt-in; it is not an automatic diagnosis of artifacts. See [intracranial check rules](/en/standards/ieeg-checks) for exact conditions and formulas.
 
-No default overall score. MNE contact-candidate and merged-interval fractions expose optional score outputs with default weight 0; they cannot be summed as contaminated duration. PSD, narrowband power and RMS remain descriptive measurements.
+The default score uses numerical validity (30%) and signal stability (70%), with adjustable weights. Related evidence contributes once; see [intracranial scoring](/en/standards/ieeg-scoring). MNE contact-candidate and merged-interval fractions expose optional score outputs with default weight 0; they cannot be summed as contaminated duration. PSD, narrowband power and RMS remain descriptive measurements.
 
 Reports include scope, itemized check results, candidate locations, contact measurements, window-specific charts and provenance. Pooled RMS is weighted by finite sample count. The peak-to-peak summary is the maximum window value, not whole-record peak-to-peak.
 
@@ -35,7 +35,7 @@ Sources: [MNE annotate_amplitude](https://mne.tools/stable/generated/mne.preproc
 
 ## 4 Execution and results
 
-Recommend M03, M04 and M05, adding M07 when events are registered. M01, M02, M08 and M09 are required; M06 supports explicitly selected FieldTrip difference-interval evidence. Windows are at most 120 seconds. Whole-record execution retains per-window coverage and short tails. No cleaning, deletion or rereferencing is applied. Nonempty scalp-only parameters are rejected rather than silently replaced. The default total is null; explicitly weighted valid score outputs can produce a project score.
+Recommend M03, M04 and M05, adding M07 when events are registered. M01, M02, M08 and M09 are required; M06 supports explicitly selected FieldTrip difference-interval evidence. Windows are at most 120 seconds. Whole-record execution retains per-window coverage and short tails. No cleaning, deletion or rereferencing is applied. Nonempty scalp-only parameters are rejected rather than silently replaced. The default produces two component scores and a weighted total; unavailable components are excluded explicitly.
 
 ## 5 Module requirements
 

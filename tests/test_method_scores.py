@@ -149,6 +149,8 @@ class MethodScoreTests(unittest.TestCase):
 
     def test_non_eeg_finalize_cannot_inherit_scalp_core_scores(self):
         r={'input_modality':{'value':'ecog'},'selected_modules':['M03','M04','M05','M06'],'qc_config':{'method_config':{'extensions':[]}},'modules':[]}
-        finalize(r,[]);self.assertEqual(r['method_scores'],[])
+        finalize(r,[])
+        self.assertFalse({'integrity','line_noise','hf_burst'} & {row['id'] for row in r['method_scores']})
+        self.assertTrue(all(row['value'] is None for row in r['method_scores']))
 
 if __name__=='__main__':unittest.main()

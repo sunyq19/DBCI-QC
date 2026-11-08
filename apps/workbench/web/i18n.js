@@ -8,7 +8,11 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `文件量程端点平台	File encoding-limit plateaus
+  const pairs = `数值有效性	Numerical validity
+信号稳定性	Signal stability
+颅内评分规则	Intracranial scoring rules
+默认：数值有效性30%、信号稳定性70%。稳定性相关检查只取最低分，不重复计权。	Default: numerical validity 30%, signal stability 70%. Related stability checks use the minimum score and count once.
+文件量程端点平台	File encoding-limit plateaus
 分组触点幅度离群	Within-group contact amplitude outliers
 颅内检查规则	Intracranial check rules
 定位连续落在文件标定上下限的采样点，提示可能削顶。	Locate runs at the file calibration limits as possible clipping candidates.
@@ -2231,7 +2235,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

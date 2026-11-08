@@ -1,6 +1,6 @@
 # ECoG and sEEG basic check rules
 
-Project technical specification · ieeg-basic-recipe/0.2 · 2026-11-07 · Awaiting expert review
+Project technical specification · ieeg-basic-recipe/0.3 · 2026-11-08 · Awaiting expert review
 
 ## 1 Scope
 
@@ -46,7 +46,7 @@ Original FieldTrip `ft_artifact_zvalue`, absdiff=yes, cumulative=no, no band-pas
 
 ## 4 Reporting and optional scores
 
-No default intracranial total. Optional outputs use 100 × (1 − candidate amount / assessed amount), default weight zero. MNE preserves separate contact/time denominators. Encoding-limit plateaus use finite calibrated channel samples; group outliers use assessed contacts; FieldTrip uses assessed time. Invalid groups do not count as passes. Different denominators do not describe one additive artifact fraction.
+The default total uses numerical validity (30%) and signal stability (70%). Related raw outputs use 100 × (1 − candidate amount / assessed amount) and contribute through one stability score, not repeated weights. See [scoring rules](/en/standards/ieeg-scoring). MNE preserves separate contact/time denominators. Encoding-limit plateaus use finite calibrated channel samples; group outliers use assessed contacts; FieldTrip uses assessed time. Invalid groups do not count as passes. Different denominators do not describe one additive artifact fraction.
 
 Save source positions, parameters, effective denominators, windows and version. PSD/RMS are descriptive, not direct scores. Short patterns crossing processing windows may be missed; report window scope.
 

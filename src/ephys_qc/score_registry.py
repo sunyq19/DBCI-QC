@@ -22,6 +22,8 @@ _ROWS = [
  ('gnosis_psd_deviation','gnosis_psd_deviation','M05','灵犀云 · PSD 异常通道','channels','channels',SCALP),
  ('faster_channels','faster_channels','M05','FASTER 通道候选','channels','channels',SCALP),
  ('fieldtrip_zvalue','fieldtrip_zvalue','M06','FieldTrip 跳变区间','seconds','intervals',['scalp_eeg','ecog','seeg']),
+ ('ieeg_numeric_integrity','ieeg_numeric_integrity','M03','数值有效性','channel_samples','ieeg_numeric',['ecog','seeg']),
+ ('ieeg_signal_stability','mne_amplitude','M03','信号稳定性','dimensionless','ieeg_stability',['ecog','seeg']),
  ('ieeg_range_plateau','ieeg_range_plateau','M03','文件量程端点平台','channel_samples','encoding_samples',['ecog','seeg']),
  ('ieeg_group_outliers','ieeg_group_outliers','M05','分组触点幅度离群','channels','assessed_channels',['ecog','seeg']),
  ('spikeinterface_bad_channels','spikeinterface_bad_channels','M05','SpikeInterface 噪声通道','channels','channels',['extracellular']),
@@ -32,6 +34,8 @@ SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,r
                  interpretation='指定方法未命中的比例；候选不是已确认坏道或伪迹。')
          for key,method,module,name,unit,reducer,modalities in _ROWS}
 
+SPECS['ieeg_signal_stability'].update(formula='min(valid related-method scores)',
+    interpretation='相关候选只取最低分计一次，不代表逐样本异常并集。')
 
 def outputs(modality=None, method_id=None):
     return [deepcopy(s) for s in SPECS.values() if
@@ -40,8 +44,8 @@ def outputs(modality=None, method_id=None):
 
 
 def describe(method, modality):
-    out=outputs(modality,method['id']) if method.get('implementation')=='available' else []
-    reason=('按候选量与有效检查量输出项目分数；默认只启用 EEG 三项。' if out else
+    out=outputs(modality,'ieeg_numeric_integrity' if modality in {'ecog','seeg'} and method['id'] in {'ecog_continuity','seeg_continuity'} else method['id']) if method.get('implementation')=='available' else []
+    reason=('按本方法的有效证据输出项目分数；是否计入由模态方案和评分配置决定。' if out else
             '未实现，不能计分。' if method.get('implementation')!='available' else
             '处理变化量不等于输入质量。' if method['id'] in {'asr_bursts','cleanline','zapline_plus'} else
             '参考范围的人群适用性未确认，不将范围外直接判为质量差。' if method['id']=='gnosis_reference_ranges' else
@@ -51,4 +55,4 @@ def describe(method, modality):
 
 
 def enabled(spec, selected, extensions):
-    return spec['module_id'] in selected and (spec['reducer'] in {'core','prep'} or spec['method_id'] in extensions)
+    return spec['module_id'] in selected and (spec['reducer'] in {'core','prep','ieeg_numeric'} or spec['method_id'] in extensions)

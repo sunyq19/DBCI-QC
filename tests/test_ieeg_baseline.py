@@ -42,7 +42,7 @@ class BaselineTests(unittest.TestCase):
             proposal=recommend(source)
             self.assertTrue(proposal['can_apply'])
             self.assertEqual(proposal['qc_config']['method_config']['extension_parameters']['mne_amplitude'],FLAT_PARAMETERS)
-            self.assertEqual(proposal['qc_config']['scoring']['weights'] if 'scoring' in proposal['qc_config'] else {},{})
+            self.assertEqual(proposal['qc_config']['scoring']['weights'],{'ieeg_numeric_integrity':30,'ieeg_signal_stability':70})
             custom=recommend(source,{'method_config':{'extensions':['mne_amplitude'],'extension_parameters':{'mne_amplitude':{'min_duration_seconds':.3}}}})
             self.assertEqual(custom['qc_config']['method_config']['extension_parameters']['mne_amplitude']['min_duration_seconds'],.3)
             self.assertEqual(source,original)

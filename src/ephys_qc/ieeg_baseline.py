@@ -1,7 +1,7 @@
 """Versioned basic iEEG proposal; explicit recipe, never a clinical cutoff."""
 from copy import deepcopy
 
-VERSION = 'ieeg-basic-recipe/0.2'
+VERSION = 'ieeg-basic-recipe/0.3'
 FLAT_PARAMETERS = {'peak_volts': None, 'flat_volts': 0.,
                    'min_duration_seconds': .05, 'bad_percent': 5.}
 
@@ -18,6 +18,9 @@ def configure(config, record=None):
     methods.setdefault('extension_parameters', {}).setdefault('mne_amplitude', deepcopy(FLAT_PARAMETERS))
     if record and record.get('metadata',{}).get('format') in {'EDF','BDF'}:
         methods['extensions'] = sorted(set(methods['extensions']) | {'ieeg_range_plateau'})
+    if record and 'scoring' not in result:
+        from .ieeg_scoring import default_config
+        result['scoring']=default_config(record['modality'])
     return result
 
 
