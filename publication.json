@@ -29,7 +29,12 @@
       "id": "review-v15",
       "label": "v1.5 · 数据集审核与复验",
       "hash": "75d085126a310d40691351c0c425084a5708e721f939cbe1724fe773d353752d"
+    },
+    {
+      "id": "scoring-v16",
+      "label": "v1.6 · 多模态计分与权重",
+      "hash": "bb99e938a4bd0d5c835450d2329246f8b053068332502ed22a9193c947878205"
     }
   ],
-  "source_commit": "fa415f590b66361a460c9ca8655f6c83856f74bf"
+  "source_commit": "29da463d2c018af4b9ac115c73451f7aa20beffd"
 }
