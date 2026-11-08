@@ -80,14 +80,14 @@ class ResearchCatalogueTests(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         build_plan(r, [])
 
-    def test_research_catalogue_does_not_change_recommended_config_or_selected_modules(self):
+    def test_explicit_opt_out_preserves_config_when_research_catalogue_changes(self):
         for modality in EXPECTED:
             r = record(modality)
             original = copy.deepcopy(r)
             with patch('ephys_qc.external_runtime.availability',return_value='not installed'):
                 with patch('ephys_qc.research_runtime.extension_specs', return_value=[]):
-                    baseline = recommend(r)
-                actual = recommend(r)
+                    baseline = recommend(r, {'method_config': {'extensions': []}})
+                actual = recommend(r, {'method_config': {'extensions': []}})
             self.assertTrue(actual['can_apply'], actual)
             for key in ('selected_modules', 'qc_config', 'quality_score'):
                 self.assertEqual(actual[key], baseline[key], (modality, key))

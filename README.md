@@ -4,6 +4,8 @@
 
 [质控流程网页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
+本次源码基线：**2026-11-08 / 1.0.0rc3.dev39**。本地版可安装运行；云端多人使用尚待开发，下一阶段见[云部署准备](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
+
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
 当前开发版：**1.0.0rc3.dev39**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
@@ -104,16 +106,20 @@ FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究�
 开发检查另需 Node.js：
 
 ```bash
+.venv/bin/python -m pip install -r tests/requirements-ui.txt
 .venv/bin/python scripts/check_release.py
+.venv/bin/python scripts/smoke_local.py
 ```
+
+GitHub Actions 按上述安装流程从空白环境执行回归与独立启动检查。`smoke_local.py` 使用临时运行目录，核对首页、四类示例、PDF 和合成 EDF 检查；不读取个人配置。
 
 质控标准文档为项目草案，尚未经专家审核，不是已发布的行业或团体标准。本工具用于科研筛查与人工复核，不作临床诊断。字段字典的完整设计、跨数据评分比较与 Linxi 宿主接入仍在完善。
 
 ## 来源与许可
 
-[本项目](https://github.com/sunyq19/DBCI-QC) · [雷佳欣 / BrainElecQC](https://github.com/Jlei61/BrainElecQC)
+[本项目](https://github.com/sunyq19/DBCI-QC) · [雷佳欣 / BrainElecQC](https://github.com/Jlei61/BrainElecQC) · [灵犀云 / GnosisNeuroDynamicSE](https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE)
 
-BrainElecQC 作为固定提交的外部依赖安装，不在本仓库复制分发。原始数据、个人配置和运行报告不随代码提供。本项目尚未指定许可证；第三方软件和数据按各自许可使用，见[第三方说明](THIRD_PARTY_NOTICES.md)。
+BrainElecQC 作为固定提交的外部依赖安装，不在本仓库复制分发。原始数据、个人配置和个人运行报告不随代码提供；仓库仅附经检查的公开数据展示快照。本项目尚未指定许可证；第三方软件和数据按各自许可使用，见[第三方说明](THIRD_PARTY_NOTICES.md)。
 
 评分在 **高级设置 → 评分与权重** 中配置。EEG默认三项；ECoG/sEEG默认数值有效性与信号稳定性；Neuropixels默认数值有效性与去重后的通道状态。总分按有效权重平均，受限项不计入。规则及边界见[评分规范](docs/eeg-scoring.md)。
 

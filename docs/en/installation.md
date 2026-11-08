@@ -56,7 +56,7 @@ If an older configuration uses another Python, setup prints a notice. Point its 
 | Download fails | Check GitHub/package access and rerun setup |
 | Port already used | Stop the other service or change `port` and open the matching URL |
 | Missing dependency / PDF fails | Rerun setup and ensure the configured Python is the installed environment |
-| No example data listed | Upload your own file or use the README's synthetic example or [public examples](../public-examples.md) |
+| Example reports missing | The repository ships four cached modality examples; check that `apps/workbench/example-cache/` was downloaded completely. Upload your own data or use the synthetic EDF to run a new check. |
 
 `requirements/workbench.txt` pins top-level dependencies and a BrainElecQC commit; it is not a full transitive lock. [Research extensions](../optional-methods-runtime.md) require separate setup. Windows and macOS are not verified environments.
 

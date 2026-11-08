@@ -4,6 +4,8 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
+Source baseline: **2026-11-08 / 1.0.0rc3.dev39**. The local single-user workbench is available; multi-user cloud deployment remains planned. See the [cloud readiness plan](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
+
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
 Development version: **1.0.0rc3.dev39**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.

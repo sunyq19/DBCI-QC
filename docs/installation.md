@@ -56,7 +56,7 @@ python3.11 scripts/setup_local.py
 | 下载失败 | 确认能访问 GitHub 和 Python 包源，再重跑同一安装命令 |
 | 端口被占用 | 停止旧服务，或修改配置的 `port`，按新端口打开网页 |
 | 缺少依赖 / PDF 无法生成 | 重跑安装脚本，并确认配置使用其生成的 Python 环境 |
-| 网页里没有示例数据 | 正常；上传自己的文件，或使用 README 的合成示例及[公开样例](public-examples.md) |
+| 网页里没有示例报告 | 当前仓库附带四类缓存示例；确认完整下载了 `apps/workbench/example-cache/`。自己的原始数据仍需上传，也可使用 README 的合成示例 |
 
 `requirements/workbench.txt` 固定主要依赖和 BrainElecQC 提交，不是所有间接依赖的完整锁文件。研究扩展单独安装，见[扩展方法](optional-methods-runtime.md)。Windows、macOS 暂不作为已验证环境。
 

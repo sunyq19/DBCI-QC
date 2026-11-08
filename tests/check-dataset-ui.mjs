@@ -34,6 +34,8 @@ function fixture(admissionPolicy=null,search=''){
       else if(url.includes('/overview'))value=result(url.split('/')[4],url.includes('?job='),search.includes('job='));
       else value={id:'a'.repeat(32),package_id:'A',status:'completed',manifest_hash:'hash-A',created_at:'2026-11-06',modules:[]};
       return {ok:true,json:async()=>value};}};
+  context.window=context;
+  vm.runInNewContext(fs.readFileSync(new URL('run-names.js',root),'utf8'),context);
   vm.runInNewContext(source,context);
   return {nodes,langs,requests,context,resolvePost:value=>finishPost(value)};
 }
@@ -47,7 +49,8 @@ f.nodes.get('package-confirm').checked=true;f.nodes.get('package-confirm').event
 assert.equal(f.nodes.get('package-run').disabled,false);
 let run=f.nodes.get('package-run').events.click();await flush();
 const body=JSON.parse(f.requests.at(-1).options.body);
-assert.deepEqual(body,{package_id:'A',manifest_hash:'hash-A',confirmed:true});
+assert.deepEqual(body,{package_id:'A',manifest_hash:'hash-A',confirmed:true,run_name:f.nodes.get('package-run-name').placeholder});
+assert.match(body.run_name,/^A · 资料检查 · \d{2}-\d{2} \d{2}:\d{2}$/);
 f.resolvePost({id:'a'.repeat(32)});await run;await flush();
 assert.match(f.nodes.get('dataset-result').innerHTML,/汇总报告/);
 assert.match(f.nodes.get('dataset-checks').innerHTML,/&lt;img/);

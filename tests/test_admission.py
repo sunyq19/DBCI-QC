@@ -263,7 +263,7 @@ class AdmissionHTTPTests(unittest.TestCase):
                            'inputs': [], 'profiles': [], 'admission_policy': POLICY.version})
         source = self.root / 'oversize.edf'
         with source.open('wb') as stream: stream.truncate(POLICY.max_file_bytes + 1)
-        with patch.object(store, 'plan_request', return_value=({'source_path': str(source)}, {'plan_id': 'p'})):
+        with patch.object(store, 'plan_request', return_value=({'source_path': str(source), 'label': 'oversize fixture'}, {'plan_id': 'p', 'qc_config': {}})):
             with self.assertRaises(LimitExceeded): store.submit({'plan_id': 'p'})
         self.assertEqual(store.jobs, {})
         self.assertEqual(list((store.root / 'jobs').iterdir()), [])
