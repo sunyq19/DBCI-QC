@@ -7,10 +7,10 @@ export type Scoring = {scope:string;role:typeof scoreRoles[number];canOutputScor
 export type FlowNode = {
   id:string; title:string; summary:string; kind:typeof kinds[number]; status:typeof statuses[number];
   scope:string[]; x:number; y:number; description:string; inputs:string; outputs:string;
-  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';scoring?:Scoring[];
+  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';scoring?:Scoring[];sourceManaged?:boolean;teamNotes?:string;
 };
 export type FlowEdge = {id:string;source:string;target:string;label:string};
-export type FlowDoc = {schemaVersion:1;title:string;subtitle:string;nodes:FlowNode[];edges:FlowEdge[]};
+export type FlowDoc = {schemaVersion:1;title:string;subtitle:string;nodes:FlowNode[];edges:FlowEdge[];catalog?:{id:string;sequence:number;sourceVersion:string;sourceCommit:string}};
 export const KIND_LABEL:Record<FlowNode['kind'],string>={intake:'共同步骤',base:'默认推荐',conditional:'按条件启用',dataset:'数据集检查',report:'汇总与报告'};
 export const STATUS_LABEL:Record<FlowNode['status'],string>={ready:'已接入',trial:'试行',review:'待讨论',planned:'计划中'};
 export const SCOPE_LABEL:Record<string,string>={eeg:'头皮 EEG',ecog:'ECoG',seeg:'sEEG',np:'Neuropixels 电压',dataset:'数据集'};
@@ -22,14 +22,15 @@ function text(v:unknown,key:string,max:number,nonempty=false):asserts v is strin
 }
 export function validateDoc(value:unknown):FlowDoc {
   if(!object(value)||value.schemaVersion!==1)throw new Error('不支持的流程图格式');
-  if(Object.keys(value).some(k=>!['schemaVersion','title','subtitle','nodes','edges'].includes(k)))throw new Error('流程图含未知字段');
+  if(Object.keys(value).some(k=>!['schemaVersion','title','subtitle','nodes','edges','catalog'].includes(k)))throw new Error('流程图含未知字段');
   text(value.title,'标题',80,true);text(value.subtitle,'说明',200);
   if(!Array.isArray(value.nodes)||value.nodes.length<1||value.nodes.length>60)throw new Error('节点数应为 1–60');
   if(!Array.isArray(value.edges)||value.edges.length>150)throw new Error('连接数最多 150');
+  if(value.catalog!==undefined){const c=value.catalog;if(!object(c)||Object.keys(c).sort().join(',')!=='id,sequence,sourceCommit,sourceVersion'||typeof c.id!=='string'||!/^catalog-[a-f0-9]{64}$/.test(c.id)||!Number.isSafeInteger(c.sequence)||Number(c.sequence)<1||typeof c.sourceCommit!=='string'||!/^([a-f0-9]{40}|local)$/.test(c.sourceCommit))throw new Error('目录来源无效');text(c.sourceVersion,'软件版本',80,true);}
   const ids=new Set<string>();
   let total=0;
   function checkNodes(nodes:unknown[],depth=0){if(depth>4)throw new Error('模块层级最多五层');for(const n of nodes){if(++total>250)throw new Error('模块和方法合计最多250项');
-    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType','scoring'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
+    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType','scoring','sourceManaged','teamNotes'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
     text(n.id,'节点编号',80,true);
     if(!/^[A-Za-z][A-Za-z0-9_-]*$/.test(n.id)||ids.has(n.id))throw new Error('节点编号重复或不合法');ids.add(n.id);
     text(n.title,'节点名称',64,true);text(n.summary,'节点简述',52);

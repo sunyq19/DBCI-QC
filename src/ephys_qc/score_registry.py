@@ -40,6 +40,9 @@ SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,r
 SPECS['ieeg_signal_stability'].update(formula='min(valid related-method scores)',
     interpretation='相关候选只取最低分计一次，不代表逐样本异常并集。')
 
+SPECS['neuropixels_channel_state'].update(formula='100 * (1 - duration_weighted_union_channel_fraction)',
+    interpretation='逐窗对恒值与适用AP候选按来源通道取并集，再按通道窗时长加权。')
+
 def outputs(modality=None, method_id=None):
     return [deepcopy(s) for s in SPECS.values() if
             (modality is None or modality in s['modalities']) and

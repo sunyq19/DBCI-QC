@@ -136,3 +136,53 @@ test('score contracts reject invalid roles, ambiguous modalities and false capab
  }
  const doc=withCatalog(seed);const n=flattenNodes(doc.nodes).find(n=>n.id==='f_continuity')!;n.scoring!.push(n.scoring![0]);assert.throws(()=>validateDoc(doc));
 });
+
+import {catalogHash,mergeCatalog,validateManifest,type CatalogManifest} from '../lib/sync';
+import {syncCatalog,checkSourceFields} from '../lib/repository';
+const sourceManifest=JSON.parse(readFileSync('content/sync-manifest.json','utf8')) as CatalogManifest;
+async function revised(change:(doc:any)=>void){const next=structuredClone(sourceManifest);next.sequence++;change(next.doc);next.id='catalog-'+await catalogHash(next.doc,next.sourceVersion);return await validateManifest(next);}
+test('generated source is validated; digest changes cannot be concealed',async()=>{
+ await validateManifest(sourceManifest);
+ const bad=structuredClone(sourceManifest);bad.doc.nodes[0].description+='changed';await assert.rejects(()=>validateManifest(bad),/校验/);
+});
+test('source upgrades add and move methods, update rules, preserve team annotations, and retire removed nodes',async()=>{
+ const first=mergeCatalog(withCatalog(seed),sourceManifest);
+ const n=flattenNodes(first.nodes).find(n=>n.id==='f_continuity')!;n.teamNotes='团队说明：补充测试依据';n.x=80;
+ const modified=await revised(doc=>{
+  const original=flattenNodes(doc.nodes).find(n=>n.id==='f_continuity')!;
+  original.scoring![0].weight='新规则：50%';original.description='新的实现说明';
+  const parent=doc.nodes.find((n:any)=>n.children?.some((c:any)=>c.id===original.id));parent.children=parent.children.filter((c:any)=>c.id!==original.id);
+  doc.nodes.find((n:any)=>n.id==='M04').children.push(original,{...structuredClone(original),id:'f_added',title:'新方法'});
+  doc.nodes.find((n:any)=>n.id==='M06').children=doc.nodes.find((n:any)=>n.id==='M06').children.filter((c:any)=>c.id!=='f_hf_burst');
+ });
+ const second=mergeCatalog(first,modified),nodes=flattenNodes(second.nodes),updated=nodes.find(n=>n.id==='f_continuity')!;
+ assert.equal(updated.teamNotes,'团队说明：补充测试依据');assert.equal(updated.scoring![0].weight,'新规则：50%');assert.equal(updated.description,'新的实现说明');assert.equal(updated.x,80);
+ assert.equal(nodes.filter(n=>n.id==='f_continuity').length,1);assert.ok(nodes.find(n=>n.id==='f_added'));
+ assert.equal(nodes.find(n=>n.id==='f_hf_burst')?.status,'planned');assert.ok(nodes.find(n=>n.id==='f_hf_burst')?.scoring?.every(s=>s.role==='unavailable'));
+ assert.deepEqual(mergeCatalog(second,modified),second);assert.deepEqual(mergeCatalog(second,sourceManifest),second);
+});
+test('legacy member descriptions and score proposals move into notes, not the active rules',()=>{
+ const doc=withCatalog(seed);const n=flattenNodes(doc.nodes).find(n=>n.id==='f_mne_amplitude')!;
+ n.description='成员写的说明';n.scoring![0].weight='团队建议改为80%';
+ const migrated=flattenNodes(mergeCatalog(doc,sourceManifest).nodes).find(n=>n.id===n.id&&n.id==='f_mne_amplitude')!;
+ assert.match(migrated.teamNotes!,/成员写的说明/);assert.match(migrated.teamNotes!,/团队建议改为80%/);assert.notEqual(migrated.scoring![0].weight,'团队建议改为80%');
+});
+test('two source updates preserve notes and frozen versions; concurrent edits are detected',async()=>{
+ const db=database();await initialize(db);await ensureCatalog();
+ async function ensureCatalog(){await syncCatalog(db,sourceManifest);}
+ let state:any=await readFlow(db);const rev=state.revision;const first=state.hash;
+ state.doc.nodes[0].teamNotes='团队确认记录';await saveFlow(db,rev,state.doc,'补充团队记录','editor');
+ const fixed=await freezeFlow(db,rev+1,'同步前固定版','保留','editor');const frozen:any=await readFlow(db,{version:fixed.id});
+ const next=await revised(doc=>doc.nodes[0].description='新版描述');await Promise.all([syncCatalog(db,next),syncCatalog(db,next)]);
+ state=await readFlow(db);assert.equal(state.revision,rev+2);assert.equal(state.doc.nodes[0].teamNotes,'团队确认记录');assert.equal(state.doc.nodes[0].description,'新版描述');assert.notEqual(state.hash,first);
+ assert.equal((await readFlow(db,{version:fixed.id}) as any).hash,frozen.hash);assert.deepEqual((await readFlow(db,{version:'baseline-v1'})as any).doc,seed);
+ const conflicting=structuredClone(state.doc);conflicting.nodes[0].title='改写实现';assert.throws(()=>checkSourceFields(state.doc,conflicting),/质控台同步/);
+ const noteOnly=structuredClone(state.doc);noteOnly.nodes[0].teamNotes+='，允许补充';checkSourceFields(state.doc,noteOnly);
+ await assert.rejects(()=>saveFlow(db,rev+1,noteOnly,'旧页面保存','editor'),{status:409});
+ await syncCatalog(db,sourceManifest);assert.equal((await readFlow(db)as any).hash,state.hash);
+});
+test('invalid remote metadata falls back to bundled source without breaking the page',async()=>{
+ const {readCatalog}=await import('../lib/catalog-source');
+ const value=await readCatalog(async()=>new Response('{"schemaVersion":999}',{status:200}) as any);
+ assert.equal(value.id,sourceManifest.id);
+});

@@ -1,6 +1,6 @@
 import {withCatalog,CATALOG_ID,CATALOG_LABEL,CATALOG_NOTE} from './catalog';
 import { seed } from './seed';
-import { validateDoc, type FlowDoc } from './flow';
+import { validateDoc, flattenNodes, type FlowDoc } from './flow';
 export const SAVE_SQL = `INSERT INTO flow_revisions (revision, document, hash, author_id, note, created_at)
  SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(MAX(revision),0) FROM flow_revisions)=? RETURNING revision`;
 export const FREEZE_SQL = `INSERT INTO flow_versions (id,label,revision,note,author_id,created_at)
@@ -32,6 +32,8 @@ export async function readFlow(db:D1Database,opts:{version?:string|null;revision
 export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string,authorId:string){
   if(!Number.isSafeInteger(base)||base<1)throw new AppError('保存基准版本无效');
   if(typeof note!=='string'||note.trim().length<1||note.length>300)throw new AppError('请填写 1–300 字的修改说明');
+  const current=await db.prepare('SELECT document FROM flow_revisions ORDER BY revision DESC LIMIT 1').first<Revision>();
+  if(current)checkSourceFields(JSON.parse(current.document),validateDoc(doc));
   const valid=validateDoc(doc),hash=await digest(valid),revision=base+1,now=new Date().toISOString();
   const saved=await db.prepare(SAVE_SQL).bind(revision,JSON.stringify(valid),hash,authorId,note.trim(),now,base).first();
   if(!saved)throw new AppError('其他成员已保存新修改。您的修改仍保留，请先查看新版，再合并或导出。',409);
@@ -66,5 +68,31 @@ export async function ensureHierarchy(db:D1Database){
    db.prepare(`INSERT OR IGNORE INTO flow_versions (id,label,revision,note,author_id,created_at)
     SELECT ?,?,revision,?,?,? FROM flow_revisions WHERE revision=? AND hash=? AND note=?`).bind(CATALOG_ID,label,CATALOG_NOTE,'system',now,head.revision+1,hash,CATALOG_NOTE),
   ]);
+ }
+}
+
+export async function syncCatalog(db:D1Database,manifest:import('./sync').CatalogManifest){
+ const {mergeCatalog}=await import('./sync');await initialize(db);
+ for(let attempt=0;attempt<4;attempt++){
+  const head=await db.prepare('SELECT revision,document FROM flow_revisions ORDER BY revision DESC LIMIT 1').first<Revision>();
+  if(!head)return;
+  const old=JSON.parse(head.document) as FlowDoc;
+  if(old.catalog?.id===manifest.id&&old.catalog.sequence===manifest.sequence||old.catalog&&old.catalog.sequence>manifest.sequence)return;
+  const doc=mergeCatalog(old,manifest),hash=await digest(doc),now=new Date().toISOString();
+  const note='自动同步质控目录 · '+manifest.sourceVersion+' · 发布 '+manifest.sequence+'；团队说明保留';
+  const saved=await db.prepare(SAVE_SQL).bind(head.revision+1,JSON.stringify(doc),hash,'catalog-sync',note,now,head.revision).first();
+  if(saved)return;
+ }
+ throw new AppError('目录正在更新，请稍后重试',409);
+}
+export function checkSourceFields(current:FlowDoc,incoming:FlowDoc){
+ if(!current.catalog)return;
+ if(JSON.stringify(incoming.catalog)!==JSON.stringify(current.catalog))throw new AppError('目录已经更新，请加载新版后编辑团队说明',409);
+ const index=new Map(flattenNodes(incoming.nodes).map(n=>[n.id,n]));
+ for(const n of flattenNodes(current.nodes).filter(n=>n.sourceManaged)){
+  const next=index.get(n.id);if(!next)throw new AppError('已接入模块由质控台维护；请在团队说明中提出调整建议');
+  for(const k of Object.keys(n).filter(k=>!['children','x','y','teamNotes'].includes(k))){
+   if(JSON.stringify(n[k as keyof typeof n])!==JSON.stringify(next[k as keyof typeof next]))throw new AppError('模块和评分规则由质控台同步，不能在网页中另改一套；请填写团队说明');
+  }
  }
 }
