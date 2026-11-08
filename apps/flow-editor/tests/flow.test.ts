@@ -53,17 +53,19 @@ test('catalog version labels cannot collide with an existing member version',asy
  const {ensureHierarchy}=await import('../lib/repository');const db=database();await initialize(db);await freezeFlow(db,1,CATALOG_LABEL,'member version','editor');await ensureHierarchy(db);await ensureHierarchy(db);assert.equal((await readFlow(db)as any).revision,2);assert.equal((await readFlow(db,{version:CATALOG_ID})as any).version.label,CATALOG_LABEL+' · r2');
 });
 
-test('static release files are valid and content hashes match; public publishing cannot save drafts',async()=>{
- const {staticResponse}=await import('../lib/static-reader');const {readFileSync}=await import('node:fs');const pub=JSON.parse(readFileSync('content/releases/publication.json','utf8'));
+test('archived fixed versions remain valid and content hashes match',async()=>{
+ const pub=JSON.parse(readFileSync('content/releases/publication.json','utf8'));
  for(const release of pub.releases){validateDoc(release.doc);assert.equal(release.hash,await digest(release.doc));}
- const g=globalThis as any;g.window={__FLOW_PUBLICATION__:pub};
- try{
-  assert.equal((staticResponse('/api/session') as any).canEdit,false);
-  assert.equal((staticResponse('/api/flow') as any).version.id,CATALOG_ID);
-  assert.equal((staticResponse('/api/flow?version=baseline-v1') as any).doc.nodes.length,14);
-  assert.throws(()=>staticResponse('/api/flow',{method:'POST'}),/发布版/);
-  assert.throws(()=>staticResponse('/api/flow?version=missing'),/尚未发布/);
- }finally{delete g.window;}
+});
+test('legacy links retain fixed versions and history within the single flow origin',async()=>{
+ const {flowUrlForLegacyLink}=await import('../lib/navigation');
+ const {default:navigation}=await import('../config/navigation.json');
+ assert.equal(flowUrlForLegacyLink('https://sunyq19.github.io/DBCI-QC/'),navigation.flowUrl);
+ const fixed=new URL(flowUrlForLegacyLink('https://sunyq19.github.io/DBCI-QC/?version=scoring-v16#M08'));
+ assert.equal(fixed.searchParams.get('version'),'scoring-v16');assert.equal(fixed.hash,'#M08');
+ const history=new URL(flowUrlForLegacyLink('https://sunyq19.github.io/DBCI-QC/?revision=9&redirect=https://unrelated.example/'));
+ assert.equal(history.origin,new URL(navigation.flowUrl).origin);
+ assert.equal(history.search,'?revision=9');
 });
 
 
