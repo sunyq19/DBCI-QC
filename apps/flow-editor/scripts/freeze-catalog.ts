@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {withCatalog,CATALOG_ID,CATALOG_LABEL,CATALOG_NOTE} from '../lib/catalog';
+import {digest} from '../lib/repository';
+const path='content/releases/publication.json';
+const publication=JSON.parse(readFileSync(path,'utf8'));
+if(publication.releases.some((r:{id:string})=>r.id===CATALOG_ID))throw new Error('Catalog already frozen; use a new version for changes.');
+const previous=publication.releases.at(-1);
+const doc=withCatalog(previous.doc);
+publication.releases.push({id:CATALOG_ID,label:CATALOG_LABEL,revision:previous.revision+1,note:CATALOG_NOTE,created_at:new Date().toISOString(),doc,hash:await digest(doc)});
+writeFileSync(path,JSON.stringify(publication,null,2)+'\n');
+console.log(`Fixed ${CATALOG_LABEL}; previous ${publication.releases.length-1} snapshots preserved.`);

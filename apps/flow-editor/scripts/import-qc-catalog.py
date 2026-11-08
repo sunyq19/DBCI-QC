@@ -47,7 +47,7 @@ gnosis_url='https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE'
 for parent in ['M04','M05','M06']:
  leaves=[n for n in catalog[parent] if n['id'].startswith('f_gnosis_')]
  catalog[parent]=[n for n in catalog[parent] if n not in leaves]
- catalog[parent].append(node('group_gnosis_'+parent,'灵犀云 · 可选方法',['eeg'],kind='conditional',entry='support',summary='逐项勾选 · 不并入基础评分',description='每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。',inputs='已确认的头皮EEG及单一比较组',outputs='子方法测量和候选；保留原始输入',conditions='原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。',methods='原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。',evidence=gnosis_url+'\n'+base+'docs/gnosis-methods.md',notes='网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。',children=leaves))
+ catalog[parent].append(node('group_gnosis_'+parent,'灵犀云 · 可选方法',['eeg'],kind='conditional',entry='support',summary='逐项勾选 · 有分数接口的方法可选计分',description='每个子方法可在质控台单独选择；未选择的同组方法不会执行。必要的副本准备或片段筛选会在详情中列明。',inputs='已确认的头皮EEG及单一比较组',outputs='子方法测量和候选；保留原始输入',conditions='原示例为静息态头皮EEG。先核对参考、单位、可测频带和时长。',methods='原版SignalQualityEval 3.0.0；独立Python 3.12执行环境。',evidence=gnosis_url+'\n'+base+'docs/gnosis-methods.md',notes='网页编辑的是设计说明；实际执行在质控台的可选扩展中勾选。',children=leaves))
 catalog['M02'].append(node('support_gnosis_prepare','灵犀云 · 分析副本准备',['eeg'],kind='conditional',entry='support',summary='选择灵犀云子方法时按参数执行',description='为被选方法准备自己的副本：最高256Hz、1–70Hz及平均参考。原始信号和PREP等其他路线的输入保持不变。',inputs='原始V信号；已确认参考比较组',outputs='只供本方法使用的分析副本及处理记录',conditions='子方法prepare_copy=true时内部执行；关闭需已核实输入频带和采样率。ICA不在这一准备步骤中。',methods='SignalQualityEval.tools.utils.preprocess_raw',evidence=gnosis_url,notes='默认不执行Notebook中的自动ICA和线长候选删道；两者改变后续判断，需另外确认。'))
 from ephys_qc.visualizations import visualization_specs
 catalog['VIS']=[]
@@ -65,6 +65,20 @@ for key,title,desc,condition in [
  ('report','审核报告与导出','总览、记录、审核与复验分层查看；导出HTML和PDF，保留全部事项及追溯。','公开演示标注模拟意见。原始路径和填写信息尚未自动脱敏。')]:
  catalog['D04'].append(node('support_dataset_'+key,title,['dataset'],kind='dataset',entry='support',summary='D04 首版',description=desc,inputs='完成的资料检查与已登记处理记录',outputs='可追溯的处理和复验结果',conditions=condition,methods='dataset-review/1',evidence=base+'src/ephys_qc/dataset_qc/review.py'+'\n'+base+'docs/design/dataset-review-v1.md'))
 files=['src/ephys_qc/visualizations/catalog.py','src/ephys_qc/visualizations/render.py','src/ephys_qc/method_registry.py','src/ephys_qc/readers/__init__.py','src/ephys_qc/research_runtime.py','src/ephys_qc/descriptive_catalog.py','src/ephys_qc/gnosis_catalog.py','src/ephys_qc/gnosis_runtime.py','src/ephys_qc/gnosis_worker.py','docs/dataset-checks.md','src/ephys_qc/processing_history.py','src/ephys_qc/comparison.py','apps/workbench/batch_jobs.py','apps/workbench/review_workspace.py','src/ephys_qc/dataset_qc/review.py','src/ephys_qc/dataset_qc/review_report.py','apps/workbench/package_reviews.py']
-out={'catalogVersion':'2026-11-06.5','roots':[visual_root,review_root],'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
+# Update unchanged published text while keeping member edits during migration.
+publication=json.loads(Path('content/releases/publication.json').read_text())
+baseline=next(r for r in publication['releases'] if r['id']=='review-v15')
+roots=[{k:v for k,v in n.items() if k!='children'} for n in baseline['doc']['nodes'] if n['id'] not in ('VIS','D04')]+[visual_root,review_root]
+for n in roots:
+ if n['id']=='M08':
+  n.update(summary='分项 + 可调权重 + 受限项处理',status='trial',description='各模态已有默认试行方案。先核对每个方法的有效输出，再按方案合并、加权，保留所有未评原因。展开查看各模态默认方案及权重规则。',inputs='方法分数、有效受检量、候选身份、检查范围和权重',outputs='分项分数、综合分、实际权重与未计入原因',conditions='完整覆盖计划范围；缺项按有效输出处理。',methods='EEG：三项等权；ECoG/sEEG：数值有效性30%与稳定性70%；Neuropixels：数值有效性30%与通道状态70%。',notes='当前为项目试行规则，尚未专家审核。可调整权重；计分细节见子项。',evidence=base+'src/ephys_qc/project_scoring.py')
+ elif n['id']=='M03':
+  n.update(description='按模态检查无效数值、恒值及平线。ECoG/sEEG在可用时核验文件量程端点；Neuropixels区分整窗恒值与短暂量化重复。')
+ elif n['id']=='M05':
+  n.update(description='EEG可用PREP及可选离群方法；ECoG/sEEG只在确认分组与参考时开展触点比较；Neuropixels按AP条件运行SpikeInterface。')
+from scoring_catalog import attach_scoring
+attach_scoring(catalog,roots,node,base)
+files+=['src/ephys_qc/score_registry.py','src/ephys_qc/project_scoring.py','src/ephys_qc/ieeg_scoring.py','src/ephys_qc/neuropixels_scoring.py','docs/ieeg-scoring.md','docs/neuropixels-scoring.md']
+out={'catalogVersion':'2026-11-08.6','roots':roots,'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
 Path('content/module-catalog.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('Methods:',len(collected),'implemented:',sum(n['status']!='planned' for n in collected.values()),'readers:',len(reader_parent['children']),'dataset checks:',sum(len(catalog[k]) for k in ['D01','D02','D03']))

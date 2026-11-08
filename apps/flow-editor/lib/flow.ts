@@ -1,10 +1,13 @@
 export const kinds = ['intake','base','conditional','dataset','report'] as const;
 export const statuses = ['ready','trial','review','planned'] as const;
 export const scopes = ['eeg','ecog','seeg','np','dataset'] as const;
+export const scoreRoles = ['default','optional','measurement','unavailable'] as const;
+export const SCORE_LABEL = {default:'默认计分',optional:'可选计分',measurement:'仅测量',unavailable:'未接入'};
+export type Scoring = {scope:string;role:typeof scoreRoles[number];canOutputScore:boolean;outputs:string[];weight:string;rule:string;limited:string;version:string};
 export type FlowNode = {
   id:string; title:string; summary:string; kind:typeof kinds[number]; status:typeof statuses[number];
   scope:string[]; x:number; y:number; description:string; inputs:string; outputs:string;
-  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';
+  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';scoring?:Scoring[];
 };
 export type FlowEdge = {id:string;source:string;target:string;label:string};
 export type FlowDoc = {schemaVersion:1;title:string;subtitle:string;nodes:FlowNode[];edges:FlowEdge[]};
@@ -26,7 +29,7 @@ export function validateDoc(value:unknown):FlowDoc {
   const ids=new Set<string>();
   let total=0;
   function checkNodes(nodes:unknown[],depth=0){if(depth>4)throw new Error('模块层级最多五层');for(const n of nodes){if(++total>250)throw new Error('模块和方法合计最多250项');
-    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
+    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType','scoring'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
     text(n.id,'节点编号',80,true);
     if(!/^[A-Za-z][A-Za-z0-9_-]*$/.test(n.id)||ids.has(n.id))throw new Error('节点编号重复或不合法');ids.add(n.id);
     text(n.title,'节点名称',64,true);text(n.summary,'节点简述',52);
@@ -35,6 +38,19 @@ export function validateDoc(value:unknown):FlowDoc {
     if(!Array.isArray(n.scope)||!n.scope.length||n.scope.some(x=>!scopes.includes(x))||new Set(n.scope).size!==n.scope.length)throw new Error('适用范围无效');
     for(const [key,max]of [['x',CANVAS_W-NODE_W-20],['y',CANVAS_H-NODE_H-20]] as const){if(typeof n[key]!=='number'||!Number.isFinite(n[key])||n[key]<20||n[key]>max)throw new Error('节点坐标超出画布');}
     if(n.entryType!==undefined&&!['method','reader','check','support','visualization'].includes(n.entryType as string))throw new Error('子项类型无效');
+    if(n.scoring!==undefined){
+      if(!Array.isArray(n.scoring)||n.scoring.length>5)throw new Error('计分属性格式错误');
+      const seen=new Set();
+      for(const s of n.scoring){
+        if(!object(s)||Object.keys(s).sort().join(',')!==['scope','role','canOutputScore','outputs','weight','rule','limited','version'].sort().join(',')||!n.scope.includes(s.scope)||seen.has(s.scope)||!scoreRoles.includes(s.role as typeof scoreRoles[number])||typeof s.canOutputScore!=='boolean')throw new Error('计分属性无效或模态重复');
+        seen.add(s.scope);
+        if(!Array.isArray(s.outputs)||s.outputs.length>12)throw new Error('计分输出无效');
+        for(const o of s.outputs)text(o,'计分输出',180,true);
+        for(const k of ['weight','rule','limited','version'])text(s[k],k,1800);
+        if((s.role==='default'||s.role==='optional')!==s.canOutputScore)throw new Error('计分角色与输出能力不一致');
+        if(n.status==='planned'&&s.role!=='unavailable')throw new Error('未接入方法不能声明已接入计分');
+      }
+    }
     if(n.children!==undefined){if(!Array.isArray(n.children))throw new Error('子模块必须是数组');checkNodes(n.children,depth+1);}
   }}
   checkNodes(value.nodes);
