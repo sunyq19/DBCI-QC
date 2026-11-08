@@ -21,7 +21,7 @@ function fixtureCatalog() {
 function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = "", search = "", serverInputs = false} = {}) {
   const elements = new Map();
   const get = id => {
-    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},getAttribute(key){return this.attrs[key]??null},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
+    if (!elements.has(id)) elements.set(id,{_value:"",get value(){return this._value},set value(value){this._value=String(value)},textContent:"",innerHTML:"",hidden:false,disabled:false,open:false,style:{},dataset:{},attrs:{},events:new Map(),firstElementChild:{style:{}},lastElementChild:{textContent:""},addEventListener(type,handler){if(!this.events.has(type))this.events.set(type,[]);this.events.get(type).push(handler)},dispatch(type,event={}){for(const handler of this.events.get(type)||[])handler(event)},removeAttribute(key){delete this.attrs[key]},setAttribute(key,value){this.attrs[key]=value},getAttribute(key){return this.attrs[key]??null},querySelectorAll(){return[]},scrollIntoView(){},showModal(){this.open=true},close(){if(!this.open)return;this.open=false;this.dispatch("close",{target:this})}});
     return elements.get(id);
   };
   ids.forEach(get);
@@ -29,9 +29,10 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const location = {protocol:"http:",pathname:"/",search,hash}, windowEvents = new Map();
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
-  const names = "state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
+  const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
   const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
+  vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
   test.state.catalog=fixtureCatalog();if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
@@ -194,7 +195,8 @@ check("v0.2 score retains its minimum rule, revision marker and standards link",
   const t=harness();t.state.job={id:"score-v02"};
   t.state.result={modules:[],report_view:{schema_version:"eeg-report-view/3",score:{version:"eeg-basic-screen/0.2",value:88.51,components:[{name:"信号完整性",value:100},{name:"工频干扰",value:88.51},{name:"高频突发",value:99.9}]},score_revision:{previous_version:"eeg-basic-screen/0.1",previous_value:99.31},recording:{channel_count:63,sampling_rate_hz:500,start_seconds:0,duration_seconds:281.66},finite:{nonfinite:0,constant:0},line:{hits:353,total:17136,affected_channels:13},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
   t.renderResult();const markup=t.get("result-content").innerHTML;
-  assert(markup.includes("88.51"));assert(markup.includes("项目试行 v0.2"));assert(markup.includes("取最低分项"));
+  assert(markup.includes("88.51"));assert(markup.includes("项目试行 v0.2"));assert(markup.includes("总分取三个分项中的最低值"));
+  assert(markup.indexOf("总分取三个分项中的最低值")>markup.indexOf("<summary>评分计算方法</summary>"));
   assert(markup.includes("均方根"));assert(markup.includes("/standards/eeg-scoring"));assert(markup.includes("原始评分与证据保留"));
   assert(!markup.includes("三项等权平均"));assert(!markup.includes("项目试行 v0.1"));
 });
@@ -376,7 +378,7 @@ check("a failed automatic plan keeps Start blocked until reset or explicit manua
 });
 check("one explicit Start replans a manual draft and submits exactly once",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));if(url.endsWith("/jobs")&&options.method==="POST")return response({id:"new-job",status:"failed",plan:t.state.plan,modules:[]});if(url.endsWith("/jobs"))return response({jobs:[]});throw new Error(`Unexpected ${url}`)});
-  t.setModuleSelected("M07",false);t.get("start-seconds").value="10";t.invalidatePlan();await t.startJob();assert.equal(calls.filter(([url,opt])=>url.endsWith("/jobs")&&opt.method==="POST").length,1);assert.equal(calls[0][0],"/api/v1/plan");const request=JSON.parse(calls[1][1].body);assert.equal(request.qc_config.selection.start_seconds,10);assert(!request.selected_modules.includes("M07"));assert.equal(request.plan_id,"plan-fixture");assert.equal(t.state.mode,"job");
+  t.setModuleSelected("M07",false);t.get("start-seconds").value="10";t.invalidatePlan();await t.startJob();assert.equal(calls.filter(([url,opt])=>url.endsWith("/jobs")&&opt.method==="POST").length,1);assert.equal(calls[0][0],"/api/v1/plan");const request=JSON.parse(calls[1][1].body);assert.equal(request.qc_config.selection.start_seconds,10);assert(!request.selected_modules.includes("M07"));assert.equal(request.plan_id,"plan-fixture");assert.equal(request.run_name,t.get("check-run-name").placeholder);assert.equal(t.state.mode,"job");
 });
 check("Start locks input switching and repeat clicks while a manual plan is pending",async()=>{
   const wait=deferred(),calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/plan"))return wait.promise;if(url.endsWith("/jobs")&&options.method)return response({id:"j",status:"failed",plan:t.state.plan,modules:[]});return response({jobs:[]})});
@@ -451,7 +453,7 @@ check("result tabs switch presentation without launching analysis and reset on a
   t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -713,9 +715,9 @@ check("legacy sEEG and extracellular URLs only browse the matching catalog on th
 check("all four modality drafts are discoverable and discarded without changing unrelated session data",async()=>{
   const modalities=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(modalities.map(id=>[id,fourCatalog(id)]));
   const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=modalities.flatMap(id=>catalogs[id].inputs);t.storage.set("unrelated","keep");
-  for(const [index,id] of modalities.entries()){await t.selectInput(`${id}-0`);t.setScope("window");t.get("start-seconds").value=index+10;t.saveDraft();const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`;const saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));assert.equal(saved.modality,id);}
-  for(const [index,id] of modalities.entries()){const key=id==="scalp_eeg"?"ephys-qc.draft.v1":`ephys-qc.draft.v1.${id}`,saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));}
-  t.storage.delete("ephys-qc.draft.v1.latest");t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=catalogs.scalp_eeg;assert.equal(t.savedDraft().modality,"extracellular");await t.restoreDraft();assert.equal(t.state.input.modality,"extracellular");assert.equal(t.get("start-seconds").value,"13");assert.equal(t.state.plan,null);t.discardDraft();assert.equal(t.savedDraft(),null);assert.equal(t.storage.get("unrelated"),"keep");for(const key of t.storage.keys())assert(!key.startsWith("ephys-qc.draft.v1"));
+  for(const [index,id] of modalities.entries()){await t.selectInput(`${id}-0`);t.setScope("window");t.get("start-seconds").value=index+10;t.saveDraft();const key=id==="scalp_eeg"?"ephys-qc.draft.v2":`ephys-qc.draft.v2.${id}`;const saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));assert.equal(saved.modality,id);}
+  for(const [index,id] of modalities.entries()){const key=id==="scalp_eeg"?"ephys-qc.draft.v2":`ephys-qc.draft.v2.${id}`,saved=JSON.parse(t.storage.get(key));saved.updated_at=`2026-10-30T00:00:0${index}Z`;t.storage.set(key,JSON.stringify(saved));}
+  t.storage.delete("ephys-qc.draft.v2.latest");t.clearInputDraft();t.state.activeModality="scalp_eeg";t.state.catalog=catalogs.scalp_eeg;assert.equal(t.savedDraft().modality,"extracellular");await t.restoreDraft();assert.equal(t.state.input.modality,"extracellular");assert.equal(t.get("start-seconds").value,"13");assert.equal(t.state.plan,null);t.discardDraft();assert.equal(t.savedDraft(),null);assert.equal(t.storage.get("unrelated"),"keep");for(const key of t.storage.keys())assert(!key.startsWith("ephys-qc.draft.v2"));
 });
 check("toolbox browsing across four modalities is independent from the active plan",async()=>{
   const modalities=["scalp_eeg","ecog","seeg","extracellular"],catalogs=Object.fromEntries(modalities.map(id=>[id,fourCatalog(id)]));const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=modalities.flatMap(id=>catalogs[id].inputs);await t.selectInput("seeg-0");t.state.plan=planFixture(t.body());t.state.planKey=t.fingerprint();const before=t.fingerprint(),plan=t.state.plan;
@@ -812,6 +814,130 @@ check("new records default to full background scope while explicit window drafts
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
   assert.equal(t.currentConfig().scope,"recording");assert.equal(t.state.job,null);
   t.setScope("window");t.get("start-seconds").value=7;t.saveDraft();await t.restoreDraft();assert.equal(t.currentConfig().scope,"window");assert.equal(t.currentConfig().selection.start_seconds,7);
+});
+check("project weights are explicit, editable and invalidate an existing plan",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
+  assert.equal(t.currentConfig().scoring.version,'project-weighted/1.2');
+  const field={dataset:{scoreWeight:'line_noise'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
+  t.state.plan={plan_id:'old'};field.change();
+  assert.equal(t.currentConfig().scoring.weights.line_noise,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  assert(box.innerHTML.includes('50%'));assert(box.innerHTML.includes('评分规则'));
+  field.value='-1';field.change();assert(field.error);assert.equal(t.currentConfig().scoring.weights.line_noise,2);
+  t.setModuleSelected('M04',false);assert.equal(t.currentConfig().scoring.weights.line_noise,0);
+});
+check("non EEG cannot inherit scalp scoring and module capability is visible",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
+  t.state.draftConfig.scoring={version:'project-weighted/1.0',weights:{integrity:1,line_noise:1,hf_burst:1}};
+  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('参与计分的项目必须全部完成'));
+  t.state.catalog.modules[2].scoring={can_output_score:false,role:'evidence'};t.showModule('M03');assert(t.get('module-dialog-content').innerHTML.includes('不计分，输出测量与复核线索'));
+});
+check("examples and uploads share native disclosure hierarchy",()=>{
+  assert(/<details id="demo-reports"[^>]*supporting-panel/.test(html));
+  assert(/<summary><span id="demo-reports-title">/.test(html));
+});
+check("optional score weights select methods, and zero disables a total",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
+  const m=t.state.catalog.modules.find(m=>m.id==='M06');m.methods=m.methods||[];
+  m.methods.push({id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',optional_extension:true,implementation:'available',scoring:{outputs:[{id:'gnosis_artifact',method_id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',default_weight:0,reducer:'ratios'}]}});
+  const field={dataset:{scoreWeight:'gnosis_artifact'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  t.get('scoring-controls').querySelectorAll=()=>[field];t.renderScoringControls();t.state.plan={plan_id:'old'};field.change();
+  assert(t.state.extensions.has('gnosis_artifact'));assert(t.state.selected.has('M06'));assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  t.state.draftConfig.scoring.weights={gnosis_artifact:2};t.renderScoringControls();field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,0);assert(!field.error);
+});
+check("current report schema displays the weighted score and optional method table",()=>{
+  const t=harness();t.state.result={modules:[],report_view:{schema_version:'eeg-report-view/5',score:{version:'project-weighted/1.1',value:78.75,formula:'weighted',components:[{name:'信号完整性',value:100,weight:1},{name:'工频干扰',value:60,weight:2},{name:'高频突发',value:95,weight:1},{name:'灵犀云伪差',value:82,weight:0,reason:'test'}]},recording:{channel_count:2,sampling_rate_hz:100,start_seconds:0,duration_seconds:10},finite:{nonfinite:0,constant:0},line:{hits:1,total:3,affected_channels:1},hf_candidates:[],line_channels:[],checks:[],notes:[]}};
+  t.renderResult();const text=t.get('result-content').innerHTML;
+  assert(text.includes('78.75'));assert(text.includes('项目自定义 v1.1'));assert(text.includes('灵犀云伪差'));assert(!text.includes('总分尚未校准'));
+  assert(text.includes('50%'));assert(text.includes('不计入'));assert(!text.includes(' · 权重 '));
+  t.state.result.report_view.score.components[3].weight=4;t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('<td>50%</td>'));assert(!t.get('result-content').innerHTML.includes('<td>100%</td>'));
+  t.state.result.report_view.score.components[3].weight=0;t.state.result.report_view.score.components[1].weight=1;t.renderResult();
+  assert(!t.get('result-content').innerHTML.includes('3 项同等计入'));assert(t.get('result-content').innerHTML.includes('>权重</th>'));assert(t.get('result-content').innerHTML.includes('<td>33.3%</td>'));
+  // A Gnosis-only scoring profile must surface all five included checks, even
+  // when one has missing evidence; unused core checks stay supplementary.
+  const components=t.state.result.report_view.score.components;
+  components.forEach(p=>p.weight=0);
+  components.splice(3,1,...['gnosis_line_length','gnosis_artifact','gnosis_low_band','gnosis_high_band','gnosis_psd_deviation'].map((id,i)=>({id,name:id,value:i===4?null:80,weight:1,candidate_fraction:i===4?null:.2,unit:i===0?'channel_block_seconds':'channel_seconds'})));
+  Object.assign(t.state.result.report_view,{headline:'Old core headline',summary:'Old core summary',priority:'工频优先复核：A 命中 1/3 窗。',local_quality:{lowest:{name:'A',lowest_component:{name:'工频',value:60}}}});
+  t.renderResult();
+  const gnosis=t.get('result-content').innerHTML, main=gnosis.split('<tbody>')[1].split('</tbody>')[0];
+  assert.equal((main.match(/<tr>/g)||[]).length,5);assert(!main.includes('未发现无效数值'));assert(!main.includes('疑似工频干扰涉及'));
+  assert(main.includes('证据不足，暂不能评分'));assert(gnosis.includes('20%'));assert(!gnosis.includes('25%'));
+  const conclusion=gnosis.split('<div class="qc-score-conclusion">')[1].split('</div>')[0];
+  assert(conclusion.includes('gnosis_line_length'));assert(!conclusion.includes('Old core summary'));
+  assert(gnosis.includes('共同基础检查 · 局部关注'));assert(conclusion.includes('共同基础检查：工频优先复核'));
+  components.filter(part=>part.weight>0).forEach(part=>{part.value=100;part.candidate_fraction=0;});t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('计分项目未检出候选'));
+  components.at(-1).value=null;t.renderResult();
+  assert(t.get('result-content').innerHTML.includes('部分项目未评分'));
+  // Historical aggregate metadata can overstate short-tail coverage. Display
+  // valid windows by score ID without changing the frozen result or score.
+  const view=t.state.result.report_view;
+  view.checks=[{name:'gnosis_high_band',value:'7/7 个窗口可计分，0 秒',state:'部分未评'},
+    {name:'gnosis_psd_deviation',value:'7/7 个窗口可计分，0 秒',state:'部分未评'}];
+  view.window_scores=Array.from({length:7},(_,i)=>({start_seconds:i*120,duration_seconds:i===6?13:120,value:i===6?null:100,
+    components:components.map(part=>({id:part.id,value:i===6&&['gnosis_high_band','gnosis_psd_deviation'].includes(part.id)?null:100}))}));
+  const saved=JSON.stringify(view);t.renderResult();
+  const checks=t.get('result-content').innerHTML.split('<div class="qc-check-list">')[1].split('</div></div>')[0];
+  assert.equal((checks.match(/6\/7 个窗口可计分，720 秒/g)||[]).length,2);
+  assert(!checks.includes('7/7 个窗口可计分，0 秒'));assert.equal(JSON.stringify(view),saved);
+});
+check('running history opens on entry and polling respects manual collapse',async()=>{
+  const job={id:'running-task',status:'running',label:'Running task',plan:{plan_id:'saved',nodes:[],selected_modules:[]},modules:[]};
+  const t=harness(async()=>response(job));
+  try {
+    await t.selectJob(job.id,job);
+    assert.equal(t.get('run-history-panel').open,true);
+    t.get('run-history-panel').open=false;
+    t.renderVisibility();t.renderHistory();t.updateActions();
+    assert.equal(t.get('run-history-panel').open,false);
+    await t.refreshJob(true);
+    assert.equal(t.get('run-history-panel').open,false);
+    await t.selectJob('next-task',{...job,id:'next-task'});
+    assert.equal(t.get('run-history-panel').open,true);
+  } finally { t.clearPoll(); }
+});
+check("run names survive upload and confirmation, without altering the plan", async()=>{
+  const t=harness(undefined,{selected:false});
+  const file={name:"sub-01.edf",size:100};t.get("intake-file").files=[file];t.chooseLocalFile();
+  assert(t.get("upload-run-name").placeholder.startsWith("sub-01 · 整份检查 · "));
+  const input=t.get("upload-run-name");input.value="同一数据 · 灵犀云方案";input.dispatch("input",{target:input});
+  t.chooseLocalFile();assert.equal(t.state.runName,"同一数据 · 灵犀云方案","Read file must preserve the name");
+  await t.selectInput("input-0",{autoPrepare:false,fromIntake:true});
+  assert.equal(t.get("check-run-name").value,input.value);assert(t.get("upload-run-name-field").hidden);
+  const key=t.fingerprint();t.get("check-run-name").value="推荐方案";
+  t.get("check-run-name").dispatch("input",{target:t.get("check-run-name")});
+  assert.equal(t.fingerprint(),key,"Naming must not invalidate or change analysis settings");
+  t.setScope("window");assert.equal(t.state.runName,"推荐方案");
+  const draft=t.savedDraft();assert.equal(draft.run_name,"推荐方案");
+  await t.selectInput("input-1");assert.equal(t.state.runName,"");
+  await t.applyConfiguration(draft);assert.equal(t.get("check-run-name").value,"推荐方案");
+  t.get("check-run-name").value="";t.get("check-run-name").dispatch("input",{target:t.get("check-run-name")});
+  assert(t.get("check-run-name").placeholder.includes("片段检查"));
+  t.state.history=[{id:"job-1",label:"source.edf",run_name:"<对照方案>",status:"completed"}];t.renderHistory();
+  assert(t.get("history-list").innerHTML.includes("&lt;对照方案&gt;"));
+  assert(!t.get("history-list").innerHTML.includes("<对照方案>"));
+});
+check("Neuropixels grouped weights stay editable without adding fictitious extensions",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('extracellular');await t.selectInput('extracellular-0',{autoPrepare:false});
+  const specs=[
+    {id:'neuropixels_numeric_integrity',method_id:'neuropixels_numeric_integrity',module_id:'M03',name:'数值有效性',reducer:'np_numeric'},
+    {id:'neuropixels_constant_channels',method_id:'neuropixels_constant_channels',module_id:'M03',name:'整窗恒值通道',reducer:'np_constant'},
+    {id:'neuropixels_channel_state',method_id:'aggregate',module_id:'M08',name:'通道状态',reducer:'np_state'},
+    {id:'spikeinterface_bad_channels',method_id:'spikeinterface_bad_channels',module_id:'M05',name:'AP离群',reducer:'channels'}];
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'neuropixels-voltage-score/0.1',weights:{neuropixels_numeric_integrity:30,neuropixels_channel_state:70}};
+  const field={dataset:{scoreWeight:'neuropixels_channel_state'},value:'50',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
+  assert(box.innerHTML.includes('/standards/neuropixels-scoring'));assert(box.innerHTML.includes('30%'));assert(box.innerHTML.includes('70%'));
+  assert(!box.innerHTML.includes('data-score-weight="spikeinterface_bad_channels"'));
+  t.state.plan={plan_id:'stale'};field.change();
+  assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,50);
+  assert.equal(t.currentConfig().scoring.preset,'neuropixels-voltage-score/0.1');assert.equal(t.state.plan,null);
+  assert(t.state.selected.has('M03'));assert(!t.state.extensions.has('aggregate'));assert(!t.state.extensions.has('neuropixels_channel_state'));
+  field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,0);
+  t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

@@ -90,6 +90,9 @@ class DatasetTests(unittest.TestCase):
         result = self.run_checks()
         self.assertEqual(self.statuses(result, 'participants'), ['conflict', 'conflict', 'pass', 'pass'])
         self.assertEqual(self.statuses(result, 'channel_schema')[0], 'conflict')
+        duplicate = next(c for c in result['checks'] if c['code'] == 'channel_schema' and c['status'] == 'conflict')
+        self.assertTrue(duplicate['observed']['duplicate_names'])
+        self.assertIn('名称重复', duplicate['message'])
         self.assertEqual(self.statuses(result, 'channel_names')[0], 'unassessed')
 
     def test_wrong_record_binding(self):
@@ -168,7 +171,7 @@ class DatasetTests(unittest.TestCase):
 
     def test_background_queue_freezes_plan_and_exposes_only_report_artifacts(self):
         config = self.base / 'plan.json'; config.write_text(json.dumps(self.plan))
-        jobs = PackageJobs({'data_dir': str(self.base / 'state'), 'packages': [dict(id='pilot', label='Pilot', root=str(self.root), expectations=str(config))]})
+        jobs = PackageJobs({'data_dir': str(self.base / 'state'), 'packages': [dict(id='pilot', label='Pilot', library_origin='user_upload', root=str(self.root), expectations=str(config))]})
         body = dict(package_id='pilot', manifest_hash=fingerprint(self.plan), confirmed=True)
         for changes in ({'confirmed': False}, {'root': str(self.root)}, {'manifest_hash': 'stale'}, {'package_id': 'unknown'}):
             with self.subTest(changes=changes), self.assertRaises(ValueError): jobs.submit({**body, **changes})
@@ -190,7 +193,7 @@ class DatasetHTTPTests(unittest.TestCase):
         DatasetTests.setUp(self)
         config = self.base / 'plan.json'; config.write_text(json.dumps(self.plan))
         self.jobs = PackageJobs({'data_dir': str(self.base / 'runtime'), 'packages': [
-            dict(id='pilot', label='Pilot', root=str(self.root), expectations=str(config))]})
+            dict(id='pilot', label='Pilot', library_origin='user_upload', root=str(self.root), expectations=str(config))]})
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         self.server.store = SimpleNamespace(packages=self.jobs)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()

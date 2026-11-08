@@ -13,7 +13,7 @@ import re
 
 from .inventory import inspect_package, _relative, _safe_file, _validate
 
-RULE_VERSION = 'dataset-consistency/0.1'
+RULE_VERSION = 'dataset-consistency/0.1.1'
 MISSING = {'', 'n/a', 'na', 'unknown', 'none'}
 UNITS = {'v': 'V', 'mv': 'mV', 'uv': 'uV', 'µv': 'uV', 'μv': 'uV', 'nv': 'nV',
          'volts': 'V', 'millivolts': 'mV', 'microvolts': 'uV', 'nanovolts': 'nV'}
@@ -199,8 +199,10 @@ def _record(root, r, meta, inventory, cache, checks):
         rows = table['rows']; names = [row['name'] for row in rows]
         valid = bool(rows) and all(names) and len(set(names)) == len(names)
     if not valid:
+        duplicate_names = sorted(k for k, n in Counter(row.get('name', '') for row in (table or {}).get('rows', [])).items() if k and n > 1)
+        explanation = ('通道表名称重复：' + '、'.join(duplicate_names) + '；不能按名称唯一对应。') if duplicate_names else '通道表需有唯一非空 name，以及 type、units 列。'
         checks.add('D02', 'channel_schema', 'unassessed' if table is None else 'conflict', rid,
-                   '通道表需有唯一非空 name，以及 type、units 列。', records=[rid], files=[channel_path] if channel_path else [])
+                   explanation, records=[rid], files=[channel_path] if channel_path else [], observed={'duplicate_names': duplicate_names})
         for code in ('channel_names', 'units', 'rates'):
             checks.add('D02', code, 'unassessed', rid, '通道表缺失或结构无效，未作比较。', records=[rid])
     else:
@@ -386,7 +388,7 @@ def evaluate_dataset(root, manifest, *, progress=None):
             'records':facts,'subjects':subjects,'groups':groups,'summary':{'subjects':len(subjects),'records':len(facts),
             'expected_files':inventory['summary']['expected_files'],'present_files':inventory['summary']['present_files'],
             'status_counts':dict(counts),'groups':len(groups)},'status':'needs_attention' if any(counts[s] for s in ('conflict','review','unassessed')) else 'checked',
-            'modules':[{'id':mid,'status':'completed','counts':dict(Counter(c['status'] for c in checks.rows if c['module']==mid))} for mid in ('D01','D02','D03')],
+            'modules':[{'id':mid,'can_output_score':False,'scoring_role':'evidence','status':'completed','counts':dict(Counter(c['status'] for c in checks.rows if c['module']==mid))} for mid in ('D01','D02','D03')],
             'limits':['真实身份核验未执行','信号质量评分未执行','不是完整 BIDS 合规校验','本地报告，未执行脱敏审查']}
     notify('D03','completed')
     return result

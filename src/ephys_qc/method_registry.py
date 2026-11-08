@@ -68,6 +68,7 @@ def _method(id_, name, module, category, description, requirements, outputs, *, 
 def methods(modality='scalp_eeg'):
     if modality not in ROUTES:
         raise ValueError('Unsupported QC modality: ' + str(modality))
+    from .score_registry import describe
     rows = [
         _method('edf_reader', '多格式读取与来源核验', 'M01', 'basic', '核对文件结构、时钟、索引与来源指纹。', ['已核验文件及配套文件'], ['结构与来源核验']),
         _method('voltage_calibration', '单位与电压标定', 'M01', 'basic', '确认数字值可转换成物理电压。', ['有效单位及逐道标定'], ['标定信息', '无法评估原因']),
@@ -88,7 +89,7 @@ def methods(modality='scalp_eeg'):
     ]
     from .extensions import extension_specs
     for extension in extension_specs():
-        if extension.get('research_modalities'):
+        if extension.get('research_modalities') and extension['id'] != 'mne_amplitude':
             continue
         spec = dict(extension)
         spec.update(optional_extension=True, implementation='available', category='optional')
@@ -110,6 +111,8 @@ def methods(modality='scalp_eeg'):
     from .method_descriptions import enrich_method
     from .research_methods import research_methods
     candidates = [_classification(row, modality) for row in research_methods(modality)]
+    from .ieeg_methods import extension_specs as ieeg_specs
+    candidates += [_classification(row, modality) for row in ieeg_specs() if modality in row['research_modalities']]
     if modality in DESCRIPTIVE:
         from .descriptive_catalog import custom_methods, _adapt
         shared = [row for row in rows if row['module_id'] in {'M01', 'M02', 'M07', 'M08', 'M09'}]
@@ -125,6 +128,14 @@ def methods(modality='scalp_eeg'):
                            upstream_call='ephys_qc.readers.open_reader；ephys_qc.modules.m02.read_window',
                            implementation_origin='按实际格式使用BrainElecQC或MNE读取器；ECoG测量不调用头皮判坏阈值。')
         common = [_adapt(row, modality) for row in common]
+        if modality in {'ecog','seeg'}:
+            flat = next(row for row in rows if row['id'] == 'mne_amplitude')
+            flat = enrich_method(_classification(flat, modality))
+            flat.update(name='MNE 持续平线 / 相邻变化', inputs=['已标定连续电压','原生采样率','明确持续时间'])
+            flat['documentation'].update(when_to_use='已确认ECoG或sEEG的有限连续电压；基础方案仅检查持续平线。',
+                                        when_not_to_use='非有限样本、跨时钟混合；不能以此识别癫痫放电或生理高频。')
+            flat['documentation']['references'].append({'title':'MNE-BIDS 持续平线检视设置','url':'https://mne.tools/mne-bids/stable/generated/mne_bids.inspect_dataset.html','kind':'官方文档'})
+            common.append(flat)
         if modality == 'extracellular':
             for row in common:
                 if row['id'] in {'edf_reader', 'voltage_calibration'}:
@@ -148,8 +159,15 @@ def methods(modality='scalp_eeg'):
                         how_it_works='SpikeGLX按量程与增益标定；NWB按conversion、channel_conversion、offset及明确单位标定为V。',
                         upstream_call='ephys_qc.readers.open_reader',
                         implementation_origin='SpikeGLX已用官方readSGLX核对；NWB通过h5py独立核对源切片及单位。')
-        return sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])
-    return [enrich_method(_classification(row)) for row in rows] + candidates
+                elif row['id'] == 'aggregate':
+                    row['description']='合并通道候选并计算可调权重的Neuropixels项目评分。'
+                    row['documentation'].update(
+                        how_it_works='逐窗按来源通道身份合并整窗恒值与适用AP离群；数值有效性默认30%、通道状态70%。受限项不计入，实际权重重新归一化；project_score保存试行总分。',
+                        upstream_call='ephys_qc.neuropixels_scoring.state_output; ephys_qc.method_scores.aggregate',
+                        version_note='neuropixels-score/0.1; project-weighted/1.2',
+                        interpretation='同一通道窗不重复扣分。分数仅表示有效检查的候选负担，未覆盖漂移、同步或分选后单元质量。')
+        return [describe(row, modality) for row in sorted(common + [_classification(row, modality) for row in custom_methods(modality)] + candidates, key=lambda row: row['module_id'])]
+    return [describe(row, modality) for row in [enrich_method(_classification(row)) for row in rows] + candidates]
 
 
 def _hf_applicability(facts, config):

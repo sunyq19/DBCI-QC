@@ -71,14 +71,25 @@ baseline=next(r for r in publication['releases'] if r['id']=='review-v15')
 roots=[{k:v for k,v in n.items() if k!='children'} for n in baseline['doc']['nodes'] if n['id'] not in ('VIS','D04')]+[visual_root,review_root]
 for n in roots:
  if n['id']=='M08':
-  n.update(summary='分项 + 可调权重 + 受限项处理',status='trial',description='各模态已有默认试行方案。先核对每个方法的有效输出，再按方案合并、加权，保留所有未评原因。展开查看各模态默认方案及权重规则。',inputs='方法分数、有效受检量、候选身份、检查范围和权重',outputs='分项分数、综合分、实际权重与未计入原因',conditions='完整覆盖计划范围；缺项按有效输出处理。',methods='EEG：三项等权；ECoG/sEEG：数值有效性30%与稳定性70%；Neuropixels：数值有效性30%与通道状态70%。',notes='当前为项目试行规则，尚未专家审核。可调整权重；计分细节见子项。',evidence=base+'src/ephys_qc/project_scoring.py')
+  n.update(summary='分项 + 可调权重 + 受限项处理',status='trial',description='各模态已有默认试行方案。先核对每个方法的有效输出，再按方案合并、加权，保留所有未评原因。展开查看各模态默认方案及权重规则。',inputs='方法分数、有效受检量、候选身份、检查范围和权重',outputs='分项分数、综合分、实际权重与未计入原因',conditions='完整覆盖计划范围；缺项按有效输出处理。',methods='默认权重及合并规则由质控台评分接口生成，展开子项查看。',notes='当前为项目试行规则，尚未专家审核。可调整权重；计分细节见子项。',evidence=base+'src/ephys_qc/project_scoring.py')
  elif n['id']=='M03':
   n.update(description='按模态检查无效数值、恒值及平线。ECoG/sEEG在可用时核验文件量程端点；Neuropixels区分整窗恒值与短暂量化重复。')
  elif n['id']=='M05':
   n.update(description='EEG可用PREP及可选离群方法；ECoG/sEEG只在确认分组与参考时开展触点比较；Neuropixels按AP条件运行SpikeInterface。')
-from scoring_catalog import attach_scoring
+# Unknown new module IDs remain visible until their product grouping is refined.
+known={n['id'] for n in roots}
+for parent,children in catalog.items():
+ if parent not in known:
+  scopes=list(dict.fromkeys(scope for n in children for scope in n['scope']))
+  roots.append(node(parent,parent+' · 新接入模块',scopes,entry='support',summary='由模块登记自动加入',description='展开查看已登记方法及其输入、输出和启用条件。'))
+from ephys_qc.flow_contracts import attach_scoring
 attach_scoring(catalog,roots,node,base)
-files+=['src/ephys_qc/score_registry.py','src/ephys_qc/project_scoring.py','src/ephys_qc/ieeg_scoring.py','src/ephys_qc/neuropixels_scoring.py','docs/ieeg-scoring.md','docs/neuropixels-scoring.md']
-out={'catalogVersion':'2026-11-08.6','roots':roots,'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
+files+=['src/ephys_qc/score_registry.py','src/ephys_qc/project_scoring.py','src/ephys_qc/ieeg_scoring.py','src/ephys_qc/neuropixels_scoring.py','docs/ieeg-scoring.md','docs/neuropixels-scoring.md','docs/eeg-scoring.md','src/ephys_qc/flow_contracts.py']
+out={'catalogVersion':__import__('ephys_qc.version',fromlist=['__version__']).__version__,'roots':roots,'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
 Path('content/module-catalog.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('Methods:',len(collected),'implemented:',sum(n['status']!='planned' for n in collected.values()),'readers:',len(reader_parent['children']),'dataset checks:',sum(len(catalog[k]) for k in ['D01','D02','D03']))
+
+# Reference documents are copies generated with the catalog, never maintained twice.
+import shutil
+for name in ['eeg-scoring.md','ieeg-scoring.md','neuropixels-scoring.md']:
+ shutil.copyfile(repo/'docs'/name,Path('content/scoring-rules')/name)

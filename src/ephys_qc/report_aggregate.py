@@ -93,7 +93,7 @@ def build_recording_view(result, artifacts, label=''):
     # An empty evidence shell still produces an honest partial report.
     shell=build_report_view({**result,'scope':'window','artifacts':[]},root,label)
     base=copy.deepcopy(present[0] if present else shell)
-    base.update(schema_version=VIEW_VERSION,scope='recording',label=label or result.get('label',''),
+    base.update(schema_version=VIEW_VERSION,scope='recording',label=label or result.get('label',''),run_name=result.get('run_name'),
                 recording=result['recording'],input_duration_seconds=result['coverage']['total_seconds'],
                 artifacts=sorted(declared),modules=result['modules'],warnings=result.get('warnings',[]),
                 plan_id=result.get('plan_id'),source_sha256=result.get('source_sha256'),
@@ -148,10 +148,26 @@ def build_recording_view(result, artifacts, label=''):
                               expected_windows=len(windows),coverage_complete=complete)
     for part,pooled in zip(base['score']['components'],parts):
         part.update(assessed_window_seconds=pooled['assessed_window_seconds'],window_count=pooled['window_count'])
+    scoring_config = result.get('qc_config',{}).get('scoring')
+    if scoring_config and scoring_config['version'] in {'project-weighted/1.1','project-weighted/1.2'}:
+        from .method_scores import aggregate, core_outputs
+        score_rows = core_outputs(list(channels.values()), result['recording']['channel_count'], expected_windows=len(windows), coverage_complete=complete)
+        score_rows += [r for r in result.get('method_scores',[]) if r['id'] not in NAMES]
+        base['score'] = aggregate(score_rows, scoring_config, coverage_complete=complete)
+        for part in base['score']['components']:
+            previous = next((p for p in parts if p['id']==part['id']), {})
+            part.setdefault('window_count',previous.get('window_count',0))
+            part.setdefault('assessed_window_seconds',previous.get('assessed_window_seconds', sum(w['duration_seconds'] for w in windows) if part['value'] is not None else 0))
+    elif scoring_config:
+        from .project_scoring import weighted_score
+        base['score'] = weighted_score(list(channels.values()),result['recording']['channel_count'],
+            result['qc_config']['scoring'],expected_windows=len(windows),coverage_complete=complete)
+        for part,pooled in zip(base['score']['components'],parts):
+            part.update(assessed_window_seconds=pooled['assessed_window_seconds'],window_count=pooled['window_count'])
     parts=base['score']['components']
     base['score_revision']=score_revision(result,base['score'])
     base['scoring_complete']=base['score']['value'] is not None
-    base['parameters']['aggregation']='channel_pool_then_rms_then_min'
+    base['parameters']['aggregation']=base['score']['aggregation']
     base['line']={key:sum(v['line'][key] for v in present) for key in ('total','hits','observed_frequency_rows','flagged_frequency_rows')}
     base['line'].update(assessed_channels=sum('line_noise' in r['components'] for r in channels.values()),affected_channels=len(line_ids),
                         percent=100*base['line']['hits']/base['line']['total'] if base['line']['total'] else None)
@@ -166,9 +182,13 @@ def build_recording_view(result, artifacts, label=''):
                    '各窗口独立检测，阈值与边缘剔除逐窗计算；边界可能影响候选。',
                    '通道与辅助导联的额外检查保留在逐窗报告中，未并入三项基础评分。']
     base['notes'].extend(dict.fromkeys(note for v in present if v.get('processing_scope') for note in v['notes'] if '滤波' in note or '输入信号' in note or '频带未完整' in note))
-    if not base['scoring_complete']:base['notes'].append('部分范围或基础分项未完成，不给整份总分；已有证据仍展示。')
+    if base['score']['version'].startswith('project-weighted/'):
+        base['notes'][0]=base['score']['formula']
+        base['notes'][2]='扩展方法按配置权重纳入；无权重的结果单独展示。'
+        base['local_quality']['explanation']='通道分项与总体分项均按各自范围的候选量与有效检查量计算。'
+    if not base['scoring_complete'] and base['score'].get('status')!='disabled':base['notes'].append('部分范围或基础分项未完成，不给整份总分；已有证据仍展示。')
     line=base['line'];base['headline']='检出待复核线索' if line['hits'] or hf_count or base['finite']['nonfinite'] or base['finite']['constant'] else '基础检查未检出候选'
-    if not base['scoring_complete']:base['headline']='已完成部分检查'
+    if not base['scoring_complete'] and base['score'].get('status')!='disabled':base['headline']='已完成部分检查'
     base['summary']=f'工频候选涉及 {len(line_ids)} 个通道；高频突发有 {hf_count} 条候选区间。'
     base['priority']='工频优先复核：'+'；'.join(f'{c["name"]} 命中 {c["hits"]}/{c["total"]} 窗' for c in ranked[:2])+'。' if ranked else ''
     return base

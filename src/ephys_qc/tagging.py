@@ -77,6 +77,8 @@ def data_facts(record, config=None):
         if key in record and type(record[key]) is not bool:
             raise ValueError(key + '需为明确的布尔值。')
     return {'modality': record.get('modality', 'scalp_eeg'), 'scope': config.get('scope', 'window'),
+            'format': metadata.get('format'),
+            'comparison_group_labels': ([groups.get(f"{record['id']}:ch:{i}") for i in indices] if isinstance(groups,dict) else groups),
             'stream_band': metadata.get('acquisition', {}).get('stream_band'),
             'probe_shanks': [(c.get('probe_grid') or {}).get('shank') for c in selected],
             'sampling_rate_hz': next(iter(rates)) if len(rates) == 1 else None,

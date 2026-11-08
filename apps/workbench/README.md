@@ -213,3 +213,23 @@ python scripts/public_examples/prepare_attention_demo.py /path/to/ds002034-v1.0.
 - `GET /comparisons?jobs=id,id`：2–100 份 EEG 报告比较；`/api/v1/comparisons` 返回同一内容的 JSON。条件未知或不一致时只展示，不声称可比。
 
 具体启用条件见 [EEG 使用流程](../../docs/design/eeg-workflow-v1.md)。
+
+## 示例快照与部署
+
+首页直接嵌入 `example-cache/manifest.json` 的四类示例；示例卡片不等待 `/api/v1/data`。报告、图像和 EEG PDF 在发布时生成，浏览时只读固定文件，原始数据和 NAS 不参与请求。
+
+仓库随附公开样本的展示快照。部署时保留整个 `apps/workbench/example-cache/`，或用配置 `example_cache_dir` 指定已发布快照目录。缓存资源地址带版本，允许浏览器长期缓存。个人数据目录仍实时读取，示例与个人上传分离。
+
+更新示例需在有原始结果的机器上显式执行：
+
+```bash
+.venv/bin/python scripts/publish_example_cache.py --config .local/workbench.json
+```
+
+脚本只处理配置中明确列出的 `demo_examples`，不启动任务，不运行检测器；全部示例报告已存在才发布。先生成完整版本，再原子切换目录指针。导出不包含原始电生理文件、运行 JSON 或本机来源路径。英文与中文目录、记录报告和显示资源一起生成；未随快照导出的原始证据入口指向快照说明。
+
+## 可选计分
+
+在“高级设置 → 评分与权重”调整默认三项，展开“可选计分项”可设置其他方法的权重。正权重同时选中方法；0 只保留分项。设置后需核对方案并明确开始检查。
+
+所有方法在目录中提供 `can_output_score`。可计分方法返回 `method-score/1`：分数、候选量、有效检查量、单位、范围和证据位置。当前规则见 [项目评分规则](../../docs/eeg-scoring.md)。灵犀云、MATLAB 和其他可选环境仍需按原方法文档安装；缺少环境会显示未计分，不伪造结果。

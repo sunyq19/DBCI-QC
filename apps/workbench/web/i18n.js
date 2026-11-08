@@ -8,7 +8,130 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `概览	Overview
+  const pairs = `通道状态	Channel status
+整窗恒值通道	Fully constant channels
+检查NaN/Inf与整窗恒值；分别提供数值有效性和通道状态的计分证据。	Check NaN/Inf and fully constant windows as evidence for numerical validity and channel status.
+逐道数值计数	Per-channel sample counts
+整窗恒值通道及来源身份	Fully constant channels and source identities
+数值有效性分项	Numerical validity score
+短量化重复只保留测量；有限恒值不在数值有效性中重复扣分。	Short quantization repeats are measurements only; finite constants are not also penalized in numerical validity.
+逐道统计电压；AP满足条件时可用SpikeInterface筛查离群通道。	Per-channel voltage statistics, with eligible AP outliers screened using SpikeInterface.
+逐通道测量	Per-channel measurements
+条件AP离群候选及分项	Conditional AP outlier candidates and score
+RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态，不另加权。	RMS and PSD are descriptive; AP parameters do not apply to LF. AP candidates enter channel status without a separate weight.
+合并恒值与AP候选，按可调权重汇总数值有效性和通道状态。	Merge constant and AP candidates, then combine numerical validity and channel status with adjustable weights.
+去重后的通道状态	Deduplicated channel status
+综合分及有效权重	Overall score and effective shares
+受限检查与证据来源	Unavailable checks and evidence sources
+受限项不计入；项目初版评分尚未经过专家校准。	Unavailable checks are excluded; this initial project score has not been expert-calibrated.
+合并通道候选并计算可调权重的Neuropixels项目评分。	Merge channel candidates and calculate an adjustable Neuropixels project score.
+逐窗按来源通道身份合并整窗恒值与适用AP离群；数值有效性默认30%、通道状态70%。受限项不计入，实际权重重新归一化；project_score保存试行总分。	Union fully constant and eligible AP candidates by source channel in each window. Default shares are 30% numerical validity and 70% channel status. Unavailable checks are excluded and effective shares renormalized; project_score stores the trial total.
+同一通道窗不重复扣分。分数仅表示有效检查的候选负担，未覆盖漂移、同步或分选后单元质量。	A channel counts once per window. The score reflects candidates from valid checks, excluding drift, synchronization and sorted-unit quality.
+默认：数值有效性30%、通道状态70%。整窗恒值与适用的AP离群按通道去重。	Default: numerical validity 30%, channel status 70%. Fully constant channels and applicable AP outliers are deduplicated by channel.
+数值有效性	Numerical validity
+信号稳定性	Signal stability
+颅内评分规则	Intracranial scoring rules
+默认：数值有效性30%、信号稳定性70%。稳定性相关检查只取最低分，不重复计权。	Default: numerical validity 30%, signal stability 70%. Related stability checks use the minimum score and count once.
+文件量程端点平台	File encoding-limit plateaus
+分组触点幅度离群	Within-group contact amplitude outliers
+颅内检查规则	Intracranial check rules
+定位连续落在文件标定上下限的采样点，提示可能削顶。	Locate runs at the file calibration limits as possible clipping candidates.
+在明确比较组内列出幅度明显偏离的触点，供复核。	List contacts with markedly different amplitudes within declared comparison groups for review.
+检查非有限值、MNE持续平线；EDF/BDF可核对文件量程端点平台。	Check non-finite values and sustained flatness with MNE; EDF/BDF supports file encoding-limit checks.
+逐触点统计；明确比较组后可选组内幅度离群，参考未确认时只测量。	Contact statistics; optional group outliers require explicit comparison groups. Unconfirmed references provide measurements only.
+建议完整性、平线、量程、频谱与触点检查；FieldTrip跳变与分组离群可单独选择。	Recommend integrity, flatness, encoding range, spectra and contact checks. FieldTrip transients and group outliers are optional.
+可选检查方法	Optional checks
+选择方法会同时选中所属模块；实际适用性以执行计划为准。	Selecting a method also enables its module. Applicability is checked in the execution plan.
+触点比较组	Contact comparison groups
+组名	Group name
+同组触点须具有可比较的参考与采集条件。请按采集资料填写；每组至少4道。	Group contacts only when references and acquisition conditions are comparable. Use acquisition records; at least four contacts per group.
+已确认各组内的参考与采集条件可比较	References and acquisition conditions within each group are confirmed comparable
+未确认时仅展示测量，不判离群。分组修改后需重新确认。	Without confirmation, only measurements are shown. Confirm again after changing groups.
+请为每个分析触点填写比较组。	Assign a comparison group to every selected contact.
+分组设置已保留。	Group settings saved.
+分项 / 100	Component / 100
+检查发现	Findings
+占综合分的比例	Share of the overall score
+单文件最大 2 GiB · 数据集总量最大 10 GiB	Up to 2 GiB per file · 10 GiB per dataset
+单文件最大 2 GiB	Up to 2 GiB per file
+质检名称	QC run name
+（可选）	(optional)
+一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
+点击“读取文件”，下一步确认通道和模态	Click Read file, then confirm channels and modality
+上传文件保留 7 天，报告长期保留。	Uploaded files are kept for 7 days; reports are retained.
+在完整页面查看图表	Open full chart workspace
+受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。	Unavailable checks are excluded automatically; remaining valid checks are renormalized. All-zero weights show components only.
+无有效结果的项目自动不计入；其余有效项目重新归一化。分数只代表所选检查，尚未经过专家校准。	Checks without valid results are excluded and the rest are renormalized. Scores cover selected checks and have not been expert-calibrated.
+0% · 未计入	0% · Not included
+附近	Nearby
+全程	Full range
+拉条范围	Slider range
+时间缩放	Time zoom
+缩小，查看更多时间	Zoom out to see more time
+放大，查看细节	Zoom in for detail
+拖动查看 · 滚轮缩放	Drag to pan · Scroll to zoom
+拖动查看前后时间	Drag to browse earlier or later
+向前查看	View earlier
+向后查看	View later
+向前查看（左方向键）	View earlier (left arrow)
+向后查看（右方向键）	View later (right arrow)
+回到候选	Back to candidate
+对照通道	Compare channels
+选择对照通道 · 最多 6 道	Select comparison channels · up to 6
+搜索通道	Search channels
+可选计分项	Optional scoring checks
+证据不足，暂不能评分	Insufficient evidence to score
+疑似异常通道占比	Candidate channel fraction
+疑似异常通道占比（按分段时长汇总）	Candidate channel fraction, weighted by segment duration
+各通道疑似异常时长占比	Candidate duration across channels
+疑似异常时长占比	Candidate duration fraction
+被标记的分析分段占比	Flagged analysis-segment fraction
+被标记的采样点占比	Flagged sample fraction
+被标记的检查片段占比	Flagged check-window fraction
+本方法标记比例	Fraction flagged by this method
+计分设置	Scoring settings
+调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。	Adjust each check's influence on the total. Equal values count equally; the resulting share appears on the right.
+设为大于 0 时会启用对应方法。不同方法可能检查同一问题，请按需选择。	A value above zero enables the method. Methods may check the same issue; choose as needed.
+0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。	Zero excludes a check from the total. All included checks must complete; all-zero values show individual results only.
+计分比重须为 0–100	Relative importance must be between 0 and 100.
+计分比例	Share of total
+结果说明	Findings
+检查项	Check
+不计入	Not included
+未设置总分	No total configured
+仅 1 项计入	One check included
+按所选项目汇总	Combined selected checks
+其他检查结果	Additional check results
+原始计分数据	Original scoring data
+总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。	The total is the sum of each score multiplied by its share. Equal settings count equally; zero excludes a check.
+参与计分的项目全部完成后才生成总分。分数只代表所选检查，尚未经过专家校准。	A total is generated only when all included checks complete. Scores cover the selected checks and have not been expert-calibrated.
+未发现无效数值或恒值采样点	No invalid values or constant-value samples detected
+未发现疑似工频干扰	No line-noise candidates detected
+未发现高频突发候选	No high-frequency burst candidates detected
+读取文件后可设置计分项目。	Set scoring components after reading a file.
+分项 = 100 ×（1 − 候选占比）；总分按权重平均。	Component = 100 × (1 − candidate fraction); the total is a weighted mean.
+正权重会选中对应方法。不同方法可能命中同一问题，请按项目需要选择。	A positive weight selects its method. Methods may detect the same issue; choose according to project needs.
+0 表示不纳入；正权重项目缺失，不生成总分。全部为 0 时仅展示分项。	Zero excludes a component. Missing positive-weight results withhold the total. All-zero weights show components only.
+计分依据	Scoring basis
+分数 / 100	Score / 100
+权重	Weight
+尚未发布示例报告。	No example reports have been published.
+项目自定义 v1.1	Project-defined v1.1
+公开数据的实际检查报告。	Actual reports from public datasets.
+正在读取示例目录…	Loading example directory…
+评分与权重	Scoring and weights
+评分输出	Score output
+分项按候选占比计分，总分按权重平均。0 表示不纳入。	Components use candidate fractions; the total is a weighted mean. Zero excludes a component.
+正权重项目缺失，不生成总分。其他模块保留测量结果。	A missing positive-weight component withholds the total. Other modules retain their measurements.
+当前模态输出测量与复核线索，本版暂不计分。	This modality reports measurements and review candidates, without scores in this version.
+输出加权总分，不重复计权	Produces the weighted total; not weighted again
+可输出分项分数，可设置权重	Produces a component score with configurable weight
+不计分，输出测量与复核线索	No score; measurements and review candidates only
+项目自定义 v1.0	Project-defined v1.0
+项目自定义评分	Project-defined score
+/ 100 · 按权重平均	/ 100 · Weighted mean
+评分规则	Scoring rules
+概览	Overview
 问题复核	Review candidates
 可视化	Visualizations
 检查结果	Check results
@@ -32,8 +155,15 @@
 验证样例	Validation examples
 数据目录分类	Data library categories
 读取文件或打开已有数据，生成检查报告。	Read a file or open existing data to generate a QC report.
+刷新我的数据	Refresh my data
 刷新	Refresh
 已有数据	Your data
+查看示例	View examples
+我的数据	My uploads
+上传副本保留 7 天，报告保留；本机原文件不变。	Uploaded copies are kept for 7 days; reports are retained. Your original files stay unchanged.
+已导入数据	Imported data
+示例数据集	Example datasets
+直接打开，查看汇总与逐份报告。	Open a dataset to explore its summary and recording reports.
 搜索数据名称	Search data
 正在加载数据…	Loading data…
 显示更多	Show more
@@ -978,6 +1108,8 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 当前运行	Current run
 等待开始	Not started
 检查结果会显示在这里	Results will appear here
+暂无检查记录	No checks yet
+开始检查后，在这里查看进度与报告。	Start a check to view its progress and report here.
 开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。	Start a check to view progress, results and the report. Previous runs remain available in history.
 已选模块的执行进度，非质量分数	Execution progress of selected modules, not a quality score
 取消运行	Cancel run
@@ -1870,6 +2002,11 @@ EDF技术头与选道	EDF technical header and channel selection
 ];
   // END reviewed research methods
   const reportPairs = [
+    ["共同基础检查","Shared basic checks"],["分段得分","Window score"],
+    ["发现待复核信号","Signal findings to review"],["计分项目未检出候选","No candidates in the scored checks"],
+    ["部分项目未评分","Some checks could not be scored"],
+    ["其他检查结果与局部信号仍可在下方查看。","See the additional checks and local signals below."],
+    ["有效测量不足，已完成的分项结果保留。","Insufficient valid measurements; completed component results are retained."],
     ["整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。","The full recording is processed in the background. You can leave this page while the local service stays running."],
     ["局部关注","Local findings"],["按通道查看分项","Component scores by channel"],["按时段查看分数","Scores by time window"],
     ["完整性","Integrity"],["工频","Line noise"],["基础初评分","Basic screening score"],["逐窗报告","Window report"],
@@ -1918,6 +2055,21 @@ EDF技术头与选道	EDF technical header and channel selection
   const numeric = "[\\d,]+(?:\\.\\d+)?";
   // Rules are anchored to whole UI messages. Captured source names are kept verbatim.
   const rules = [
+    [/^(\d+) 项无有效结果，本次权重为 0；综合分按其余 (\d+) 项计算。$/, (_,a,b) => `${a} unavailable checks have zero effective weight; the total uses the other ${b} checks.`],
+    [/^(\d+) 项无有效结果，本次权重为 0；本次不生成综合分。$/, (_,n) => `${n} checks are unavailable; no total is produced.`],
+    [/^本次不计入：(.+)$/, (_,reason) => `Excluded from this total: ${translate(reason,"en")}`],
+    [/^共同基础检查：(.+)$/, (_,text) => `Shared basic checks: ${translate(text,"en")}`],
+    [/^(疑似异常通道占比(?:（按分段时长汇总）)?|各通道疑似异常时长占比|疑似异常时长占比|被标记的分析分段占比|被标记的采样点占比|被标记的检查片段占比|本方法标记比例) ([\d,.]+)%$/, (_,label,n) => `${dictionary[label]} ${n}%`],
+
+    [/^占总分 ([\d,.]+)%$/, (_,n) => `${n}% of total`],
+    [/^(\d+) 项同等计入$/, (_,n) => `${n} checks counted equally`],
+    [/^(.+)计分比重$/, (_,name) => `${translate(name,"en")} relative importance`],
+    [/^无效数值 ([\d,—]+) 个$/, (_,n) => `${n} invalid values`],
+    [/^恒值采样点 ([\d,—]+) 个$/, (_,n) => `${n} constant-value samples`],
+    [/^疑似工频干扰涉及 ([\d,—]+) 个通道$/, (_,n) => `Line-noise candidates in ${n} channels`],
+    [/^疑似高频突发 ([\d,—]+) 处$/, (_,n) => `${n} high-frequency burst candidates`],
+    [/^涉及 ([\d,—]+) 个通道$/, (_,n) => `${n} channels involved`],
+
     [/^(\d+) 项可检查(?: · (\d+) 项缺条件)?$/, (_,a,b) => `${a} checks available${b ? ` · ${b} missing prerequisites` : ""}`],
     [/^(\d+) 项缺条件$/, (_,a) => `${a} missing prerequisites`],
     [/^非有限值 ([\d,—]+) · 恒值 ([\d,—]+) 个样本$/, (_,a,b) => `Nonfinite ${a} · Constant ${b} samples`],
@@ -2103,7 +2255,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|neuropixels-checks|neuropixels-scoring|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

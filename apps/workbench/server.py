@@ -63,7 +63,7 @@ def insert_report_navigation(report, navigation):
 
 
 def public_input(item):
-    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context') if key in item}
+    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context', 'library_origin', 'retention') if key in item}
     result.setdefault('record_family', item['id'])
     result.setdefault('record_revision', 1)
     result.setdefault('default_config', {}).setdefault('context_tags', context_defaults(item))
@@ -118,10 +118,32 @@ class Store:
         threading.Thread(target=self._loop, daemon=True).start()
         from batch_jobs import BatchJobs
         self.batches = BatchJobs(self)
+        threading.Thread(target=self._retention_loop, daemon=True).start()
+
+    def expire_uploads(self):
+        from upload_retention import expire_uploads, ACTIVE
+        with self.lock:
+            protected = {j.get('record_family', j['input_id']) for j in self.jobs.values() if j['status'] in ACTIVE}
+            expired = expire_uploads(self.intakes, protected_families=protected)
+            for row in expired:
+                for item in self.inputs.values():
+                    if item.get('record_family', item['id']) == row['family']:
+                        item['retention'] = copy.deepcopy(row['retention'])
+                        self._availability(item)
+            return expired
+
+    def _retention_loop(self):
+        import time, logging
+        while True:
+            try: self.expire_uploads()
+            except Exception: logging.exception('Upload retention check failed; retry in 60 seconds')
+            time.sleep(60)
 
     @staticmethod
     def _availability(item, refresh=False):
         try:
+            if item.get('retention', {}).get('state') == 'expired':
+                raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
             if refresh:
                 item['metadata'] = inspect_recording(item['source_path'], **reader_kwargs(item.get('metadata', {})))
             paths = [item['source_path']] + [f['path'] for f in item.get('expected_source_files', [])]
@@ -136,7 +158,7 @@ class Store:
         save_json(self.root / 'jobs' / job['id'] / 'job.json', job)
 
     def plan_request(self, body):
-        if not isinstance(body, dict) or set(body) - {'input_id', 'selected_modules', 'qc_config', 'plan_id', 'parent_job_id'}:
+        if not isinstance(body, dict) or set(body) - {'input_id', 'selected_modules', 'qc_config', 'plan_id', 'parent_job_id', 'run_name'}:
             raise ValueError('请求仅接受输入、所选模块、分析配置和计划标识。')
         input_id = body.get('input_id')
         if not isinstance(input_id, str) or input_id not in self.inputs:
@@ -169,7 +191,7 @@ class Store:
                           and i['dataset_context'].get('record_id') == row['id']}
                 runs = sorted((j for j in self.jobs.values() if j['input_id'] in inputs),
                               key=lambda j: j['created_at'], reverse=True)
-                row['signal_runs'] = [{k: j[k] for k in ('id', 'status', 'created_at', 'input_id')} for j in runs]
+                row['signal_runs'] = [{k: j.get(k) for k in ('id', 'status', 'created_at', 'input_id', 'run_name')} for j in runs]
         return result
 
     def open_package_record(self, body):
@@ -233,12 +255,18 @@ class Store:
 
     def submit(self, body, *, batch_id=None):
         item, plan = self.plan_request(body)
+        from ephys_qc.run_names import resolve_run_name
+        run_name = resolve_run_name(body.get('run_name'), item['label'], plan['qc_config'].get('scope', 'window'))
         if body.get('plan_id') != plan['plan_id']:
             raise ValueError('检查方案与当前配置不一致，请重新预览方案后运行。')
         if item.get('linked_intake_id'):
             self.intakes._verified_source(self.intakes.get(item['linked_intake_id']))
         admission = check_registered_record(item, limits=self.admission_policy) if self.admission_policy else None
         with self.lock:
+            # Recheck under the same lock as expiry, before a queued job protects its files.
+            current = self.inputs[item['id']]
+            if current.get('retention', {}).get('state') == 'expired':
+                raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
             parent = body.get('parent_job_id')
             if parent is not None:
                 if not isinstance(parent, str) or parent not in self.jobs:
@@ -251,10 +279,11 @@ class Store:
             id_ = uuid.uuid4().hex
             directory = self.root / 'jobs' / id_
             directory.mkdir()
-            request = {'input': item, 'plan': plan, 'qc_config': plan['qc_config'],
+            request = {'input': item, 'plan': plan, 'run_name': run_name, 'qc_config': plan['qc_config'],
                        'selected_modules': plan['selected_modules'], 'parent_job_id': parent, 'batch_id': batch_id, 'admission': admission}
             save_json(directory / 'request.json', request)
-            job = {'id': id_, 'label': item['label'], 'input_id': item['id'], 'status': 'queued',
+            job = {'id': id_, 'label': item['label'], 'run_name': run_name, 'input_id': item['id'], 'status': 'queued',
+                   'software_version': __version__,
                    'input_revision': item.get('record_revision', 1), 'record_family': item.get('record_family', item['id']),
                    'parent_job_id': parent, 'batch_id': batch_id, 'dataset_context': copy.deepcopy(item.get('dataset_context')),
                    'phase': 'queued', 'message': '等待执行', 'created_at': now(), 'plan': plan,
@@ -363,6 +392,18 @@ class Store:
                         self._stop_nodes(job, '执行失败，未完成评估。')
                     job['ended_at'] = now()
                     self.persist(job)
+                if job['status'] == 'completed':
+                    # Prepare report displays outside the state lock. A display
+                    # failure must never change a successful detector run.
+                    try:
+                        from presentation_cache import prepare
+                        prepare(self, id_)
+                    except Exception as exc:
+                        try:
+                            with (directory / 'presentation.log').open('a') as log:
+                                log.write(f'{type(exc).__name__}: {exc}\n')
+                        except OSError:
+                            pass
             except Exception as exc:
                 with self.lock:
                     job = self.jobs[id_]
@@ -382,9 +423,53 @@ class Store:
             job['recording_progress'] = read_json(progress)
         return job
 
+    def dataset_result(self, id_):
+        """Small frozen summary for dataset listings; never re-score on navigation."""
+        from dataset_overview import read_signal_summary
+        if self.job(id_)['status'] != 'completed':
+            raise ValueError('任务尚未完成。')
+        path = self.root / 'jobs' / id_ / 'result.json'
+        stat = path.stat()
+        signature = (stat.st_mtime_ns, stat.st_size)
+        with self.lock:
+            if not hasattr(self, 'dataset_summaries'): self.dataset_summaries = {}
+            cached = self.dataset_summaries.get(id_)
+        if cached and cached[0] == signature:
+            return copy.deepcopy(cached[1])
+        cache_path = path.with_name('dataset-summary-cache.json')
+        try:
+            if cache_path.stat().st_size <= 65536:
+                saved = read_json(cache_path)
+                if (isinstance(saved, dict) and saved.get('version') == 'dataset-display/1' and
+                        saved.get('signature') == list(signature) and isinstance(saved.get('summary'), dict)):
+                    with self.lock:
+                        if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
+                        self.dataset_summaries[id_] = (signature, saved['summary'])
+                    return copy.deepcopy(saved['summary'])
+        except (OSError, ValueError, TypeError):
+            pass
+        result = read_signal_summary(path)
+        after = path.stat()
+        if signature != (after.st_mtime_ns, after.st_size):
+            raise ValueError('结果文件发生变化，请重新加载。')
+        with self.lock:
+            if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
+            self.dataset_summaries[id_] = (signature, copy.deepcopy(result))
+            try:
+                save_json(cache_path, {'version': 'dataset-display/1', 'signature': list(signature), 'summary': result})
+            except OSError:
+                pass  # Read-only archives still produce an in-memory summary.
+        return result
+
     def result(self, id_, *, compact=False):
         if self.job(id_)['status'] != 'completed':
             raise ValueError('任务尚未完成，没有可用的最终报告。')
+        from project_score_cache import load
+        published = load(self, id_)
+        if compact and published:
+            for artifact in published.get('artifacts',[]):
+                artifact['url'] = f'/api/v1/jobs/{id_}/artifacts/{quote(artifact["name"])}'
+            return published
         result_path = self.root / 'jobs' / id_ / 'result.json'
         if compact:
             # Candidate observations can dwarf the report (tens of thousands of
@@ -398,17 +483,49 @@ class Store:
             if cached and cached[0] == stamp:
                 data = copy.deepcopy(cached[1])
             else:
-                data = read_json(result_path)
-                if isinstance(data.get('candidate_index'), list):
-                    data['candidate_index_count'] = len(data.pop('candidate_index'))
+                import ijson
+                from ijson.common import ObjectBuilder
+                builder = ObjectBuilder()
+                pending_candidates = skipping_candidates = saw_candidates = False
+                candidate_count = 0
+                with result_path.open('rb') as handle:
+                    for prefix, event, value in ijson.parse(handle, use_float=True):
+                        if prefix == '' and event == 'map_key' and value == 'candidate_index':
+                            pending_candidates = True
+                            continue
+                        if pending_candidates:
+                            pending_candidates = False
+                            if event == 'start_array':
+                                skipping_candidates = saw_candidates = True
+                                continue
+                            # Preserve non-array values from older files verbatim.
+                            builder.event('map_key', 'candidate_index')
+                        if skipping_candidates:
+                            if prefix == 'candidate_index.item' and event not in {'end_map', 'end_array', 'map_key'}:
+                                candidate_count += 1
+                            if prefix == 'candidate_index' and event == 'end_array':
+                                skipping_candidates = False
+                            continue
+                        builder.event(event, value)
+                data = builder.value
+                if saw_candidates:
+                    data['candidate_index_count'] = candidate_count
                     data['candidate_index_artifact'] = 'candidate-index.json' if any(
                         a.get('name') == 'candidate-index.json' for a in data.get('artifacts', [])) else None
+                after = result_path.stat()
+                if stamp != (after.st_mtime_ns, after.st_size):
+                    raise ValueError('结果文件发生变化，请重新加载。')
                 with self.lock:
                     if len(self.result_summaries) >= 8: self.result_summaries.pop(next(iter(self.result_summaries)))
                     self.result_summaries[id_] = (stamp, copy.deepcopy(data))
         else:
             data = read_json(result_path)
-        if data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
+        saved_view = published.get('report_view') if published else data.get('report_view')
+        if isinstance(saved_view, dict) and saved_view.get('score'):
+            # Browsing must use the same published/frozen scores as HTML and PDF.
+            # The full result retains every original detector field and array.
+            data['report_view'] = copy.deepcopy(saved_view)
+        elif data.get('analysis_profile') == 'scalp-eeg/1' and data.get('scope') in {'window','recording'}:
             from ephys_qc.report_view import build_report_view, VIEW_VERSION
             root = self.root / 'jobs' / id_
             names = ['result.json', 'artifacts/M03_continuity.json', 'artifacts/M04_spectral.json',
@@ -423,6 +540,7 @@ class Store:
                 except FileNotFoundError:
                     signature.append(None)
             with self.lock:
+                if not hasattr(self, 'report_views'): self.report_views = {}
                 cached = self.report_views.get(id_)
             if not cached or cached[0] != signature:
                 view = build_report_view(data, root / 'artifacts', self.job(id_).get('label', id_))
@@ -438,7 +556,8 @@ class Store:
         return data
 
     def artifact(self, id_, name):
-        if Path(name).name != name or name not in {a['name'] for a in self.result(id_, compact=True)['artifacts']}:
+        from saved_reports import artifact_names
+        if Path(name).name != name or name not in artifact_names(self, id_):
             raise KeyError(name)
         root = (self.root / 'jobs' / id_ / 'artifacts').resolve()
         target = (root / name).resolve()
@@ -471,12 +590,12 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', str(len(data)))
-        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Cache-Control', (headers or {}).get('Cache-Control', 'no-store'))
         self.send_header('X-Content-Type-Options', 'nosniff')
-        frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations", urlsplit(self.path).path) else "none"
+        frame_policy = "self" if re.fullmatch(r"/api/v1/jobs/[a-f0-9]{32}/visualizations|/examples/[a-f0-9]{16}/visualizations/[a-f0-9]{32}\.embedded\.(?:zh-CN|en)\.html", urlsplit(self.path).path) else "none"
         self.send_header('Content-Security-Policy', f"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors '{frame_policy}'; base-uri 'none'")
         for name, value in (headers or {}).items():
-            self.send_header(name, value)
+            if name.lower() != 'cache-control': self.send_header(name, value)
         self.end_headers()
         self.wfile.write(data)
 
@@ -555,7 +674,9 @@ class Handler(BaseHTTPRequestHandler):
         records_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/records', path)
         if records_match: return self.json(self.store.package_records(records_match.group(1)))
         if path == '/api/v1/packages':
-            return self.json(self.store.packages.catalog())
+            directory = self.store.packages.catalog()
+            directory['packages'] = [p for p in directory['packages'] if p.get('category') == 'example' or self.store.packages.packages.get(p['id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]
+            return self.json(directory)
         package_match = re.fullmatch(r'/api/v1/package-jobs/([a-f0-9]{32})(?:/(result|report|download|expectations))?', path)
         if package_match:
             identifier, action = package_match.groups()
@@ -621,7 +742,7 @@ class Handler(BaseHTTPRequestHandler):
             if modality not in ROUTES:
                 raise ValueError('当前目录：' + ', '.join(ROUTES))
             with self.store.lock:
-                inputs = [public_input(i) for i in self.store.inputs.values() if i.get('modality', 'scalp_eeg') == modality]
+                inputs = [public_input(i) for i in self.store.inputs.values() if i.get('modality', 'scalp_eeg') == modality and i.get('library_origin') in {'user_upload', 'user_registered'}]
             modules = catalog(modality)
             overview = '/standards' + ('/' + route(modality)['slug'] if route(modality)['slug'] else '')
             for module in modules:
@@ -640,23 +761,24 @@ class Handler(BaseHTTPRequestHandler):
                                                           'inspection_modalities': ['scalp_eeg', 'ecog', 'seeg', 'extracellular', 'other'],
                                                           'max_upload_bytes': self.store.intakes.limits.max_file_bytes,
                                                           'max_record_bytes': self.store.intakes.limits.max_record_bytes,
+                                                          'max_dataset_bytes': self.store.intakes.limits.max_dataset_bytes,
                                                           'intake_limit_version': self.store.intakes.limits.version, 'local_only': True},
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
-            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending()]})
+            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending() if i.get('library_origin') in {'user_upload', 'user_registered'}]})
         if path == '/api/v1/inputs':
             if urlsplit(self.path).query:
                 raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
             with self.store.lock:
-                records = [public_input(item) for item in self.store.inputs.values()]
+                records = [public_input(item) for item in self.store.inputs.values() if item.get('library_origin') in {'user_upload', 'user_registered'}]
             return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
             return self.json(public_intake(self.store.intake_status(match.group(1))))
         if path == '/api/v1/jobs':
             with self.store.lock:
-                jobs = sorted(copy.deepcopy(list(self.store.jobs.values())), key=lambda j: j['created_at'], reverse=True)
+                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]), key=lambda j: j['created_at'], reverse=True)
             return self.json({'jobs': jobs})
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform))?', path)
         if match:
@@ -667,19 +789,28 @@ class Handler(BaseHTTPRequestHandler):
                 from review_workspace import waveform_for_input
                 return self.json(waveform_for_input(record, **self.waveform_query()))
             return self.json(public_input(record))
-        export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png)', path)
+        export_match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(report.pdf|report-evidence.png|report-focus-\d+\.png)', path)
         if export_match:
             identifier, export_kind = export_match.groups()
-            result = self.store.result(identifier, compact=True)
-            view = result.get('report_view')
+            if self.store.job(identifier)['status'] != 'completed':
+                raise ValueError('任务尚未完成，没有可用的最终报告。')
+            from project_score_cache import load
+            from saved_reports import frozen_view
+            published = load(self.store, identifier)
+            view = published.get('report_view') if published else frozen_view(self.store, identifier)
             if not view:
                 raise ValueError('当前 PDF 导出支持头皮 EEG 报告。')
             from ephys_qc.report_export import evidence_figure, pdf_bytes
             try:
-                figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
+                if export_kind.startswith('report-focus-'):
+                    from presentation_cache import focus
+                    figure = focus(self.store, identifier, view, int(export_kind[13:-4]))
+                    figure_notes = []
+                else:
+                    figure, figure_notes = evidence_figure(view, self.store.workspace(identifier))
             except (OSError, KeyError, ValueError, RuntimeError, ImportError):
                 figure, figure_notes = None, ['对应波形暂不可用；原始检测结果仍保留。']
-            if export_kind == 'report-evidence.png':
+            if export_kind.endswith('.png'):
                 if not figure:
                     # Return an accessible text image instead of a broken-image icon.
                     svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="90"><text x="24" y="48" font-size="18" fill="#687b92">候选波形暂不可用，请检查原始文件。</text></svg>'
@@ -691,12 +822,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({'error': 'PDF 组件未安装。请在服务环境安装 ephys-qc-workbench[reports]。'}, 503)
             return self.send_bytes(data, 'application/pdf', headers={
                 'Content-Disposition': f'attachment; filename="DBCI-QC-{identifier[:8]}.pdf"'})
-        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|review|configuration)', path)
+        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|waveform-context|waveform-window|review|configuration)', path)
         if match:
             identifier, action = match.groups()
             if action == 'configuration':
                 return self.json(self.store.configuration(identifier))
             workspace = self.store.workspace(identifier)
+            if action == 'waveform-context':
+                if urlsplit(self.path).query:
+                    raise ValueError('波形目录不接受查询参数。')
+                return self.json(workspace.waveform_context())
+            if action == 'waveform-window':
+                return self.json(workspace.waveform_window(**self.waveform_query()))
             if action == 'waveform':
                 return self.json(workspace.waveform(**self.waveform_query()))
             if action == 'candidates':
@@ -716,29 +853,9 @@ class Handler(BaseHTTPRequestHandler):
                 log = self.store.root / 'jobs' / id_ / 'run.log'
                 return self.send_bytes(log.read_bytes()[-100_000:] if log.exists() else b'', 'text/plain; charset=utf-8')
             if action == 'report':
-                result = self.store.result(id_, compact=True)
-                if result.get('report_view'):
-                    from ephys_qc.report_view import render_report_view
-                    report = render_report_view(result['report_view'], evidence_url=f'/api/v1/jobs/{id_}/report-evidence.png', pdf_url=f'/api/v1/jobs/{id_}/report.pdf', visualization_url=f'/api/v1/jobs/{id_}/visualizations')
-                else:
-                    report = self.store.artifact(id_, 'report.html').read_text(encoding='utf-8')
-                # Keep the standalone report usable both on disk and at the job's /report route.
-                # Use explicit artifact URLs without relaxing the base-uri policy.
-                for a in result['artifacts']:
-                    safe_name = a['name']
-                    for attr in ('src', 'href'):
-                        report = report.replace(f'{attr}="{safe_name}"', f'{attr}="{a["url"]}"')
-                        report = report.replace(f"{attr}='{safe_name}'", f'{attr}="{a["url"]}"')
-                # Navigation belongs to the served view; frozen report bytes stay unchanged.
-                from html import escape
-                declared = job.get('plan', {}).get('input_modality', {})
-                modality = declared.get('value') if isinstance(declared, dict) else declared
-                modality = modality if modality in ROUTES else 'scalp_eeg'
+                from saved_reports import served_report
                 language = parse_qs(urlsplit(self.path).query).get('lang', ['zh-CN'])[0]
-                back = f'/?modality={modality}&job={id_}' + ('&lang=en' if language == 'en' else '')
-                label = 'Return to this QC run' if language == 'en' else '返回本次质控'
-                navigation = f'<nav aria-label="QC navigation" style="padding:14px 24px;background:#eff6ff;border-bottom:1px solid #dbeafe"><a href="{escape(back, quote=True)}">← {label}</a></nav>'
-                report = insert_report_navigation(report, navigation)
+                report = served_report(self.store, id_, language)
                 return self.send_bytes(report.encode('utf-8'), 'text/html; charset=utf-8')
             if filename:
                 target = self.store.artifact(id_, filename)
@@ -746,11 +863,18 @@ class Handler(BaseHTTPRequestHandler):
                 if target.suffix in {'.html', '.json', '.txt', '.csv', '.tsv'}:
                     mime += '; charset=utf-8'
                 return self.send_bytes(target.read_bytes(), mime)
-        static = {'/': 'index.html', '/app.js': 'app.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+        if path.startswith('/examples/'):
+            from example_cache import asset
+            target = asset(self.store, path)
+            return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
+        static = {'/': 'index.html', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
+                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]
+            if path == '/':
+                from example_cache import homepage
+                return self.send_bytes(homepage(self.store, target.read_text()).encode('utf-8'), 'text/html; charset=utf-8')
             return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
         raise KeyError(path)
 

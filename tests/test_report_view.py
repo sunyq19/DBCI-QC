@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / 'apps/workbench'))
@@ -107,6 +108,57 @@ class ReportViewTests(unittest.TestCase):
                 self.assertIsNone(v['score']['value'])
                 self.assertIsNone(v['score']['components'][1]['value'])
                 if change=='failed':self.assertEqual(v['failures'],['M04'])
+
+    def test_frozen_scores_agree_across_summary_full_and_saved_report(self):
+        from ephys_qc.report_view import trial_score
+        from saved_reports import frozen_view, served_report
+        view = self.view()
+        hf = json.loads((self.artifacts / 'M06_muscle.json').read_text())['channels']
+        view['score'] = trial_score(view['finite'], view['line'], hf, 2)
+        row = dict(self.result, report_view=view, candidate_index=[
+            {'id': i, 'evidence': {'candidate_index': [1, 2], 'samples': [None, 1.25]}}
+            for i in range(100)
+        ])
+        path = self.job / 'result.json'; path.write_text(json.dumps(row))
+        original = path.read_bytes()
+        store = Store.__new__(Store)
+        store.root, store.lock = self.root, threading.RLock()
+        store.jobs = {self.jid: dict(id=self.jid, status='completed', label='example')}
+        # A later missing artifact cannot silently replace a saved score.
+        (self.artifacts / 'M04_spectral.json').unlink()
+        with patch('ephys_qc.report_view.build_report_view', side_effect=AssertionError('saved scores must not be rebuilt')):
+            with patch('server.read_json', side_effect=AssertionError('summary must stream the result')):
+                summary = store.result(self.jid, compact=True)
+            full = store.result(self.jid)
+            html = served_report(store, self.jid)
+        self.assertEqual(summary['report_view'], view)
+        self.assertEqual(full['report_view'], frozen_view(store, self.jid))
+        self.assertEqual(full['score'], row['score'])
+        self.assertEqual(full['candidate_index'], row['candidate_index'])
+        self.assertNotIn('candidate_index', summary)
+        self.assertEqual(summary['candidate_index_count'], 100)
+        self.assertIn(f'{view["score"]["value"]:.2f}', html)
+        self.assertEqual(path.read_bytes(), original)
+        summary['report_view']['score']['value'] = -1
+        self.assertEqual(store.result(self.jid, compact=True)['report_view'], view)
+
+    def test_published_view_takes_precedence_without_removing_full_evidence(self):
+        row = dict(self.result, report_view=self.view(), candidate_index=[{'id': 1}])
+        (self.job / 'result.json').write_text(json.dumps(row))
+        published = copy.deepcopy(row)
+        published.pop('candidate_index')
+        published['report_view']['score']['value'] = 12.5
+        store = Store.__new__(Store)
+        store.root, store.lock = self.root, threading.RLock()
+        store.jobs = {self.jid: dict(id=self.jid, status='completed', label='example')}
+        with patch('project_score_cache.load', side_effect=lambda *args: copy.deepcopy(published)), \
+                patch('ephys_qc.report_view.build_report_view', side_effect=AssertionError('published scores must not be rebuilt')):
+            summary = store.result(self.jid, compact=True)
+            full = store.result(self.jid)
+        self.assertEqual(summary['report_view'], published['report_view'])
+        self.assertEqual(full['report_view'], published['report_view'])
+        self.assertEqual(full['score'], row['score'])
+        self.assertEqual(full['candidate_index'], row['candidate_index'])
 
     def test_other_modalities_and_whole_records_keep_existing_report_path(self):
         for field,value in [('analysis_profile','ecog/1'),('scope','recording')]:

@@ -2,7 +2,7 @@
 
 项目试行规则 · `project-weighted/1.2` · 2026年11月7日 · 未经专家审核
 
-[技术规范](/standards) · 检查词条 · 报告要求 · M08 分项评价
+[技术规范](/standards) · [检查词条](/standards/eeg-checks) · [报告要求](/standards/eeg-report) · [M08 分项评价](/standards/modules/M08)
 
 ## 1 范围
 

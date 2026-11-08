@@ -17,7 +17,7 @@ import test_package_record_links as linked_fixtures
 from ephys_qc.dataset_qc.consistency import evaluate_dataset
 from ephys_qc.dataset_qc.overview import aggregate_overview, summarize_signal
 from dataset_overview import build_overview, render_overview, source_match
-from data_library import library
+from data_library import library, featured_reports
 from package_jobs import fingerprint
 from server import Handler
 
@@ -30,8 +30,11 @@ def signal(scope='recording',status='completed'):
 
 
 class SummaryTests(unittest.TestCase):
+    def setUp(self):
+        linked_fixtures.LinkedRecordTests.setUp(self)
+        self.store.settings['example_cache_dir']=str(self.store.root/'unpublished-examples')
+
     freeze=linked_fixtures.LinkedRecordTests.freeze
-    setUp=linked_fixtures.LinkedRecordTests.setUp
 
     def test_empty_summary_distinguishes_unassessed(self):
         data=aggregate_overview(self.plan)
@@ -136,11 +139,14 @@ class SummaryTests(unittest.TestCase):
         path=self.store.root/'jobs'/jid;path.mkdir(parents=True)
         (path/'request.json').write_text(json.dumps({'input':item}))
         self.store.jobs[jid]=dict(id=jid,status=status,created_at=date,input_id=item['id'],dataset_context=item['dataset_context'])
+        if status=='completed':
+            (path/'artifacts').mkdir()
+            (path/'artifacts/report.html').write_text('<html>Saved report</html>')
         return item
 
     def test_latest_failed_attempt_does_not_fall_back_to_good_score(self):
         self.save_dataset();self.save_signal();self.save_signal('b'*32,'failed','2026-11-07')
-        with patch.object(self.store,'result',return_value=signal()['result']) as reader:
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']) as reader:
             data=build_overview(self.store,'pilot');reader.assert_not_called()
         self.assertEqual(data['records'][0]['signal']['status'],'failed')
         self.assertEqual(data['summary']['reported'],0)
@@ -149,7 +155,7 @@ class SummaryTests(unittest.TestCase):
         jid=self.save_dataset();item=self.save_signal()
         result=evaluate_dataset(self.root,self.plan)
         self.assertEqual(source_match(item,str(self.root),result),'matched')
-        with patch.object(self.store,'result',return_value=signal()['result']):
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']):
             data=build_overview(self.store,'pilot')
             self.assertEqual(data['summary']['reported'],1)
             self.assertEqual(data['records'][0]['signal']['source_status'],'matched')
@@ -162,7 +168,7 @@ class SummaryTests(unittest.TestCase):
 
     def test_mismatching_companion_sources_excluded_and_export_is_escaped(self):
         self.save_dataset();self.save_signal(digest='0'*64)
-        with patch.object(self.store,'result',return_value=signal()['result']):data=build_overview(self.store,'pilot')
+        with patch.object(self.store,'dataset_result',return_value=signal()['result']):data=build_overview(self.store,'pilot')
         self.assertEqual(data['summary']['reported'],0)
         self.assertEqual(data['records'][0]['signal']['status'],'source_mismatch')
         data['label']='<script>alert(1)</script>'
@@ -171,12 +177,65 @@ class SummaryTests(unittest.TestCase):
         self.assertIn('来源不一致',html);self.assertIn('清单指纹',html)
         self.assertIn('Source mismatch',render_overview(data,'en'))
 
+    def test_dataset_examples_are_selectable_without_reports_and_not_duplicated(self):
+        self.store.settings['demo_examples'] = [
+            dict(id='old', kind='record', job_id='old', input_id='old'),
+            dict(id='demo', kind='dataset', package_id='pilot', label='EEG', description='Two participants'),
+            dict(id='duplicate', kind='dataset', package_id='pilot')]
+        data = library(self.store)
+        self.assertEqual(data['examples'], [])  # Not published; no request-time generation.
+        demo = featured_reports(self.store)[0]
+        self.assertTrue(demo['available'])
+        self.assertEqual(demo['reported'], 0)
+        self.assertEqual(demo['status'], 'not_run')
+        self.assertEqual(demo['url'], '/api/v1/packages/pilot/overview/report')
+        self.assertNotIn('score', demo)
+        self.assertFalse(any(r['id'] == 'dataset:pilot' for r in data['items']))
+        self.assertEqual(data['counts']['datasets'], 0)
+
+    def test_dataset_navigation_streams_execution_only_and_invalidates_saved_cache(self):
+        self.save_signal()
+        path = self.store.root / 'jobs' / ('a' * 32) / 'result.json'
+        value = dict(signal()['result'], schema_version='ephys-recording-result/1.0',
+                     candidate_index=[{'evidence': 'x' * 1000}] * 1000)
+        path.write_text(json.dumps(value))
+        result = self.store.dataset_result('a' * 32)
+        self.assertEqual(result['coverage']['total_seconds'], 10)
+        self.assertNotIn('candidate_index', result)
+        self.assertNotIn('report_view', result)
+        self.store.dataset_summaries.clear()
+        with patch('dataset_overview.read_signal_summary', side_effect=AssertionError('must use valid disk cache')):
+            self.assertEqual(self.store.dataset_result('a' * 32), result)
+        value['coverage']['completed_seconds'] = 9
+        path.write_text(json.dumps(value))
+        self.assertEqual(self.store.dataset_result('a' * 32)['coverage']['completed_seconds'], 9)
+        path.write_text('{"scope":"recording",')
+        with self.assertRaises(ValueError): self.store.dataset_result('a' * 32)
+
+    def test_example_coverage_uses_current_manifest_and_latest_attempt(self):
+        self.store.settings['demo_examples'] = [dict(id='demo', kind='dataset', package_id='pilot')]
+        self.save_dataset(); self.save_signal()
+        with patch.object(self.store, 'dataset_result', return_value=signal()['result']):
+            self.assertEqual(featured_reports(self.store)[0]['reported'], 1)
+            report = render_overview(build_overview(self.store, 'pilot'))
+            self.assertIn('/api/v1/jobs/', report)
+            self.assertNotIn('88.51', report)
+            self.assertNotIn('EEG 分数 / 分项', report)
+            self.plan['scope'] = 'new selection'
+            self.config.write_text(json.dumps(self.plan))
+            self.assertEqual(featured_reports(self.store)[0]['reported'], 0)
+        with patch.object(self.store.packages, 'catalog', return_value={'packages': [dict(id='pilot', available=False)]}):
+            row = featured_reports(self.store)[0]
+            self.assertFalse(row['available'])
+            self.assertEqual(row['status'], 'unavailable')
+
     def test_library_latest_revision_no_duplicate_linked_inputs_or_paths(self):
         self.save_dataset();self.save_signal()
-        self.store.inputs['old']=dict(id='old',label='old',record_family='f',record_revision=1)
-        self.store.inputs['new']=dict(id='new',label='new',record_family='f',record_revision=2)
+        self.store.packages.packages['pilot']['library_origin'] = 'user_upload'
+        self.store.inputs['old']=dict(id='old',label='old',record_family='f',record_revision=1,library_origin='user_upload')
+        self.store.inputs['new']=dict(id='new',label='new',record_family='f',record_revision=2,library_origin='user_upload')
         self.store.jobs['old-run']=dict(id='old-run',status='completed',input_id='old',created_at='2026-11-01')
-        with patch.object(self.store.intakes,'pending',return_value=[dict(id='pending',filename='p.edf',received_at='2026-11-07')]):
+        with patch.object(self.store.intakes,'pending',return_value=[dict(id='pending',filename='p.edf',received_at='2026-11-07',library_origin='user_upload')]):
             data=library(self.store)
         self.assertEqual(data['counts'],dict(datasets=1,records=2))
         row=next(r for r in data['items'] if r['id']=='record:new')
@@ -184,40 +243,120 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn('source_path',json.dumps(data));self.assertNotIn(str(self.root),json.dumps(data))
 
     def test_library_separates_only_explicit_validation_cases(self):
+        self.store.packages.packages['pilot']['library_origin'] = 'user_upload'
         self.store.settings['validation_library_ids'] = ['dataset:pilot']
-        self.store.inputs['ordinary'] = dict(id='ordinary', label='New upload')
+        self.store.inputs['ordinary'] = dict(id='ordinary', label='New upload', library_origin='user_upload')
         self.store.jobs['failed'] = dict(id='failed', input_id='ordinary', status='failed', created_at='2026-11-06')
         data = library(self.store)
         self.assertEqual(next(r for r in data['items'] if r['id']=='dataset:pilot')['category'], 'validation')
         self.assertEqual(next(r for r in data['items'] if r['id']=='record:ordinary')['category'], 'data')
         self.assertEqual(data['examples'], [])
 
-    def test_featured_record_requires_matching_completed_report(self):
+    def test_same_content_uploads_share_data_but_keep_distinct_workflows(self):
+        a = dict(id='first',label='First',library_origin='user_upload',expected_sha256='a'*64,
+                 source_path='/first.edf',metadata={'format':'EDF'},modality='scalp_eeg')
+        b = dict(a,id='second',label='Renamed',source_path='/renamed.edf')
+        self.store.inputs.update(first=a,second=b)
+        for index, item in enumerate((a,b)):
+            jid = str(index+1)*32
+            self.store.jobs[jid] = dict(id=jid,input_id=item['id'],status='completed',created_at=f'2026-11-0{index+1}',
+                plan={'selected_modules':['M01','M03','M09'], 'qc_config':{'scope':'recording',
+                'selection':{'eeg_indices':[0,1]},'scoring':{'weights':{'integrity':index+1}}}})
+            p = self.store.root/'jobs'/jid/'artifacts/report.html'
+            p.parent.mkdir(parents=True);p.write_text('report')
+        rows = library(self.store)['items']
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['registered_copies'],2)
+        self.assertEqual(len(rows[0]['workflow_groups']),2)
+        self.assertEqual(sum(len(g['runs']) for g in rows[0]['workflow_groups']),2)
+        b['expected_sha256'] = 'b'*64
+        self.assertEqual(len(library(self.store)['items']),2)
+
+    def test_legacy_single_report_is_not_a_dataset_example(self):
         item = self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='record', id='demo', label='Demo',
                                                     job_id='a'*32, input_id=item['id'])]
-        with patch.object(self.store, 'result', return_value=signal()['result']):
-            row = library(self.store)['examples'][0]
-            self.assertEqual(row['score'], 88.51)
-            self.assertIn('job='+'a'*32, row['url'])
-            self.store.settings['demo_examples'][0]['input_id'] = 'unrelated'
-            self.assertEqual(library(self.store)['examples'], [])
-            self.store.settings['demo_examples'][0]['input_id'] = item['id']
-            self.store.jobs['a'*32]['status'] = 'failed'
-            self.assertEqual(library(self.store)['examples'], [])
-        self.store.jobs['a'*32]['status'] = 'completed'
-        with patch.object(self.store, 'result', side_effect=FileNotFoundError):
-            self.assertEqual(library(self.store)['examples'], [])
+        self.assertEqual(library(self.store)['examples'], [])
+
+    def test_example_directory_does_not_read_signal_results_or_claim_missing_reports(self):
+        self.save_dataset();self.save_signal()
+        self.store.settings['demo_examples']=[dict(kind='dataset',package_id='pilot')]
+        with patch('dataset_overview.build_overview',side_effect=AssertionError('directory must not aggregate reports')):
+            self.assertEqual(featured_reports(self.store)[0]['reported'],1)
+            (self.store.root/'jobs'/('a'*32)/'artifacts/report.html').unlink()
+            self.assertEqual(featured_reports(self.store)[0]['reported'],0)
 
     def test_featured_dataset_keeps_issues_and_uses_latest_attempt(self):
         self.save_dataset(); self.save_signal()
         self.store.settings['demo_examples'] = [dict(kind='dataset', id='demo', label='Demo', package_id='pilot')]
-        with patch.object(self.store, 'result', return_value=signal()['result']):
-            row = library(self.store)['examples'][0]
+        with patch.object(self.store, 'dataset_result', return_value=signal()['result']):
+            row = featured_reports(self.store)[0]
             self.assertEqual(row['reported'], 1)
             self.assertEqual(row['records'], 4)
         self.save_signal('b'*32, 'failed', '2026-11-07')
-        self.assertEqual(library(self.store)['examples'], [])
+        row = featured_reports(self.store)[0]
+        self.assertTrue(row['available'])
+        self.assertEqual(row['reported'], 0)
+
+    def test_empty_personal_library_does_not_delete_legacy_or_linked_data(self):
+        self.save_dataset(); self.save_signal()
+        self.store.inputs['legacy'] = dict(id='legacy', label='Development recording')
+        data = library(self.store)
+        self.assertEqual(data['items'], [])
+        self.assertIn('legacy', self.store.inputs)
+        self.assertIn('pilot', self.store.packages.packages)
+        self.store.inputs['fresh'] = dict(id='fresh', label='My upload', library_origin='user_upload')
+        self.assertEqual([r['id'] for r in library(self.store)['items']], ['record:fresh'])
+
+    def test_missing_metadata_is_collapsed_without_becoming_a_pass(self):
+        data = aggregate_overview(self.plan, dataset_result=evaluate_dataset(self.root, self.plan))
+        data.update(package_id='pilot', label='Pilot', generated_at='now', manifest_hash='hash')
+        data['findings'].append(dict(id='unknown', module='D02', code='extra', status='unassessed', label='Extra metadata', message='Missing auxiliary table'))
+        html = render_overview(data)
+        before, after = html.split('<details class="disclosure">', 1)
+        self.assertNotIn('Missing auxiliary table', before)
+        self.assertIn('Missing auxiliary table', after)
+        self.assertNotIn('尚无法判断', before)
+
+    def test_personal_record_groups_completed_reports_without_moving_evidence(self):
+        item=dict(id='personal',label='My EEG',library_origin='user_registered',
+                  report_labels={'a'*32:{'zh-CN':'推荐方案','en':'Recommended workflow'},
+                                 'b'*32:{'zh-CN':'灵犀云方案','en':'Gnosis workflow'}})
+        self.store.inputs[item['id']]=item
+        for i,key in enumerate(['a','b','c']):
+            jid=key*32
+            self.store.jobs[jid]=dict(id=jid,input_id=item['id'],status='completed',created_at=f'2026-11-0{i+1}')
+            if key!='c':
+                path=self.store.root/'jobs'/jid/'artifacts'/'report.html'
+                path.parent.mkdir(parents=True,exist_ok=True);path.write_text('saved report')
+        rows=library(self.store)['items']
+        row=next(r for r in rows if r['id']=='record:personal')
+        self.assertEqual([r['label'] for r in row['recent_reports']],['灵犀云方案','推荐方案'])
+        self.assertEqual(row['recent_reports'][0]['visualizations_url'],'/api/v1/jobs/'+'b'*32+'/visualizations')
+        self.assertTrue(all(r['url'].startswith('/api/v1/jobs/') for r in row['recent_reports']))
+        self.assertEqual((self.store.root/'jobs'/('a'*32)/'artifacts/report.html').read_text(),'saved report')
+        # A corrected Gnosis run should replace Gnosis, not hide the comparison.
+        item['report_labels']['d'*32]=item['report_labels']['b'*32]
+        self.store.jobs['d'*32]=dict(id='d'*32,input_id=item['id'],status='completed',created_at='2026-11-07')
+        path=self.store.root/'jobs'/('d'*32)/'artifacts/report.html'
+        path.parent.mkdir(parents=True);path.write_text('new report')
+        updated=next(r for r in library(self.store)['items'] if r['id']=='record:personal')
+        self.assertEqual([r['job_id'] for r in updated['recent_reports']],['d'*32,'a'*32])
+        # Explicit run titles must remain distinct, even when names repeat.
+        for key in ['e','f','g']:
+            jid=key*32
+            self.store.jobs[jid]=dict(id=jid,input_id=item['id'],run_name='对照',status='completed',created_at='2026-11-08'+key)
+            p=self.store.root/'jobs'/jid/'artifacts'/'report.html'
+            p.parent.mkdir(parents=True);p.write_text('named report')
+        named=next(r for r in library(self.store)['items'] if r['id']=='record:personal')
+        self.assertEqual(len(named['recent_reports']),5)
+        self.assertEqual([r['label'] for r in named['recent_reports'][:3]],['对照']*3)
+        # A revised confirmation must not inherit the previous revision's reports.
+        item.update(record_family='family',record_revision=1)
+        self.store.inputs['revised']=dict(item,id='revised',record_revision=2)
+        rows=library(self.store)['items']
+        self.assertFalse(any(r['id']=='record:personal' for r in rows))
+        self.assertEqual(next(r for r in rows if r['id']=='record:revised')['recent_reports'],[])
 
     def test_summary_api_export_and_local_origin_guard(self):
         self.save_dataset()
@@ -234,7 +373,7 @@ class SummaryTests(unittest.TestCase):
                 self.assertEqual(get(path)[0],200)
             status,headers,body=get('/api/v1/packages/pilot/overview/report?lang=en&download=1')
             self.assertEqual(status,200);self.assertIn('attachment',headers['Content-Disposition'])
-            self.assertIn(b'Dataset summary',body)
+            self.assertIn(b'Dataset report',body)
             self.assertEqual(get('/api/v1/packages/pilot/overview?job=invalid')[0],400)
             self.assertEqual(get('/api/v1/packages/pilot/overview?path=/tmp')[0],400)
             self.assertEqual(get('/api/v1/data',{'Origin':'https://other.test'})[0],403)

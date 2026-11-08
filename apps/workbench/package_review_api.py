@@ -5,6 +5,10 @@ from package_reviews import ReviewConflict
 
 
 def dispatch(handler, path):
+    if path == '/dataset-review-report.js' and handler.command == 'GET':
+        from ephys_qc.dataset_qc.review_report_web import SCRIPT
+        handler.send_bytes(SCRIPT.encode(), 'application/javascript; charset=utf-8')
+        return True
     match = re.fullmatch(r'/api/v1/package-jobs/([a-f0-9]{32})/review(?:/(report|pdf))?', path)
     if not match:
         return False
@@ -27,7 +31,7 @@ def dispatch(handler, path):
         if output == 'report':
             from ephys_qc.dataset_qc.review_report import render_review_report
             headers = {'Content-Disposition': f'attachment; filename="dataset-review-{identifier[:8]}.html"'} if query.get('download') == ['1'] else None
-            handler.send_bytes(render_review_report(case, language).encode(), 'text/html; charset=utf-8', headers=headers)
+            handler.send_bytes(render_review_report(case, language, standalone=bool(headers)).encode(), 'text/html; charset=utf-8', headers=headers)
         elif output == 'pdf':
             from ephys_qc.dataset_qc.review_report import review_pdf
             handler.send_bytes(review_pdf(case, language), 'application/pdf', headers={

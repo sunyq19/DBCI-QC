@@ -20,3 +20,5 @@
 @media(max-width:600px){.hierarchy-scroll{max-height:none}.scoring-legend{padding-inline:13px}}
 
 .score-child-list{display:grid;gap:7px}.score-child-list>button{display:block;width:100%;text-align:left;white-space:normal;padding:12px;background:#f8faff}.score-child-list strong{display:block;font-size:12px;line-height:1.6}.score-child-list>button>span{display:block;font-size:11px;color:#5a7593;line-height:1.7;margin-top:5px}.score-child-list>button>.scoring-badges{display:flex}
+
+.catalog-status{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding:9px 28px;background:#edf4ff;color:#426185;font-size:12px;border-bottom:1px solid #d9e4f2}.team-notes{padding:14px;border-left:3px solid #2e65c4;background:#f3f7fd;margin-bottom:20px}.team-notes h3{margin:0 0 10px;font-size:14px}

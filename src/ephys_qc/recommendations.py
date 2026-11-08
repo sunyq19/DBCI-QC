@@ -149,7 +149,12 @@ def recommend(record, qc_config=None):
     try:
         # Keep user-supplied thresholds, selection and current choices intact for
         # validation before proposing any new extension selection.
-        current = build_plan(record, selected_modules=[], qc_config=submitted)
+        scoring = (submitted or {}).get('scoring') or record.get('default_config',{}).get('scoring')
+        requested_scores = []
+        if isinstance(scoring,dict) and isinstance(scoring.get('weights'),dict):
+            from .score_registry import SPECS
+            requested_scores = [spec['module_id'] for key,spec in SPECS.items() if scoring['weights'].get(key)]
+        current = build_plan(record, selected_modules=requested_scores, qc_config=submitted)
         config = copy.deepcopy(current["qc_config"])
         facts = data_facts(record, config)
     except (ValueError, KeyError, TypeError, AttributeError) as error:
@@ -176,7 +181,7 @@ def recommend(record, qc_config=None):
     gates = {m["id"]: m for m in candidate_plan["method_applicability"]}
     if config.get("scope") == "recording":
         gates["asr_bursts"].update(status="blocked", reason="ASR需要明确校准段，仅限单窗口评估。")
-    selected = list(_BASE_MODULES)
+    selected = list(dict.fromkeys([*_BASE_MODULES, *requested_scores]))
     if any(gates[name]["status"] in {"ready", "partial"} for name in ("ecg_locked", "eog_locked", "hf_burst")):
         selected.append("M06")
     annotation = record.get("annotation") or {}
@@ -185,6 +190,8 @@ def recommend(record, qc_config=None):
     if annotation_complete:
         selected.append("M07")
     recommended_extras = ["mne_amplitude"] if gates["mne_amplitude"]["status"] in {"ready", "partial"} else []
+    weighted_extras = [spec["method_id"] for key,spec in SPECS.items() if isinstance(scoring,dict) and scoring.get("weights",{}).get(key) and spec["reducer"] not in {"core","prep"}] if scoring else []
+    recommended_extras = list(dict.fromkeys([*weighted_extras, *recommended_extras]))
     config["method_config"]["extensions"] = recommended_extras
     # Only introduce parameters for the newly suggested default. Existing
     # explicit parameters of unselected methods remain available for user review.

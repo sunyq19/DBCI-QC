@@ -147,7 +147,8 @@ def _verify_sources(record, description, expected_source_files=None, expected_sh
 
 def waveform_for_input(record, start_seconds=None, duration_seconds=None, channel_indices=None,
                        max_points=MAX_POINTS, channels=None, *, selection=None,
-                       expected_source_files=None, expected_sha256=None, reader_factory=None):
+                       expected_source_files=None, expected_sha256=None, reader_factory=None,
+                       _max_seconds=MAX_SECONDS, _include_psd=True):
     """Bounded physical waveform from a trusted registered/frozen input object.
 
     channel_indices accepts an integer list or a comma-separated string. channels
@@ -172,8 +173,8 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
     wanted = _channel_indices(channel_indices)
     start = _number(selection.get('start_seconds', 0) if start_seconds is None else start_seconds, 'start_seconds')
     duration = _number(min(MAX_SECONDS, selection.get('duration_seconds', MAX_SECONDS)) if duration_seconds is None else duration_seconds, 'duration_seconds')
-    if start < 0 or not 0 < duration <= MAX_SECONDS:
-        raise ValueError('Waveform duration must be >0 and <=10 seconds, with a nonnegative start')
+    if start < 0 or not 0 < duration <= _max_seconds:
+        raise ValueError(f'Waveform duration must be >0 and <={_max_seconds:g} seconds, with a nonnegative start')
     if isinstance(max_points, str) and max_points.isdigit():
         max_points = int(max_points)
     if isinstance(max_points, bool) or not isinstance(max_points, int) or not 8 <= max_points <= MAX_POINTS:
@@ -194,9 +195,8 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
             raise ValueError('Waveform interval must stay within one continuous source segment')
         segment = segments[0]
         first = segment['start_sample'] + round((start - segment['recording_start_seconds']) * fs)
-        # Respect the hard 10-second cap even at non-integer native rates where
-        # rounding a requested 10 seconds could otherwise return >10 seconds.
-        stop = first + min(round(duration * fs), math.floor(MAX_SECONDS * fs + 1e-9))
+        # Respect the bounded display cap even at non-integer native rates.
+        stop = first + min(round(duration * fs), math.floor(_max_seconds * fs + 1e-9))
         if first < segment['start_sample'] or stop > segment['stop_sample'] or stop <= first:
             raise ValueError('Waveform interval does not map to a valid native sample range')
         if len(wanted) * (stop - first) * 8 > MAX_READ_BYTES:
@@ -218,7 +218,7 @@ def waveform_for_input(record, start_seconds=None, duration_seconds=None, channe
             physical_unit = channel.get('unit') or channel.get('physical_unit') or 'unknown'
             scale = 1e6 if physical_unit == 'V' else 1.0
             psd = None
-            if physical_unit == 'V' and np.all(np.isfinite(data)) and len(data) >= 4:
+            if _include_psd and physical_unit == 'V' and np.all(np.isfinite(data)) and len(data) >= 4:
                 from scipy.signal import welch
                 nperseg = min(len(data), max(4, round(2 * fs)), 8192)
                 frequencies, density = welch(data, fs=fs, nperseg=nperseg, noverlap=nperseg // 2,
@@ -437,9 +437,7 @@ class ReviewWorkspace:
                 'warnings': warnings, 'review_version': state['version'], 'review_counts': state['counts'],
                 'quality_pass': None, 'physiological_and_clinical_events_are_quality_candidates': False}
 
-    def waveform(self, start_seconds=None, duration_seconds=None, channel_indices=None,
-                 max_points=MAX_POINTS, channels=None):
-        record = self.request['input']
+    def _waveform_sources(self):
         m01 = _json(self.root / 'artifacts' / 'M01_input.json', {})
         if not m01:
             # Whole-record parents retain the input snapshot; a completed child's
@@ -447,10 +445,26 @@ class ReviewWorkspace:
             context = next(self._contexts(), None)
             if context:
                 m01 = _json(context[0] / 'artifacts' / 'M01_input.json', {})
+        return m01
+
+    def waveform(self, start_seconds=None, duration_seconds=None, channel_indices=None,
+                 max_points=MAX_POINTS, channels=None, *, _max_seconds=MAX_SECONDS, _include_psd=True):
+        record = self.request['input']
+        m01 = self._waveform_sources()
         return waveform_for_input(record, start_seconds, duration_seconds, channel_indices, max_points, channels,
                                   selection=self.request.get('qc_config', {}).get('selection'),
                                   expected_source_files=m01.get('source_files'),
-                                  expected_sha256=m01.get('source_sha256'), reader_factory=self.reader_factory)
+                                  expected_sha256=m01.get('source_sha256'), reader_factory=self.reader_factory,
+                                  _max_seconds=_max_seconds, _include_psd=_include_psd)
+
+    def waveform_context(self):
+        """Verified channel identities and native segments; no paths or QC mutation."""
+        from waveform_explorer import context
+        return context(self)
+
+    def waveform_window(self, **query):
+        from waveform_explorer import window
+        return window(self, **query)
 
     def update_review(self, body):
         if not isinstance(body, dict) or set(body) != {'expected_version', 'candidate_id', 'decision', 'note', 'reviewer'}:

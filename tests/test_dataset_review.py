@@ -9,7 +9,7 @@ from unittest.mock import Mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT/'src'), str(ROOT/'apps/workbench')]
 from ephys_qc.dataset_qc.review import build_case, apply_changes, retest_delta, evidence_id
-from ephys_qc.dataset_qc.review_report import render_review_report
+from ephys_qc.dataset_qc.review_report import render_review_report, report_content
 from package_reviews import PackageReviews, ReviewConflict
 
 
@@ -86,6 +86,22 @@ class DatasetReviewTests(unittest.TestCase):
             self.assertNotIn('<script>',h);self.assertIn('&lt;script&gt;',h)
             self.assertIn('工程演示' if language=='zh-CN' else 'Engineering demo',h)
 
+    def test_report_groups_preserve_every_check_and_do_not_merge_different_evidence(self):
+        r,m=fixture()
+        second=copy.deepcopy(r['checks'][0]);second.update(id='c2',target='r2',records=['r2'])
+        third=copy.deepcopy(second);third.update(id='c3',message='another cause',status='unassessed')
+        r['checks'].extend([second,third])
+        c=build_case(r,m);c.update(job_id='a'*32,label='Example',checked_at='2026-11-06T12:00:00+00:00')
+        original=copy.deepcopy(c)
+        view=report_content(c)
+        self.assertEqual([len(g['rows']) for g in view['groups']],[2,1])
+        self.assertEqual({row['id'] for g in view['groups'] for row in g['rows']},{'c1','c2','c3'})
+        self.assertEqual((view['counts']['conflict'],view['counts']['unassessed']),(2,1))
+        self.assertEqual({r['id'] for r in view['records']},{'r1','r2'})
+        self.assertEqual(c,original)
+        self.assertEqual(view['outcome'],'待审核')
+        self.assertEqual(view['checked_at'],'2026-11-06 12:00 UTC')
+
 
 class ReviewStorageTests(unittest.TestCase):
     def setUp(self):
@@ -132,7 +148,15 @@ class ReviewStorageTests(unittest.TestCase):
         self.assertEqual(h.json.call_args.args[1],201)
         dispatch(h,route);self.assertEqual(h.json.call_args.args[1],409)
         h.command='GET';h.path=route+'/report?lang=en';dispatch(h,route+'/report')
-        self.assertIn(b'Dataset review and retest report',h.send_bytes.call_args.args[0])
+        self.assertIn(b'<html lang="en">',h.send_bytes.call_args.args[0])
+        self.assertIn(b'id="dataset-report"',h.send_bytes.call_args.args[0])
+        self.assertIn(b'src="/dataset-review-report.js"',h.send_bytes.call_args.args[0])
+        h.path=route+'/report?download=1';dispatch(h,route+'/report')
+        exported=h.send_bytes.call_args.args[0]
+        self.assertNotIn(b'src="/dataset-review-report.js"',exported)
+        self.assertGreater(exported.index(b'<script defer>'),exported.index(b'</main>'))
+        h.path='/dataset-review-report.js';dispatch(h,h.path)
+        self.assertEqual(h.send_bytes.call_args.args[1],'application/javascript; charset=utf-8')
         h.path=route+'/pdf';dispatch(h,route+'/pdf')
         self.assertTrue(h.send_bytes.call_args.args[0].startswith(b'%PDF-'))
         self.assertEqual(h.send_bytes.call_args.args[1],'application/pdf')

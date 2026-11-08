@@ -84,9 +84,10 @@ class ResearchCatalogueTests(unittest.TestCase):
         for modality in EXPECTED:
             r = record(modality)
             original = copy.deepcopy(r)
-            with patch('ephys_qc.research_runtime.extension_specs', return_value=[]):
-                baseline = recommend(r)
-            actual = recommend(r)
+            with patch('ephys_qc.external_runtime.availability',return_value='not installed'):
+                with patch('ephys_qc.research_runtime.extension_specs', return_value=[]):
+                    baseline = recommend(r)
+                actual = recommend(r)
             self.assertTrue(actual['can_apply'], actual)
             for key in ('selected_modules', 'qc_config', 'quality_score'):
                 self.assertEqual(actual[key], baseline[key], (modality, key))

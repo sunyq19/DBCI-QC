@@ -1,0 +1,53 @@
+name: Sync QC module catalog
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/ephys_qc/**'
+      - 'apps/workbench/**'
+      - 'docs/**'
+      - 'apps/flow-editor/scripts/**'
+      - 'apps/flow-editor/lib/**'
+      - 'apps/flow-editor/tests/**'
+      - '.github/workflows/flow-catalog.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: qc-catalog-main
+  cancel-in-progress: false
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install metadata build tool
+        run: |
+          npm install --prefix "$RUNNER_TEMP/qc-catalog" --no-audit --no-fund esbuild@0.27.3
+          ln -s "$RUNNER_TEMP/qc-catalog/node_modules" apps/flow-editor/node_modules
+      - name: Export registered methods and score contracts
+        working-directory: apps/flow-editor
+        run: |
+          node scripts/sync-catalog.mjs
+          python3 scripts/test-score-source.py
+      - name: Verify notes, immutable snapshots and concurrent updates
+        working-directory: apps/flow-editor
+        run: |
+          node_modules/.bin/esbuild tests/flow.test.ts --bundle --platform=node --format=esm --outfile=outputs/flow-test.mjs
+          node --test outputs/flow-test.mjs
+      - name: Publish source-only catalog
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/flow-editor/content/module-catalog.json apps/flow-editor/content/sync-manifest.json apps/flow-editor/content/scoring-rules
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Sync module catalog from QC source'
+          git push origin HEAD:main

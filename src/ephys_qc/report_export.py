@@ -1,28 +1,126 @@
 """Portable EEG summary exports derived from the same versioned report view."""
 from io import BytesIO
 from pathlib import Path
-from html import escape
 import json
-import os
 import threading
 
-EXPORT_VERSION = 'eeg-pdf/1.2'
+EXPORT_VERSION = 'eeg-pdf/1.5'
 _RENDER_LOCK = threading.RLock()
 
 
 def score_rows(view):
-    """Scores and deductions share exactly the same denominators as the UI."""
+    """Separate readable findings, raw measurements and score composition.
+
+    This is a presentation adapter: it never changes a score or denominator.
+    """
+    amount = lambda v: '未记录' if v is None else f'{v:,.2f}'.rstrip('0').rstrip('.') if not float(v).is_integer() else f'{v:,.0f}'
     descriptions = [
-        f'非有限值 {view["finite"]["nonfinite"]}；恒值 {view["finite"]["constant"]} 个样本',
-        f'{view["line"]["hits"]} / {view["line"]["total"]} 个通道窗命中',
-        f'{view["score"]["hf_candidate_channel_seconds"]:g} / {view["score"]["hf_valid_channel_seconds"]:g} 通道秒为候选',
+        f'无效数值 {amount(view["finite"]["nonfinite"])} 个；持续恒值 {amount(view["finite"]["constant"])} 个采样点',
+        f'{amount(view["line"]["hits"])} / {amount(view["line"]["total"])} 个通道检查窗被标记',
+        f'各通道候选时长合计 {amount(view["score"]["hf_candidate_channel_seconds"])} 秒 / 有效检查时长合计 {amount(view["score"]["hf_valid_channel_seconds"])} 秒',
     ]
-    return [dict(name=c['name'], value=c['value'], deduction=None if c['value'] is None else 100-c['value'],
-                 reason=(f'通道异常占比 RMS {100*c["rms_burden"]:.2f}%；'+d) if c['value'] is not None else '有效测量不足，未计分')
-            for c,d in zip(view['score']['components'], descriptions)]
+    rows=[]
+    units={'channels':'个通道','channel_seconds':'秒（各通道累加）','channel_samples':'个采样点（各通道累加）','channel_windows':'个通道检查窗',
+           'channel_block_seconds':'通道与分析块的累计秒数','samples':'个有效采样点','epochs':'个片段','seconds':'秒'}
+    meanings={'channel_samples':'采样点被标记为无效或持续恒值', 'channel_windows':'通道检查窗检出工频候选',
+              'channel_seconds':'累计通道时长被标记', 'channels':'通道被标记为候选',
+              'samples':'有效采样点被标记', 'epochs':'检查片段被标记', 'seconds':'已检查时长被标记'}
+    weighted=view['score'].get('version','').startswith('project-weighted/')
+    total_weight=sum(c.get('weight',0) for c in view['score']['components'] if c.get('weight',0)>0)
+    for c in view['score']['components']:
+        key=c['id'];core=['integrity','line_noise','hf_burst']
+        d=descriptions[core.index(key)] if key in core else f"{amount(c.get('candidate_amount'))} / {amount(c.get('assessed_amount'))} {units.get(c.get('unit'),c.get('unit',''))} 为候选"
+        if c['value'] is None:
+            finding=c.get('reason') or '有效测量不足，未计分'
+            reason=finding
+            if c.get('candidate_amount') is None or c.get('assessed_amount') is None:
+                d='未形成完整测量；已完成分段的证据保留。'
+            missing=[]
+            for window in view.get('window_scores',[]):
+                part=next((p for p in window.get('components',[]) if p.get('id')==key),None)
+                if part is not None and part.get('value') is None:
+                    missing.append((window,part))
+            if missing:
+                spans='、'.join(f'{w["start_seconds"]:g}–{w["start_seconds"]+w["duration_seconds"]:g} 秒' for w,_ in missing[:2])
+                detail=missing[0][1].get('reason','有效测量不足')
+                if 'Degenerate band statistic' in detail:detail='高频统计未得到有效结果'
+                elif '持续时间>10秒' in detail:detail='没有连续超过 10 秒的干净片段'
+                finding=spans+'：'+detail
+                if len(missing)>2:finding+=f'；另有 {len(missing)-2} 个未评分段'
+                d=f'已完成 {len(view["window_scores"])-len(missing)} / {len(view["window_scores"])} 个分析分段；整份分项未汇总。'
+        elif c.get('candidate_fraction') is not None or view['score'].get('version')=='eeg-basic-screen/0.1':
+            pct=100*c['candidate_fraction'] if c.get('candidate_fraction') is not None else 100-c['value']
+            percent='<0.01%' if 0<pct<.01 else f'{pct:.2f}%'
+            if pct==0:
+                finding='未检出无效或持续恒值采样' if key=='integrity' else '本项未检出候选'
+            elif c.get('unit')=='channel_block_seconds':
+                finding=f'分段通道候选占比 {percent}（按分析时长汇总）'
+            else:
+                finding=f'{percent} 的'+meanings.get(c.get('unit'),'有效检查量被标记为候选')
+            if pct>0 and key=='line_noise' and view['line'].get('affected_channels') is not None:
+                finding+=f'，涉及 {view["line"]["affected_channels"]} 个通道'
+            elif pct>0 and key=='hf_burst' and view.get('hf_candidate_count') is not None:
+                finding+=f'，共 {view["hf_candidate_count"]} 段候选'
+            reason=f'候选占比 {pct:.2f}%；'+d
+        else:
+            finding=f'通道候选负担 {100*c.get("rms_burden",0):.2f}%（旧版均方根汇总）'
+            reason=finding+'；'+d
+        weight=c.get('weight',0)
+        rows.append(dict(id=key,name=c['name'],value=c['value'],deduction=None if c['value'] is None else 100-c['value'],
+                         finding=finding,measurement=d,reason=reason,included=weight>0 if weighted else True,
+                         automatically_excluded=c.get('automatically_excluded',False),
+                         share=weight/total_weight if weighted and total_weight>0 else None))
+    return rows
 
 
-def evidence_figure(view, workspace):
+def score_weight_label(row, score):
+    """Display the saved configured share, including missing and excluded checks."""
+    if score.get('version', '').startswith('project-weighted/'):
+        if row.get('automatically_excluded'):return '0% · 未计入'
+        return f"{row['share'] * 100:.1f}%" if row.get('included') and row.get('share') is not None else '不计入'
+    if score.get('version') == 'eeg-basic-screen/0.1':
+        return f"{100 / len(score['components']):.1f}%"
+    return '—'  # A minimum-of-components score has no additive weights.
+
+
+def exclusion_note(score):
+    excluded=score.get('excluded_components',[])
+    if not excluded:return ''
+    active=sum(p.get('weight',0)>0 for p in score['components'])
+    return (f'{len(excluded)} 项无有效结果，本次权重为 0；综合分按其余 {active} 项计算。'
+            if active else '所选计分项均无有效结果，本次不生成综合分。')
+
+
+def score_composition(score):
+    """Human-readable effective proportions, with automatic exclusions explicit."""
+    if score.get('version')=='eeg-basic-screen/0.1':
+        return '三个基础分项同等计入，总分为三项的平均分（旧版 v0.1）。'
+    if not score.get('version','').startswith('project-weighted/'):
+        return '总分取三个基础分项中的最低分。'
+    active=[p for p in score['components'] if p.get('weight',0)>0]
+    if not active:
+        return exclusion_note(score) or '本次仅展示分项，未设置总分。'
+    if len({p['weight'] for p in active})==1:
+        return f'{len(active)} 项同等计入，总分为这些分项的平均分。'+exclusion_note(score)
+    return f'总分由 {len(active)} 个分项按设定比例汇总。'+exclusion_note(score)
+
+
+def display_checks(view):
+    """Display actual per-window measurement coverage without editing saved results."""
+    windows=view.get('window_scores',[])
+    names={p['name']:p['id'] for p in view['score']['components']}
+    result=[]
+    for original in view.get('checks',[]):
+        row=dict(original);key=names.get(row.get('name'))
+        if windows and key:
+            complete=[w for w in windows if any(p.get('id')==key and p.get('value') is not None for p in w.get('components',[]))]
+            seconds=sum(w['duration_seconds'] for w in complete)
+            row['value']=f'{len(complete)}/{len(windows)} 个窗口可计分，{seconds:g} 秒'
+        result.append(row)
+    return result
+
+
+def evidence_figure(view, workspace, *, compact=False):
     """First two HF candidates, or two line candidates; source indices never inferred.
 
     Every request re-verifies the frozen input via the bounded waveform reader.
@@ -55,116 +153,26 @@ def evidence_figure(view, workspace):
         return None, notes
     # Matplotlib font and renderer state are shared by HTTP worker threads.
     with _RENDER_LOCK:
-        fig = Figure(figsize=(10, 2.1*len(panels)), dpi=160, layout='constrained')
+        fig = Figure(figsize=(8.8, 3.0) if compact else (10, 2.1*len(panels)), dpi=160, layout='constrained')
         FigureCanvasAgg(fig)
         for i,(c,w) in enumerate(panels):
             ax=fig.add_subplot(len(panels),1,i+1)
             ax.plot(w['times_seconds'],w['values'],color='#245ad3',linewidth=.65)
             ax.axvspan(c['start_seconds'],c['stop_seconds'],color='#f1ba58',alpha=.28)
-            ax.set_title(f'{c["channel_name"]}  |  {c["label"]}: {c["start_seconds"]:g}-{c["stop_seconds"]:g} s',loc='left',fontsize=11)
-            ax.set_ylabel(w['unit']); ax.set_xlabel('Original recording time (s)')
+            if not compact:
+                ax.set_title(f'{c["channel_name"]}  |  {c["label"]}: {c["start_seconds"]:g}-{c["stop_seconds"]:g} s',loc='left',fontsize=11)
+            ax.set_ylabel(w['unit']); ax.set_xlabel('s' if compact else 'Original recording time (s)')
+            if compact:
+                ax.tick_params(labelsize=9, colors='#52647d')
+                ax.set_ylabel(w['unit'], fontsize=9, color='#52647d')
+                ax.set_xlabel('s', fontsize=9, color='#52647d')
             ax.grid(alpha=.15); ax.spines[['top','right']].set_visible(False)
         buffer=BytesIO();fig.savefig(buffer,format='png',facecolor='white')
     return buffer.getvalue(),notes
 
 
 def pdf_bytes(view, figure=None, figure_notes=(), job_id=''):
-    """Two-page, selectable-text PDF. Same score/view as HTML; no recalculation."""
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-    from reportlab.lib import colors
-    from reportlab.lib.utils import ImageReader
-    from reportlab.platypus import Paragraph, Table, TableStyle
-    from reportlab.lib.styles import ParagraphStyle
+    """A compact print report from saved results; no scoring or detector changes."""
+    from .pdf_layout import build_pdf
     with _RENDER_LOCK:
-        font='QC-CJK'
-        if font not in pdfmetrics.getRegisteredFontNames():
-            candidates=[os.environ.get('DBCI_QC_PDF_FONT',''), '/usr/share/fonts/fonts-gb/GB_HT_GB18030.ttf',
-                        'C:/Windows/Fonts/msyh.ttc', '/System/Library/Fonts/PingFang.ttc']
-            for filename in candidates:
-                if filename and Path(filename).is_file():
-                    try:
-                        pdfmetrics.registerFont(TTFont(font,filename)); break
-                    except Exception:
-                        continue
-            else:
-                font='STSong-Light'
-                if font not in pdfmetrics.getRegisteredFontNames():
-                    pdfmetrics.registerFont(UnicodeCIDFont(font))
-        out=BytesIO(); c=canvas.Canvas(out,pagesize=(595.28,841.89))
-        c.setTitle(f'DBCI-QC - {view["label"]}'); c.setAuthor('DBCI-QC')
-        ink=colors.HexColor('#19314c'); blue=colors.HexColor('#245ad3');muted=colors.HexColor('#687b92')
-        style=ParagraphStyle('body',fontName=font,fontSize=10,leading=16,textColor=ink,wordWrap='CJK')
-        def text(s,x,y,size=11,color=ink):
-            c.setFillColor(color);c.setFont(font,size);c.drawString(x,y,str(s))
-        def paragraph(s,x,y,width=507,size=10,color=ink):
-            st=ParagraphStyle('p',parent=style,fontSize=size,leading=size*1.55,textColor=color)
-            p=Paragraph(escape(str(s)),st); _,h=p.wrap(width,1000);p.drawOn(c,x,y-h);return y-h
-        def header(title,page):
-            c.setFillColor(blue);c.rect(0,819,595.28,23,fill=1,stroke=0)
-            text('DBCI-QC   质控报告',44,780,19);text(title,44,751,11,muted)
-            c.setStrokeColor(colors.HexColor('#dfe7f2'));c.line(44,731,551,731)
-            text(f'{EXPORT_VERSION}   /   {view["score"]["version"]}',44,35,8,muted)
-            text(f'{page} / 2',520,35,9,muted)
-        def table(rows,y,widths):
-            values=[[Paragraph(escape(str(v)),style) for v in row] for row in rows]
-            t=Table(values,colWidths=widths,repeatRows=1)
-            t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#edf3ff')),
-                ('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),10),('RIGHTPADDING',(0,0),(-1,-1),10),
-                ('TOPPADDING',(0,0),(-1,-1),9),('BOTTOMPADDING',(0,0),(-1,-1),9),
-                ('LINEBELOW',(0,0),(-1,-1),.5,colors.HexColor('#dfe7f2'))]))
-            _,h=t.wrap(507,700);t.drawOn(c,44,y-h);return y-h
-        point=lambda v:'未评' if v is None else f'{v:.2f}'
-        header('01  整份记录评分与结果' if view.get('scope')=='recording' else '01  选区评分与结果',1)
-        y=paragraph(view['label'],44,710,size=11)
-        rec=view['recording'];start=rec.get('start_seconds',0);stop=start+rec.get('duration_seconds',0)
-        y=paragraph(f'{view["format"]}   /   头皮 EEG   /   {rec.get("channel_count")} 道   /   {rec.get("sampling_rate_hz"):g} Hz',44,y-12,color=muted)
-        y=paragraph(f'本次检查 {start:g}-{stop:g} 秒；原记录 {view["input_duration_seconds"]:g} 秒。',44,y-6,color=muted)
-        text(point(view['score']['value']),44,y-75,51,blue);text('/ 100',217,y-72,16,muted)
-        text('EEG 基础质控评分',326,y-32,14);text('项目试行 v0.2',326,y-57,11,blue)
-        y=y-108
-        y=paragraph(view['headline']+'。'+view['summary'],44,y,size=12)
-        if view['priority']: y=paragraph(view['priority'],44,y-7,color=muted)
-        low=view.get('local_quality',{}).get('lowest')
-        if low and low['lowest_component']['value']<100:
-            y=paragraph(f'局部关注：{low["name"]} / {low["lowest_component"]["name"]} {low["lowest_component"]["value"]:.2f} 分。',44,y-6,size=10,color=blue)
-        rows=[['检查项','得分 / 100','扣分','测量与扣分原因']]
-        rows += [[r['name'],point(r['value']),point(r['deduction']),r['reason']] for r in score_rows(view)]
-        y=table(rows,y-20,[96,86,60,265])
-        y=paragraph('分项 = 100 × (1 - 通道异常占比的均方根)；总分取最低分项。缺项不出总分。',44,y-16,size=9,color=muted)
-        if view.get('coverage'):
-            cov=view['coverage'];y=paragraph(f'整份覆盖：已计算 {cov["completed_seconds"]:g}/{cov["total_seconds"]:g} 秒；间隙 {cov["gap_seconds"]:g} 秒。先逐通道汇总，再评分。',44,y-9,size=9,color=muted)
-        revision=view.get('score_revision')
-        if revision:
-            y=paragraph(f'按 v0.2 重算；运行时 {revision["previous_version"]} 为 {point(revision["previous_value"])} 分，原文件保留。',44,y-8,size=8,color=muted)
-        y=paragraph('补充检查',44,y-20,size=13)
-        extra=[r for r in view['checks'] if r['name'] in {'通道一致性','心电锁时','眼电锁时','文件标注','补充检查'}]
-        for r in extra:
-            y=paragraph(f'{r["name"]}：{r["state"]}。{r["value"]}',44,y-5,size=9,color=muted)
-        y=paragraph('说明：本版为项目试行评分，未设合格线。补充检查未纳入三项总分。',44,y-13,size=9,color=muted)
-        if y<57: raise ValueError('PDF summary exceeds the fixed page layout')
-        c.showPage();header('02  问题定位与复核',2)
-        rows=[['类型 / 通道','原始时间','复核依据']]
-        for r in view['hf_candidates'][:2]:
-            rows.append([f'高频突发 / {r["channel_name"]}',f'{r["start_seconds"]:g}-{r["stop_seconds"]:g} s',f'峰值 z = {r["peak_z_score"]:.2f}'])
-        for r in view['line_channels'][:2]:
-            e=r['example']; rows.append([f'工频 / {r["name"]}',f'{e["start_seconds"]:g}-{e["stop_seconds"]:g} s',f'{r["hits"]}/{r["total"]} 窗命中；代表窗 {e["peak_frequency_hz"]:g} Hz'])
-        y=table(rows,709,[160,135,212])
-        y=paragraph('展示前 2 条高频候选及命中最多的 2 个工频通道；完整候选见在线报告与检测证据。',44,y-12,size=9,color=muted)
-        if figure:
-            im=ImageReader(BytesIO(figure));iw,ih=im.getSize();h=min(228,507*ih/iw);w=h*iw/ih
-            c.drawImage(im,44,y-16-h,width=w,height=h);y-=h+24
-            y=paragraph('阴影为检测候选区间。波形为对应原始信号的显示抽稀，未清洗、未重参考。',44,y,size=9,color=muted)
-        else:
-            y=paragraph('本次无可展示的候选波形。',44,y-15,size=10,color=muted)
-        for n in figure_notes[:2]: y=paragraph(n,44,y-6,size=9,color=muted)
-        y=paragraph('人工复核',44,y-18,size=13)
-        y=paragraph('结论：____________________    复核人 / 日期：____________________',44,y-10,size=10)
-        y=paragraph('意见：____________________________________________________',44,y-14,size=10)
-        y=paragraph('追溯信息',44,y-24,size=11)
-        y=paragraph(f'任务 {job_id or "未登记"}；规则 {view["score"]["version"]}。',44,y-8,size=8,color=muted)
-        y=paragraph(f'计划 {view.get("plan_id") or "未登记"}；检测证据与参数保存在本次任务中。',44,y-4,size=8,color=muted)
-        if y<57: raise ValueError('PDF content exceeds the fixed page layout')
-        c.save();return out.getvalue()
+        return build_pdf(view, figure, figure_notes, job_id)

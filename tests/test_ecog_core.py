@@ -60,7 +60,7 @@ class EcogPlanTests(unittest.TestCase):
     def test_scalp_parameters_and_extensions_are_rejected_without_mutation(self):
         for patch_ in [{'continuity': {}}, {'spectral': {'line_frequency_hz': 50}},
                        {'muscle': {}}, {'bad_channels': {}}, {'events': {}},
-                       {'comparison_groups': ['a','a']}, {'extensions': ['mne_amplitude']},
+                       {'comparison_groups': ['a']}, {'extensions': ['mne_muscle']},
                        {'extension_parameters': {'mne_muscle': {}}},
                        {'ecog': {'alpha_band': [8,12]}}]:
             with self.subTest(parameters=patch_):

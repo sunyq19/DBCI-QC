@@ -33,8 +33,8 @@ _SPECS = [
      "读取任务、睡眠分期或临床事件表，核对范围并保留记录原始时间。", ["明确类型的标注文件"], ["选区事件", "阶段覆盖或临床事件时长", "标注指纹"],
      ["任务、分期和发作标注都不是质量真值；外部同步准确性未验证。", "任务事件TSV使用明确的event_name字段；支持登记的来源转换表，非通用BIDS解析器。"]),
     ("M08", "分项评价与可比性", "汇总", [], True,
-     "汇总已选模块的执行状态、观察量和未评原因。", ["模块结果或未评状态"], ["分项摘要", "未校准总分说明"],
-     ["总分未校准，固定为null；执行完成率不作为质量评分。"]),
+     "汇总已选模块的执行状态、观察量和未评原因。", ["模块结果或未评状态"], ["分项与权重", "项目自定义评分或缺项说明"],
+     ["仅头皮EEG提供项目试行评分；未定义评分的模态保留测量。执行完成率不作为质量评分。"]),
     ("M09", "报告与人工复核", "报告", ["M08"], True,
      "生成本地HTML、波形PNG和结构化证据，等待人工复核。", ["分项结果", "原始选区"], ["HTML报告", "波形PNG", "结果JSON"],
      ["检测报告保持不变；人工意见在工作台独立留版本，不自动删除原数据。"]),
@@ -54,6 +54,10 @@ def catalog(modality='scalp_eeg'):
         for row in rows:
             row.update(selectable=True, implementation='available')
             row.update(module_overrides(row['id'], modality))
+    from .project_scoring import capability
+    for row in rows:
+        row["scoring"] = capability(row["id"], modality)
+        row["can_output_score"] = row["scoring"]["can_output_score"]
     return rows
 
 
@@ -124,7 +128,7 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         raise ValueError("default_config must be an object")
     config = _merge(default, qc_config or {})
     _finite_json(config)
-    if set(config) - {"selection", "method_config", "feature_config", "policy_config", "context_tags", "scope", "recording_options"}:
+    if set(config) - {"selection", "method_config", "feature_config", "policy_config", "context_tags", "scope", "recording_options", "scoring"}:
         raise ValueError("Unknown QC configuration fields")
     if config.get('scope', 'window') != 'window':
         raise ValueError('Window planner requires scope=window')
@@ -186,6 +190,15 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
     if modality in DESCRIPTIVE:
         methods = config['method_config'] = validate_descriptive_methods(methods, modality, meta)
         labels, minimum = [], 4
+        groups = methods.get('comparison_groups')
+        if groups is not None:
+            if modality not in {'ecog','seeg'}:
+                raise ValueError('This modality does not accept iEEG comparison groups')
+            if isinstance(groups, dict) and set(groups) != {f"{input_record['id']}:ch:{i}" for i in indices}:
+                raise ValueError('comparison_groups keys must match stable source channel IDs')
+            labels = list(groups.values()) if isinstance(groups, dict) else groups
+            if not isinstance(labels,list) or len(labels)!=len(indices) or any(not isinstance(g,str) or not g.strip() for g in labels):
+                raise ValueError('comparison_groups must map every selected contact exactly once')
     else:
         if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters"}:
             raise ValueError("Invalid method_config fields")
@@ -235,6 +248,10 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         if extended == selected:
             break
         selected = extended
+    from .project_scoring import normalize
+    scoring = normalize(config.get("scoring"), modality, selected, config["method_config"].get("extensions", []))
+    if scoring is not None: config["scoring"] = scoring
+    else: config.pop("scoring", None)
     nodes, warnings = [], []
     for module in modules:
         mid = module["id"]
@@ -264,7 +281,7 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
             status, reason = "skipped", "标注格式未接入，不能作为事件或质量真值"
         if mid in selected and status != "ready":
             warnings.append(f"{mid}: {reason}")
-        nodes.append({"id": mid, "name": module["name"], "status": status, "reason": reason, "depends_on": dependencies})
+        nodes.append({"id": mid, "name": module["name"], "status": status, "reason": reason, "depends_on": dependencies, "can_output_score": module["can_output_score"], "scoring": copy.deepcopy(module["scoring"])})
     if modality in DESCRIPTIVE:
         warnings.append(route(modality)['label'] + '基础路线只提供完整性、频谱和触点描述；不以头皮阈值、高频或病理活动判坏。')
     applicability = evaluate_methods(input_record, config, selected)

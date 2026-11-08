@@ -9,14 +9,16 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%232563eb'/%3E%3Cpath d='M5 17h5l3-9 5 17 3-8h6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./datasets.css">
+  <link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css">
   <script src="./i18n.js" defer></script>
+  <script src="/run-names.js" defer></script>
   <script src="./app.js" defer></script>
   <script src="./data-library.js" defer></script>
 </head>
-<body>
+<body class="qc-app">
   <a class="skip-link" href="#main">跳到工作台</a>
   <header class="site-header">
-    <div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h6l4-10 5 19 4-12 3 3h4"/></svg></span><div><strong>质控台</strong></div></div>
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h6l4-10 5 19 4-12 3 3h4"/></svg></span><div><strong>质控台</strong></div></a>
     <div class="header-actions">
       <nav aria-label="工作台导航"><a id="standards-link" href="/standards/overview">质控标准</a></nav>
       <div class="language-switch" role="group" aria-label="界面语言"><button type="button" data-language="zh-CN" aria-pressed="true">中文</button><button type="button" data-language="en" aria-pressed="false">EN</button></div>
@@ -24,7 +26,7 @@
   </header>
   <main id="main" class="page-shell upload-first">
     <nav id="dataset-record-context" class="dataset-record-context" aria-label="数据归属" hidden></nav>
-    <section class="intro"><h1>数据质控</h1><p>上传数据，确认信息，查看报告。</p></section>
+    <section class="intro"><div><h1>数据质控</h1><p>上传数据，确认信息，查看报告。</p></div></section>
     <div id="catalog-error" class="notice error" role="alert" hidden></div>
     <div id="draft-recovery" class="draft-recovery" hidden><span>有尚未运行的配置</span><button id="restore-draft-button" class="button secondary small-button">恢复草稿</button><button id="discard-draft-button" class="button ghost small-button">丢弃草稿</button></div>
     <div class="studio-layout">
@@ -34,20 +36,21 @@
         <label class="file-picker" for="intake-file">
           <span class="file-picker-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M19 4H9a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10L19 4Z"/><path d="M19 4v7h6M16 23V14m-4 4 4-4 4 4"/></svg></span>
           <strong id="file-picker-title">选择本机文件</strong>
-          <span id="file-picker-hint">单个记录，或包含配套文件的 ZIP</span>
+          <span id="file-picker-hint">一份记录选文件，多份记录打包 ZIP</span>
           <span id="file-picker-name" data-i18n-skip hidden></span>
           <input id="intake-file" type="file" accept=".edf,.bdf,.vhdr,.set,.fif,.meta,.nwb,.zip" aria-labelledby="file-picker-title" aria-describedby="file-picker-hint file-picker-name upload-capabilities">
         </label>
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
-      <div class="upload-meta"><p id="upload-limit-note" class="small muted">仅在本机处理 · 最大 2 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
+      <div id="upload-run-name-field" class="run-name-field"><label class="field-label" for="upload-run-name">质检名称 <span class="muted">（可选）</span></label><input id="upload-run-name" type="text" maxlength="120" autocomplete="off" data-i18n-skip></div>
+      <div class="upload-meta"><p id="upload-limit-note" class="small muted">单文件最大 2 GiB · 数据集总量最大 10 GiB</p><button id="intake-restore-button" class="button ghost small-button" hidden>继续确认</button><button id="cancel-read-button" class="button ghost small-button" hidden>取消读取</button></div>
       <p id="intake-status" class="small muted" role="status"></p>
       <div id="upload-support" class="upload-support">
         <dl id="upload-capabilities" class="upload-capabilities">
           <div><dt>质控模态</dt><dd>头皮 EEG · ECoG / sEEG · Neuropixels 电压</dd></div>
           <div><dt>读取格式</dt><dd class="upload-format-list" data-i18n-skip><span>EDF / EDF+</span><span>BDF</span><span>BrainVision</span><span>EEGLAB</span><span>FIF</span><span>NWB</span><span>SpikeGLX</span></dd></div>
         </dl>
-        <details class="upload-requirements"><summary>文件要求与支持范围</summary>
+        <details class="upload-requirements"><summary>文件要求与支持范围</summary><p class="small muted" id="retention-note">上传文件保留 7 天，报告长期保留。</p>
           <ul>
             <li>BrainVision：将 .vhdr、.vmrk 和头文件指定的数据文件（通常为 .eeg）一起打包 ZIP。</li>
             <li>EEGLAB：连续记录 .set 可直接上传；有外置 .fdt 时一起打包 ZIP。</li>
@@ -65,7 +68,7 @@
       <p id="pipeline-caption" class="board-caption">上传文件后，先提取基本信息。</p>
       <nav id="result-tabs" class="result-tabs" role="tablist" aria-label="检查结果" hidden><button data-result-tab="overview" role="tab" aria-selected="true">概览</button><button data-result-tab="review" role="tab" aria-selected="false">问题复核</button><button data-result-tab="visuals" role="tab" aria-selected="false">可视化</button></nav>
       <section id="result-review" hidden></section>
-      <section id="result-visuals" hidden><iframe id="result-visual-frame" title="本次结果可视化" loading="lazy"></iframe></section>
+      <section id="result-visuals" hidden><p class="visual-workspace-link"><a id="result-visual-link" target="_blank" rel="noopener">在完整页面查看图表</a></p><iframe id="result-visual-frame" title="本次结果可视化" loading="lazy"></iframe></section>
       <section id="result-content" class="result-content" aria-label="本次质控结果" hidden></section>
       <div id="intake-error" class="notice error" role="alert" hidden></div>
       <section id="record-summary" class="record-summary" aria-label="自动提取的信息" hidden></section>
@@ -78,7 +81,7 @@
       <details id="plan-disclosure" class="plan-disclosure" hidden><summary>配置与适用条件</summary><div id="plan-details" class="plan-details" aria-live="polite"></div></details>
     </aside>
     <div class="studio-controls">
-    <details id="registered-records" class="panel supporting-panel landing-secondary legacy-record-selector" hidden><summary>已读取记录</summary><div class="disclosure-content">
+    <details id="registered-records" class="panel supporting-panel rail-section landing-secondary legacy-record-selector" hidden><summary><span>已读取记录</span></summary><div class="disclosure-content">
       <div id="example-presets" class="example-presets" hidden></div>
       <label class="field-label" for="input-select">记录</label>
       <select id="input-select" disabled><option value="">选择已登记记录</option></select>
@@ -107,11 +110,13 @@
           </div></details>
           <details class="configuration-details"><summary>通道、参考与配置 <span id="channel-count"></span></summary><div id="channel-config" class="channel-config"><p class="muted">选择记录后显示明确配置。</p></div></details>
         </section>
-        <details id="advanced-settings" class="panel modules-panel advanced-panel"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
+        <details id="advanced-settings" class="panel modules-panel advanced-panel rail-section"><summary><span>高级设置</span><small>手动选择方法与参数</small></summary><div class="disclosure-content">
           <p class="small muted advanced-intro">修改后会保留你的配置；重新预览计划即可继续。</p>
+          <details id="scoring-settings" class="parameter-editor"><summary>计分设置</summary><div id="scoring-controls"></div></details>
           <div id="module-options" class="module-options"><div class="loading-state"><span class="spinner"></span>正在读取模块目录</div></div>
           <p id="module-dependencies" class="dependency-note" hidden></p>
           <div id="extension-options" class="extension-options" hidden></div><p id="extension-selection-note" class="small muted" role="status" hidden></p>
+          <details id="ieeg-groups" class="parameter-editor" hidden><summary>触点比较组</summary><div id="ieeg-group-fields"></div></details>
           <details class="parameter-editor"><summary>修改扩展参数</summary><p class="small muted">JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法默认值。应用后须重新预览计划，服务会核验参数。</p><label class="field-label" for="extension-parameters">扩展参数 JSON</label><textarea id="extension-parameters" rows="7" spellcheck="false">{}</textarea><button id="apply-parameters-button" class="button secondary small-button" disabled>应用参数修改</button><p id="parameter-status" class="small muted" role="status"></p><p id="parameter-error" class="field-error" role="alert" hidden></p></details>
           <div class="manual-planning"><h3>手动推荐与预览</h3><p class="small muted">需要回到推荐配置时，可恢复推荐方案。</p><div class="recommendation-actions"><button id="recommend-button" class="button secondary small-button" disabled>恢复推荐方案</button><button id="apply-recommendation-button" class="button secondary small-button" disabled>采用推荐</button><button id="plan-button" class="button secondary small-button" disabled>预览执行计划</button></div></div>
         </div></details>
@@ -124,31 +129,32 @@
             <div id="recommendation-content" aria-live="polite"><p class="small muted">确认文件后，自动准备检查方案。</p></div>
           </section>
           <fieldset class="scope-picker"><legend>检查范围</legend><label><input type="radio" name="qc-scope" id="scope-window" value="window"> 快速预检</label><label><input type="radio" name="qc-scope" id="scope-recording" value="recording" checked> 整份检查</label><p id="scope-description" class="small muted">整份记录在后台分段计算。可以离开页面，保持本机服务运行即可。</p></fieldset>
+          <div id="check-run-name-field" class="run-name-field"><label class="field-label" for="check-run-name">质检名称 <span class="muted">（可选）</span></label><input id="check-run-name" type="text" maxlength="120" autocomplete="off" data-i18n-skip></div>
           <div id="plan-error" class="notice error" role="alert" hidden></div>
           <div class="action-row primary-action-row"><button id="run-button" class="button primary" disabled><span aria-hidden="true">▶</span> 开始检查</button><p id="action-hint" class="action-hint">方案准备好后即可开始。</p></div>
 
         </section>
       </div>
     </div>
-    <section id="demo-reports" class="panel demo-reports" aria-label="示例报告" hidden data-i18n-skip>
-      <h2 id="demo-reports-title">示例报告</h2><p id="demo-reports-caption" class="small muted">先看一份已完成的结果。</p><div id="demo-report-list"></div>
-    </section>
-    <details id="data-library" class="panel data-library supporting-panel landing-secondary" aria-label="已有数据">
-      <summary><span>已有数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
-      <div class="library-toolbar"><div role="group" aria-label="数据目录分类" class="library-tabs"><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div><button type="button" class="text-button" id="data-library-refresh">刷新</button></div>
+    <details id="demo-reports" class="panel demo-reports supporting-panel rail-section landing-secondary" aria-label="示例数据集" open data-i18n-skip>
+      <summary><span id="demo-reports-title">示例数据集</span><span id="demo-reports-count" class="tag subtle">—</span></summary><div class="disclosure-content"><p id="demo-reports-caption" class="small muted">公开数据的实际检查报告。</p><div id="demo-report-list"><p class="small muted">正在读取示例目录…</p></div></div>
+    </details>
+    <details id="data-library" class="panel data-library supporting-panel rail-section landing-secondary" aria-label="我的数据">
+      <summary><span>我的数据</span><span class="library-heading-actions"><span id="data-library-count" class="tag subtle">—</span><button type="button" class="icon-button" id="data-library-refresh" aria-label="刷新我的数据" title="刷新我的数据"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13 2.4M4.9 15.5a8 8 0 0 0 13 2.4"/></svg></button></span></summary><div class="disclosure-content">
+      <div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div>
       <p id="library-category-note" class="small muted" hidden></p>
       <label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off">
       <p id="data-library-error" class="small field-error" hidden></p><div id="data-library-list"><p class="small muted">正在加载数据…</p></div>
       <button id="data-library-more" type="button" class="text-button" hidden>显示更多</button>
       <div class="pending-recovery"><button id="pending-intakes-button" class="text-button">恢复已读取文件</button><div id="pending-intakes" class="pending-intakes" hidden></div></div>
     </div></details>
-    <details id="run-history-panel" class="panel supporting-panel landing-secondary"><summary>检查记录</summary><div class="disclosure-content">
+    <details id="run-history-panel" class="panel supporting-panel rail-section landing-secondary"><summary><span>检查记录</span></summary><div class="disclosure-content">
     <section id="runs-section" class="runs-grid">
       <section class="panel current-run-panel" aria-labelledby="current-run-title">
         <div class="panel-title-row"><div><h2 id="current-run-title">当前运行</h2></div><span id="job-status" class="tag subtle">等待开始</span></div>
-        <div id="job-empty" class="empty-state"><div class="empty-icon" aria-hidden="true">↗</div><h3>检查结果会显示在这里</h3><p>开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。</p></div>
+        <div id="job-empty" class="empty-state"><h3>暂无检查记录</h3><p>开始检查后，在这里查看进度与报告。</p></div>
         <div id="job-content" hidden>
-          <div class="job-title-row"><h3 id="job-label" data-i18n-skip></h3><span id="job-created" class="small muted"></span></div>
+          <div class="job-title-row"><h3 id="job-label" data-i18n-skip data-i18n-skip></h3><span id="job-created" class="small muted"></span></div>
           <p id="job-message" class="job-message" aria-live="polite"></p>
           <p id="job-progress-label" class="progress-label small muted"></p>
           <div id="job-progress" class="progress-track" role="progressbar" aria-label="已选模块的执行进度，非质量分数" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
@@ -167,7 +173,7 @@
       </section>
     </section>
     </div></details>
-    <details id="toolkit-section" class="panel toolkit-panel supporting-panel landing-secondary"><summary><span id="toolkit-title">方法工具箱</span><span id="toolkit-count" class="tag subtle" hidden>读取目录中</span></summary><div class="disclosure-content"><div class="toolkit-scope"><span id="toolkit-modality" class="tag subtle">方法目录</span></div>
+    <details id="toolkit-section" class="panel toolkit-panel supporting-panel rail-section landing-secondary"><summary><span id="toolkit-title">方法工具箱</span><span id="toolkit-count" class="tag subtle" hidden>读取目录中</span></summary><div class="disclosure-content"><div class="toolkit-scope"><span id="toolkit-modality" class="tag subtle">方法目录</span></div>
 <div class="toolkit-filters"><label>适用模态 <select id="toolkit-modality-filter"><option value="current">当前记录 / 默认目录</option></select></label><label>检查目的 <select id="toolkit-category"><option value="all">全部目的</option><option value="data_intake">数据与元信息</option><option value="signal_integrity">信号完整性</option><option value="spectrum_interference">频谱与干扰</option><option value="channel_quality">通道质量</option><option value="artifacts">伪迹线索</option><option value="events_sync">事件与时间</option><option value="reporting">结果与报告</option></select></label><label>接入状态 <select id="toolkit-implementation"><option value="available">已接入</option><option value="all">全部状态</option><option value="planned">待接入</option></select></label></div><div id="toolkit-methods" class="toolkit-methods"><p class="small muted">连接本地服务后显示方法目录。</p></div>    </div></details>
     </div>
     </div>

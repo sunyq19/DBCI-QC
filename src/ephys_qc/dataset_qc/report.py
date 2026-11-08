@@ -23,7 +23,7 @@ def render_dataset_report(result, lang='zh-CN'):
         checks.append(f'<tr><td>{e(row["module"])}</td><td>{e(row["label_en"] if en else row["label"])}</td><td><span class="{row["status"]}">{STATUS[row["status"]][int(en)]}</span></td><td>{e(row["target"])}</td><td><details><summary>{tr("证据","Evidence")}</summary><p>{e(row["message"])}</p><p>{files}</p><pre>{observed}</pre></details></td></tr>')
     return f'''<!doctype html><html lang="{lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{tr('数据集质检报告','Dataset QC report')}</title>
 <style>body{{font:15px/1.6 system-ui,sans-serif;color:#18324d;background:#f4f7fc;margin:0;padding:32px}}main{{max-width:1200px;margin:auto}}h1{{font-size:30px;margin:6px 0}}h2{{font-size:21px}}.muted,small{{color:#63758b}}section,article{{background:#fff;border:1px solid #dde6f2;border-radius:16px;padding:24px;margin:16px 0}}.cards{{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}}article h2{{font-size:32px;color:#2459c6;margin:8px 0}}table{{width:100%;border-collapse:collapse}}th,td{{padding:12px;border-bottom:1px solid #e5ebf4;text-align:left;overflow-wrap:anywhere}}th{{background:#f4f7fc}}.scroll{{overflow:auto}}pre{{font-size:12px;white-space:pre-wrap;max-height:350px;overflow:auto}}a,summary{{color:#2459c6}}summary{{cursor:pointer}}.conflict{{color:#b42318}}.review{{color:#9a6200}}.unassessed{{color:#63758b}}.pass{{color:#18774b}}@media(max-width:760px){{body{{padding:14px}}.cards{{grid-template-columns:1fr}}}}@media print{{body{{padding:0}}details{{break-inside:avoid}}}}</style>
-<main><p class="muted">DBCI-QC · {e(result['rule_version'])}</p><h1>{tr('数据集质检报告','Dataset QC report')}</h1><p>{e(result['scope'])}</p><p><b>{s['present_files']}/{s['expected_files']}</b> {tr('文件','files')} · <b>{s['subjects']}</b> {tr('人','subjects')} · <b>{s['records']}</b> {tr('份记录','recordings')} · <b>{s['groups']}</b> {tr('个比较组','comparison groups')}</p>
+<main><p class="muted">DBCI-QC · {e(result['rule_version'])}</p><h1>{e(result.get('run_name')) if result.get('run_name') else tr('数据集质检报告','Dataset QC report')}</h1><p>{e(result['scope'])}</p><p><b>{s['present_files']}/{s['expected_files']}</b> {tr('文件','files')} · <b>{s['subjects']}</b> {tr('人','subjects')} · <b>{s['records']}</b> {tr('份记录','recordings')} · <b>{s['groups']}</b> {tr('个比较组','comparison groups')}</p>
 <div class="cards">{cards}</div><p class="muted">{tr('冲突、待复核、未评分别记录，不折算为脑电信号质量分。','Conflicts, review items and unassessed checks are separate; no signal-quality score is assigned.')}</p>
 <section><h2>{tr('按个体查看','By subject')}</h2><div class="scroll"><table><tr>{''.join('<th>'+v+'</th>' for v in (["Subject","Recordings","Sessions","Conflicts","Review","Unassessed"] if en else ['个体','记录','会话','冲突','待复核','未评']))}</tr>{subjects}</table></div></section>
 <section><h2>{tr('比较组','Comparison groups')}</h2><div class="scroll"><table><tr>{''.join('<th>'+v+'</th>' for v in (["Group","Subjects","Recordings","Channel counts"] if en else ['比较组','人数','记录数','通道数']))}</tr>{groups}</table></div></section>
@@ -31,7 +31,7 @@ def render_dataset_report(result, lang='zh-CN'):
 <p class="muted">{tr('范围：文件与配套表一致性；不证明真实身份、信号质量或临床适用性。','Scope: consistency of files and accompanying tables, not identity, signal quality or clinical suitability.')}<br>{e(result['checked_at'])}</p></main></html>'''
 
 
-def run_dataset_qc(root, manifest, output_dir, *, progress=None):
+def run_dataset_qc(root, manifest, output_dir, *, progress=None, run_name=None):
     if Path(root).is_symlink() or Path(output_dir).is_symlink(): raise ValueError('不能使用目录符号链接。')
     source, output=Path(root).resolve(),Path(output_dir).resolve()
     if source==output or source in output.parents or output in source.parents: raise ValueError('输出须与来源分开。')
@@ -39,6 +39,9 @@ def run_dataset_qc(root, manifest, output_dir, *, progress=None):
     frozen=json.loads(json.dumps(manifest,ensure_ascii=False,allow_nan=False))
     result=evaluate_dataset(source,frozen,progress=progress)
     result['expectations_sha256']=__import__('hashlib').sha256(json.dumps(frozen,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+    if run_name is not None:
+        from ..run_names import resolve_run_name
+        result['run_name'] = resolve_run_name(run_name, frozen.get('label', '数据集'), 'dataset')
     output.mkdir(parents=True,exist_ok=False)
     for name,value in [('result.json',result),('expectations.json',frozen)]:
         (output/name).write_text(json.dumps(value,ensure_ascii=False,indent=2,allow_nan=False)+'\n',encoding='utf-8')

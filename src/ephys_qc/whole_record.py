@@ -142,7 +142,7 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
         raise ValueError('default_config must be an object')
     config = _merge(default, qc_config or {})
     _finite_json(config)
-    if set(config) - {'scope', 'recording_options', 'selection', 'method_config', 'feature_config', 'policy_config', 'context_tags'}:
+    if set(config) - {'scope', 'recording_options', 'selection', 'method_config', 'feature_config', 'policy_config', 'context_tags', 'scoring'}:
         raise ValueError('Unknown QC configuration fields')
     options = validate_recording_options(config.get('recording_options', {}))
     layout = _source_layout(record, config)
@@ -152,11 +152,21 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
     if max_samples < 1:
         raise ValueError('Selected recording chunk exceeds the input memory budget')
     windows = []
+    gnosis = any(isinstance(m, str) and m.startswith('gnosis_') for m in config.get('method_config', {}).get('extensions', []))
     for segment in layout['segments']:
-        for first in range(segment['start_sample'], segment['stop_sample'], max_samples):
+        if len(windows) + math.ceil((segment['stop_sample'] - segment['start_sample']) / max_samples) > MAX_WINDOWS:
+            raise ValueError(f'Recording plan exceeds {MAX_WINDOWS} windows; increase the window duration')
+        bounds = list(range(segment['start_sample'], segment['stop_sample'], max_samples)) + [segment['stop_sample']]
+        # Avoid a tiny remainder for methods estimating within-segment spectra
+        # and thresholds. Split only the last pair, never bridge a source gap,
+        # and never drop or duplicate samples. This is decided before detection.
+        if gnosis and len(bounds) >= 3 and bounds[-1] - bounds[-2] < max_samples / 2:
+            midpoint = (bounds[-3] + bounds[-1]) // 2
+            if midpoint - bounds[-3] >= math.ceil(12 * fs):
+                bounds[-2] = midpoint
+        for first, stop in zip(bounds, bounds[1:]):
             if len(windows) >= MAX_WINDOWS:
                 raise ValueError(f'Recording plan exceeds {MAX_WINDOWS} windows; increase the window duration')
-            stop = min(first + max_samples, segment['stop_sample'])
             windows.append({'id': f'w{len(windows) + 1:06d}', 'index': len(windows), 'segment_id': segment['segment_id'],
                             'start_sample': first, 'stop_sample': stop, 'start_seconds': (first - layout['sample_origin']) / fs,
                             'duration_seconds': (stop - first) / fs})
@@ -182,6 +192,7 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
     plan.update(scope='recording', schema_version='ephys-recording-plan/1.0', qc_config=canonical,
                 windows=windows, window_count=len(windows), coverage_plan=layout,
                 skipped_methods=skipped, algorithm_scope='independent_native_windows',
+                window_partition='gnosis_balanced_short_tail/1' if gnosis else 'fixed/1',
                 auto_added_modules=original['auto_added_modules'])
     node_states = {n['id']: Counter() for n in original['nodes']}
     method_states = {m['id']: Counter() for m in original['method_applicability']}
@@ -215,6 +226,8 @@ def build_recording_plan(record, selected_modules=None, qc_config=None):
         '窗口边界会影响滤波、频谱、稳健阈值和短事件；跨窗候选保留独立证据，不自动合并为最终坏段。',
         '覆盖百分比仅表示执行范围，不表示信号质量；短尾窗、失败、跳过和来源缺口分别保留。',
     ]
+    if gnosis:
+        warnings.append('含灵犀云方法时，短于半窗的尾段与前一窗均分；保持原生样本完整覆盖，不跨采集缺口。')
     if layout['gap_samples']:
         warnings.append('文件声明存在无样本的采集缺口；这些时间不纳入已检查范围。')
     warnings += [m['reason'] for m in skipped]
@@ -429,7 +442,7 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
                 loaded = child.get('recording', {})
                 if loaded.get('start_sample') is not None and (loaded['start_sample'] != window['start_sample'] or loaded.get('stop_sample') != window['stop_sample']):
                     raise ValueError('Loaded source sample bounds differ from frozen recording window')
-                window.update(status=child['status'], modules=copy.deepcopy(child['modules']), data_sha256=child.get('data_sha256'))
+                window.update(status=child['status'], modules=copy.deepcopy(child['modules']), data_sha256=child.get('data_sha256'), method_scores=copy.deepcopy(child.get('method_scores', [])))
                 if child.get('source_sha256'):
                     window['source_sha256'] = child['source_sha256']
             except RecordingCancelled as error:
@@ -457,7 +470,7 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     modules = _modules(plan, windows)
     status = 'failed' if fatal or all(w['status'] == 'failed' for w in windows) else 'cancelled' if cancelled else 'partial' if any(w['status'] != 'completed' for w in windows) or plan['skipped_methods'] or cov['gap_samples'] else 'completed'
     result = {'schema_version': 'ephys-recording-result/1.0', 'scope': 'recording', 'status': status,
-              'analysis_profile': plan['analysis_profile'],
+              'analysis_profile': plan['analysis_profile'], 'run_name': request.get('run_name'),
               'plan_id': plan['plan_id'], 'label': record.get('label', record['id']), 'qc_config': plan['qc_config'],
               'selected_modules': plan['selected_modules'], 'modules': modules, 'windows': windows,
               'window_count': len(windows), 'coverage': cov, 'coverage_plan': plan['coverage_plan'],
@@ -474,6 +487,9 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
               'input_provenance': plan['input_provenance'], 'input_data_usage': plan['input_data_usage'],
               'data_tags': plan['data_tags'], 'method_applicability': plan['method_applicability'], 'extensions': [],
               'report_path': 'artifacts/report.html', 'artifacts': [], 'duration_seconds': time.time() - started}
+    from .method_scores import finalize, pool_windows
+    finalize(result, pool_windows(windows), coverage_complete=source_verified and not fatal and not cancelled and cov['gap_samples']==0 and all(w['status'] in {'completed','partial'} for w in windows))
+    _save(artifacts / 'method-scores.json', {'outputs': result['method_scores'], 'project_score': result.get('project_score')})
     _save(artifacts / 'coverage.json', cov)
     _save(artifacts / 'candidate-index.json', candidate_index)
     _save(artifacts / 'window-results.json', windows)
@@ -487,6 +503,9 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
         (artifacts / 'report.html').write_text(render_report_view(view), encoding='utf-8')
     else:
         render_recording_report(result, artifacts / 'report.html')
+        if result.get('project_score'):
+            from .method_scores import report_section
+            path=artifacts/'report.html';path.write_text(path.read_text().replace('</body>',report_section(result['project_score'])+'</body>'))
     result['artifacts'] = [{'name': p.name, 'bytes': p.stat().st_size, 'kind': 'image' if p.suffix == '.png' else 'report' if p.suffix == '.html' else 'json'} for p in sorted(artifacts.iterdir()) if p.is_file()]
     progress['status'] = status; checkpoint()
     _save(root / 'result.json', result)

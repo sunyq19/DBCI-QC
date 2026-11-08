@@ -28,6 +28,10 @@ DOCUMENT_PAGES = {
     'eeg-evidence': ('eeg-evidence.md', 'EEG来源依据', 'EEG evidence sources'),
     'eeg-scoring': ('eeg-scoring.md', 'EEG评分规则', 'EEG scoring rules'),
     'eeg-report': ('eeg-report.md', 'EEG报告要求', 'EEG report requirements'),
+    'ieeg-scoring': ('ieeg-scoring.md', '颅内评分规则', 'Intracranial scoring rules'),
+    'ieeg-checks': ('ieeg-checks.md', '颅内检查规则', 'Intracranial check rules'),
+    'neuropixels-scoring': ('neuropixels-scoring.md', 'Neuropixels评分规则', 'Neuropixels scoring rules'),
+    'neuropixels-checks': ('neuropixels-checks.md', 'Neuropixels检查规则', 'Neuropixels check rules'),
     'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
 }
 DOCUMENT_PATHS = {'/standards', '/standards/ecog', '/standards/seeg', '/standards/neuropixels',
@@ -600,6 +604,8 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                       + '<li>' + text('头皮 EEG', 'Scalp EEG') + '<ol>'
                       + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
                       + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-scoring', 'eeg-report', 'eeg-evidence')) + '</ol></li>'
+                      + '<li>' + text('ECoG / sEEG', 'ECoG / sEEG') + '<ol>' + document_link('ieeg-checks') + document_link('ieeg-scoring') + '</ol></li>'
+                      + '<li>Neuropixels<ol>' + f'<li><a href="{prefix}/standards/neuropixels">{text("连续电压规范", "Continuous-voltage specification")}</a></li>' + document_link('neuropixels-checks') + document_link('neuropixels-scoring') + '</ol></li>'
                       + '<li>' + text('数据集', 'Dataset') + '<ol>' + document_link('dataset-checks') + '</ol></li>'
                       + document_link('implementation'))
     kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else
@@ -626,7 +632,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
     return f'''<!doctype html>
 <html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light"><title>{escape(title)} · {text("质控台", "QC Workbench")}</title>
-<style>{STYLES}</style><script src="/standards-navigation.js" defer></script></head><body>
+<style>{STYLES}</style><link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css"><script src="/standards-navigation.js" defer></script></head><body class="qc-document">
 <a class="skip-link" href="#document">{text("跳到正文", "Skip to document")}</a>
 <header class="document-header"><nav class="document-toolbar" aria-label="{text("文档操作", "Document actions")}">
 <a id="return-workbench" class="workbench-return" href="{workbench_href}" aria-keyshortcuts="Alt+Q" title="{text("返回质控台（Alt+Q）", "Return to QC Workbench (Alt+Q)")}">← {text("返回质控台", "QC Workbench")} <kbd>Alt+Q</kbd></a>

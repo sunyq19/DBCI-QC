@@ -9,9 +9,6 @@ def validate_ecog_methods(methods):
         raise ValueError('method_config must be an object')
     if set(methods) - {'ecog', 'comparison_groups', 'extensions', 'extension_parameters'}:
         raise ValueError('ECoG does not accept scalp EEG method parameters or thresholds')
-    for key, empty in [('comparison_groups', None)]:
-        if key in methods and methods[key] != empty:
-            raise ValueError('ECoG basic execution does not support ' + key)
     config = methods.get('ecog', {})
     if not isinstance(config, dict) or set(config) - {'psd_window_seconds', 'line_frequencies_hz'}:
         raise ValueError('method_config.ecog accepts psd_window_seconds and line_frequencies_hz only')
@@ -24,5 +21,5 @@ def validate_ecog_methods(methods):
             or len(set(frequencies)) != len(frequencies)):
         raise ValueError('ecog.line_frequencies_hz requires 1–8 distinct positive finite frequencies')
     return {'ecog': {'psd_window_seconds': float(seconds), 'line_frequencies_hz': sorted(float(f) for f in frequencies)},
-            'comparison_groups': None, 'extensions': methods.get('extensions', []),
+            'comparison_groups': methods.get('comparison_groups'), 'extensions': methods.get('extensions', []),
             'extension_parameters': methods.get('extension_parameters', {})}

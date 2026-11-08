@@ -271,12 +271,16 @@ class IntakeStore:
                  'sha256': source_hash, 'source_sha256': source_hash, 'source_files': source_files,
                  'metadata': metadata, 'suggestions': proposal, 'warnings': warnings, 'selection_revision': 0,
                  'received_at': datetime.now(timezone.utc).isoformat()}
+        if context.get('library_origin') == 'user_registered':
+            value['library_origin'] = 'user_registered'
         self._verified_source(value)
         directory = self._directory(identifier); directory.mkdir(mode=0o700)
         _save(directory / 'intake.json', value)
         return value
 
     def _verified_source(self, intake):
+        if intake.get('retention', {}).get('state') == 'expired':
+            raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
         directory = self._directory(intake['id'])
         base = Path(intake.get('linked_root', directory))
         if base.is_symlink() or not base.is_dir():
@@ -332,8 +336,12 @@ class IntakeStore:
                      'capabilities': {'supported_modality': 'scalp_eeg', 'supported_modalities': list(ROUTES), 'inspection_modalities': sorted(MODALITIES),
                                       'readers': list_readers(), 'max_window_seconds': 120,
                                       'max_upload_bytes': self.limits.max_file_bytes,
+                                      'max_dataset_bytes': self.limits.max_dataset_bytes,
                                       'max_record_bytes': self.limits.max_record_bytes,
                                       'intake_limit_version': self.limits.version}}
+            from upload_retention import receipt
+            value['library_origin'] = 'user_upload'
+            value['retention'] = receipt(directory, source, value['received_at'])
             _save(directory / 'intake.json', value)
             return value
         except Exception as error:
@@ -434,6 +442,8 @@ class IntakeStore:
                   'intake_confirmation': {'confirmed': True, 'technical_header_automatic': True,
                                           'roles_reference_modality': 'user_confirmed',
                                           'automatic_cleaning': False}}
+        for key in ('library_origin', 'retention'):
+            if key in intake: record[key] = copy.deepcopy(intake[key])
         if intake.get('dataset_context'):
             record['dataset_context'] = copy.deepcopy(intake['dataset_context'])
             record['dataset_id'] = 'package-' + intake['dataset_context']['package_id']

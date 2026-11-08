@@ -95,7 +95,7 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     if root == source or source in root.parents or root in source.parents:
         raise ValueError("Job outputs must be separate from the original input file")
     result = {"schema_version": "ephys-result/1.3", "plan_id": plan["plan_id"], 'scope': 'window',
-              'analysis_profile': plan['analysis_profile'],
+              'analysis_profile': plan['analysis_profile'], 'run_name': request.get('run_name'),
               "recording": {"channel_count": 0, "sampling_rate_hz": None,
                             "start_seconds": plan["qc_config"]["selection"]["start_seconds"],
                             "duration_seconds": plan["qc_config"]["selection"]["duration_seconds"]},
@@ -156,7 +156,13 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
                 if mid not in entry['module_ids']:
                     entry['module_ids'].append(mid)
 
+    method_score_rows = []
     def save(name, payload, row):
+        from .method_scores import payload_outputs
+        out = payload_outputs(name, payload, modality, result['recording'])
+        if out:
+            payload['score_outputs'] = out
+            method_score_rows.extend(out)
         _write_json(artifacts / name, payload)
         row["artifacts"].append(name)
 
@@ -181,6 +187,8 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
         facts = data_facts(record, config)
         facts.update(sampling_rate_hz=state['fs'], n_eeg=len(state['channels']),
                      window_seconds=state['recording']['duration_seconds'], verified_voltage=True)
+        from .ieeg_baseline import encoding_ranges
+        facts['encoding_ranges'] = encoding_ranges(state['channels'])
         channel_mapping = _extension_channel_mapping(state['channels'])
         for id_ in methods.get('extensions', []):
             spec = specs[id_]
@@ -247,6 +255,7 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
                     row.update(status='partial', reason='可选增强执行失败；已完成的基础检查结果保留。')
                 result['warnings'].append(spec['name'] + ': ' + entry['reason'])
             save(filename, detail, row)
+            entry['score_outputs'] = detail.get('score_outputs', [])
             result['extensions'].append(entry)
             row['summary'].setdefault('extensions', []).append(entry)
 
@@ -299,6 +308,9 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
     _write_json(artifacts / "environment.json", environment)
     result["status"] = "failed" if any(statuses.get(k) == "failed" for k in ("M01", "M02", "M08")) else "partial" if any(v in {"partial", "failed"} for v in statuses.values()) else "completed"
     result["warnings"] = list(dict.fromkeys(result["warnings"]))
+    from .method_scores import finalize
+    finalize(result, method_score_rows, coverage_complete=result["status"] != "failed")
+    _write_json(artifacts / 'method-scores.json', {'outputs': result['method_scores'], 'project_score': result.get('project_score')})
     result = _safe(result)
     from .eeg_assessment import attach_eeg_assessment
     attach_eeg_assessment(result, artifacts)
@@ -306,6 +318,10 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
                             "kind": "image" if p.suffix == ".png" else "json" if p.suffix == ".json" else "report"}
                            for p in sorted(artifacts.iterdir()) if p.is_file() and p.name != "report.html"]
     _report(result, record.get("label", record["id"]), artifacts / "report.html")
+    if result.get("project_score") and descriptive:
+        from .method_scores import report_section
+        report_file = artifacts / "report.html"
+        report_file.write_text(report_file.read_text().replace("</body>", report_section(result["project_score"])+"</body>"))
     result["artifacts"].append({"name": "report.html", "bytes": (artifacts / "report.html").stat().st_size, "kind": "report"})
     _write_json(root / "result.json", result)
     return result
