@@ -12,6 +12,12 @@ export function ScoringBadges({node,filter='all'}:{node:FlowNode;filter?:string}
  if(!roles.length)return null;
  return <span className="scoring-badges">{roles.map(role=><span className={'score-badge '+role} key={role} title={scores.filter(s=>s.role===role).map(s=>SCOPE_LABEL[s.scope]+': '+s.weight).join('\n')}>{SCORE_LABEL[role]}{roles.length>1&&<span> · {scores.filter(s=>s.role===role).map(s=>({eeg:'EEG',ecog:'ECoG',seeg:'sEEG',np:'NP',dataset:'数据集'}[s.scope])).join('/')}</span>}</span>)}</span>;
 }
+export function scoringSummary(node:FlowNode,filter='all'){
+ if(node.children?.length||!node.scoring)return node.summary;
+ const roles=[...new Set(nodeScoring(node,filter).map(s=>s.role))];
+ if(roles.length>1)return '按模态采用不同计分角色';
+ return roles[0]==='default'?'推荐方案启用 · 需满足条件':roles[0]==='optional'?'可加入评分 · 默认不计入':node.summary;
+}
 export function ScoringDetails({node,filter='all',select}:{node:FlowNode;filter?:string;select?:(id:string)=>void}){
  if(node.children?.length){
   const children=node.children.filter(n=>(filter==='all'||n.scope.includes(filter))&&(node.id!=='M08'||n.id.startsWith('score_')));
