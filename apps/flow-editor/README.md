@@ -2,8 +2,8 @@
 
 模块、读取器、计分接口及默认权重从质控台代码生成。在线页面维护团队说明与固定版本，不能另行改写正在执行的算法规则。
 
-- [模块流程：查看、登录编辑、历史与固定版本](https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/)
-- [v1.6 固定版本](https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/?version=scoring-v16)
+- [模块流程：查看、登录编辑、历史与固定版本](https://sunyq19.github.io/DBCI-QC/)
+- [v1.6 固定版本](https://sunyq19.github.io/DBCI-QC/?version=scoring-v16)
 - [质控台](http://10.100.21.50:8769/)
 
 模块流程只有一个页面入口，查看与登录编辑使用同一应用，不依赖 012。质控台导航可打开流程网页；流程网页的“质控台”入口打开实际质检服务，需要连接实验室内网或 VPN。页面之间仅跳转，不传递上传文件或报告。
@@ -13,7 +13,7 @@
 1. 在质控台登记或修改模块、评分接口、默认方案及相关文档。
 2. 合并到 GitHub `main` 后，`Sync QC module catalog` 工作流自动生成并校验目录。
 3. 工作流成功提交目录后，共同网页读取新目录。访问当前草稿时触发检查，缓存最多 5 分钟；已打开且没有未保存修改的页面会自动刷新。
-4. 原 GitHub Pages 地址仅保留跳转，携带原有固定版本或历史记录参数进入统一页面，不再提供第二套查看界面。
+4. GitHub Pages 承载完整流程界面，通过公开 API 读取同一份草稿、团队说明与版本记录；不另外维护数据副本。
 
 本地未发布的修改不会同步到团队网页。同步目录只含模块元信息，不包含记录文件、患者资料或质检结果。
 
@@ -31,7 +31,7 @@ Node.js 24，Python 3.11+。在本目录安装依赖后执行：
 
 ```bash
 node scripts/sync-catalog.mjs
-node scripts/build-pages.mjs # 只生成旧链接跳转页
+node scripts/build-pages.mjs # 生成完整公开前端
 ```
 
 `lib/sync.ts` 负责目录校验、按编号合并与历史说明迁移；`lib/repository.ts` 负责追加记录和固定版本。`content/module-catalog.json`、`content/sync-manifest.json` 和 `content/scoring-rules/` 都是生成文件，请修改其质控台来源。
@@ -40,4 +40,6 @@ node scripts/build-pages.mjs # 只生成旧链接跳转页
 
 ## 页面入口
 
-`config/navigation.json` 集中配置模块流程与内网质控台地址。前者承载同一套查看、登录编辑、修改历史和固定版本功能；后者执行质检。GitHub 负责源码与版本管理，不在产品导航中展示。发布协作应用后，运行 `scripts/publish-pages.mjs` 更新旧链接跳转页；跳转保留 `version`、`revision` 和片段位置。
+`config/navigation.json` 集中配置公开流程网址、后端服务地址与质控台地址。公开网址保留 `sunyq19.github.io/DBCI-QC/`，完整前端直接显示在此地址；产品导航不展示 GitHub 源码入口。发布后端后，运行 `scripts/publish-pages.mjs` 更新公开前端。
+
+登录继续使用现有托管身份服务。登录与保存时通过顶层页面核验权限，随后返回公开流程页；不依赖第三方 Cookie，不在公开前端存放令牌。编辑提示不构成授权，每次保存和固定版本仍由服务端检查指定成员身份、修改版本及内容。未完成保存的草稿暂存于当前标签页，以便失败时恢复。既有编辑权限、数据库和固定版本保持不变。

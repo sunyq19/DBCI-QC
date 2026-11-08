@@ -2,7 +2,7 @@
 
 **模块化电生理数据质控工具集，附本地质控台。**
 
-[质控流程网页](https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
+[质控流程网页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
 本次源码基线：**2026-11-08 / 1.0.0rc3.dev40**。本地版可安装运行，[共享演示版部署包](docs/deployment/demo.md)已提供：访客无需账号，共享“我的数据”，仅设一名管理员。部署进度见[准备清单](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
 

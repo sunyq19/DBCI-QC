@@ -7,8 +7,11 @@ if(canonical.protocol!=='https:')throw new Error('The public flow URL must use H
 const href=canonical.href.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
 await rm(out,{recursive:true,force:true});
 await mkdir(`${out}/assets`,{recursive:true});
-await build({entryPoints:['static/main.tsx'],bundle:true,minify:true,format:'esm',target:'es2020',outfile:`${out}/assets/redirect.js`});
+const result=await build({entryPoints:{app:'static/main.tsx'},bundle:true,minify:true,jsx:'automatic',format:'esm',target:'es2020',outdir:`${out}/assets`,entryNames:'[name]-[hash]',metafile:true,define:{'process.env.NODE_ENV':'"production"'}});
+const files=Object.keys(result.metafile.outputs);
+const js=files.find(f=>f.endsWith('.js')).replace(out+'/','./');
+const css=files.find(f=>f.endsWith('.css')).replace(out+'/','./');
 await copyFile('public/favicon.svg',`${out}/favicon.svg`);
 await writeFile(`${out}/.nojekyll`,'');
-await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 模块流程</title><link rel="canonical" href="${href}"><link rel="icon" href="./favicon.svg"><style>body{margin:0;background:#f5f8fc;color:#19354e;font:15px/1.7 system-ui,sans-serif}main{max-width:480px;margin:18vh auto;padding:32px}h1{font-size:22px}a{color:#2861d9}</style></head><body><main><h1>模块流程</h1><p>正在打开统一页面…</p><a id="continue-link" href="${href}">继续访问</a><noscript><p>启用 JavaScript 可自动保留原链接的版本位置。</p></noscript></main><script type="module" src="./assets/redirect.js"></script></body></html>`);
-console.log(`Legacy redirect ready: ${out}/ → ${canonical.href}`);
+await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 模块流程</title><link rel="canonical" href="${href}"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="${css}"><meta name="description" content="DBCI-QC 数据质控模块流程、适用条件与评分方案。"></head><body><div id="root"></div><noscript>请启用 JavaScript 查看模块流程。</noscript><script type="module" src="${js}"></script></body></html>`);
+console.log(`Full frontend ready: ${out}/ → ${canonical.href}`);

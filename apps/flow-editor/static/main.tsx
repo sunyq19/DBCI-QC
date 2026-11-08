@@ -1,6 +1,4 @@
-import {flowUrlForLegacyLink} from '../lib/navigation';
-
-const target=flowUrlForLegacyLink(window.location.href);
-const link=document.getElementById('continue-link');
-if(link instanceof HTMLAnchorElement)link.href=target;
-window.location.replace(target);
+import {createRoot} from 'react-dom/client';
+import FlowPage from '../app/page';
+import '../app/globals.css';
+createRoot(document.getElementById('root')!).render(<FlowPage/>);
