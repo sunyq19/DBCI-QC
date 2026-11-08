@@ -5,6 +5,9 @@
 - [查看流程](https://sunyq19.github.io/DBCI-QC/)
 - [协作编辑](https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/)
 - [v1.6 固定版本](https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/?version=scoring-v16)
+- [质控台（内网）](http://10.100.21.50:8769/)
+
+流程查看和协作编辑独立托管，不依赖 012。质控台导航可打开流程网页；流程网页的“质控台（内网）”入口打开实际质检服务，需要连接实验室内网或 VPN。页面之间仅跳转，不传递上传文件或报告。
 
 ## 自动同步
 

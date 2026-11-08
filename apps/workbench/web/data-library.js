@@ -67,14 +67,8 @@
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
   }
-  let refreshFeedback;
   async function refresh(){
-    const request=++revision, button=$('data-library-refresh');
-    clearTimeout(refreshFeedback);
-    button.dataset.state='loading';button.disabled=true;
-    button.setAttribute('aria-busy','true');
-    button.setAttribute('aria-label',t('正在刷新我的数据','Refreshing my data'));
-    button.title=t('正在刷新','Refreshing');
+    const request=++revision;
     try{
       const response=await fetch('/api/v1/data',{cache:'no-store'});
       if(!response.ok)throw Error('directory');
@@ -82,27 +76,19 @@
       items=data.items;if(!cached)examples=data.examples||[];
       if(!lastLoaded&&items.length)$('data-library').open=true;
       lastLoaded=Date.now();render();$('data-library-error').hidden=true;
-      button.dataset.state='done';button.title=t('已更新','Updated');
-      button.setAttribute('aria-label',t('我的数据已更新，点击刷新','My data updated; refresh again'));
-      refreshFeedback=setTimeout(()=>{if(request===revision)delete button.dataset.state;},1800);
     }catch{
       if(request===revision){
-        button.dataset.state='error';button.title=t('刷新失败，点击重试','Refresh failed; retry');
-        button.setAttribute('aria-label',button.title);
         $('data-library-error').textContent=t('数据目录暂时不可用，请重试。','Data directory unavailable. Retry.');
         $('data-library-error').hidden=false;
         if(!lastLoaded){$('data-library-list').innerHTML='';$('data-library-more').hidden=true;}
         if(!examples.length)$('demo-report-list').innerHTML='<p class="small muted">'+t('示例目录暂不可用，请重试。','Example directory unavailable. Retry.')+'</p><button type="button" class="text-button" data-examples-retry>'+t('重试','Retry')+'</button>';
       }
-    }finally{
-      if(request===revision){button.disabled=false;button.removeAttribute('aria-busy');}
     }
   }
   $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh()});
   $('data-search').addEventListener('input',()=>{limit=6;render()});
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});
-  $('data-library-refresh').addEventListener('click',event=>{event.preventDefault();event.stopPropagation();refresh()});
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
   try{$('demo-reports').open=window.localStorage.getItem('qc.examples.open')!=='false'}catch{}
   $('demo-reports').addEventListener('toggle',()=>{try{window.localStorage.setItem('qc.examples.open',String($('demo-reports').open))}catch{}});

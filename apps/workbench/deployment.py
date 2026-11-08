@@ -86,7 +86,6 @@ def homepage(template, settings):
     template = template.replace('<html lang="zh-CN">', '<html lang="zh-CN" data-deployment="shared_demo">')
     template = template.replace('<div id="upload-run-name-field"',
         '<p class="small muted shared-demo-note">共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。</p><div id="upload-run-name-field"', 1)
-    template = template.replace('<span>我的数据</span>', '<span>我的数据 <small class="tag subtle">共享</small></span>', 1)
     return (template.replace('质控台 · 本地处理', '质控台 · 共享演示')
             .replace('连接本地服务…', '连接服务…')
             .replace('保持本机服务运行即可', '处理完成后可回来查看报告'))

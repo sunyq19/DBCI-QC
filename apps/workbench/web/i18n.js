@@ -1048,6 +1048,7 @@ EEG 质控工作台	QC Workbench
 没有文件	No file
 读取后显示	Shown after reading
 质控流程	QC workflow
+模块流程	Module map
 检查记录	Checks
 方法工具箱	Method toolkit
 质控标准	QC standards

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../apps/workbench/web/data-library.js',import.meta.url),'utf8');
 const nodes=new Map(),events={};let language='zh-CN',requests=[];
-const element=id=>{if(!nodes.has(id))nodes.set(id,{value:'',events:{},dataset:{},attrs:{},removeAttribute(k){delete this.attrs[k]},setAttribute(k,v){this.attrs[k]=v},addEventListener(k,v){this.events[k]=v}});return nodes.get(id)};
+const element=id=>{if(id==='data-library-refresh')return null;if(!nodes.has(id))nodes.set(id,{value:'',events:{},dataset:{},attrs:{},removeAttribute(k){delete this.attrs[k]},setAttribute(k,v){this.attrs[k]=v},addEventListener(k,v){this.events[k]=v}});return nodes.get(id)};
 const window={QCI18n:{getLanguage:()=>language},addEventListener(k,v){events[k]=v}};
 const context={URL,setTimeout:()=>1,clearTimeout(){},window,document:{getElementById:element},fetch:()=>new Promise(resolve=>requests.push(resolve))};
 vm.runInNewContext(source,context);
@@ -13,8 +13,6 @@ element('data-library-list').innerHTML='<p>正在加载数据…</p>';
 requests.shift()({ok:false});await flush();
 assert.equal(element('data-library-list').innerHTML,'');
 assert.equal(element('data-library-error').hidden,false);
-assert.equal(element('data-library-refresh').dataset.state,'error');
-assert.equal(element('data-library-refresh').disabled,false);
 assert.equal(element('data-library-more').hidden,true);
 window.QCDataLibrary.refresh();
 const item=(id,extra={})=>({id,kind:'record',label:id,url:'/?input='+id,available:true,status:'not_run',...extra});
@@ -34,12 +32,8 @@ element('data-search').value='dataset';element('data-search').events.input();ass
 language='en';events['qc:languagechange']();assert.match(element('data-library-list').innerHTML,/Dataset/);assert.match(element('data-library-list').innerHTML,/lang=en/);
 element('data-search').value='';element('data-search').events.input();
 const first=window.QCDataLibrary.refresh(),second=window.QCDataLibrary.refresh();
-assert.equal(element('data-library-refresh').dataset.state,'loading');
-assert.equal(element('data-library-refresh').disabled,true);
 requests[1]({ok:true,json:async()=>({items:[item('newest')]})});await second;
 requests[0]({ok:true,json:async()=>({items:[item('stale')]})});await first;
-assert.equal(element('data-library-refresh').dataset.state,'done');
-assert.equal(element('data-library-refresh').disabled,false);
 assert.match(element('data-library-list').innerHTML,/newest/);assert(!element('data-library-list').innerHTML.includes('stale'));
 // Validation cases are explicit, not selected by outcome; normal failures stay visible.
 const req=window.QCDataLibrary.refresh();requests.at(-1)({ok:true,json:async()=>({items:[
@@ -71,7 +65,7 @@ console.log('Data library: escaping, local links, search, pagination, language a
 assert.match(element('data-library-list').innerHTML, /No uploads yet|尚未上传数据/);
 // Cached examples render synchronously, even if personal data never respond.
 const cachedNodes=new Map(),cachedEvents={};let resolvePrivate;
-const cachedElement=id=>{if(!cachedNodes.has(id))cachedNodes.set(id,{value:'',events:{},dataset:{},removeAttribute(){},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return cachedNodes.get(id)};
+const cachedElement=id=>{if(id==='data-library-refresh')return null;if(!cachedNodes.has(id))cachedNodes.set(id,{value:'',events:{},dataset:{},removeAttribute(){},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return cachedNodes.get(id)};
 const frozen={schema_version:'example-cache/1',examples:[{kind:'dataset',label:'缓存 EEG',label_en:'Cached EEG',subjects:2,records:2,reported:2,available:true,url:'/examples/0123456789abcdef/datasets/eeg.zh-CN.html',url_en:'/examples/0123456789abcdef/datasets/eeg.en.html'}]};
 cachedElement('example-cache').textContent=JSON.stringify(frozen);
 let cacheLanguage='zh-CN';
