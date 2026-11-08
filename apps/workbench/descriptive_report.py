@@ -12,6 +12,10 @@ def render(store, identifier, language='zh-CN'):
         from ieeg_report import render as render_ieeg
         report=render_ieeg(store,identifier,language)
         if report:return report
+    if modality == 'extracellular':
+        from neuropixels_report import render as render_neuropixels
+        report=render_neuropixels(store,identifier,language)
+        if report:return report
     from dataset_overview import recording_display
     en = language == 'en'; t = lambda a,b:b if en else a
     esc = lambda value:escape(str(value if value is not None else '—'), quote=True)

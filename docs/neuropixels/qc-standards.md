@@ -1,121 +1,124 @@
-# Neuropixels电压质量检查技术约定
+# Neuropixels连续电压质控技术规范
 
-项目技术规范 · 版本 neuropixels-voltage/2 · 2026-10-31 · 文档修订 2 · 研究用途
+项目技术规范 · 版本 neuropixels-qc/0.1 · 2026-11-08 · 征求意见稿，待专家审核
 
-共同要求见[总则](/standards/overview)、[字段字典](/standards/fields)与[方法适用规则](/standards/applicability)，实际能力见[实现范围](/standards/implementation)。物种和年龄应保留来源、单位与时间依据，不得将人类年龄分组套用于动物。本次字段要求不改变既有分析配置版本，也不建立新的跨物种阈值。
+## 1 范围与评价对象
 
-## 1 范围
+本版固定Neuropixels连续电压的检查项目、触发条件和报告要求。适用于已核验的SpikeGLX AP/LF和具有明确Neuropixels设备声明的NWB连续ElectricalSeries。兼容执行配置`neuropixels-voltage/2`，推荐方案版本`neuropixels-basic-recipe/0.1`。本文件是项目规范，不是已发布的行业标准，也未完成检测准确性校准。
 
-适用于读取器已支持的Neuropixels SpikeGLX原始AP/LF电压流，或有明确Neuropixels设备证据的NWB 2/HDF5连续ElectricalSeries。NWB电压可为来源已处理的LFP，应保留处理声明，不统一称为原始AP/LF。内部模态为extracellular，记录系统为Neuropixels；当前不支持sorting/unit输入，不执行分选、漂移校正或神经元质量判断。读取器支持型号0、21、24的明确声明结构；当前真实数据验收覆盖NP1，NP2仅有合成读取契约测试。
+| 对象 | 本版处理 | 不得混淆 |
+| --- | --- | --- |
+| AP连续电压 | 文件、时间、完整性、频谱、通道统计；有条件时增加AP通道离群 | 高频包含神经放电，不能套用EEG肌电规则 |
+| LF / LFP连续电压 | 文件、时间、完整性、低频频谱与通道统计 | 不套用AP的300 Hz高通和离群参数 |
+| 分选后units / spikes | 尚未接入；另列后续输入和指标要求 | 一个记录通道不等于一个神经元 |
 
-## 2 输入
+IBL分别提供原始电压RMS/频谱检查与分选结果指标；本版采用这种评价对象分层，不声称已运行完整IBL流程。[IBL原始数据质控接口](https://docs.internationalbrainlab.org/_autosummary/ibllib.ephys.ephysqc.html)
 
-SpikeGLX每次上传一个完整流的.bin与同名.meta，可一起ZIP；NWB上传单个文件，并明确选择一个连续ElectricalSeries。应有可核对的设备证据、采样率、通道映射、标定与时间原点。SpikeGLX模拟神经道和数字同步字必须分开；NWB按电极表行映射和单位转换字段读取。缺失必要标定或设备证据时不猜测模态，Units不得充当连续波形。
+## 2 必需信息
 
-## 3 配置
+运行前须确认文件格式、连续信号对象、AP/LF/LFP或未知频带、设备型号、原始通道身份、神经道与同步字角色、采样率、标定单位、记录范围和原始时间基准。NWB须固定ElectricalSeries路径及电极表映射。
 
-analysis_profile为neuropixels-voltage/2，配置键为method_config.neuropixels。Welch窗长AP默认0.1秒，LF/LFP及其他已确认的Neuropixels电压默认1秒；line_frequencies_hz=[50,60]。记录有效频率分辨率，不将该设置视为通用噪声阈值。
+probe/shank/site用于条件方法；缺shank时仍可运行逐通道描述，但不得自动建立跨杆比较。参考、来源滤波/降采样、物种、年龄及其单位、实验状态应随报告保存；缺失标为未知，不推断脑区或疾病阈值。来源已处理LFP不得称为未处理原始AP。
 
-## 4 执行与结果
+SpikeGLX文件长度应与保存字数、采样率及记录时长相符，`firstSample`提供原始样本位置。数字同步字不进入电压统计。[SpikeGLX元数据定义](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html)
 
-与其他模态共用上传、确认、计划、运行及报告流程。默认M03–M05；登记事件后可核对M07，M06未接入。每个计划只执行一个流，保留原始采样率，不自动拼流或清洗。score.value保持null。
+## 3 默认流程与条件路由
+
+```text
+读取文件 → 确认一个连续电压流 → 排除同步字
+                         ↓
+             完整性、频谱、逐通道统计
+                         ↓
+          AP且shank/窗口条件满足 → AP通道离群
+          LF/LFP或条件不足      → 保留描述量
+                         ↓
+               有事件表 → 核对事件时间
+                         ↓
+       报告：检查范围、测量、候选通道、未评原因
+```
+
+默认M03–M05；已登记事件表时增加M07。AP离群仅在至少一个实际分析窗满足条件时推荐；用户明确提供的方法列表优先。每个窗在执行时重新核验，短尾段不填正常。M01、M02、M08、M09承担接入、计划、汇总和报告。
+
+长记录按原生采样点分块，保留失败、未执行和来源缺口。全长扫描与方法内部抽样必须区分。当前输入上限仍为单文件2 GiB、数据集10 GiB；上限不是最短实验时长或数据质量阈值。
+
+## 4 结果解释与计分
+
+结构不合法或无法标定：拒绝该信号进入检查。检查完成但发现非有限值、整窗恒值或AP离群：给出复核线索和位置。条件不足、失败或未接入：明确列为未评；不得解释为正常。
+
+本版可输出AP通道离群分：`100 × (1 − 候选通道数 / 实际受检通道数)`。多窗按各窗受检通道数与时长加权汇总，重复候选按通道身份去重。同一方法的std/mad是二选一参数，不叠加计分。
+
+该分仅表示本方法未标记的比例，不能代替完整性、漂移、同步或unit质量。默认报告保留该方法分项，不建立覆盖所有维度的Neuropixels综合分。用户手动纳入项目评分时须同时显示项目范围、实际权重与未评项。LF/LFP不继承AP分数。未评不补100，整窗全零也不能因为“没有NaN”而判为正常。
+
+详细口径见[Neuropixels检查规则](/standards/neuropixels-checks)。
 
 ## 5 模块要求
 
 ### 5.1 M01 数据接入与结构核验
 
-SpikeGLX核对二进制长度、采样率、保存通道数、通道映射、量化增益和firstSample，保留同步字身份。NWB核对连续ElectricalSeries、设备证据、电极表映射、单位转换和独立时钟；不把Units表当成连续通道。
-
-不能将任意裸.bin按Neuropixels解码。支持范围以读取器实际识别的探针类型为准；NIDQ、压缩.cbin、NWB-Zarr和其他尚未接入的采集格式不在本版范围。
+核对配套文件、声明大小/校验信息、原始帧结构、单位增益和连续流身份。现有SpikeGLX读取器识别探针类型0、21、24；NP1有真实样本，NP2只有合成契约测试。不接受任意裸bin冒充Neuropixels；cbin、NIDQ和NWB-Zarr尚未接入。
 
 [模块详情](/standards/neuropixels/modules/M01)
 
 ### 5.2 M02 数据画像与检查计划
 
-一次计划选择一个SpikeGLX AP/LF流或NWB连续ElectricalSeries；只对模拟神经通道计算电压指标，保留同步道但排除其参与。NWB多流选择连同对象路径、电极映射与时钟冻结，不能更换流后沿用旧计划。冻结neuropixels-voltage/2参数和来源。
-
-内部modality为extracellular；Neuropixels是记录系统标签。不同AP/LF或NWB连续流不能强行拼接为同一采样时钟，probe/shank/site信息存在也不代表组织位置已经核验。一般NWB电压和普通LFP不因其容器格式自动归入本路线。
+冻结一个流、原生采样率、源通道索引、时间范围、方法版本及参数。AP/LF可以来自同一次实验，但不能当作同一时钟或两个独立生物样本。分组、位置和处理史保持来源。
 
 [模块详情](/standards/neuropixels/modules/M02)
 
 ### 5.3 M03 基础信号完整性
 
-扫描非有限值和相邻精确恒值连续段；定位证据始终使用原始样本。
-
-整数ADC量化会产生精确相等样本，不能把每次相等都视为丢包或坏道。本版不以恒值计数诊断采集故障，也不自动修复数据。
+逐道统计NaN/Inf、精确重复连续段及其最长持续时间；单独列出整分析窗恒值的通道。精确恒值不证明硬件丢包，少量相邻相等不作为坏道。原始样本位置与详细位置保存预算必须可追溯，计数不因明细截断减少。
 
 [模块详情](/standards/neuropixels/modules/M03)
 
 ### 5.4 M04 流内频谱观察
 
-以Welch生成描述性PSD；Hann窗、50%重叠、逐段去均值。AP默认0.1秒窗，LF/LFP及其他已确认的Neuropixels电压默认1秒窗，记录实际频率分辨率。
-
-短AP窗的分辨率可能不足以分辨邻近谱峰。采集滤波会改变可解释频段；工频观察不是噪声判定，神经放电高频不作为肌电扣分。
+Welch PSD采用Hann窗、50%重叠和逐段去均值。AP默认0.1秒，LF/LFP默认1秒；报告实际频率分辨率和来源滤波史。测量50/60 Hz邻域，不把谱峰自动判成电源污染，不将AP高频作为肌电扣分。
 
 [模块详情](/standards/neuropixels/modules/M04)
 
 ### 5.5 M05 逐通道统计
 
-计算有限值数量、均值、标准差、RMS及峰峰值；不将数字同步字计算为电压。
+逐道输出有限样本数量、均值、标准差、RMS和峰峰值。RMS包含神经活动，不能改名为噪声地板。
 
-RMS包括神经信号，不能直接当噪声地板；可显式启用SpikeInterface AP std/MAD坏道候选，须满足AP及来源shank分组前提；不等于已确认坏道。当前不计算unit SNR、ISI违例或漂移。原始通道与sorting后的unit不是同一实体。
+AP有来源shank映射、每杆至少8个选中神经道且窗口满足执行限制时，推荐已接入的SpikeInterface原版MAD路径：300 Hz高通、0.3秒抽样块、20块、seed=0、阈值为各杆通道MAD中位数的5倍。仅检测高离散度noise候选；good只代表未超此阈值。参数为项目初版配置，不是行业合格线。IBL coherence+psd、dead/out分类当前未接入。[SpikeInterface方法说明](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels)
 
 [模块详情](/standards/neuropixels/modules/M05)
 
 ### 5.6 M06 伪迹方法边界
 
-本版本未接入，不调用EEG/ECoG伪迹算法替代；不执行去条纹、公共参考或运动校正。
-
-探针漂移需要位置/时间和适当检测方法。完整性统计不能替代漂移估计或spike sorting准确率。
+本版不默认执行去条纹、重参考、漂移校正或spike sorting。它们改变数据或评价对象，后续以独立可选模块接入，不能把修改比例当成质量分。
 
 [模块详情](/standards/neuropixels/modules/M06)
 
 ### 5.7 M07 来源事件核对
 
-对已登记或明确映射的事件作字段、范围和样本映射核对；NWB事件应转换到被选流的时间原点，不混用同文件其他流的时钟。
-
-本版不从同步字自动提取边沿，不作跨探针或AP/LF时钟校准。同名时间戳或同步道存在不证明设备已对齐。
+核对已登记事件表的字段、范围和样本映射。当前未解码同步字错误位、未校准跨流/跨探针时钟；有同步通道不等于已同步。
 
 [模块详情](/standards/neuropixels/modules/M07)
 
 ### 5.8 M08 分项评价与汇总
 
-汇总观察量、未评、失败及证据来源；保留每个流独立的执行范围。
-
-不提供spike sorting质量分、unit产量或可用神经元结论。AP和LF是不同数据流，不算两个独立生物样本。
+按真实分母合并已完成窗口；区分全长完整性扫描与AP离群方法的固定种子抽样。报告执行覆盖、原始候选、分项与未评范围，不能用相邻量化重复次数代替坏道率。
 
 [模块详情](/standards/neuropixels/modules/M08)
 
 ### 5.9 M09 报告与复核
 
-生成连续电压检查报告并保留人工复核链路；显示被选流、来源已做处理和未评范围，不将来源处理后的LFP标为未处理原始记录。
-
-报告不代表已经执行分选或unit质控。后续unit报告必须引用分选器版本、配置、原始记录、时间映射和独立指标证据。
+报告统一四层：检查结果、问题定位、图表分析、报告详情。首屏展示流类型、通道数、实际覆盖及主要发现；原始参数与证据在详情中。候选保留来源通道身份与分析窗口，不给仅有通道标签的方法编造事件起止时间。
 
 [模块详情](/standards/neuropixels/modules/M09)
 
-## 6 分层与验证边界
+## 6 分选后单元的后续规范
 
-连续电压层描述模拟电压和采样完整性，区分原始采集流与来源已处理的LFP。未来分选结果层应单独接入unit身份、spike时间、分选器版本与原始记录引用；只有满足指标所需数据后，才能计算发放率、presence ratio、ISI违例、SNR等。方法依赖、时间基准和缺失值须可追溯，不把工具默认阈值写成统一标准。当前仅接入连续电压层；真实样例验收与合成边界测试分别留档，不推断临床或分选准确性。
+后续接入须有unit ID、spike时间与时钟、原记录引用、分选器及版本、处理配置；波形、振幅和位置字段按具体指标提供。拟评估发放率、时间存在比例、ISI/不应期违例、振幅截断、隔离度及漂移。缺少指标输入就不计算。
 
-[SpikeGLX metadata](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html) · [SpikeInterface recording and sorting](https://spikeinterface.readthedocs.io/en/latest/modules/core.html) · [Neuropixels analysis example](https://spikeinterface.readthedocs.io/en/stable/how_to/analyze_neuropixels.html)
+这些指标反映不同问题，不能简单平均为一个unit分。Allen明确讨论指标偏差，并不建议单独用峰值通道SNR筛选Neuropixels单元。因此不把SNR设为本项目通用合格线，也不复制某数据库筛选阈值为通用标准。[Allen unit指标说明](https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html)
 
-## 7 样例范围
+## 7 验证与版本维护
 
-本次接入的验收数据分开记录用途，不将格式测试文件当作神经活动质量真值。
+使用真实AP、真实LF和明确标记的格式/边界样本验证读取、路由、测量及报告。人工确认的技术异常、模拟注入异常和生理事件分别保存，不能互当真值。算法/阈值/抽样/窗口/计分任何变化均需记录版本；历史运行不覆盖。
 
-| 样例 | 数据范围 | 验证用途 | 状态 |
-| --- | --- | --- | --- |
-| 人脑Pt03 AP | 来源记录60–62秒，保留原始二进制帧；配套头按派生片段登记 | 真实生物信号的读取、源时间和基本模块运行 | 独立读取核对通过；执行状态见版本验收 |
-| Noise4Sam LF | 5.2652秒的公开格式测试片段 | LF标定、流身份和基础执行 | 独立读取核对通过；不当作生理基准 |
-| 人脑AP短选区 | 从已核验Pt03片段内选择0.02秒 | 极短窗与频率分辨率不足时的partial报告 | 边界用例，不增加独立观测数 |
-| ACSF AP | 公开测试文件，声明SHA1与实际二进制不符 | 来源不一致的拒绝行为 | 负例，不登记、不进入质控 |
-| 截短Noise4Sam AP | 公开截短文件，原声明长度与哈希不匹配 | 配套信息不一致的拒绝行为 | 负例，不登记、不进入质控 |
+真实NP1公开样本目前包含Pt03 AP 2秒、Pt02 AP 4秒及Pt01 LF 20秒。它们是来源大文件的已声明片段，完整检查本地片段不代表检查了整场实验，不能验证长期漂移或跨日稳定性。Noise4Sam和已发现全零的NWB片段是边界用例，不作为健康生理基准。来源见本地各样例说明和[Pt03等公开数据](https://zenodo.org/records/5899237)。
 
-Pt03只下载了声明字节范围，不能声称已核验完整原始大文件的MD5；应保留源URL、字节区间、原始头、派生头改动和片段哈希。样例实际覆盖与执行状态以版本验收记录为准。
-
-[Pt03公开来源](https://zenodo.org/records/5899237) · [Neo公开格式测试库](https://gin.g-node.org/NeuralEnsemble/ephy_testing_data)
-
-### 7.1 NWB扩展（1.0.0rc3.dev4）
-
-现行配置为`neuropixels-voltage/2`；旧`neuropixels-raw/1`任务按原冻结版本解释，不重写其结果。NWB来源的Allen probeD LFP保留了逐点时钟和设备扩展声明，分散窗口抽查为零，是异常信号边界例，不是正常生理基准。其电极组采样率属性与时间戳冲突应如实披露。其他真实ECoG或普通LFP样例不归入Neuropixels。当前样例来源、派生信息及核对口径见[NWB样例](../nwb-testing.md)；实际执行状态仍以版本验收为准。
+共同要求见[总则](/standards/overview)、[字段字典](/standards/fields)、[方法适用规则](/standards/applicability)。本版还需专家审核和独立标注验证，不能以工程运行成功代替准确率验证。

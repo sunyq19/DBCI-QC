@@ -6,7 +6,9 @@
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
-当前开发版：**1.0.0rc3.dev37**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+当前开发版：**1.0.0rc3.dev38**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+
+[Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示方法分项及候选。分选后unit、漂移与跨流同步尚未接入。
 
 打开首页即可查看四类公开数据的缓存示例报告，无需先下载原始数据。EEG 默认三项等权计分，其他可计分方法可在“高级设置 → 评分与权重”中选用。
 
@@ -87,7 +89,7 @@ EEG 报告包含总览、完整性/工频/高频突发三个评分分项、通�
 
 默认安装包含 BrainElecQC、MNE-Python、autoreject、PyNWB 和 PDF 导出依赖。EEG 基础检测使用 BrainElecQC，平台负责统一读取、方法适用判断、模块调度和报告。
 
-FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究扩展需要另外安装或配置，不随默认流程全部运行。详见[扩展方法安装与范围](docs/optional-methods-runtime.md)及[方法来源](docs/toolkit-sources.md)。
+FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究扩展需要另外安装或配置，不随默认流程全部运行。Neuropixels AP 推荐的离群筛查需要 SpikeInterface；未安装时该项未评，基础测量仍可运行。详见[扩展方法安装与范围](docs/optional-methods-runtime.md)及[方法来源](docs/toolkit-sources.md)。
 
 首页统一上传与已有数据目录。数据集总览可按个体/会话打开记录，无需再次上传；记录分项、检查范围、来源指纹和历史关联保留。整段计算覆盖不代表质量合格，不计算跨个体总分。
 

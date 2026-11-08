@@ -1,6 +1,6 @@
 # 当前实现与验证范围
 
-资料性文件 · 版本 implementation/3 · 2026-10-31 · 软件基线 1.0.0rc3.dev13
+资料性文件 · 版本 implementation/4 · 2026-11-08 · 软件基线 1.0.0rc3.dev38
 
 [总则](/standards/overview) · [字段字典](/standards/fields) · [方法适用规则](/standards/applicability)
 
@@ -23,9 +23,9 @@
 | 路线 | 当前检查 | 解释边界 |
 | --- | --- | --- |
 | [头皮EEG](/standards) | 完整性、频谱、通道候选、满足前提的伪迹方法及事件核对 | 方法前提分别核验；没有统一临床合格线或跨物种有效性保证 |
-| [ECoG](/standards/ecog) | M03–M05描述性检查；已有事件可启用M07；可显式启用M06 FieldTrip差分候选 | 不将颅内病理活动自动认定为伪迹；未校准坏触点或总分 |
-| [sEEG](/standards/seeg) | 独立路线与参数；M03–M05描述性检查、事件核对及可选FieldTrip差分候选 | 电极杆关系、病理解释和位置适用性尚未完成 |
-| [Neuropixels连续电压](/standards/neuropixels) | 单流M03–M05，条件性M07；可选SpikeInterface AP通道候选 | M06、分选后单元质量、漂移、跨流同步未接入；不把所有胞外记录归为Neuropixels |
+| [ECoG](/standards/ecog) | M03–M05检查，数值有效性30%与信号稳定性70%的可调项目评分；已有事件可启用M07，M06 FieldTrip跳变可选 | 不将颅内病理活动自动认定为伪迹；未校准坏触点或总分 |
+| [sEEG](/standards/seeg) | 独立路线与参数；M03–M05、事件核对及可选FieldTrip跳变；数值有效性与信号稳定性试行评分 | 电极杆关系、病理解释和位置适用性尚未完成 |
+| [Neuropixels连续电压](/standards/neuropixels) | NP01–NP09规则；M03–M05、条件M07；满足shank/窗口条件的AP推荐SpikeInterface，记录恒值汇总及AP分项 | M06、分选后单元质量、漂移、跨流同步未接入；不把所有胞外记录归为Neuropixels |
 
 每次任务使用一个支持的模态/兼容通道组或独立连续流。多个流不自动拼接；共同M01–M09编号不意味着相同算法、参数或验证范围。
 
@@ -59,3 +59,7 @@
 此映射不判定规范符合性，conformance保持null。未采集完整物种/位置确认，缺参考、无辅助信号及失败均不算正常；有效参数来自实际方法产物，不从未展开的默认计划推测。FASTER原始特征与桥接实际分界点等未导出量仍未补造。工程回归和公开样例不代替专家标签验证。
 
 本轮工程与真实文件核验详见仓库docs/eeg-standard-validation-20261031.md；冻结样例摘要见examples/validation/eeg-standard-20261031.json。
+
+## 6 Neuropixels首版规则
+
+2026-11-08固定[连续电压规范](/standards/neuropixels)及[9项检查词条](/standards/neuropixels-checks)。标准声明、实际检测和方法分项分别说明；AP/LF及分选后单元分开。模块和规范均待独立标注与专家审核。真实片段验收另存docs/validation/neuropixels-standard-20261108.md。

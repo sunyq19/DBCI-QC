@@ -32,6 +32,9 @@ def recommend_descriptive(record, submitted=None):
         result['policy_version'] = info['profile'] + '-metadata-rules/1.1'
     if record['modality'] == 'extracellular':
         result['scope']['supported_metadata_formats'] = ['SpikeGLX', 'NWB']
+        from .neuropixels_standard import VERSION, RECIPE
+        result['scope'].update(standard_version=VERSION, baseline_recipe=RECIPE)
+        result['policy_version'] = RECIPE
     metadata = record.get('metadata')
     format_ = metadata.get('format') if isinstance(metadata, dict) else None
     if format_ not in result['scope']['supported_metadata_formats']:
@@ -44,6 +47,9 @@ def recommend_descriptive(record, submitted=None):
         if record['modality'] in {'ecog', 'seeg'}:
             from .ieeg_baseline import configure
             config = configure(config, record)
+        elif record['modality'] == 'extracellular':
+            from .neuropixels_standard import configure
+            config = configure(config, record, current, submitted)
         facts = data_facts(record, config)
         if not facts['verified_voltage']:
             raise ValueError('所选信号须具有已核验的电压单位。')
@@ -87,4 +93,15 @@ def recommend_descriptive(record, submitted=None):
         result['missing_fields'].append(_missing('preprocessing', '采集与滤波史', '滤波史未知；谱形和工频观察只能结合源记录说明解释。'))
     if not has_annotation:
         result['missing_fields'].append(_missing('annotation', '已核实事件表', '尚未登记支持的事件表；文件内事件描述不自动解释为临床或质量标注。'))
+    if record['modality']=='extracellular':
+        ap_selected='spikeinterface_bad_channels' in config['method_config']['extensions']
+        result['summary']='完整性、频谱与通道统计；按探针杆检查AP通道离群。' if ap_selected else '完整性、频谱与通道统计；当前流不套用AP离群阈值。'
+        result['reason']='依据已确认的连续电压流、原始通道映射和逐窗运行条件推荐。'
+        result['review_focus']=['先看非有限值、整窗恒值与覆盖缺口，再复核AP离群通道和原始波形。',
+                                '分清原始AP、LF和来源已处理LFP；不同处理状态及频带不直接比较。']
+        result['cautions']=result['cautions'][:2]+[
+            'AP通道筛查在每个来源shank内独立执行；未知映射时不猜测。',
+            '相邻量化值重复不等于丢包；整窗恒值应复核，不能仅看有限值数量。',
+            'AP离群分仅表示未被该方法标记的通道比例，不是Neuropixels或神经元总质量分。',
+            '尚未执行分选后单元指标、漂移估计、同步字错误解码或跨流时钟校准。']
     return finish(result, record, submitted)

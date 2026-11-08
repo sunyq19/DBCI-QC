@@ -16,8 +16,11 @@ def run(context):
         finite = np.isfinite(values)
         equal = finite[:-1] & finite[1:] & (values[:-1] == values[1:])
         counts = {}
+        longest_equal_samples = 0
         for kind, mask, stop_extra in [('nonfinite_samples', ~finite, 0), ('exact_constant_samples', equal, 1)]:
             starts, stops = run_bounds(mask)
+            if kind == 'exact_constant_samples' and len(starts):
+                longest_equal_samples = int((stops - starts + 1).max())
             counts[kind] = len(starts)
             observed_count += len(starts)
             keep = min(len(starts), MAX_REVIEW_CANDIDATES - len(candidates))
@@ -31,6 +34,10 @@ def run(context):
         channels.append({**ident, 'sample_count': len(values), 'finite_sample_count': int(finite.sum()),
                          'nonfinite_sample_count': int((~finite).sum()), 'nonfinite_run_count': counts['nonfinite_samples'],
                          'exact_constant_run_count': counts['exact_constant_samples']})
+        if context.record.get('modality') == 'extracellular':
+            channels[-1].update(max_exact_constant_run_samples=longest_equal_samples,
+                max_exact_constant_run_seconds=longest_equal_samples/fs,
+                fully_constant=bool(len(values)>1 and longest_equal_samples==len(values)))
     payload = {**provenance(context, data), 'method': method_prefix(context) + '_source_continuity', 'channels': channels,
                'candidate_total_count': observed_count, 'candidate_details_truncated': observed_count > len(candidates),
                'candidates': candidates, 'parameters': {'constant_rule': 'exact_equal_adjacent_finite_samples',
@@ -48,6 +55,8 @@ def run(context):
         'candidate_evidence': payload['candidate_evidence'],
         'candidate_total_count': observed_count, 'candidate_details_truncated': observed_count > len(candidates),
         'automatic_exclusions': 0, 'quality_classification': False, 'scalp_thresholds_used': False}
+    if context.record.get('modality') == 'extracellular':
+        context.row['summary']['fully_constant_channel_count'] = sum(c['fully_constant'] for c in channels)
     if observed_count > len(candidates):
         context.row.update(status='partial', reason='已扫描全部样本；详细候选位置达到存储预算，省略数量及每道完整计数已保存，不能把未存位置视为正常。')
         context.result.setdefault('warnings', []).append('M03: ' + context.row['reason'])

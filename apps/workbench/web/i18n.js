@@ -2235,7 +2235,7 @@ EDF技术头与选道	EDF technical header and channel selection
         return;
       }
       const path = href.split("#")[0], fragment = href.slice(path.length);
-      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
+      if (/^(?:\/en)?\/standards(?:(?:\/(?:ecog|seeg|neuropixels))?(?:\/modules\/M0[1-9])?|\/(?:overview|fields|applicability|implementation|neuropixels-checks|ieeg-scoring|ieeg-checks|eeg-checks|eeg-scoring|eeg-report|eeg-evidence))$/.test(path) && (!fragment || /^#[\w\u3400-\u9fff%-]+$/.test(fragment))) {
         const unlocalized = path.replace(/^\/en\//,"/");
         const localized = language === "en" ? `/en${unlocalized}` : unlocalized;
         const target = localized + localizedFragment(fragment,language);

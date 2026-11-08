@@ -6,7 +6,11 @@
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev18**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export.
+Development version: **1.0.0rc3.dev38**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG have adjustable grouped scoring presets.
+
+The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
+
+Neuropixels AP outlier screening requires the optional SpikeInterface research dependency. If unavailable, that check remains unassessed while the basic measurements are retained. See [research-runtime setup](docs/optional-methods-runtime.md).
 
 ## Quick start
 

@@ -30,6 +30,7 @@ DOCUMENT_PAGES = {
     'eeg-report': ('eeg-report.md', 'EEG报告要求', 'EEG report requirements'),
     'ieeg-scoring': ('ieeg-scoring.md', '颅内评分规则', 'Intracranial scoring rules'),
     'ieeg-checks': ('ieeg-checks.md', '颅内检查规则', 'Intracranial check rules'),
+    'neuropixels-checks': ('neuropixels-checks.md', 'Neuropixels检查规则', 'Neuropixels check rules'),
     'implementation': ('implementation-status.md', '实现与验证范围', 'Implementation and validation'),
 }
 DOCUMENT_PATHS = {'/standards', '/standards/ecog', '/standards/seeg', '/standards/neuropixels',
@@ -603,6 +604,7 @@ def render_standards(source, module_id=None, lang='zh-CN', modality='scalp_eeg')
                       + f'<li><a href="{prefix}/standards">{text("技术规范", "Technical specification")}</a></li>'
                       + ''.join(document_link(s) for s in ('eeg-checks', 'eeg-scoring', 'eeg-report', 'eeg-evidence')) + '</ol></li>'
                       + '<li>' + text('ECoG / sEEG', 'ECoG / sEEG') + '<ol>' + document_link('ieeg-checks') + document_link('ieeg-scoring') + '</ol></li>'
+                      + '<li>Neuropixels<ol>' + f'<li><a href="{prefix}/standards/neuropixels">{text("连续电压规范", "Continuous-voltage specification")}</a></li>' + document_link('neuropixels-checks') + '</ol></li>'
                       + '<li>' + text('数据集', 'Dataset') + '<ol>' + document_link('dataset-checks') + '</ol></li>'
                       + document_link('implementation'))
     kind = (text('实现与验证 · 资料性文件', 'Implementation and validation · Informative') if modality in {'implementation', 'eeg-evidence'} else
