@@ -4,7 +4,7 @@
 
 [质控流程网页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
-本次源码基线：**2026-11-08 / 1.0.0rc3.dev39**。本地版可安装运行；云端多人使用尚待开发，下一阶段见[云部署准备](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
+本次源码基线：**2026-11-08 / 1.0.0rc3.dev39**。本地版可安装运行；下一阶段将现有质控台部署为[在线演示版](docs/design/demo-deployment-v1.md)：访客无需账号，共享“我的数据”，仅设一名管理员。部署进度见[准备清单](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
@@ -97,7 +97,7 @@ FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究�
 
 ## 文档与开发
 
-- [顶层设计 v1.0](docs/design/platform-v1.md)：统一工作台、数据层级、云端与本地执行及分阶段交付；设计基线，不表示云端功能已上线。
+- [在线演示版方案 v1.0](docs/design/demo-deployment-v1.md)：本轮部署范围；[原顶层设计](docs/design/platform-v1.md)保留为后续平台建设参考。
 - [安装、配置与更新](docs/installation.md)
 - [模块接口与独立调用](docs/toolkit.md) · [工作台 API](apps/workbench/README.md)
 - [标准总则](docs/workflow-standards.md) · [EEG 技术规范](docs/qc-standards.md) · [检查词条](docs/eeg-checks.md) · [来源依据](docs/eeg-evidence.md)
