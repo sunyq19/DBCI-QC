@@ -1,0 +1,13 @@
+﻿dataset,analysis_start_s,analysis_stop_s,channel,hit_windows,assessed_windows,hit_percent
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F2,100,117,85.47008547008546
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F8,100,117,85.47008547008546
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,FC2,100,117,85.47008547008546
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,AF4,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,AF8,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,C2,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F1,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F4,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F5,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,FCz,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,TP7,99,117,84.61538461538461
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,AF3,98,117,83.76068376068376

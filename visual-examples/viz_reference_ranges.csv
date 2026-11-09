@@ -1,0 +1,17 @@
+﻿dataset,analysis_start_s,analysis_stop_s,channel,feature,value_percent,reference_low_percent,reference_high_percent,comparison
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,FP1,relative_alpha_power,5.741821001219661,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,FPz,relative_alpha_power,5.9769731845350815,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,FP2,relative_alpha_power,5.6025059910849215,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F7,relative_alpha_power,3.1788861057282376,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F3,relative_alpha_power,7.022105783785082,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Fz,relative_alpha_power,9.22214883495743,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F4,relative_alpha_power,7.316730342880284,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,F8,relative_alpha_power,3.2020442089191454,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,T7,relative_alpha_power,8.769847348767925,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,C3,relative_alpha_power,9.224490465221741,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Cz,relative_alpha_power,10.835353134194158,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,C4,relative_alpha_power,11.0687917289075,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,T8,relative_alpha_power,7.27173922597636,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Pz,relative_alpha_power,10.674471631011906,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,O1,relative_alpha_power,13.617523595972006,0.7000000000000001,50.7,within
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,O2,relative_alpha_power,12.932640063547684,0.7000000000000001,50.7,within
