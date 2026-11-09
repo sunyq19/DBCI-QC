@@ -3,7 +3,7 @@ import {useRef,useState,useEffect,useLayoutEffect} from 'react';
 import {Minus,Plus,Maximize2,ArrowLeft} from 'lucide-react';
 import {type FlowDoc,type FlowNode,displayNodes,drawingEdges,nodeTitle,flattenNodes,sketchFor,edgePath,NODE_W,NODE_H,CANVAS_W,CANVAS_H} from '../lib/flow';
 import {clampScale,wheelPixels,wheelScale} from '../lib/canvas-zoom';
-export default function DraftCanvas({doc,selected,select,inspect,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,inspectEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;inspect:(id:string)=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;inspectEdge:(id:string)=>void;add:(parent?:string)=>void;level:string;setLevel:(id:string)=>void}){
+export default function DraftCanvas({doc,selected,select,inspect,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,inspectEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;inspect:(id:string)=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;inspectEdge:(id:string)=>void;add:(parent?:string,position?:{x:number;y:number})=>void;level:string;setLevel:(id:string)=>void}){
  const svg=useRef<SVGSVGElement>(null),rail=useRef<HTMLDivElement>(null),wire=useRef<{source:string;start:[number,number]}|null>(null);
  const [scale,setScale]=useState(.78),[pointer,setPointer]=useState<[number,number]|null>(null),autoFit=useRef(true);
  const scaleNow=useRef(scale),zoomAnchor=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
@@ -39,7 +39,15 @@ export default function DraftCanvas({doc,selected,select,inspect,writable,patch,
   container.addEventListener('wheel',wheel,{passive:false});
   return()=>{container.removeEventListener('wheel',wheel);cancelAnimationFrame(frame);};
  },[]);
- function point(e:React.PointerEvent){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
+ function point(e:{clientX:number;clientY:number}){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
+ function addAtBlank(e:React.MouseEvent){
+  if(!writable||e.button!==0||(e.target as Element).closest('.graph-node,.graph-edge,button,[role="button"]'))return;
+  const bounds=rail.current?.getBoundingClientRect();
+  if(!bounds||e.clientX>=bounds.left+rail.current!.clientLeft+rail.current!.clientWidth||e.clientY>=bounds.top+rail.current!.clientTop+rail.current!.clientHeight)return;
+  const p=point(e);if(!p)return;
+  e.preventDefault();e.stopPropagation();
+  add(level||undefined,{x:Math.round(Math.max(20,Math.min(CANVAS_W-NODE_W-20,p.x-NODE_W/2))),y:Math.round(Math.max(20,Math.min(CANVAS_H-NODE_H-20,p.y-NODE_H/2)))});
+ }
  function startNode(e:React.PointerEvent,n:FlowNode){
   if(e.button!==0||!e.isPrimary)return;
   draggedNode.current=false;
@@ -69,7 +77,7 @@ export default function DraftCanvas({doc,selected,select,inspect,writable,patch,
  function startWire(e:React.PointerEvent,n:FlowNode){e.stopPropagation();if(!writable)return;setLinkFrom(n.id);wire.current={source:n.id,start:[n.x+NODE_W,n.y+NODE_H/2]};e.currentTarget.setPointerCapture(e.pointerId);setPointer(wire.current.start);}
  return <div className="draft-canvas">
   <div className="canvas-context">{parent?<button onClick={()=>setLevel('')}><ArrowLeft size={14}/>全部模块</button>:<span>{writable?'单击选中，再拖动模块 · 双击查看详情':'单击选中模块 · 双击查看详情'}</span>}{parent&&<strong>{nodeTitle(parent)}</strong>}{writable&&<button onClick={()=>add(level||undefined)}><Plus size={14}/>{parent?'子模块':'模块'}</button>}</div>
-  <div className="canvas-scroll" ref={rail} onDragStart={e=>e.preventDefault()}>
+  <div className="canvas-scroll" ref={rail} onDragStart={e=>e.preventDefault()} onDoubleClick={addAtBlank}>
    <svg ref={svg} className={'flow-svg '+(writable?'editable ':'')+(dragging?'dragging':'')} aria-label="可编辑流程画布" width={CANVAS_W*scale} height={CANVAS_H*scale} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} onPointerMove={move} onPointerUp={finish} onPointerLeave={()=>{if(drag.current&&!drag.current.moved)stopNodeDrag();}} onLostPointerCapture={()=>{if(drag.current?.moved)stopNodeDrag();}} onPointerCancel={()=>{wire.current=null;setPointer(null);stopNodeDrag();}}>
     <defs><marker id="draft-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9" fill="#7890b1"/></marker></defs>
     {edges.map(e=>{const a=index.get(e.source)!,b=index.get(e.target)!;let p=edgePath(a,b);if(Math.abs(a.y-b.y)<70&&Math.abs(a.x-b.x)>NODE_W+180){const right=b.x>a.x,sx=a.x+(right?NODE_W:0),tx=b.x+(right?0:NODE_W),sy=a.y+NODE_H/2,ty=b.y+NODE_H/2,top=Math.max(12,Math.min(a.y,b.y)-30),d=right?1:-1;p={d:`M${sx},${sy} C${sx+24*d},${sy} ${sx+24*d},${top} ${sx+48*d},${top} L${tx-48*d},${top} C${tx-24*d},${top} ${tx-24*d},${ty} ${tx},${ty}`,x:(sx+tx)/2,y:top-6};}return <g className={'graph-edge '+(selectedEdge===e.id?'selected':'')} key={e.id} role="button" tabIndex={0} aria-label={'连接 '+nodeTitle(index.get(e.source)!)+' 到 '+nodeTitle(index.get(e.target)!)} aria-pressed={selectedEdge===e.id} onClick={()=>setSelectedEdge(e.id)} onDoubleClick={event=>{event.stopPropagation();inspectEdge(e.id);}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();inspectEdge(e.id);}else if(event.key===' '){event.preventDefault();setSelectedEdge(e.id);}}}><path d={p.d} className="edge-hit"/><path d={p.d} className="edge-line" markerEnd="url(#draft-arrow)"/>{e.label&&<text x={p.x} y={p.y} className="edge-label" textAnchor="middle">{e.label}</text>}</g>;})}
@@ -82,6 +90,6 @@ export default function DraftCanvas({doc,selected,select,inspect,writable,patch,
     </g>)}
    </svg>
   </div>
-  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':'点击空白处取消选中 · Ctrl + 滚轮缩放'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" title="缩小" onClick={()=>zoom(clampScale(scaleNow.current-.1))}><Minus size={16}/></button><span aria-live="polite" aria-label="画布缩放比例">{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" title="放大" onClick={()=>zoom(clampScale(scaleNow.current+.1))}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" title="适应宽度" onClick={()=>{autoFit.current=true;zoomAnchor.current=null;fit();}}><Maximize2 size={16}/></button></div></div>
+  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':writable?'空白处：单击取消选中 · 双击新建模块 · Ctrl + 滚轮缩放':'点击空白处取消选中 · Ctrl + 滚轮缩放'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" title="缩小" onClick={()=>zoom(clampScale(scaleNow.current-.1))}><Minus size={16}/></button><span aria-live="polite" aria-label="画布缩放比例">{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" title="放大" onClick={()=>zoom(clampScale(scaleNow.current+.1))}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" title="适应宽度" onClick={()=>{autoFit.current=true;zoomAnchor.current=null;fit();}}><Maximize2 size={16}/></button></div></div>
  </div>;
 }

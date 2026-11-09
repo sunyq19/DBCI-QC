@@ -119,3 +119,5 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 
 .sketch-workspace .flow-svg.editable .graph-node.selected{cursor:grab;touch-action:none}
 .sketch-workspace .flow-svg.editable.dragging,.sketch-workspace .flow-svg.editable.dragging *{cursor:grabbing!important}
+
+.build-update{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 22px;background:#edf4ff;color:#345b92;font-size:12px;flex-shrink:0}.build-update button{padding:5px 10px;font-size:12px}
