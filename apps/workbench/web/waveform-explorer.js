@@ -62,8 +62,8 @@
         const lane=types.indexOf(r.method),stripe=Math.min(3,Math.max(1,h*.24/Math.max(1,types.length)));
         out+=`<g data-mark-channel="${esc(c.channel_id)}" data-mark-method="${esc(r.method)}"><title>${esc(r.label)} · ${fmt(r.start)}–${fmt(r.stop)} s</title><rect x="${a}" y="${y0}" width="${b-a}" height="${h}" fill="${r.color}" fill-opacity="${annotations===null?1:.10}"/><rect x="${a}" y="${y0+h-(lane+1)*(stripe+1)}" width="${b-a}" height="${stripe}" fill="${r.color}"/></g>`;
       }
-      const channelOnly=marks.filter(r=>r.localization==='channel');
-      if(channelOnly.length)out+=`<circle cx="65" cy="${y0+20}" r="3" fill="${channelOnly[0].color}"><title>${esc([...new Set(channelOnly.map(r=>r.label))].join(' / '))} · 通道级候选，未定位时间</title></circle>`;
+      // Aggregate channel findings have no localized time. Keep them in the
+      // channel-results list, never paint a dot or interval on the waveform.
       out+=`<text x="4" y="${y0+13}" class="wave-channel-name" fill="${selected?'#2459bc':'#42546b'}">${esc(c.name)}</text>`;
       out+=`<text x="4" y="${y0+26}" class="wave-unit">${esc(c.unit)}</text>`;
       // All lanes of the same unit use exactly the same amplitude range.
@@ -94,7 +94,7 @@
   if(!panel?.dataset.waveformBase)return;
   const $=id=>doc.getElementById(id),t=(zh,en)=>doc.documentElement.lang==='en'?en:zh;
   const base=panel.dataset.waveformBase;let links=[...doc.querySelectorAll('[data-finding]')];
-  const filters=$('finding-filters');let locationIndex=null,activeMethods=new Set(),annotations=null,activeLocation=null,listPage=0;
+  const filters=$('finding-filters');let locationIndex=null,activeMethods=new Set(),annotations=null,activeLocation=null,listPage=0,locationKind='interval',extrasOpen=false;
   const stage=panel.querySelector('.finding-stage'),controls=$('wave-controls'),notice=$('wave-notice');
   const image=$('finding-image'),status=$('finding-status'),spanLabel=$('wave-span'),position=$('wave-position');
   const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -356,6 +356,29 @@
   function selectedLocations(){
     return (locationIndex?.findings||[]).filter(r=>activeMethods.has(r.method));
   }
+  function visibleLocations(){
+    const search=($('finding-search')?.value||'').trim().toLowerCase();
+    const names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
+    return selectedLocations().filter(r=>(r.localization==='channel')===(locationKind==='channel')&&
+      (!search||r.channels.some(id=>(names.get(id)||'').toLowerCase().includes(search))));
+  }
+  function clearLocation(){
+    activeLocation=null;
+    $('finding-title').textContent=t('波形浏览','Waveform');
+    $('finding-measure').textContent=t('当前筛选下没有选中的检查结果。','No finding selected under these filters.');
+  }
+  function refreshLocations(){
+    listPage=0;updateAnnotations();
+    const selected=selectedLocations();
+    if(!selected.some(r=>(r.localization==='channel')===(locationKind==='channel'))&&selected.length)
+      locationKind=selected[0].localization==='channel'?'channel':'interval';
+    const rows=visibleLocations();
+    if(!rows.some(r=>r.id===activeLocation)){
+      if(rows.length){chooseLocation(rows[0]);return;}
+      clearLocation();
+    }
+    renderLocationList();
+  }
   function updateAnnotations(){
     const methods=new Map(locationIndex.methods.map(m=>[m.id,m]));
     annotations=selectedLocations().map(r=>({...r,color:methods.get(r.method).color,label:t(methods.get(r.method).label,methods.get(r.method).label_en)}));
@@ -366,10 +389,10 @@
     const ids=row.channels,channel=info?.streams.flatMap(s=>s.channels).find(c=>ids.includes(c.channel_id));
     const method=locationIndex.methods.find(m=>m.id===row.method),names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
     const label=t(method.label,method.label_en);
-    const scope=row.localization==='channel'?t('通道级候选 · 未定位具体时间','Channel candidate · time not localized'):row.localization==='group_interval'?t('通道组区间 · 未定位单个通道','Group interval · individual channels not localized'):['line_noise','ieeg_spectrum_fit'].includes(row.method)?t('命中检查窗 · 相连窗口已合并','Flagged analysis windows · connected windows merged'):t('已保存的检测区间','Saved detection interval');
+    const scope=row.localization==='channel'?t('整体特征偏离 · 未定位异常时刻','Aggregate feature outlier · abnormal times not localized'):row.localization==='group_interval'?t('通道组区间 · 未定位单个通道','Group interval · individual channels not localized'):['line_noise','ieeg_spectrum_fit'].includes(row.method)?t('命中检查窗 · 相连窗口已合并','Flagged analysis windows · connected windows merged'):t('已保存的检测区间','Saved detection interval');
     const title=(row.localization==='group_interval'?t('通道组','Channel group'):ids.map(id=>names.get(id)||id).join(' / '))+' · '+label;
     const proxy={dataset:{channelId:channel?.channel_id||ids[0],start:String(row.start),stop:String(row.stop),title,
-      measure:scope+(row.localization==='channel'?'':` · ${fmt(row.start)}–${fmt(row.stop)} s`),position:'',localization:row.localization,locationId:row.id},href:''};
+      measure:(row.localization==='channel'?t('分析范围 ','Analysis range ')+`${fmt(row.start)}–${fmt(row.stop)} s · `:'')+scope+(row.localization==='channel'?'':` · ${fmt(row.start)}–${fmt(row.stop)} s`),position:'',localization:row.localization,locationId:row.id},href:''};
     $('finding-title').textContent=title;$('finding-measure').textContent=proxy.dataset.measure;
     if(!select(proxy)){
       invalidate();wave=null;svg.setAttribute('hidden','');image.hidden=true;controls.hidden=true;
@@ -379,18 +402,27 @@
   }
   function renderLocationList(){
     const list=panel.closest('.finding-workspace').querySelector('.finding-list');
-    const search=($('finding-search')?.value||'').trim().toLowerCase();
     const names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
     const methods=new Map(locationIndex.methods.map(m=>[m.id,m]));
-    const rows=selectedLocations().filter(r=>!search||r.channels.some(id=>(names.get(id)||'').toLowerCase().includes(search)));
+    const rows=visibleLocations();
+    const notice=$('finding-index-notice');notice.hidden=!locationIndex.warnings.some(r=>activeMethods.has(r.method));
+    notice.textContent=t('部分所选检查缺少完整定位信息；完整计数见检查结果。','Some selected checks have incomplete locations; see results for full counts.');
+    const kinds=$('finding-kinds');kinds.replaceChildren();
+    for(const [kind,label,en] of [['interval','异常片段','Intervals'],['channel','通道整体','Channels']]){
+      const count=selectedLocations().filter(r=>(r.localization==='channel')===(kind==='channel')).length;
+      const button=doc.createElement('button');button.type='button';button.dataset.kind=kind;
+      button.textContent=t(label,en)+` ${count}`;button.setAttribute('aria-pressed',String(locationKind===kind));
+      button.addEventListener('click',()=>{locationKind=kind;listPage=0;const first=visibleLocations()[0];if(first)chooseLocation(first);else{clearLocation();renderLocationList();}});kinds.append(button);
+    }
     const size=40,pages=Math.max(1,Math.ceil(rows.length/size));listPage=Math.min(listPage,pages-1);
     list.replaceChildren();links=[];
     for(const row of rows.slice(listPage*size,(listPage+1)*size)){
       const m=methods.get(row.method),button=doc.createElement('button');button.type='button';button.className='finding-item finding-location';
       button.setAttribute('aria-current',String(row.id===activeLocation));button.dataset.locationId=row.id;
       const name=row.localization==='group_interval'?t('通道组','Channel group'):row.channels.map(id=>names.get(id)||id).join(' / ');
-      const time=row.localization==='channel'?t('通道级','Channel'):fmt(row.start)+'–'+fmt(row.stop)+' s';
-      button.innerHTML=`<span class="finding-item-top"><strong>${esc(name)}</strong><span>${time}</span></span><small><i style="background:${m.color}"></i>${esc(t(m.label,m.label_en))}</small>`;
+      const time=(row.localization==='channel'?t('分析段 ','Block '):'')+fmt(row.start)+'–'+fmt(row.stop)+' s';
+      const marker=row.localization==='channel'?'':`<i style="background:${m.color}"></i>`;
+      button.innerHTML=`<span class="finding-item-top"><strong>${esc(name)}</strong><span>${time}</span></span><small>${marker}${esc(t(m.label,m.label_en))}</small>`;
       button.addEventListener('click',()=>chooseLocation(row));list.append(button);
     }
     if(!rows.length){const note=doc.createElement('p');note.className='finding-empty';note.textContent=activeMethods.size?t('当前筛选下没有已保存的位置。','No saved locations match these filters.'):t('已隐藏全部标记。','All annotations are hidden.');list.append(note);}
@@ -403,36 +435,48 @@
   function renderFilters(){
     filters.replaceChildren();
     const heading=doc.createElement('div');heading.className='finding-filter-heading';
-    const title=doc.createElement('strong');title.textContent=t('检查项','Checks');heading.append(title);
-    const all=doc.createElement('button'),none=doc.createElement('button');all.type=none.type='button';all.textContent=t('全部显示','Show all');none.textContent=t('全部隐藏','Hide all');
-    function apply(){listPage=0;renderFilters();updateAnnotations();renderLocationList();}
-    all.addEventListener('click',()=>{activeMethods=new Set(locationIndex.methods.map(m=>m.id));apply();});none.addEventListener('click',()=>{activeMethods.clear();apply();});heading.append(all,none);filters.append(heading);
-    const options=doc.createElement('div');options.className='finding-filter-options';
-    for(const m of locationIndex.methods){
-      const label=doc.createElement('label'),box=doc.createElement('input'),text=doc.createElement('span');box.type='checkbox';box.checked=activeMethods.has(m.id);box.dataset.method=m.id;box.style.accentColor=m.color;
-      text.innerHTML=`<i style="background:${m.color}"></i>${esc(t(m.label,m.label_en))}<small>${m.location_count}${m.unavailable_blocks?t(' · 部分未读取',' · incomplete'):''}</small>`;
-      box.addEventListener('change',()=>{if(box.checked)activeMethods.add(m.id);else activeMethods.delete(m.id);updateAnnotations();listPage=0;renderLocationList();});label.append(box,text);options.append(label);
+    const title=doc.createElement('strong');title.textContent=t('报告检查项','Report checks');heading.append(title);
+    const all=doc.createElement('button'),none=doc.createElement('button');all.type=none.type='button';all.textContent=t('恢复本方案','Reset to scheme');none.textContent=t('全部隐藏','Hide all');
+    function apply(){renderFilters();refreshLocations();}
+    all.addEventListener('click',()=>{activeMethods=new Set(locationIndex.default_method_ids);apply();});none.addEventListener('click',()=>{activeMethods.clear();apply();});heading.append(all,none);filters.append(heading);
+    function optionsFor(methods){
+      const options=doc.createElement('div');options.className='finding-filter-options';
+      for(const m of methods){
+        const timed=locationIndex.findings.some(r=>r.method===m.id&&r.localization!=='channel');
+        const label=doc.createElement('label'),box=doc.createElement('input'),text=doc.createElement('span');box.type='checkbox';box.checked=activeMethods.has(m.id);box.dataset.method=m.id;box.style.accentColor=timed?m.color:'#2459bc';
+        text.innerHTML=(timed?`<i style="background:${m.color}"></i>`:'')+`${esc(t(m.label,m.label_en))}<small>${m.location_count}${m.unavailable_blocks?t(' · 部分未读取',' · incomplete'):''}</small>`;
+        box.addEventListener('change',()=>{if(box.checked)activeMethods.add(m.id);else activeMethods.delete(m.id);refreshLocations();});label.append(box,text);options.append(label);
+      }
+      return options;
     }
-    filters.append(options);
+    const primary=new Set(locationIndex.default_method_ids);
+    filters.append(optionsFor(locationIndex.methods.filter(m=>primary.has(m.id))));
+    const others=locationIndex.methods.filter(m=>!primary.has(m.id));
+    if(others.length){
+      const extra=doc.createElement('details'),summary=doc.createElement('summary');extra.className='finding-extra-checks';extra.open=extrasOpen;
+      summary.textContent=t('其他已执行检查','Other executed checks')+` · ${others.length}`;
+      extra.addEventListener('toggle',()=>{extrasOpen=extra.open;});extra.append(summary,optionsFor(others));filters.append(extra);
+    }
   }
   function startLocations(data){
-    locationIndex=data;activeMethods=new Set(data.methods.map(m=>m.id));
+    locationIndex=data;data.default_method_ids??=data.methods.map(m=>m.id);activeMethods=new Set(data.default_method_ids);
     const sidebar=panel.closest('.finding-workspace').querySelector('.finding-sidebar');
-    const search=doc.createElement('input');search.type='search';search.id='finding-search';search.placeholder=t('筛选通道','Filter channels');search.setAttribute('aria-label',search.placeholder);search.addEventListener('input',()=>{listPage=0;renderLocationList();});
+    const kinds=doc.createElement('div');kinds.id='finding-kinds';kinds.className='finding-kinds';kinds.setAttribute('aria-label',t('定位类型','Finding scope'));sidebar.append(kinds);
+    const search=doc.createElement('input');search.type='search';search.id='finding-search';search.placeholder=t('筛选通道','Filter channels');search.setAttribute('aria-label',search.placeholder);search.addEventListener('input',refreshLocations);
     sidebar.querySelector('.finding-list-label').replaceChildren(search);
     const pagination=doc.createElement('div');pagination.id='finding-pagination';pagination.className='finding-pagination';sidebar.append(pagination);
     const old=links.find(l=>l.getAttribute('aria-current')==='true');
     renderFilters();updateAnnotations();renderLocationList();
-    const notice=$('finding-index-notice');
-    if(data.warnings.length){notice.hidden=false;notice.textContent=t('部分检查只保存了有限的位置，或缺少定位信息；完整计数见检查结果。','Some checks have limited stored locations or missing localization; see results for full counts.');}
-    const first=data.findings.find(r=>r.channels.includes(old?.dataset.channelId)&&r.start<=Number(old.dataset.start)&&r.stop>=Number(old.dataset.stop))||data.findings.find(r=>r.localization==='interval')||data.findings[0];
-    if(first)chooseLocation(first);else{image.hidden=true;activity('ready',t('没有已保存的候选位置。','No candidate locations were saved.'));}
+    const rows=selectedLocations();
+    const first=rows.find(r=>r.localization!=='channel'&&r.channels.includes(old?.dataset.channelId)&&r.start<=Number(old.dataset.start)&&r.stop>=Number(old.dataset.stop))||rows.find(r=>r.localization!=='channel')||rows[0];
+    if(first)locationKind=first.localization==='channel'?'channel':'interval';
+    if(first)chooseLocation(first);else{clearLocation();image.hidden=true;activity('ready',t('本方案没有已保存的候选位置。','No candidate locations saved for this scheme.'));}
   }
   const contextPromise=readJSON(`${base}/waveform-context`).then(data=>{info=data;return true;}).catch(()=>false);
   if(filters){
     Promise.all([contextPromise,readJSON(`${base}/finding-locations`)]).then(([,data])=>{
       const caption=panel.querySelector('.finding-caption');
-      if(caption)caption.textContent=t('彩色区间：各通道的检测结果；顶部色条：通道组结果。圆点仅表示通道级候选。','Shading: channel intervals. Top strips: group intervals. Dots: channel-only candidates.');
+      if(caption)caption.textContent=t('仅标记已定位的异常区间；通道整体结果不标记时间。','Only localized intervals are shaded; aggregate channel results have no time markings.');
       startLocations(data);
     }).catch(()=>{
       filters.textContent=t('检查位置暂未载入','Locations could not be loaded');

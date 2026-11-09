@@ -20,7 +20,11 @@ def _signature(root, names):
 
 def load(store, identifier):
     """No detector reads or calculation on the report/navigation path."""
-    root = store.root / 'jobs' / identifier
+    return load_root(store.root / 'jobs' / identifier)
+
+
+def load_root(root):
+    """Share the validated publication with report evidence presentation."""
     path = root / FILE
     try:
         if path.is_symlink() or path.stat().st_size > 8*1024*1024: return None

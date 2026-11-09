@@ -47,6 +47,7 @@ assert.equal((allMarks.match(/data-mark-channel="b"/g)||[]).length,2,'Both check
 assert(allMarks.includes('data-group-mark="jump"'),'Group evidence has its own band, never per-channel blame');
 assert(!allMarks.includes('data-mark-channel="c"'),'Out-of-view findings are clipped');
 assert(!allMarks.includes('data-mark-method="lof"'),'Channel-only findings are not time intervals');
+assert(!allMarks.includes('<circle'),'Aggregate channel results never imply a time-localized marker');
 const hidden=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47},800,270,[]);
 assert(!hidden.includes('data-mark-channel'),'Hide all removes even the primary candidate shading');
 const hfOnly=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47},800,270,annotations.filter(r=>r.method==='hf'));
