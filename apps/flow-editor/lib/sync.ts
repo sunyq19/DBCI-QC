@@ -14,7 +14,7 @@ export async function validateManifest(value:unknown):Promise<CatalogManifest>{
  const v=value as CatalogManifest;
  if(!v||v.schemaVersion!==1||!Number.isSafeInteger(v.sequence)||v.sequence<1||typeof v.sourceVersion!=='string'||v.sourceVersion.length>80||!v.sourceVersion||typeof v.sourceCommit!=='string'||!/^([a-f0-9]{40}|local)$/.test(v.sourceCommit))throw new Error('目录格式无效');
  const doc=validateDoc(v.doc);
- if(doc.catalog||flattenNodes(doc.nodes).some(n=>n.teamNotes!==undefined||n.sourceManaged!==undefined||n.proposal!==undefined||n.discussion!==undefined))throw new Error('目录不能携带协作内容');
+ if(doc.drawing||doc.catalog||flattenNodes(doc.nodes).some(n=>n.teamNotes!==undefined||n.sourceManaged!==undefined||n.proposal!==undefined||n.discussion!==undefined||n.sketch!==undefined||n.attachments!==undefined))throw new Error('目录不能携带协作内容');
  if(v.id!=='catalog-'+await catalogHash(doc,v.sourceVersion))throw new Error('目录校验失败');
  return {...v,doc};
 }
@@ -34,11 +34,11 @@ export function mergeCatalog(doc:FlowDoc,manifest:CatalogManifest):FlowDoc{
   const old=before.get(fresh.id);let teamNotes=old?.teamNotes||'';
   // Preserve legacy direct edits as clearly separated notes, never as executable rules.
   if(old&&!old.sourceManaged){
-   const edits=Object.keys(fresh).filter(k=>!['id','x','y','children','sourceManaged','teamNotes','proposal','discussion'].includes(k)&&old[k as keyof FlowNode]!==undefined&&canonical(old[k as keyof FlowNode])!==canonical(fresh[k as keyof FlowNode])&&!legacyValues[old.id]?.[k]?.some(v=>canonical(v)===canonical(old[k as keyof FlowNode])));
+   const edits=Object.keys(fresh).filter(k=>!['id','x','y','children','sourceManaged','teamNotes','proposal','discussion','sketch','attachments'].includes(k)&&old[k as keyof FlowNode]!==undefined&&canonical(old[k as keyof FlowNode])!==canonical(fresh[k as keyof FlowNode])&&!legacyValues[old.id]?.[k]?.some(v=>canonical(v)===canonical(old[k as keyof FlowNode])));
    if(edits.length)teamNotes+=(teamNotes?'\n\n':'')+'迁移保留的团队修改：\n'+edits.map(k=>(labels[k]||k)+'：'+(typeof old[k as keyof FlowNode]==='string'?old[k as keyof FlowNode]:JSON.stringify(old[k as keyof FlowNode]))).join('\n');
   }
   const children=[...(fresh.children||[]).map(merge),...(old?.children||[]).filter(c=>!sourceIds.has(c.id)).map(retire)];
-  return {...fresh,x:old?.x??fresh.x,y:old?.y??fresh.y,sourceManaged:true,teamNotes,...(old?.proposal?{proposal:old.proposal}:{}),...(old?.discussion?{discussion:old.discussion}:{}),...(children.length?{children}:{})};
+  return {...fresh,x:old?.x??fresh.x,y:old?.y??fresh.y,sourceManaged:true,teamNotes,...(old?.sketch?{sketch:old.sketch}:{}),...(old?.attachments?{attachments:old.attachments}:{}),...(old?.proposal?{proposal:old.proposal}:{}),...(old?.discussion?{discussion:old.discussion}:{}),...(children.length?{children}:{})};
  }
  const nodes=[...manifest.doc.nodes.map(merge),...doc.nodes.filter(n=>!sourceIds.has(n.id)).map(retire)];
  const topIds=new Set(nodes.map(n=>n.id));

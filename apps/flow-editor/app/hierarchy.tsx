@@ -18,9 +18,9 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
   const planned=children.filter(c=>c.status==='planned'),ready=children.filter(c=>c.status!=='planned');
   return <div key={n.id} className={`branch depth-${Math.min(depth,2)} ${n.id===selected?'selected':''} ${n.status==='planned'?'planned':''} ${n.status==='review'?'review':''}`} data-node={n.id}>
    <div className="branch-line">
-    <button className="branch-label" onClick={()=>select(n.id)} aria-label={`查看 ${n.title}`}><span className="branch-code">{depth===0?n.id:n.entryType==='reader'?'读取器':n.entryType==='check'?'检查项':n.entryType==='support'?'执行支持':n.entryType==='visualization'?'图表':'方法'}{n.status==='review'&&<em>待讨论</em>}</span><strong>{n.title}</strong>{(n.proposal||n.discussion?.some(t=>!t.resolved))&&<span className="collab-marker">{n.proposal?'有方案草稿':''}{n.discussion?.some(t=>!t.resolved)?' · '+n.discussion.filter(t=>!t.resolved).length+'条讨论':''}</span>}{depth>0&&!n.children?.length&&<ScoringBadges node={n} filter={filter}/ >}{depth===0&&<small>{n.summary}</small>}{depth>0&&<small>{n.status==='planned'?'尚未接入':scoringSummary(n,filter)}{n.scope.length<4&&n.scope[0]!=='dataset'&&<span className="method-scope"> · {n.scope.map(s=>SCOPE_LABEL[s]?.replace(' 电压','')).join(' / ')}</span>}</small>}</button>
+    <button className="branch-label" onClick={()=>select(n.id)} aria-label={`查看 ${n.title}`}><span className="branch-code">{depth===0?n.id:n.entryType==='reader'?'读取器':n.entryType==='check'?'检查项':n.entryType==='support'?'执行支持':n.entryType==='visualization'?'图表':'方法'}</span><strong>{n.title}</strong>{(n.proposal||n.discussion?.some(t=>!t.resolved))&&<span className="collab-marker">{n.proposal?'有方案草稿':''}{n.discussion?.some(t=>!t.resolved)?' · '+n.discussion.filter(t=>!t.resolved).length+'条讨论':''}</span>}{depth===0&&<small>{n.summary}</small>}</button>
     {!!children.length&&<button className="branch-toggle" aria-label={`${open?'收起':'展开'} ${n.title}`} aria-expanded={open} onClick={()=>toggle(n.id)}><span>{children.length}</span>{open?<Minus size={15}/>:<Plus size={15}/>}</button>}
-    {!children.length&&depth===0&&<span className="leaf-label">查看说明</span>}
+
    </div>
    {open&&!!children.length&&<div className="branch-children">{ready.map(c=>branch(c,depth+1,childQuery))}{planned.length>0&&<details className="planned-group" open={query.trim()?true:undefined}><summary>待接入 · {planned.length}</summary>{planned.map(c=>branch(c,depth+1,childQuery))}</details>}</div>}
   </div>;
@@ -33,8 +33,6 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
  const total=doc.nodes.filter(n=>/^M\d|^D\d|^VIS$/.test(n.id)).length;
  return <div className="hierarchy-view">
   <div className="hierarchy-controls"><div className="search-box"><Search size={16}/><input aria-label="查找模块或方法" placeholder="查找模块或方法" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button className="icon" aria-label="清除搜索" onClick={()=>setQuery('')}><X size={14}/></button>}</div><div className="expand-actions"><button onClick={()=>setExpanded(new Set(all.filter(n=>n.children?.length).map(n=>n.id)))}>展开全部</button><button onClick={()=>{setQuery('');setExpanded(new Set());}}>收起全部</button></div></div>
-  <div className="catalog-summary"><strong>{total} 个功能模块</strong><span>{available.length} 项已接入方法</span><span>{all.filter(n=>n.entryType==='reader').length} 个读取器</span><span>{all.filter(n=>n.entryType==='visualization'&&n.status!=='planned').length} 种图表</span><span>{all.filter(n=>n.entryType==='check').length} 项资料检查</span></div>
-  <div className="scoring-legend"><span className="score-badge default">默认计分</span><span className="score-badge optional">可选计分</span><span className="score-badge measurement">仅测量</span><span className="score-badge unavailable">未接入</span><button onClick={()=>select('M08')}>方案与权重</button></div>
   <div className="hierarchy-scroll">
    {start.length>0&&<section className="flow-stage"><header><b>01</b><h2>读取与确认</h2><span>统一入口</span></header><div className="stage-modules">{start.map(n=>branch(n))}</div></section>}
    {(signal.length>0||dataset.length>0)&&<><div className="stage-arrow"><ArrowDown size={18}/></div><section className="flow-stage"><header><b>02</b><h2>按对象开展检查</h2><span>两条路线，可配合使用</span></header><div className={`branch-lanes ${!dataset.length||!signal.length?'single':''}`}>
@@ -45,7 +43,7 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
    {visuals.length>0&&<section className="flow-stage"><header><b>04</b><h2>可视化</h2><span>读取已有结果 · 按需要选图</span></header>{visuals.map(n=>branch(n))}</section>}
    {extra.length>0&&<section className="flow-stage extra-stage"><header><b>+</b><h2>新增模块</h2></header>{extra.map(n=>branch(n))}</section>}
    {!start.length&&!signal.length&&!dataset.length&&!end.length&&!visuals.length&&!extra.length&&<div className="no-match">没有找到匹配的模块或方法。</div>}
-   <p className="hierarchy-note">展开层级找到方法，点击名称编辑方案、参与讨论。</p>
+   <p className="hierarchy-note">点击模块写文字；点 ＋ 展开子模块。</p>
   </div>
  </div>;
 }

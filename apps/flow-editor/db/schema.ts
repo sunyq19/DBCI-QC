@@ -24,3 +24,8 @@ export const flowEditSessions=sqliteTable("flow_edit_sessions",{
 export const flowUnlockAttempts=sqliteTable("flow_unlock_attempts",{
  clientHash:text("client_hash").primaryKey(),windowId:integer("window_id").notNull(),attempts:integer("attempts").notNull(),
 });
+
+export const flowAttachments=sqliteTable("flow_attachments",{
+ id:text("id").primaryKey(),name:text("name").notNull(),size:integer("size").notNull(),mime:text("mime").notNull(),
+ storageKey:text("storage_key").notNull(),createdAt:text("created_at").notNull(),authorId:text("author_id").notNull(),
+});

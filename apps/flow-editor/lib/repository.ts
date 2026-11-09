@@ -37,6 +37,7 @@ export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string
   const valid=validateDoc(doc);
   if(!allowDiscussion&&current)checkDiscussionFields(JSON.parse(current.document),valid);
   if(new TextEncoder().encode(JSON.stringify(valid)).length>1800000)throw new AppError('协作内容已达容量限制，请导出备份后联系维护者',413);
+  await checkAttachments(db,valid);
   const hash=await digest(valid),revision=base+1,now=new Date().toISOString();
   const saved=await db.prepare(SAVE_SQL).bind(revision,JSON.stringify(valid),hash,authorId,note.trim(),now,base).first();
   if(!saved)throw new AppError('其他成员已保存新修改。您的修改仍保留，请先查看新版，再合并或导出。',409);
@@ -94,7 +95,7 @@ export function checkSourceFields(current:FlowDoc,incoming:FlowDoc){
  const index=new Map(flattenNodes(incoming.nodes).map(n=>[n.id,n]));
  for(const n of flattenNodes(current.nodes).filter(n=>n.sourceManaged)){
   const next=index.get(n.id);if(!next)throw new AppError('已接入模块由质控台维护；请在团队说明中提出调整建议');
-  for(const k of Object.keys(n).filter(k=>!['children','x','y','teamNotes','proposal','discussion'].includes(k))){
+  for(const k of Object.keys(n).filter(k=>!['children','x','y','teamNotes','proposal','discussion','sketch','attachments'].includes(k))){
    if(JSON.stringify(n[k as keyof typeof n])!==JSON.stringify(next[k as keyof typeof next]))throw new AppError('模块和评分规则由质控台同步，不能在网页中另改一套；请填写团队说明');
   }
  }
@@ -133,9 +134,15 @@ export async function forkFlow(db:D1Database,sourceRevision:number,expectedHead:
  checkSourceFields(original,incoming);checkDiscussionFields(original,incoming);
  const {mergeCatalog}=await import('./sync');const valid=validateDoc(mergeCatalog(incoming,manifest));
  const document=JSON.stringify(valid);if(new TextEncoder().encode(document).length>1800000)throw new AppError('协作内容已达容量限制，请导出备份后联系维护者',413);
+ await checkAttachments(db,valid);
  const revision=expectedHead+1,hash=await digest(valid),createdAt=new Date().toISOString();
  const saved=await db.prepare(`INSERT INTO flow_revisions (revision,document,hash,author_id,note,created_at,based_on_revision)
  SELECT ?,?,?,?,?,?,? WHERE (SELECT MAX(revision) FROM flow_revisions)=? RETURNING revision`).bind(revision,document,hash,authorId,note.trim(),createdAt,sourceRevision,expectedHead).first();
  if(!saved)throw new AppError('其他成员已保存新修改。当前起草内容仍保留，请先查看新版再合并。',409);
  return{revision,hash,createdAt,doc:valid,basedOnRevision:sourceRevision};
+}
+
+async function checkAttachments(db:D1Database,doc:FlowDoc){
+ const files=new Map(flattenNodes(doc.nodes).flatMap(n=>(n.attachments||[]).map(f=>[f.id,f] as const)));
+ for(const f of files.values()){const row=await db.prepare('SELECT name,size,mime FROM flow_attachments WHERE id=?').bind(f.id).first<{name:string;size:number;mime:string}>();if(!row||row.name!==f.name||row.size!==f.size||row.mime!==f.mime)throw new AppError('附件不存在或信息已改变，请重新添加');}
 }

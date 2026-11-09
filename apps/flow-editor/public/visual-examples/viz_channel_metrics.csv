@@ -1,0 +1,25 @@
+﻿dataset,analysis_start_s,analysis_stop_s,method,channel,value,unit
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,F9,50.0782397024088,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,AF8,49.19441534698022,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,AF7,49.188921495412266,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,F7,49.04994223300571,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,T7,48.779582170588704,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,F10,48.74696960492713,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,P7,48.67174302738878,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,FT7,48.62132236602983,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,P3,48.60915468074739,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,PO3,48.59710484374355,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,Oz,48.55748508715894,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,PREP amplitude,PO7,48.536536473262416,uV
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,T7,0.11217008531093597,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,P7,0.07465769350528717,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,PO8,0.06501354277133942,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,FT7,0.06392990052700043,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,F9,0.05700915306806564,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,PO7,0.055912915617227554,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,C5,0.05566784739494324,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,TP7,0.05293474346399307,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,P8,0.05117984861135483,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,AF7,0.04876160994172096,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,FC5,0.048728957772254944,upstream line-length units
+ds002034-v1.0.3_sub-01_ses-01_task-offline_run-01,0,120,Gnosis line length,FP2,0.04862631857395172,upstream line-length units

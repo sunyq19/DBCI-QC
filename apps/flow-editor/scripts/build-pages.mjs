@@ -1,5 +1,5 @@
 import {build} from 'esbuild';
-import {mkdir,writeFile,copyFile,readFile,rm} from 'node:fs/promises';
+import {mkdir,writeFile,copyFile,readFile,rm,cp} from 'node:fs/promises';
 const out='dist-pages';
 const navigation=JSON.parse(await readFile('config/navigation.json','utf8'));
 const canonical=new URL(navigation.flowUrl);
@@ -11,6 +11,7 @@ const result=await build({entryPoints:{app:'static/main.tsx'},bundle:true,minify
 const files=Object.keys(result.metafile.outputs);
 const js=files.find(f=>f.endsWith('.js')).replace(out+'/','./');
 const css=files.find(f=>f.endsWith('.css')).replace(out+'/','./');
+await cp('public/visual-examples',`${out}/visual-examples`,{recursive:true});
 await copyFile('public/favicon.svg',`${out}/favicon.svg`);
 await writeFile(`${out}/.nojekyll`,'');
 await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 模块协作</title><link rel="canonical" href="${href}"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="${css}"><meta name="referrer" content="no-referrer"><meta name="description" content="围绕质控模块讨论方法、维护方案草稿和固定讨论版本。"></head><body><div id="root"></div><noscript>请启用 JavaScript 查看模块流程。</noscript><script type="module" src="${js}"></script></body></html>`);

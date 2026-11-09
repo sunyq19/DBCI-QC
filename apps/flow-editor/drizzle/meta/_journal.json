@@ -22,6 +22,13 @@
       "when": 1794189052736,
       "tag": "0002_regular_stepford_cuckoos",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794190464587,
+      "tag": "0003_bitter_demogoblin",
+      "breakpoints": true
     }
   ]
 }
