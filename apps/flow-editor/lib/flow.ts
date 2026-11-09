@@ -4,10 +4,13 @@ export const scopes = ['eeg','ecog','seeg','np','dataset'] as const;
 export const scoreRoles = ['default','optional','measurement','unavailable'] as const;
 export const SCORE_LABEL = {default:'默认计分',optional:'可选计分',measurement:'仅测量',unavailable:'未接入'};
 export type Scoring = {scope:string;role:typeof scoreRoles[number];canOutputScore:boolean;outputs:string[];weight:string;rule:string;limited:string;version:string};
+export type Proposal = {status:'draft'|'discussing'|'agreed';description:string;conditions:string;inputs:string;outputs:string;methods:string;scoring:string;decision:string};
+export type DiscussionMessage = {id:string;author:string;body:string;createdAt:string};
+export type Discussion = DiscussionMessage & {resolved:boolean;replies:DiscussionMessage[]};
 export type FlowNode = {
   id:string; title:string; summary:string; kind:typeof kinds[number]; status:typeof statuses[number];
   scope:string[]; x:number; y:number; description:string; inputs:string; outputs:string;
-  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';scoring?:Scoring[];sourceManaged?:boolean;teamNotes?:string;
+  conditions:string; methods:string; evidence:string; notes:string; children?:FlowNode[]; entryType?:'method'|'reader'|'check'|'support'|'visualization';scoring?:Scoring[];sourceManaged?:boolean;teamNotes?:string;proposal?:Proposal;discussion?:Discussion[];
 };
 export type FlowEdge = {id:string;source:string;target:string;label:string};
 export type FlowDoc = {schemaVersion:1;title:string;subtitle:string;nodes:FlowNode[];edges:FlowEdge[];catalog?:{id:string;sequence:number;sourceVersion:string;sourceCommit:string}};
@@ -30,7 +33,7 @@ export function validateDoc(value:unknown):FlowDoc {
   const ids=new Set<string>();
   let total=0;
   function checkNodes(nodes:unknown[],depth=0){if(depth>4)throw new Error('模块层级最多五层');for(const n of nodes){if(++total>250)throw new Error('模块和方法合计最多250项');
-    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType','scoring','sourceManaged','teamNotes'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
+    if(!object(n)||Object.keys(n).some(k=>!NODE_KEYS.includes(k)&&!['children','entryType','scoring','sourceManaged','teamNotes','proposal','discussion'].includes(k))||NODE_KEYS.some(k=>!(k in n)))throw new Error('节点字段不完整');
     text(n.id,'节点编号',80,true);
     if(!/^[A-Za-z][A-Za-z0-9_-]*$/.test(n.id)||ids.has(n.id))throw new Error('节点编号重复或不合法');ids.add(n.id);
     text(n.title,'节点名称',64,true);text(n.summary,'节点简述',52);
@@ -51,6 +54,23 @@ export function validateDoc(value:unknown):FlowDoc {
         if((s.role==='default'||s.role==='optional')!==s.canOutputScore)throw new Error('计分角色与输出能力不一致');
         if(n.status==='planned'&&s.role!=='unavailable')throw new Error('未接入方法不能声明已接入计分');
       }
+    }
+    if(n.teamNotes!==undefined)text(n.teamNotes,'团队说明',20000);
+    if(n.sourceManaged!==undefined&&typeof n.sourceManaged!=='boolean')throw new Error('来源标记无效');
+    if(n.proposal!==undefined){
+      const p=n.proposal, keys=['status','description','conditions','inputs','outputs','methods','scoring','decision'];
+      if(!object(p)||Object.keys(p).sort().join(',')!==keys.sort().join(',')||!['draft','discussing','agreed'].includes(String(p.status)))throw new Error('方案草稿格式无效');
+      for(const k of keys.filter(k=>k!=='status'))text(p[k],'方案草稿',6000);
+    }
+    if(n.discussion!==undefined){
+      if(!Array.isArray(n.discussion)||n.discussion.length>100)throw new Error('每个模块最多100条讨论');
+      const messageIds=new Set();
+      const checkMessage=(m:unknown,thread=false)=>{
+        if(!object(m)||Object.keys(m).sort().join(',')!==(thread?['id','author','body','createdAt','resolved','replies']:['id','author','body','createdAt']).sort().join(','))throw new Error('讨论格式无效');
+        text(m.id,'批注编号',80,true);text(m.author,'署名',60,true);text(m.body,'批注内容',4000,true);text(m.createdAt,'记录时间',40,true);
+        if(messageIds.has(m.id)||!Number.isFinite(Date.parse(m.createdAt as string)))throw new Error('批注编号或时间无效');messageIds.add(m.id);
+      };
+      for(const t of n.discussion){checkMessage(t,true);if(typeof t.resolved!=='boolean'||!Array.isArray(t.replies)||t.replies.length>100)throw new Error('讨论回复无效');for(const r of t.replies)checkMessage(r);}
     }
     if(n.children!==undefined){if(!Array.isArray(n.children))throw new Error('子模块必须是数组');checkNodes(n.children,depth+1);}
   }}

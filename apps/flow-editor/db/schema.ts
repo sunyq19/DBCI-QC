@@ -9,3 +9,9 @@ export const flowVersions = sqliteTable("flow_versions", {
   revision: integer("revision").notNull().references(() => flowRevisions.revision),
   note: text("note").notNull(), authorId: text("author_id").notNull(), createdAt: text("created_at").notNull(),
 });
+
+export const flowAccessLinks = sqliteTable("flow_access_links", {
+  id:text("id").primaryKey(), tokenHash:text("token_hash").notNull().unique(),
+  label:text("label").notNull(), role:text("role").notNull(),
+  createdAt:text("created_at").notNull(), revokedAt:text("revoked_at"),
+});

@@ -18,7 +18,7 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
   const planned=children.filter(c=>c.status==='planned'),ready=children.filter(c=>c.status!=='planned');
   return <div key={n.id} className={`branch depth-${Math.min(depth,2)} ${n.id===selected?'selected':''} ${n.status==='planned'?'planned':''} ${n.status==='review'?'review':''}`} data-node={n.id}>
    <div className="branch-line">
-    <button className="branch-label" onClick={()=>select(n.id)} aria-label={`查看 ${n.title}`}><span className="branch-code">{depth===0?n.id:n.entryType==='reader'?'读取器':n.entryType==='check'?'检查项':n.entryType==='support'?'执行支持':n.entryType==='visualization'?'图表':'方法'}{n.status==='review'&&<em>待讨论</em>}</span><strong>{n.title}</strong>{depth>0&&!n.children?.length&&<ScoringBadges node={n} filter={filter}/ >}{depth===0&&<small>{n.summary}</small>}{depth>0&&<small>{n.status==='planned'?'尚未接入':scoringSummary(n,filter)}{n.scope.length<4&&n.scope[0]!=='dataset'&&<span className="method-scope"> · {n.scope.map(s=>SCOPE_LABEL[s]?.replace(' 电压','')).join(' / ')}</span>}</small>}</button>
+    <button className="branch-label" onClick={()=>select(n.id)} aria-label={`查看 ${n.title}`}><span className="branch-code">{depth===0?n.id:n.entryType==='reader'?'读取器':n.entryType==='check'?'检查项':n.entryType==='support'?'执行支持':n.entryType==='visualization'?'图表':'方法'}{n.status==='review'&&<em>待讨论</em>}</span><strong>{n.title}</strong>{(n.proposal||n.discussion?.some(t=>!t.resolved))&&<span className="collab-marker">{n.proposal?'有方案草稿':''}{n.discussion?.some(t=>!t.resolved)?' · '+n.discussion.filter(t=>!t.resolved).length+'条讨论':''}</span>}{depth>0&&!n.children?.length&&<ScoringBadges node={n} filter={filter}/ >}{depth===0&&<small>{n.summary}</small>}{depth>0&&<small>{n.status==='planned'?'尚未接入':scoringSummary(n,filter)}{n.scope.length<4&&n.scope[0]!=='dataset'&&<span className="method-scope"> · {n.scope.map(s=>SCOPE_LABEL[s]?.replace(' 电压','')).join(' / ')}</span>}</small>}</button>
     {!!children.length&&<button className="branch-toggle" aria-label={`${open?'收起':'展开'} ${n.title}`} aria-expanded={open} onClick={()=>toggle(n.id)}><span>{children.length}</span>{open?<Minus size={15}/>:<Plus size={15}/>}</button>}
     {!children.length&&depth===0&&<span className="leaf-label">查看说明</span>}
    </div>
@@ -45,7 +45,7 @@ export default function Hierarchy({doc,selected,select,expanded,toggle,setExpand
    {visuals.length>0&&<section className="flow-stage"><header><b>04</b><h2>可视化</h2><span>读取已有结果 · 按需要选图</span></header>{visuals.map(n=>branch(n))}</section>}
    {extra.length>0&&<section className="flow-stage extra-stage"><header><b>+</b><h2>新增模块</h2></header>{extra.map(n=>branch(n))}</section>}
    {!start.length&&!signal.length&&!dataset.length&&!end.length&&!visuals.length&&!extra.length&&<div className="no-match">没有找到匹配的模块或方法。</div>}
-   <p className="hierarchy-note">展开模块看方法，点击名称看细节。方法“已接入”表示已有执行适配，启用仍需满足条件。</p>
+   <p className="hierarchy-note">展开层级找到方法，点击名称编辑方案、参与讨论。</p>
   </div>
  </div>;
 }

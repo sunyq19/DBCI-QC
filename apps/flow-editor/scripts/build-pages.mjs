@@ -13,5 +13,5 @@ const js=files.find(f=>f.endsWith('.js')).replace(out+'/','./');
 const css=files.find(f=>f.endsWith('.css')).replace(out+'/','./');
 await copyFile('public/favicon.svg',`${out}/favicon.svg`);
 await writeFile(`${out}/.nojekyll`,'');
-await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 模块流程</title><link rel="canonical" href="${href}"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="${css}"><meta name="description" content="DBCI-QC 数据质控模块流程、适用条件与评分方案。"></head><body><div id="root"></div><noscript>请启用 JavaScript 查看模块流程。</noscript><script type="module" src="${js}"></script></body></html>`);
+await writeFile(`${out}/index.html`,`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DBCI-QC · 模块协作</title><link rel="canonical" href="${href}"><link rel="icon" href="./favicon.svg"><link rel="stylesheet" href="${css}"><meta name="referrer" content="no-referrer"><meta name="description" content="围绕质控模块讨论方法、维护方案草稿和固定讨论版本。"></head><body><div id="root"></div><noscript>请启用 JavaScript 查看模块流程。</noscript><script type="module" src="${js}"></script></body></html>`);
 console.log(`Full frontend ready: ${out}/ → ${canonical.href}`);

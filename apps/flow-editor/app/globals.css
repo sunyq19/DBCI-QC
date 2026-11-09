@@ -30,3 +30,27 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
   html,.hierarchy-scroll,.inspector,.canvas-scroll{overflow-y:scroll}
   @media(max-width:600px){.hierarchy-scroll{overflow:visible}}
 }
+
+/* Module collaboration keeps implementation facts separate from editable proposals. */
+.collab-tabs{display:flex;padding:0 20px;gap:18px;border-bottom:1px solid #dfe6ed;position:sticky;top:0;background:white;z-index:2}
+.collab-tabs button{border:0;border-radius:0;padding:15px 0;font-size:14px;color:#65788c;background:none;white-space:nowrap;box-shadow:none}
+.collab-tabs button[aria-selected=true]{color:#2055bb;box-shadow:inset 0 -2px #2861d9;font-weight:650}
+.collab-tabs button span{font-size:11px;background:#e7efff;border-radius:8px;padding:1px 5px}
+.collab-panel-body{padding:20px 22px;font-size:14px;line-height:1.7;min-width:0}
+.proposal-toolbar{display:flex;align-items:center;justify-content:space-between;color:#5b7085;margin-bottom:16px}
+.proposal-toolbar select{max-width:135px;margin:0;padding:5px 10px;font-size:13px}
+.proposal-state,.collab-marker{color:#3b6aa7;font-size:12px;font-weight:500}
+.collab-marker{display:block;margin:4px 0 0}.proposal-fields{border:0;padding:0;min-width:0;margin:0}
+.proposal-fields label{display:block;font-size:13px;font-weight:600;color:#334e69;margin-bottom:18px}
+.proposal-fields textarea{font-size:14px;line-height:1.65;padding:10px 12px;border-color:#d7e0e9;resize:vertical;font-weight:400;min-height:74px}
+.proposal-fields h3{font-size:14px;margin:20px 0 8px}.proposal-fields section:first-child h3{margin-top:0}
+.collab-text{white-space:normal;overflow-wrap:anywhere;color:#34495e}.collab-text a{overflow-wrap:anywhere}
+.collab-footnote,.source-caption{font-size:12px;color:#728296;line-height:1.6;margin:16px 0}
+.source-caption{margin-top:0}.draft-start{padding:12px;background:#f5f8fc;border:1px dashed #cedce9;border-radius:6px;margin-bottom:20px}.draft-start p{font-size:13px;margin:0 0 9px}
+.collab-empty{padding:28px 8px;text-align:center;color:#728296}.collab-empty svg{color:#718aa8}.collab-empty h3{font-size:16px;color:#3d536d;margin:12px 0 6px}.collab-empty p{font-size:13px;line-height:1.8;margin:8px 0 18px}.collab-empty.compact{padding:20px 8px}
+.discussion-heading{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-bottom:16px}.discussion-heading label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:400}.discussion-heading input{width:auto;margin:0}
+.comment-composer textarea,.reply-composer textarea{font-size:14px;padding:10px 12px;line-height:1.6;resize:vertical}.comment-composer>div{display:flex;justify-content:flex-end;gap:10px;align-items:center;margin:8px 0 20px}.comment-composer small{font-size:12px;color:#927038}
+.discussion-thread{border-top:1px solid #e2e8ef;padding:18px 0}.discussion-thread header{display:flex;gap:10px;align-items:baseline;font-size:13px;margin-bottom:8px}.discussion-thread time{color:#8190a1;font-size:11px}.discussion-thread footer{display:flex;align-items:center;gap:12px;margin-top:10px;font-size:12px;color:#617b75}.discussion-thread footer button{padding:3px 0;border:0;background:none;font-size:12px;color:#5f7692}.discussion-thread footer span{display:flex;gap:4px;align-items:center}.discussion-reply{border-left:2px solid #d7e1ec;padding:4px 0 4px 12px;margin:14px 0 0}.discussion-thread.resolved{opacity:.85}.reply-composer button{margin-top:6px}
+.implementation details,.legacy-notes{border-top:1px solid #e1e8ef;padding:10px 0;margin:12px 0 0}.implementation summary,.legacy-notes summary{font-size:13px;font-weight:600;cursor:pointer;color:#3c5874}.implementation details .collab-text,.legacy-notes .collab-text{margin-top:12px;font-size:13px}
+.access-panel{padding:22px}.access-panel p{font-size:14px;line-height:1.8;color:#60738a}.access-panel form{margin:20px 0}.access-panel form>button{margin-top:10px}.access-panel h3{font-size:14px;margin:24px 0 8px}.private-link{padding:14px;background:#f3f7fd;border:1px solid #d9e4f2;border-radius:7px}.private-link small{display:block;font-size:12px;color:#78879b;margin-top:10px}.private-link button{margin-top:8px}.member-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #e5ebf1}.member-row span{display:flex;flex-direction:column;gap:3px}.member-row strong{font-size:14px}.member-row small{font-size:12px;color:#77889b}.leave-edit{margin-top:20px;color:#7b8899}
+@media(min-width:1100px){.work-area{grid-template-columns:minmax(0,1fr) 450px}}@media(min-width:1650px){.work-area{grid-template-columns:minmax(0,1fr) 500px}}@media(max-width:600px){.collab-tabs{gap:14px;padding:0 16px}.collab-panel-body{padding:16px}.head-actions{flex-wrap:wrap}.document-title .eyebrow{display:none}}

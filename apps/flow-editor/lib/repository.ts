@@ -1,6 +1,6 @@
 import {withCatalog,CATALOG_ID,CATALOG_LABEL,CATALOG_NOTE} from './catalog';
 import { seed } from './seed';
-import { validateDoc, flattenNodes, type FlowDoc } from './flow';
+import { validateDoc, flattenNodes, updateNode, type FlowDoc } from './flow';
 export const SAVE_SQL = `INSERT INTO flow_revisions (revision, document, hash, author_id, note, created_at)
  SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(MAX(revision),0) FROM flow_revisions)=? RETURNING revision`;
 export const FREEZE_SQL = `INSERT INTO flow_versions (id,label,revision,note,author_id,created_at)
@@ -29,12 +29,19 @@ export async function readFlow(db:D1Database,opts:{version?:string|null;revision
   const versions=(await db.prepare('SELECT id,label,revision,note,created_at FROM flow_versions ORDER BY created_at DESC,id DESC').all<Version>()).results;
   return{doc:JSON.parse(r.document),revision:r.revision,hash:r.hash,note:r.note,createdAt:r.created_at,version,latestRevision:latest!.revision,versions,view:opts.version?'version':opts.revision?'history':'draft'};
 }
-export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string,authorId:string){
+export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string,authorId:string,allowDiscussion=false){
   if(!Number.isSafeInteger(base)||base<1)throw new AppError('保存基准版本无效');
   if(typeof note!=='string'||note.trim().length<1||note.length>300)throw new AppError('请填写 1–300 字的修改说明');
   const current=await db.prepare('SELECT document FROM flow_revisions ORDER BY revision DESC LIMIT 1').first<Revision>();
   if(current)checkSourceFields(JSON.parse(current.document),validateDoc(doc));
-  const valid=validateDoc(doc),hash=await digest(valid),revision=base+1,now=new Date().toISOString();
+  const valid=validateDoc(doc);
+  if(!allowDiscussion&&current){
+    const before=new Map(flattenNodes(JSON.parse(current.document).nodes).map(n=>[n.id,n.discussion]));
+    const after=new Map(flattenNodes(valid.nodes).map(n=>[n.id,n.discussion]));
+    for(const id of new Set([...before.keys(),...after.keys()]))if(JSON.stringify(before.get(id))!==JSON.stringify(after.get(id)))throw new AppError('批注通过讨论区发布，不能通过导入或草稿改写');
+  }
+  if(new TextEncoder().encode(JSON.stringify(valid)).length>1800000)throw new AppError('协作内容已达容量限制，请导出备份后联系维护者',413);
+  const hash=await digest(valid),revision=base+1,now=new Date().toISOString();
   const saved=await db.prepare(SAVE_SQL).bind(revision,JSON.stringify(valid),hash,authorId,note.trim(),now,base).first();
   if(!saved)throw new AppError('其他成员已保存新修改。您的修改仍保留，请先查看新版，再合并或导出。',409);
   return{revision,hash,createdAt:now};
@@ -91,8 +98,26 @@ export function checkSourceFields(current:FlowDoc,incoming:FlowDoc){
  const index=new Map(flattenNodes(incoming.nodes).map(n=>[n.id,n]));
  for(const n of flattenNodes(current.nodes).filter(n=>n.sourceManaged)){
   const next=index.get(n.id);if(!next)throw new AppError('已接入模块由质控台维护；请在团队说明中提出调整建议');
-  for(const k of Object.keys(n).filter(k=>!['children','x','y','teamNotes'].includes(k))){
+  for(const k of Object.keys(n).filter(k=>!['children','x','y','teamNotes','proposal','discussion'].includes(k))){
    if(JSON.stringify(n[k as keyof typeof n])!==JSON.stringify(next[k as keyof typeof next]))throw new AppError('模块和评分规则由质控台同步，不能在网页中另改一套；请填写团队说明');
   }
  }
+}
+
+// Comments are stamped and appended by the server; saved snapshots contain the full discussion.
+export async function discussFlow(db:D1Database,body:{baseRevision:number;nodeId:string;operation:string;body?:string;threadId?:string},actor:{id:string;label:string}){
+  const current=await readFlow(db) as {doc:FlowDoc;revision:number};
+  if(body.baseRevision!==current.revision)throw new AppError('草稿已有更新。请先加载新版，输入的批注会保留。',409);
+  const node=flattenNodes(current.doc.nodes).find(n=>n.id===body.nodeId);if(!node)throw new AppError('模块不存在',404);
+  const list=structuredClone(node.discussion||[]),now=new Date().toISOString();
+  const message=()=>{if(typeof body.body!=='string'||!body.body.trim()||body.body.length>4000)throw new AppError('批注应为1–4000字');return{id:crypto.randomUUID(),author:actor.label,body:body.body.trim(),createdAt:now};};
+  if(body.operation==='comment')list.push({...message(),resolved:false,replies:[]});
+  else {const thread=list.find(t=>t.id===body.threadId);if(!thread)throw new AppError('讨论不存在',404);
+    if(body.operation==='reply')thread.replies.push(message());
+    else if(body.operation==='resolve')thread.resolved=true;
+    else if(body.operation==='reopen')thread.resolved=false;
+    else throw new AppError('不支持的讨论操作');
+  }
+  const doc={...current.doc,nodes:updateNode(current.doc.nodes,node.id,{discussion:list})};
+  return saveFlow(db,current.revision,doc,actor.label+' · '+node.title+' · '+({comment:'添加批注',reply:'回复讨论',resolve:'标记已处理',reopen:'重新讨论'}[body.operation]||'讨论'),actor.id,true);
 }

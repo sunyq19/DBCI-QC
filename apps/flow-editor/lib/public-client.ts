@@ -32,5 +32,5 @@ export function submitPublicWrite(payload:Record<string,unknown>,recovery:unknow
  // UI hint only: the server rechecks identity/allowlist on EVERY write.
  sessionStorage.setItem(PENDING,JSON.stringify({...envelope,recovery}));
  const form=document.createElement('form');form.method='POST';form.action=new URL('/flow-handoff',navigation.serviceUrl).href;
- const input=document.createElement('input');input.type='hidden';input.name='envelope';input.value=JSON.stringify(envelope);form.append(input);document.body.append(form);form.submit();
+ const input=document.createElement('input');input.type='hidden';input.name='envelope';input.value=JSON.stringify(envelope);form.appendChild(input);document.body.appendChild(form);form.submit();
 }
