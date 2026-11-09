@@ -114,3 +114,8 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 .sketch-workspace .canvas-scroll.panning,.sketch-workspace .canvas-scroll.panning *{cursor:grabbing!important}
 .sketch-workspace .canvas-scroll .graph-edge{cursor:pointer}
 @media(max-width:720px){.sketch-workspace .canvas-footer{height:auto;min-height:38px;gap:8px;padding-block:6px}.sketch-workspace .canvas-footer>span{max-width:none;flex:1;line-height:1.5}.sketch-workspace .zoom-controls{flex-shrink:0}}
+
+.sketch-workspace .flow-svg.editable .graph-node{cursor:pointer}
+.sketch-workspace .flow-svg.editable .graph-node.selected{cursor:grab}
+.sketch-workspace .flow-svg.editable.dragging .graph-node.selected{cursor:grabbing}
+.sketch-workspace .graph-node.selected .node-shape{stroke:#2861d9}
