@@ -38,6 +38,9 @@
     }
     return ranges;
   }
+  function plotHeight(channelCount,available=270) {
+    return Math.max(240,available,channelCount*44+35);
+  }
   function plot(wave,state,candidate,width=800,height=270,annotations=null) {
     const left=74,right=10,top=8,bottom=27,w=width-left-right;
     const n=wave.channels.length,row=(height-top-bottom)/n;
@@ -83,7 +86,7 @@
     }
     return out;
   }
-  const api={viewport,pan,zoom,navigation,scales,plot};
+  const api={viewport,pan,zoom,navigation,scales,plot,plotHeight};
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(!root.document)return;
   root.QCWaveformGeometry=api;
@@ -107,7 +110,8 @@
   }
   function render() {
     if(!wave||!state)return;
-    const width=Math.max(320,stage.clientWidth||800),height=Math.max(240,stage.clientHeight||270);
+    const width=Math.max(320,stage.clientWidth||800),height=plotHeight(wave.channels.length,stage.clientHeight||270);
+    svg.style.height=`${height}px`;
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
     svg.innerHTML=plot(wave,state,candidate,width,height,annotations)+`<g id="wave-cursor" visibility="hidden" pointer-events="none"><line y1="8" y2="${height-27}" stroke="#91a5c3" stroke-dasharray="3 3"/><text y="${height-30}" class="wave-tick" text-anchor="end"></text></g>`;
   }
@@ -130,7 +134,7 @@
   }
   function spanBounds() {
     const max=Math.min(info.limits.max_seconds,segment.stop_seconds-segment.start_seconds,
-      info.limits.max_read_bytes/(selected.length*stream.sampling_rate_hz*8));
+      Math.floor(info.limits.max_read_bytes/(selected.length*8))/stream.sampling_rate_hz);
     return {min:Math.min(1,max),max};
   }
   function sizes(desired=state?.span||10) {
@@ -306,6 +310,49 @@
   svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
   svg.addEventListener('pointerleave',()=>{$('wave-cursor')?.setAttribute('visibility','hidden');});
   if(root.ResizeObserver)new ResizeObserver(()=>{if(state)sync();render();}).observe(stage);
+  const inspector=panel.closest('.finding-inspector'),fullButton=$('finding-fullscreen');
+  let expanded=false,previousOverflow='',focusBeforeExpand=null;
+  function fullscreenState(on){
+    if(!inspector||expanded===on)return;
+    expanded=on;
+    if(on){previousOverflow=doc.body.style.overflow;focusBeforeExpand=doc.activeElement;doc.body.style.overflow='hidden';}
+    else{doc.body.style.overflow=previousOverflow;}
+    inspector.classList.toggle('finding-is-fullscreen',on);
+    fullButton.setAttribute('aria-pressed',String(on));
+    fullButton.setAttribute('title',on?t('退出全屏（Esc）','Exit full screen (Esc)'):t('全屏查看问题定位','Expand review locations'));
+    fullButton.querySelector('span').textContent=on?t('退出全屏','Exit full screen'):t('全屏','Full screen');
+    if(on)fullButton.focus({preventScroll:true});else (focusBeforeExpand||fullButton).focus({preventScroll:true});
+    if(state)sync();render();
+  }
+  async function leaveFullscreen(){
+    if(doc.fullscreenElement===inspector&&doc.exitFullscreen){
+      try{await doc.exitFullscreen();}catch{/* Viewport fallback can still close. */}
+    }
+    fullscreenState(false);
+  }
+  if(inspector&&fullButton){
+    fullButton.addEventListener('click',async()=>{
+      if(expanded){await leaveFullscreen();return;}
+      fullscreenState(true);
+      if(inspector.requestFullscreen){
+        try{await inspector.requestFullscreen();}catch{/* Remain expanded within the page. */}
+      }
+    });
+    doc.addEventListener('fullscreenchange',()=>{
+      if(doc.fullscreenElement===inspector)fullscreenState(true);
+      else if(expanded)fullscreenState(false);
+    });
+    doc.addEventListener('keydown',e=>{
+      if(!expanded)return;
+      if(e.key==='Escape'){e.preventDefault();leaveFullscreen();return;}
+      if(e.key!=='Tab')return;
+      const focusable=[...inspector.querySelectorAll('button,input,a[href],[tabindex="0"]')].filter(el=>!el.disabled&&!el.hidden&&el.getClientRects().length);
+      if(!focusable.length)return;
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(e.shiftKey&&doc.activeElement===first){e.preventDefault();last.focus();}
+      else if(!e.shiftKey&&doc.activeElement===last){e.preventDefault();first.focus();}
+    });
+  }
   function selectedLocations(){
     return (locationIndex?.findings||[]).filter(r=>activeMethods.has(r.method));
   }

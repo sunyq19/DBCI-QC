@@ -88,6 +88,8 @@ class NavigationTests(unittest.TestCase):
         self.assertIn('data-start="1" data-stop="3"',report)
         self.assertIn('src="/waveform-explorer.js"',report)
         self.assertIn('id="wave-controls" hidden',report)
+        self.assertIn('id="finding-fullscreen"',report)
+        self.assertIn('最多 15 道',report)
         self.assertIn('id="wave-zoom-in"',report)
         self.assertIn('id="wave-zoom-out"',report)
         self.assertNotIn('id="wave-speed"',report)

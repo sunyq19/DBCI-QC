@@ -72,3 +72,22 @@
 .finding-inspector .finding-caption{font-size:10px;line-height:1.5;display:block;margin:7px 0 0;color:#758398}
 @media(max-width:760px){.finding-inspector .finding-workspace{height:auto}.finding-inspector .finding-preview{height:510px}.finding-filter-options{gap:5px 10px}.finding-filter-options label{font-size:11px}.finding-inspector .finding-list{max-height:240px}}
 @media print{.finding-filters,.finding-index-notice{display:none}.finding-inspector .finding-workspace{height:auto}#wave-plot:not([hidden]){display:block!important;min-height:270px}.finding-preview[data-wave-ready="true"] #finding-image{display:none!important}}
+/* Expand this workspace without changing its channels, filters or time range. */
+.finding-inspector{position:relative}
+.finding-inspector .finding-filter-heading{padding-right:84px}
+.finding-fullscreen{position:absolute;top:0;right:0;display:inline-flex;align-items:center;gap:5px;width:auto;min-height:28px;padding:3px 8px;margin:0;border:1px solid #d5deea;border-radius:4px;background:#fff;color:#42546b;box-shadow:none;font:12px/20px var(--font-ui,system-ui,sans-serif);cursor:pointer;z-index:1}
+.finding-fullscreen:hover{background:#edf3fc;border-color:#8eaadc;color:#2459bc}
+.finding-fullscreen:focus-visible{outline:2px solid #8bade2;outline-offset:2px}
+.finding-fullscreen[aria-pressed="true"]{color:#2459bc;background:#edf3fc}
+.has-waveform-explorer .finding-stage{display:block;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#becbdc transparent;overscroll-behavior:contain}
+.has-waveform-explorer .finding-stage #finding-status{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.finding-inspector.finding-is-fullscreen{position:fixed;inset:0;z-index:10000;box-sizing:border-box;width:100vw;height:100vh;height:100dvh;margin:0;padding:18px 22px;background:#fff;display:flex;flex-direction:column;overflow:hidden;color:#243449}
+.finding-inspector.finding-is-fullscreen .finding-fullscreen{top:18px;right:22px}
+.finding-is-fullscreen .finding-filter-heading{padding-right:108px;min-height:28px}
+.finding-is-fullscreen .finding-filters{flex:none;max-height:25vh;overflow:auto;padding-bottom:12px}
+.finding-inspector.finding-is-fullscreen .finding-workspace{flex:1;min-height:0;height:auto;grid-template-columns:240px minmax(0,1fr);overflow:hidden}
+.finding-is-fullscreen .finding-preview{min-height:0;height:auto}
+.finding-is-fullscreen .finding-stage{min-height:120px}
+.finding-is-fullscreen .finding-index-notice,.finding-is-fullscreen .finding-caption{flex:none}
+@media(max-width:760px){.finding-inspector.finding-is-fullscreen{padding:12px}.finding-inspector.finding-is-fullscreen .finding-fullscreen{top:12px;right:12px}.finding-is-fullscreen .finding-filter-options{max-height:15vh;overflow:auto}.finding-inspector.finding-is-fullscreen .finding-workspace{display:flex;flex-direction:column}.finding-inspector.finding-is-fullscreen .finding-preview{height:auto;flex:1;min-height:0}.finding-is-fullscreen .finding-sidebar{flex:none;max-height:24vh}.finding-is-fullscreen .finding-list{max-height:12vh}.finding-is-fullscreen .wave-toolbar{margin-bottom:4px}}
+@media print{.finding-fullscreen{display:none!important}.finding-inspector.finding-is-fullscreen{position:static;display:block;width:auto;height:auto;padding:0;overflow:visible}.finding-inspector.finding-is-fullscreen .finding-workspace{height:auto;display:block}}

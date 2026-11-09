@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from review_workspace import ReviewWorkspace
-from waveform_explorer import MAX_SECONDS
+from waveform_explorer import MAX_SECONDS, MAX_CHANNELS, window
 import test_review_workspace as fixtures
 
 
@@ -22,6 +22,7 @@ class ExplorerTests(unittest.TestCase):
     def test_context_preserves_native_segments_duplicate_names_and_hides_paths(self):
         data=self.workspace.waveform_context()
         channels=data['streams'][0]['channels']
+        self.assertEqual(data['limits']['max_channels'],15)
         self.assertEqual([c['source_index'] for c in channels],[7,2])
         self.assertEqual([c['name'] for c in channels],['same','same'])
         self.assertEqual(data['streams'][0]['segments'],[
@@ -58,7 +59,7 @@ class ExplorerTests(unittest.TestCase):
 
     def test_hard_limits_gap_and_changed_source_remain_rejected(self):
         for query in [dict(duration_seconds=61,channel_indices=[7]),
-                      dict(duration_seconds=2,channel_indices=list(range(7))),
+                      dict(duration_seconds=2,channel_indices=list(range(16))),
                       dict(start_seconds=2.9,duration_seconds=1,channel_indices=[7]),
                       dict(start_seconds=-1,duration_seconds=1,channel_indices=[7]),
                       dict(duration_seconds=1,channel_indices=[7,7])]:
@@ -68,6 +69,18 @@ class ExplorerTests(unittest.TestCase):
         self.fixture.description['source_files'][0]['sha256']='b'*64
         with self.assertRaisesRegex(ValueError,'frozen'):
             self.workspace.waveform_window(duration_seconds=1,channel_indices=[7])
+
+    def test_fifteen_channels_are_allowed_but_sixteen_rejected_before_read(self):
+        from unittest.mock import Mock
+        workspace=Mock()
+        workspace.waveform.return_value={'frozen_source_verified':True,'channels':[{'source_index':i} for i in range(15)]}
+        result=window(workspace,channel_indices=list(range(15)),duration_seconds=10)
+        self.assertEqual(len(result['channels']),15)
+        self.assertEqual(workspace.waveform.call_args.kwargs['channel_indices'],list(range(15)))
+        workspace.waveform.reset_mock()
+        with self.assertRaisesRegex(ValueError,'15'):
+            window(workspace,channel_indices=list(range(16)),duration_seconds=10)
+        workspace.waveform.assert_not_called()
 
     def test_later_segment_uses_recording_clock_without_concatenating_gap(self):
         wave=self.workspace.waveform_window(start_seconds=3.6,duration_seconds=.2,channel_indices=[2,7])

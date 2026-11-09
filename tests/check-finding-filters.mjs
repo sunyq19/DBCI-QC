@@ -5,22 +5,23 @@ import vm from 'node:vm';
 const code=fs.readFileSync('apps/workbench/web/waveform-explorer.js','utf8');
 const created=[];
 class N{
- constructor(tag='div'){this.tag=tag;this.children=[];this.attrs={};this.dataset={};this.handlers={};this.style={setProperty(){}};this.classList={add(){},remove(){}};this.clientWidth=800;this.clientHeight=270;this.value='';created.push(this);}
+ constructor(tag='div'){this.tag=tag;this.children=[];this.attrs={};this.dataset={};this.handlers={};this.style={setProperty(){}};this.classes=new Set();this.classList={add:(v)=>this.classes.add(v),remove:(v)=>this.classes.delete(v),toggle:(v,on)=>on?this.classes.add(v):this.classes.delete(v),contains:(v)=>this.classes.has(v)};this.clientWidth=800;this.clientHeight=270;this.value='';created.push(this);}
  append(...n){this.children.push(...n);}
  replaceChildren(...n){this.children=n;}
  setAttribute(k,v){this.attrs[k]=String(v);}getAttribute(k){return this.attrs[k];}removeAttribute(k){delete this.attrs[k];}
  addEventListener(k,f){this.handlers[k]=f;}fire(k,e={}){this.handlers[k]?.(e);}
- focus(){}getBoundingClientRect(){return {width:800,height:270,left:0};}
+ focus(){document.activeElement=this;}getBoundingClientRect(){return {width:800,height:270,left:0};}
 }
-const ids=['finding-preview','finding-filters','finding-index-notice','finding-image','finding-status','finding-title','finding-position','finding-measure',
+const ids=['finding-fullscreen','finding-preview','finding-filters','finding-index-notice','finding-image','finding-status','finding-title','finding-position','finding-measure',
  'wave-controls','wave-notice','wave-span','wave-position','wave-prev','wave-next','wave-zoom-in','wave-zoom-out','wave-reset','wave-range',
  'wave-segment-start','wave-segment-end','wave-channel-count','wave-channel-options','wave-search','wave-channel-menu','wave-channels-toggle'];
 const nodes=Object.fromEntries(ids.map(id=>{const n=new N();n.id=id;return[id,n];}));
+const inspector=new N(),fullLabel=new N();nodes['finding-fullscreen'].querySelector=()=>fullLabel;
 const stage=new N(),workspace=new N(),sidebar=new N(),list=new N(),listLabel=new N(),caption=new N();
 workspace.querySelector=s=>s==='.finding-sidebar'?sidebar:list;sidebar.querySelector=()=>listLabel;
-nodes['finding-preview'].querySelector=s=>s==='.finding-stage'?stage:caption;nodes['finding-preview'].closest=()=>workspace;nodes['finding-preview'].dataset.waveformBase='/test';
+nodes['finding-preview'].querySelector=s=>s==='.finding-stage'?stage:caption;nodes['finding-preview'].closest=s=>s==='.finding-inspector'?inspector:workspace;nodes['finding-preview'].dataset.waveformBase='/test';
 const get=id=>created.find(n=>n.id===id);
-const document={documentElement:{lang:'zh-CN'},getElementById:get,querySelectorAll:()=>[],createElement:tag=>new N(tag),createElementNS:(_,tag)=>new N(tag),addEventListener(){}};
+const document={body:{style:{overflow:'auto'}},activeElement:null,handlers:{},documentElement:{lang:'zh-CN'},getElementById:get,querySelectorAll:()=>[],createElement:tag=>new N(tag),createElementNS:(_,tag)=>new N(tag),addEventListener(k,f){(this.handlers[k]??=[]).push(f);}};
 const index={warnings:[],methods:[{id:'hf',label:'高频突发',label_en:'HF',color:'#8b5bb5',location_count:2},{id:'low',label:'低频异常',color:'#24968a',location_count:1}],channels:[{id:'a',name:'FP2',source_index:7},{id:'b',name:'AF4',source_index:2}],findings:[
  {id:'1',method:'hf',channels:['a'],start:15,stop:16.5,localization:'interval'},
  {id:'2',method:'hf',channels:['b'],start:15,stop:16.5,localization:'interval'},
@@ -29,13 +30,26 @@ const reads=[];let failSource=false;
 const runtime={document,URLSearchParams,console,setTimeout,clearTimeout,window:null,fetch:async url=>{
  reads.push(url);
  if(url.endsWith('finding-locations'))return {ok:true,json:async()=>index};
- if(url.endsWith('waveform-context'))return {ok:!failSource,json:async()=>({limits:{max_channels:6,max_seconds:60,max_read_bytes:67108864},streams:[{stream_id:'s',sampling_rate_hz:500,segments:[{start_seconds:0,stop_seconds:800}],channels:[{channel_id:'a',name:'FP2',source_index:7},{channel_id:'b',name:'AF4',source_index:2}]}]})};
+ if(url.endsWith('waveform-context'))return {ok:!failSource,json:async()=>({limits:{max_channels:15,max_seconds:60,max_read_bytes:67108864},streams:[{stream_id:'s',sampling_rate_hz:500,segments:[{start_seconds:0,stop_seconds:800}],channels:[{channel_id:'a',name:'FP2',source_index:7},{channel_id:'b',name:'AF4',source_index:2},...Array.from({length:18},(_,i)=>({channel_id:'extra'+i,name:'C'+i,source_index:20+i}))]}]})};
  const p=new URL(url,'http://local').searchParams,start=Number(p.get('start_seconds')),span=Number(p.get('duration_seconds'));
  return {ok:true,json:async()=>({frozen_source_verified:true,channels:p.get('channel_indices').split(',').map(id=>({channel_id:id==='7'?'a':'b',source_index:Number(id),name:id==='7'?'FP2':'AF4',unit:'µV',values:[0,10,0],times_seconds:[start,start+span/2,start+span]}))})};
 }};runtime.window=runtime;
 vm.runInNewContext(code,runtime);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));await tick();await tick();
 assert.equal(list.children.length,3,'All location rows selectable');
+const rangeBefore=get('wave-range').textContent,readsBefore=reads.length;
+get('finding-fullscreen').fire('click');await tick();
+assert(inspector.classList.contains('finding-is-fullscreen'));assert.equal(get('finding-fullscreen').getAttribute('aria-pressed'),'true');
+assert.equal(fullLabel.textContent,'退出全屏');assert.equal(document.body.style.overflow,'hidden');
+for(const handler of document.handlers.keydown)handler({key:'Escape',preventDefault(){}});await tick();
+assert(!inspector.classList.contains('finding-is-fullscreen'));assert.equal(document.body.style.overflow,'auto');
+assert.equal(get('wave-range').textContent,rangeBefore);assert.equal(reads.length,readsBefore,'Fullscreen never refetches signals or changes the interval');
+// Native browser full screen and browser-managed Escape use the same state.
+inspector.requestFullscreen=async()=>{document.fullscreenElement=inspector;for(const h of document.handlers.fullscreenchange)h();};
+document.exitFullscreen=async()=>{document.fullscreenElement=null;for(const h of document.handlers.fullscreenchange)h();};
+get('finding-fullscreen').fire('click');await tick();assert.equal(document.fullscreenElement,inspector);
+get('finding-fullscreen').fire('click');await tick();assert(!inspector.classList.contains('finding-is-fullscreen'));
+
 assert.equal(get('finding-title').textContent,'FP2 · 高频突发');
 const boxes=()=>get('finding-filters').children[1].children.map(n=>n.children[0]);
 const channelBox=get('wave-channel-options').children[1].children[0];channelBox.checked=true;channelBox.fire('change');await tick();
@@ -54,4 +68,9 @@ get('finding-search').value='AF4';get('finding-search').fire('input');assert.equ
 list.children[1].fire('click');await tick();assert.equal(get('finding-title').textContent,'AF4 · 低频异常');
 assert(get('finding-measure').textContent.includes('14–17'));
 assert.equal(reads.filter(u=>u.endsWith('finding-locations')).length,1);
-console.log('PASS check combinations, all/none, channel search, selection, comparison overlays, no recalculation');
+for(let i=0;i<15;i++){const box=get('wave-channel-options').children[i].children[0];if(!box.checked){box.checked=true;box.fire('change');await tick();}}
+assert.equal(get('wave-channel-count').textContent,'15 / 15');
+assert(get('wave-channel-options').children[15].children[0].disabled,'Sixteenth lane cannot be added');
+const selectedBox=get('wave-channel-options').children[4].children[0];selectedBox.checked=false;selectedBox.fire('change');await tick();
+assert.equal(get('wave-channel-count').textContent,'14 / 15');assert(!get('wave-channel-options').children[15].children[0].disabled);
+console.log('PASS fullscreen enter/exit/Escape, 15-channel limit, check combinations, all/none, channel search, selection, comparison overlays, no recalculation');

@@ -25,6 +25,8 @@ assert.equal(g.navigation({start:21590,span:10},longSegment).max,21590);
 const waveform={channels:[{channel_id:'a',name:'F2<script>',unit:'µV',times_seconds:[41,42,43,44],values:[1,null,100,-50]},
  {channel_id:'b',name:'FP1',unit:'µV',times_seconds:[41,42,43,44],values:[2,3,4,5]},
  {channel_id:'c',name:'MEG',unit:'T',times_seconds:[41,42,43,44],values:[1e-12,2e-12,3e-12,4e-12]}]};
+assert.equal(g.plotHeight(15,300),695,'15 channels retain a readable lane height');
+assert.equal(g.plotHeight(15,900),900,'Full screen uses available vertical space');
 const ranges=g.scales(waveform.channels);assert(ranges['µV'][0]<-50&&ranges['µV'][1]>100);
 assert(ranges.T[1]<ranges['µV'][1]);
 const markup=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47});
@@ -86,7 +88,7 @@ const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const settleZoom=async()=>{const callbacks=[...timers.values()];timers.clear();callbacks.forEach(fn=>fn());await tick();};
 const answer=async(data,ok=true)=>{const req=reads.shift();assert(req);req.resolve({ok,json:async()=>data});await tick();return req;};
 assert(reads[0].url.endsWith('waveform-context'));
-await answer({frozen_source_verified:true,limits:{max_channels:6,max_seconds:60,max_points:2000,max_read_bytes:67108864},streams:[{
+await answer({frozen_source_verified:true,limits:{max_channels:15,max_seconds:60,max_points:2000,max_read_bytes:67108864},streams:[{
  stream_id:'s',sampling_rate_hz:500,segments:[{start_seconds:0,stop_seconds:733}],channels:[
  {source_index:7,channel_id:'a',name:'F2',unit:'V'},{source_index:2,channel_id:'b',name:'FP1',unit:'V'},
  {source_index:8,channel_id:'c',name:'F3',unit:'V'}]}]});
@@ -103,7 +105,7 @@ assert.equal(Number(nodes['wave-position'].max)-Number(nodes['wave-position'].mi
 assert.equal(nodes['wave-controls'].hidden,false);assert.equal(nodes['wave-range'].textContent,'40–50 s');
 const fp1=nodes['wave-channel-options'].children[1].children[0];fp1.checked=true;fp1.fire('change');
 assert(reads[0].url.includes('channel_indices=7%2C2'));await resolveWave();
-assert(nodes.svg.innerHTML.includes('FP1'));assert.equal(nodes['wave-channel-count'].textContent,'2 / 6');
+assert(nodes.svg.innerHTML.includes('FP1'));assert.equal(nodes['wave-channel-count'].textContent,'2 / 15');
 nodes['wave-zoom-out'].fire('click');nodes['wave-zoom-out'].fire('click');
 assert.equal(reads.length,0,'Zoom redraws immediately and batches the source read until the gesture settles');
 assert.equal(nodes['wave-span'].textContent,'40 s');

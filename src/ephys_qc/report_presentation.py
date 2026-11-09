@@ -57,7 +57,7 @@ def focused_figure(view, workspace, index):
 def waveform_controls():
     return '''<div id="wave-controls" hidden>
 <div class="wave-toolbar"><div class="wave-time-controls"><button type="button" id="wave-prev" aria-label="向前查看" title="向前查看（左方向键）">‹</button><div class="wave-zoom" role="group" aria-label="时间缩放"><button type="button" id="wave-zoom-out" aria-label="缩小，查看更多时间" title="缩小，查看更多时间">−</button><output id="wave-span" aria-label="显示时长">10 s</output><button type="button" id="wave-zoom-in" aria-label="放大，查看细节" title="放大，查看细节">+</button></div><button type="button" id="wave-next" aria-label="向后查看" title="向后查看（右方向键）">›</button><button type="button" id="wave-reset">回到候选</button></div>
-<div class="wave-channel-picker"><button type="button" id="wave-channels-toggle" aria-expanded="false" aria-controls="wave-channel-menu">对照通道 <span id="wave-channel-count">1 / 6</span></button><div id="wave-channel-menu" hidden><label for="wave-search">选择对照通道 · 最多 6 道</label><input id="wave-search" type="search" placeholder="搜索通道" autocomplete="off"><div id="wave-channel-options"></div></div></div></div>
+<div class="wave-channel-picker"><button type="button" id="wave-channels-toggle" aria-expanded="false" aria-controls="wave-channel-menu">对照通道 <span id="wave-channel-count">1 / 15</span></button><div id="wave-channel-menu" hidden><label for="wave-search">选择对照通道 · 最多 15 道</label><input id="wave-search" type="search" placeholder="搜索通道" autocomplete="off"><div id="wave-channel-options"></div></div></div></div>
 <div class="wave-navigator"><div class="wave-navigation-labels"><span id="wave-range"></span><span class="wave-gesture-hint">拖动查看 · 滚轮缩放</span></div><div class="wave-timeline"><span id="wave-segment-start"></span><input type="range" id="wave-position" min="0" max="1" step="0.001" value="0" aria-label="拖动查看前后时间"><span id="wave-segment-end"></span></div></div></div>
 <p id="wave-notice" class="wave-notice" role="status" hidden></p>'''
 
@@ -73,17 +73,18 @@ def location_inspector(base, fallback='', *, english=False):
             '<p id="finding-measure"></p>'+waveform_controls()+
             '<div class="finding-stage"><img id="finding-image" hidden alt=""><p id="finding-status" role="status"></p></div>'
             '<p class="finding-caption"></p></div></div>')
-    html = ('<div class="finding-inspector"><div id="finding-filters" class="finding-filters" aria-label="检查项筛选">'
+    html = ('<div class="finding-inspector"><button type="button" id="finding-fullscreen" class="finding-fullscreen" aria-pressed="false" title="全屏查看问题定位"><svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg><span>全屏</span></button><div id="finding-filters" class="finding-filters" aria-label="检查项筛选">'
             '<span role="status">正在载入检查位置…</span></div>'
             '<p id="finding-index-notice" class="finding-index-notice" role="status" hidden></p>'+fallback+'</div>')
     if english:
         for zh, en in {
+            '全屏查看问题定位':'Expand review locations', '全屏':'Full screen',
             '正在载入检查位置…':'Loading check locations…', '检查项筛选':'Filter checks',
             '候选位置列表':'Candidate locations', '候选位置':'Locations', '选择检查位置':'Select a location',
             '向前查看（左方向键）':'Previous interval (left arrow)', '向后查看（右方向键）':'Next interval (right arrow)',
             '向前查看':'Previous interval', '向后查看':'Next interval', '时间缩放':'Time zoom',
             '缩小，查看更多时间':'Zoom out', '放大，查看细节':'Zoom in', '显示时长':'Visible duration',
-            '回到候选':'Return to candidate', '选择对照通道 · 最多 6 道':'Compare up to 6 channels',
+            '回到候选':'Return to candidate', '选择对照通道 · 最多 15 道':'Compare up to 15 channels',
             '对照通道':'Compare channels', '搜索通道':'Search channels',
             '拖动查看前后时间':'Drag to pan', '拖动查看 · 滚轮缩放':'Drag to pan · scroll to zoom',
         }.items(): html=html.replace(zh,en)

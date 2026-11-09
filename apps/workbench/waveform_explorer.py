@@ -2,7 +2,7 @@
 from review_workspace import _verify_sources, _channel_indices, MAX_READ_BYTES, MAX_POINTS
 
 MAX_SECONDS = 60.0
-MAX_CHANNELS = 6
+MAX_CHANNELS = 15
 
 
 def context(workspace):
@@ -46,7 +46,7 @@ def window(workspace, **query):
     # Explicit selection avoids the legacy preview's default first 16 channels.
     wanted = _channel_indices(query.get('channel_indices'))
     if len(wanted) > MAX_CHANNELS:
-        raise ValueError('同屏最多对照 6 个通道。')
+        raise ValueError('同屏最多对照 15 个通道。')
     wave = workspace.waveform(**query, _max_seconds=MAX_SECONDS, _include_psd=False)
     if not wave.get('frozen_source_verified'):
         raise ValueError('未能核对原始记录，暂不能展开波形。')
