@@ -47,3 +47,28 @@
 @media(max-width:760px){.has-waveform-explorer.finding-workspace{height:auto}.has-waveform-explorer .finding-preview{height:490px;border-radius:6px 6px 0 0}.has-waveform-explorer .finding-sidebar{border-radius:0 0 6px 6px}}
 @media print{#wave-controls,.wave-notice,#wave-plot{display:none!important}.has-waveform-explorer.finding-workspace{height:auto}.has-waveform-explorer .finding-preview{height:auto}.finding-preview #finding-image[hidden]{display:block!important}}
 @media(max-width:760px){.wave-gesture-hint{display:none}.wave-timeline{gap:5px}}
+/* A single check filter controls the list and all displayed signal lanes. */
+.finding-filters{padding:0 0 12px;color:#42546b;font-size:12px}
+.finding-filter-heading{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.finding-filter-heading strong{font-size:12px;font-weight:600;margin-right:auto}
+.finding-filter-heading button,.finding-filters>button{border:0;background:transparent;box-shadow:none;color:#2459bc;font:inherit;cursor:pointer;padding:2px 0;width:auto;margin:0}
+.finding-filter-options{display:flex;flex-wrap:wrap;gap:6px 12px}
+.finding-filter-options label{display:flex;align-items:center;gap:5px;cursor:pointer;margin:0;font:12px/1.5 var(--font-ui,system-ui,sans-serif);padding:3px 0;color:#34465d}
+.finding-filter-options input{width:13px;height:13px;min-height:0;margin:0;padding:0}
+.finding-filter-options span{display:flex;align-items:center;gap:5px}
+.finding-filter-options small{color:#78869a;font-size:10px;margin-left:2px}
+.finding-filter-options i,.finding-location small i{display:inline-block;width:7px;height:7px;border-radius:2px;flex:none}
+.finding-inspector .finding-workspace{height:520px}
+.finding-inspector .finding-location{width:100%;text-align:left;border:0;border-left:2px solid transparent;box-shadow:none;font:inherit;cursor:pointer;line-height:1.5;background:transparent;box-sizing:border-box}
+.finding-inspector .finding-location[aria-current="true"]{background:#e4edfc;border-left-color:#2459bc}
+.finding-inspector .finding-location:hover{background:#eaf0f8}
+.finding-location small{display:flex;align-items:center;gap:5px}
+#finding-search{min-width:0;width:100%;box-sizing:border-box;background:#fff;border:1px solid #d7dfeb;border-radius:4px;font:12px var(--font-ui,system-ui,sans-serif);padding:6px 7px;min-height:30px;margin:0}
+.finding-pagination{display:flex;align-items:center;justify-content:space-between;gap:6px;border-top:1px solid #e1e7ef;margin-top:auto;padding:5px 10px;font-size:11px;color:#64748b;font-variant-numeric:tabular-nums;flex:none}
+.finding-pagination button{background:transparent;border:0;box-shadow:none;padding:0;width:24px;margin:0;color:#42546b;cursor:pointer;font-size:20px;line-height:26px}
+.finding-pagination button:disabled{opacity:.25;cursor:default}
+.finding-empty{padding:10px;font-size:12px;color:#64748b}
+.finding-index-notice{font-size:12px;color:#8d682d;margin:0 0 10px}.finding-index-notice[hidden]{display:none}
+.finding-inspector .finding-caption{font-size:10px;line-height:1.5;display:block;margin:7px 0 0;color:#758398}
+@media(max-width:760px){.finding-inspector .finding-workspace{height:auto}.finding-inspector .finding-preview{height:510px}.finding-filter-options{gap:5px 10px}.finding-filter-options label{font-size:11px}.finding-inspector .finding-list{max-height:240px}}
+@media print{.finding-filters,.finding-index-notice{display:none}.finding-inspector .finding-workspace{height:auto}#wave-plot:not([hidden]){display:block!important;min-height:270px}.finding-preview[data-wave-ready="true"] #finding-image{display:none!important}}

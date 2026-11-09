@@ -72,6 +72,13 @@ def served_report(store, identifier, language='zh-CN'):
         report=re.sub(re.escape(chart_link)+r'.*?</a></p>',
                       lambda _:inline_charts(f'/api/v1/jobs/{identifier}/visualizations',english=language=='en'),report)
         report=report.replace('</head>','<script src="/report-interactions.js" defer></script></head>',1)
+        from ephys_qc.report_presentation import location_inspector, report_section
+        replacement=report_section('locations', 'Review locations' if language=='en' else '问题定位',
+            location_inspector(f'/api/v1/jobs/{identifier}', english=language=='en'), opened=True)
+        # These renderers own the boundary between top-level locations/charts.
+        report=re.sub(r'<details id="locations".*?(?=<details id="charts")', lambda _:replacement, report, count=1, flags=re.S)
+        report=report.replace('</head>', '<link rel="stylesheet" href="/waveform-explorer.css"><script src="/waveform-explorer.js" defer></script></head>',1)
+
     # Every relative resource is still checked against the artifact manifest by
     # its endpoint. This rewrite grants no access to new files or host paths.
     def resource(match):

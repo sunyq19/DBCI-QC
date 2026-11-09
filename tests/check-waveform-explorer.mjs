@@ -28,10 +28,27 @@ const waveform={channels:[{channel_id:'a',name:'F2<script>',unit:'µV',times_sec
 const ranges=g.scales(waveform.channels);assert(ranges['µV'][0]<-50&&ranges['µV'][1]>100);
 assert(ranges.T[1]<ranges['µV'][1]);
 const markup=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47});
-assert.equal((markup.match(/fill="#f8e4bc"/g)||[]).length,1,'Only candidate channel gets a shaded abnormal interval');
+assert.equal((markup.match(/data-mark-channel="a"/g)||[]).length,1,'Legacy snapshot has only its known channel interval');
 assert(markup.includes('F2&lt;script&gt;')&&!markup.includes('<script>'));
 assert(!markup.includes('NaN')&&!markup.includes('Infinity'));
 assert((markup.match(/M/g)||[]).length>=4,'Missing samples break a line instead of drawing through them');
+
+const annotations=[
+ {channels:['a'],start:43,stop:47,method:'hf',color:'#8b5bb5',label:'HF',localization:'interval'},
+ {channels:['b'],start:43,stop:47,method:'hf',color:'#8b5bb5',label:'HF',localization:'interval'},
+ {channels:['b'],start:44,stop:48,method:'line',color:'#b77908',label:'Line',localization:'interval'},
+ {channels:['b'],start:40,stop:50,method:'lof',color:'#477882',label:'LOF',localization:'channel'},
+ {channels:['a','b'],start:42,stop:44,method:'jump',color:'#bd525d',label:'Group',localization:'group_interval'},
+ {channels:['c'],start:70,stop:80,method:'hf',color:'#8b5bb5',label:'HF',localization:'interval'}];
+const allMarks=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47},800,270,annotations);
+assert.equal((allMarks.match(/data-mark-channel="b"/g)||[]).length,2,'Both checks shade the comparison channel');
+assert(allMarks.includes('data-group-mark="jump"'),'Group evidence has its own band, never per-channel blame');
+assert(!allMarks.includes('data-mark-channel="c"'),'Out-of-view findings are clipped');
+assert(!allMarks.includes('data-mark-method="lof"'),'Channel-only findings are not time intervals');
+const hidden=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47},800,270,[]);
+assert(!hidden.includes('data-mark-channel'),'Hide all removes even the primary candidate shading');
+const hfOnly=g.plot(waveform,{start:40,span:10},{id:'a',start:43,stop:47},800,270,annotations.filter(r=>r.method==='hf'));
+assert(!hfOnly.includes('data-mark-method="line"')&&hfOnly.includes('data-mark-channel="b"'));
 
 class Node {
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.dataset={};this.attrs={};this.children=[];this.handlers={};this.value='';this.hidden=false;this.classList={add(){},remove(){}};this.style={setProperty(k,v){this[k]=v;}};this.clientWidth=800;this.clientHeight=270;}

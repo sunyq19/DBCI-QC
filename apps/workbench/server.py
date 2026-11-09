@@ -825,7 +825,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({'error': 'PDF 组件未安装。请在服务环境安装 ephys-qc-workbench[reports]。'}, 503)
             return self.send_bytes(data, 'application/pdf', headers={
                 'Content-Disposition': f'attachment; filename="DBCI-QC-{identifier[:8]}.pdf"'})
-        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|waveform|waveform-context|waveform-window|review|configuration)', path)
+        match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|finding-locations|waveform|waveform-context|waveform-window|review|configuration)', path)
         if match:
             identifier, action = match.groups()
             if action == 'configuration':
@@ -839,6 +839,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json(workspace.waveform_window(**self.waveform_query()))
             if action == 'waveform':
                 return self.json(workspace.waveform(**self.waveform_query()))
+            if action == 'finding-locations':
+                from finding_locations import locations
+                return self.json(locations(workspace))
             if action == 'candidates':
                 return self.json(workspace.candidates())
             return self.json(workspace.review())

@@ -99,6 +99,8 @@ def prepare(store, identifier):
     from saved_reports import frozen_view
     from project_score_cache import load
     from ephys_qc.report_presentation import focus_targets
+    from finding_locations import locations
+    locations(store.workspace(identifier))
     gallery(store, identifier, {'embedded': ['1']})
     published = load(store, identifier)
     view = published.get('report_view') if published else frozen_view(store, identifier)

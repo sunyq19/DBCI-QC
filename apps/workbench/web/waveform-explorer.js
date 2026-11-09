@@ -38,7 +38,7 @@
     }
     return ranges;
   }
-  function plot(wave,state,candidate,width=800,height=270) {
+  function plot(wave,state,candidate,width=800,height=270,annotations=null) {
     const left=74,right=10,top=8,bottom=27,w=width-left-right;
     const n=wave.channels.length,row=(height-top-bottom)/n;
     const ranges=scales(wave.channels),x=t=>left+(t-state.start)/state.span*w;
@@ -50,8 +50,17 @@
     wave.channels.forEach((c,i)=>{
       const y0=top+i*row+5,h=row-14,[lo,hi]=ranges[c.unit];
       const y=v=>y0+h-(v-lo)/(hi-lo)*h,selected=c.channel_id===candidate.id;
-      const a=clamp(x(candidate.start),left,width-right),b=clamp(x(candidate.stop),left,width-right);
-      if(selected&&b>a)out+=`<rect x="${a}" y="${y0}" width="${b-a}" height="${h}" fill="#f8e4bc"/>`;
+      const marks=annotations===null ? (selected?[{start:candidate.start,stop:candidate.stop,color:'#f8e4bc',method:'selected',label:'候选区间',localization:'interval'}]:[]) : annotations.filter(r=>r.channels.includes(c.channel_id)&&r.stop>state.start&&r.start<state.start+state.span);
+      const timed=marks.filter(r=>r.localization==='interval');
+      const types=[...new Set(timed.map(r=>r.method))];
+      for(const r of timed){
+        const a=clamp(x(r.start),left,width-right),b=clamp(x(r.stop),left,width-right);
+        if(b<=a)continue;
+        const lane=types.indexOf(r.method),stripe=Math.min(3,Math.max(1,h*.24/Math.max(1,types.length)));
+        out+=`<g data-mark-channel="${esc(c.channel_id)}" data-mark-method="${esc(r.method)}"><title>${esc(r.label)} · ${fmt(r.start)}–${fmt(r.stop)} s</title><rect x="${a}" y="${y0}" width="${b-a}" height="${h}" fill="${r.color}" fill-opacity="${annotations===null?1:.10}"/><rect x="${a}" y="${y0+h-(lane+1)*(stripe+1)}" width="${b-a}" height="${stripe}" fill="${r.color}"/></g>`;
+      }
+      const channelOnly=marks.filter(r=>r.localization==='channel');
+      if(channelOnly.length)out+=`<circle cx="65" cy="${y0+20}" r="3" fill="${channelOnly[0].color}"><title>${esc([...new Set(channelOnly.map(r=>r.label))].join(' / '))} · 通道级候选，未定位时间</title></circle>`;
       out+=`<text x="4" y="${y0+13}" class="wave-channel-name" fill="${selected?'#2459bc':'#42546b'}">${esc(c.name)}</text>`;
       out+=`<text x="4" y="${y0+26}" class="wave-unit">${esc(c.unit)}</text>`;
       // All lanes of the same unit use exactly the same amplitude range.
@@ -65,6 +74,13 @@
       out+=`<path d="${d}" clip-path="url(#wave-clip)" stroke="${selected?'#2459bc':'#586d87'}" fill="none" stroke-width=".8" vector-effect="non-scaling-stroke"/>`;
       out+=`<line x1="${left}" x2="${width-right}" y1="${y0+h+5}" y2="${y0+h+5}" stroke="#e6ebf2"/>`;
     });
+    if(annotations){
+      const aggregate=annotations.filter(r=>r.localization==='group_interval'&&r.channels.some(id=>wave.channels.some(c=>c.channel_id===id))&&r.stop>state.start&&r.start<state.start+state.span);
+      const types=[...new Set(aggregate.map(r=>r.method))];
+      for(const r of aggregate){const a=clamp(x(r.start),left,width-right),b=clamp(x(r.stop),left,width-right);
+        out+=`<rect data-group-mark="${esc(r.method)}" x="${a}" y="${types.indexOf(r.method)*3}" width="${Math.max(0,b-a)}" height="2" fill="${r.color}"><title>${esc(r.label)} · 通道组区间，未定位单道</title></rect>`;
+      }
+    }
     return out;
   }
   const api={viewport,pan,zoom,navigation,scales,plot};
@@ -74,7 +90,8 @@
   const doc=root.document,panel=doc.getElementById('finding-preview');
   if(!panel?.dataset.waveformBase)return;
   const $=id=>doc.getElementById(id),t=(zh,en)=>doc.documentElement.lang==='en'?en:zh;
-  const base=panel.dataset.waveformBase,links=[...doc.querySelectorAll('[data-finding]')];
+  const base=panel.dataset.waveformBase;let links=[...doc.querySelectorAll('[data-finding]')];
+  const filters=$('finding-filters');let locationIndex=null,activeMethods=new Set(),annotations=null,activeLocation=null,listPage=0;
   const stage=panel.querySelector('.finding-stage'),controls=$('wave-controls'),notice=$('wave-notice');
   const image=$('finding-image'),status=$('finding-status'),spanLabel=$('wave-span'),position=$('wave-position');
   const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -92,7 +109,7 @@
     if(!wave||!state)return;
     const width=Math.max(320,stage.clientWidth||800),height=Math.max(240,stage.clientHeight||270);
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
-    svg.innerHTML=plot(wave,state,candidate,width,height)+`<g id="wave-cursor" visibility="hidden" pointer-events="none"><line y1="8" y2="${height-27}" stroke="#91a5c3" stroke-dasharray="3 3"/><text y="${height-30}" class="wave-tick" text-anchor="end"></text></g>`;
+    svg.innerHTML=plot(wave,state,candidate,width,height,annotations)+`<g id="wave-cursor" visibility="hidden" pointer-events="none"><line y1="8" y2="${height-27}" stroke="#91a5c3" stroke-dasharray="3 3"/><text y="${height-30}" class="wave-tick" text-anchor="end"></text></g>`;
   }
   function sync() {
     $('wave-range').textContent=`${fmt(state.start)}–${fmt(state.start+state.span)} s`;
@@ -156,7 +173,7 @@
       retry.type='button';retry.textContent=t('重试','Retry');retry.addEventListener('click',load);
       saved.href=links.find(l=>l.getAttribute('aria-current')==='true')?.href||image.src;
       saved.textContent=t('查看保存片段','Saved snapshot');saved.target='_blank';saved.rel='noopener';
-      notice.append(retry,saved);
+      notice.append(retry);if(saved.href&&!saved.href.endsWith('#review')&&!saved.href.endsWith('#locations'))notice.append(saved);
     }finally {
       inFlight=false;
       if(pending&&!drag){pending=false;load();}
@@ -179,7 +196,7 @@
     }
   }
   function select(link) {
-    if(!info)return false;
+    if(!info||!link)return false;
     const id=link.dataset.channelId;
     const next=info.streams.find(s=>s.channels.some(c=>c.channel_id===id));
     const start=Number(link.dataset.start),stop=Number(link.dataset.stop);
@@ -197,13 +214,14 @@
     sliding=false;nav=null;
     comparisons=comparisons.filter(i=>i!==c.source_index&&stream.channels.some(c=>c.source_index===i));
     selected=[c.source_index,...comparisons].slice(0,info.limits.max_channels);
-    const span=sizes(Math.max(10,stop-start+4));
-    state=viewport((start+stop)/2-span/2,span,segment);
+    const channelOnly=link.dataset.localization==='channel';
+    const span=sizes(channelOnly?10:Math.max(10,Math.min(30,stop-start+4)));
+    state=viewport(channelOnly?start:start+(Math.min(stop-start,span)-span)/2,span,segment);
     $('finding-title').textContent=link.dataset.title;$('finding-measure').textContent=link.dataset.measure;
     $('finding-position').textContent=link.dataset.position;
     links.forEach(l=>l.setAttribute('aria-current',String(l===link)));
     controls.hidden=false;panel.closest('.finding-workspace').classList.add('has-waveform-explorer');
-    panel.dataset.interactive='ready';image.src=link.href;image.alt=link.dataset.title;
+    panel.dataset.interactive='ready';if(link.href&&!link.dataset.locationId)image.src=link.href;else image.removeAttribute('src');image.alt=link.dataset.title;
     channelMenu();load();return true;
   }
   root.qcWaveformViewer={select};
@@ -288,9 +306,95 @@
   svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
   svg.addEventListener('pointerleave',()=>{$('wave-cursor')?.setAttribute('visibility','hidden');});
   if(root.ResizeObserver)new ResizeObserver(()=>{if(state)sync();render();}).observe(stage);
-  readJSON(`${base}/waveform-context`).then(data=>{
-    info=data;select(links.find(l=>l.getAttribute('aria-current')==='true')||links[0]);
-    const caption=panel.querySelector('.finding-caption');
-    if(caption)caption.innerHTML='<span class="candidate-swatch" aria-hidden="true"></span>'+t('候选通道标记区间 · 同单位共用幅度刻度','Candidate channel interval · shared scale per unit')+'<span>'+t('原始时间（秒）','Recording time (s)')+'</span>';
-  }).catch(()=>message(t('原始记录暂不可用，当前展示已保存的候选波形。','Original recording unavailable; showing the saved candidate waveform.')));
+  function selectedLocations(){
+    return (locationIndex?.findings||[]).filter(r=>activeMethods.has(r.method));
+  }
+  function updateAnnotations(){
+    const methods=new Map(locationIndex.methods.map(m=>[m.id,m]));
+    annotations=selectedLocations().map(r=>({...r,color:methods.get(r.method).color,label:t(methods.get(r.method).label,methods.get(r.method).label_en)}));
+    render();
+  }
+  function chooseLocation(row){
+    activeLocation=row.id;
+    const ids=row.channels,channel=info?.streams.flatMap(s=>s.channels).find(c=>ids.includes(c.channel_id));
+    const method=locationIndex.methods.find(m=>m.id===row.method),names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
+    const label=t(method.label,method.label_en);
+    const scope=row.localization==='channel'?t('通道级候选 · 未定位具体时间','Channel candidate · time not localized'):row.localization==='group_interval'?t('通道组区间 · 未定位单个通道','Group interval · individual channels not localized'):['line_noise','ieeg_spectrum_fit'].includes(row.method)?t('命中检查窗 · 相连窗口已合并','Flagged analysis windows · connected windows merged'):t('已保存的检测区间','Saved detection interval');
+    const title=(row.localization==='group_interval'?t('通道组','Channel group'):ids.map(id=>names.get(id)||id).join(' / '))+' · '+label;
+    const proxy={dataset:{channelId:channel?.channel_id||ids[0],start:String(row.start),stop:String(row.stop),title,
+      measure:scope+(row.localization==='channel'?'':` · ${fmt(row.start)}–${fmt(row.stop)} s`),position:'',localization:row.localization,locationId:row.id},href:''};
+    $('finding-title').textContent=title;$('finding-measure').textContent=proxy.dataset.measure;
+    if(!select(proxy)){
+      invalidate();wave=null;svg.setAttribute('hidden','');image.hidden=true;controls.hidden=true;
+      activity('error',t('该位置的原始波形暂不可用。检测位置仍保留。','Original waveform unavailable; saved locations remain listed.'));
+    }
+    renderLocationList();
+  }
+  function renderLocationList(){
+    const list=panel.closest('.finding-workspace').querySelector('.finding-list');
+    const search=($('finding-search')?.value||'').trim().toLowerCase();
+    const names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
+    const methods=new Map(locationIndex.methods.map(m=>[m.id,m]));
+    const rows=selectedLocations().filter(r=>!search||r.channels.some(id=>(names.get(id)||'').toLowerCase().includes(search)));
+    const size=40,pages=Math.max(1,Math.ceil(rows.length/size));listPage=Math.min(listPage,pages-1);
+    list.replaceChildren();links=[];
+    for(const row of rows.slice(listPage*size,(listPage+1)*size)){
+      const m=methods.get(row.method),button=doc.createElement('button');button.type='button';button.className='finding-item finding-location';
+      button.setAttribute('aria-current',String(row.id===activeLocation));button.dataset.locationId=row.id;
+      const name=row.localization==='group_interval'?t('通道组','Channel group'):row.channels.map(id=>names.get(id)||id).join(' / ');
+      const time=row.localization==='channel'?t('通道级','Channel'):fmt(row.start)+'–'+fmt(row.stop)+' s';
+      button.innerHTML=`<span class="finding-item-top"><strong>${esc(name)}</strong><span>${time}</span></span><small><i style="background:${m.color}"></i>${esc(t(m.label,m.label_en))}</small>`;
+      button.addEventListener('click',()=>chooseLocation(row));list.append(button);
+    }
+    if(!rows.length){const note=doc.createElement('p');note.className='finding-empty';note.textContent=activeMethods.size?t('当前筛选下没有已保存的位置。','No saved locations match these filters.'):t('已隐藏全部标记。','All annotations are hidden.');list.append(note);}
+    const paging=$('finding-pagination');paging.replaceChildren();
+    const prev=doc.createElement('button'),next=doc.createElement('button'),counter=doc.createElement('span');
+    prev.type=next.type='button';prev.textContent='‹';next.textContent='›';prev.setAttribute('aria-label',t('上一页候选','Previous findings'));next.setAttribute('aria-label',t('下一页候选','Next findings'));
+    prev.disabled=listPage===0;next.disabled=listPage===pages-1;counter.textContent=rows.length?`${listPage+1} / ${pages} · ${rows.length}`:'0';
+    prev.addEventListener('click',()=>{listPage--;renderLocationList();list.scrollTop=0;});next.addEventListener('click',()=>{listPage++;renderLocationList();list.scrollTop=0;});paging.append(prev,counter,next);
+  }
+  function renderFilters(){
+    filters.replaceChildren();
+    const heading=doc.createElement('div');heading.className='finding-filter-heading';
+    const title=doc.createElement('strong');title.textContent=t('检查项','Checks');heading.append(title);
+    const all=doc.createElement('button'),none=doc.createElement('button');all.type=none.type='button';all.textContent=t('全部显示','Show all');none.textContent=t('全部隐藏','Hide all');
+    function apply(){listPage=0;renderFilters();updateAnnotations();renderLocationList();}
+    all.addEventListener('click',()=>{activeMethods=new Set(locationIndex.methods.map(m=>m.id));apply();});none.addEventListener('click',()=>{activeMethods.clear();apply();});heading.append(all,none);filters.append(heading);
+    const options=doc.createElement('div');options.className='finding-filter-options';
+    for(const m of locationIndex.methods){
+      const label=doc.createElement('label'),box=doc.createElement('input'),text=doc.createElement('span');box.type='checkbox';box.checked=activeMethods.has(m.id);box.dataset.method=m.id;box.style.accentColor=m.color;
+      text.innerHTML=`<i style="background:${m.color}"></i>${esc(t(m.label,m.label_en))}<small>${m.location_count}${m.unavailable_blocks?t(' · 部分未读取',' · incomplete'):''}</small>`;
+      box.addEventListener('change',()=>{if(box.checked)activeMethods.add(m.id);else activeMethods.delete(m.id);updateAnnotations();listPage=0;renderLocationList();});label.append(box,text);options.append(label);
+    }
+    filters.append(options);
+  }
+  function startLocations(data){
+    locationIndex=data;activeMethods=new Set(data.methods.map(m=>m.id));
+    const sidebar=panel.closest('.finding-workspace').querySelector('.finding-sidebar');
+    const search=doc.createElement('input');search.type='search';search.id='finding-search';search.placeholder=t('筛选通道','Filter channels');search.setAttribute('aria-label',search.placeholder);search.addEventListener('input',()=>{listPage=0;renderLocationList();});
+    sidebar.querySelector('.finding-list-label').replaceChildren(search);
+    const pagination=doc.createElement('div');pagination.id='finding-pagination';pagination.className='finding-pagination';sidebar.append(pagination);
+    const old=links.find(l=>l.getAttribute('aria-current')==='true');
+    renderFilters();updateAnnotations();renderLocationList();
+    const notice=$('finding-index-notice');
+    if(data.warnings.length){notice.hidden=false;notice.textContent=t('部分检查只保存了有限的位置，或缺少定位信息；完整计数见检查结果。','Some checks have limited stored locations or missing localization; see results for full counts.');}
+    const first=data.findings.find(r=>r.channels.includes(old?.dataset.channelId)&&r.start<=Number(old.dataset.start)&&r.stop>=Number(old.dataset.stop))||data.findings.find(r=>r.localization==='interval')||data.findings[0];
+    if(first)chooseLocation(first);else{image.hidden=true;activity('ready',t('没有已保存的候选位置。','No candidate locations were saved.'));}
+  }
+  const contextPromise=readJSON(`${base}/waveform-context`).then(data=>{info=data;return true;}).catch(()=>false);
+  if(filters){
+    Promise.all([contextPromise,readJSON(`${base}/finding-locations`)]).then(([,data])=>{
+      const caption=panel.querySelector('.finding-caption');
+      if(caption)caption.textContent=t('彩色区间：各通道的检测结果；顶部色条：通道组结果。圆点仅表示通道级候选。','Shading: channel intervals. Top strips: group intervals. Dots: channel-only candidates.');
+      startLocations(data);
+    }).catch(()=>{
+      filters.textContent=t('检查位置暂未载入','Locations could not be loaded');
+      const retry=doc.createElement('button');retry.type='button';retry.textContent=t('重试','Retry');retry.addEventListener('click',()=>root.location.reload());filters.append(retry);
+      if(info)select(links.find(l=>l.getAttribute('aria-current')==='true')||links[0]);
+      message(t('当前仅展示保存的少量示例，不代表完整候选。','Only saved examples are shown, not the complete findings.'));
+    });
+  }else contextPromise.then(ok=>{
+    if(ok)select(links.find(l=>l.getAttribute('aria-current')==='true')||links[0]);
+    else message(t('原始记录暂不可用，当前展示已保存的候选波形。','Original recording unavailable; showing the saved candidate waveform.'));
+  });
 })(typeof window==='undefined'?globalThis:window);

@@ -62,6 +62,35 @@ def waveform_controls():
 <p id="wave-notice" class="wave-notice" role="status" hidden></p>'''
 
 
+def location_inspector(base, fallback='', *, english=False):
+    """One async location workspace for every modality; sources stay on disk."""
+    esc = lambda v: escape(str(v), quote=True)
+    if not fallback:
+        fallback = ('<div class="finding-workspace"><div class="finding-sidebar">'
+            '<div class="finding-list-label">候选位置</div><div class="finding-list" role="region" aria-label="候选位置列表"></div></div>'
+            f'<div class="finding-preview" id="finding-preview" data-waveform-base="{esc(base)}" data-state="ready">'
+            '<div class="figure-heading"><h3 id="finding-title">选择检查位置</h3><span id="finding-position"></span></div>'
+            '<p id="finding-measure"></p>'+waveform_controls()+
+            '<div class="finding-stage"><img id="finding-image" hidden alt=""><p id="finding-status" role="status"></p></div>'
+            '<p class="finding-caption"></p></div></div>')
+    html = ('<div class="finding-inspector"><div id="finding-filters" class="finding-filters" aria-label="检查项筛选">'
+            '<span role="status">正在载入检查位置…</span></div>'
+            '<p id="finding-index-notice" class="finding-index-notice" role="status" hidden></p>'+fallback+'</div>')
+    if english:
+        for zh, en in {
+            '正在载入检查位置…':'Loading check locations…', '检查项筛选':'Filter checks',
+            '候选位置列表':'Candidate locations', '候选位置':'Locations', '选择检查位置':'Select a location',
+            '向前查看（左方向键）':'Previous interval (left arrow)', '向后查看（右方向键）':'Next interval (right arrow)',
+            '向前查看':'Previous interval', '向后查看':'Next interval', '时间缩放':'Time zoom',
+            '缩小，查看更多时间':'Zoom out', '放大，查看细节':'Zoom in', '显示时长':'Visible duration',
+            '回到候选':'Return to candidate', '选择对照通道 · 最多 6 道':'Compare up to 6 channels',
+            '对照通道':'Compare channels', '搜索通道':'Search channels',
+            '拖动查看前后时间':'Drag to pan', '拖动查看 · 滚轮缩放':'Drag to pan · scroll to zoom',
+        }.items(): html=html.replace(zh,en)
+    return html
+
+
+
 def compact_report(report, view, *, focus_url=None, visualization_url=None, waveform_url=None):
     """Reorganize renderer-owned sections; technical details remain downloadable."""
     def section(identifier):
@@ -116,8 +145,8 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
             preview=preview.replace('<div class="finding-stage">',waveform_controls()+'<div class="finding-stage">')
     locator = ('<div class="finding-workspace"><div class="finding-sidebar"><div class="finding-list-label">候选位置<span>点击切换波形</span></div><div class="finding-list" role="region" aria-label="候选位置列表" tabindex="0">'+''.join(rows)+'</div></div>'+preview+'</div>' if rows else '<p>本次没有带通道和时间位置的候选。其他测量见检查结果。</p>')
 
-    if '灵犀' in route:
-        locator='<p class="muted">以下为共同基础检查定位。灵犀云异常区间见下方图表。</p>'+locator
+    if waveform_url:
+        locator=location_inspector(waveform_url, locator if rows else '')
     review = report_section('review','问题定位',locator,opened=True)
     charts = ''
     if visualization_url:

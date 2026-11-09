@@ -35,7 +35,7 @@ function findingState(state, message='') {
   findingPanel.setAttribute('aria-busy', String(state==='loading'));
   findingStatus.textContent=message;
 }
-if(findingImage && findingPanel) {
+if(findingImage && findingPanel && !document.getElementById('finding-filters')) {
   findingImage.addEventListener('load',()=>{if(!findingRequest&&findingPanel.dataset.interactive!=='ready')findingState('ready');});
   findingImage.addEventListener('error',()=>{if(!findingRequest&&findingPanel.dataset.interactive!=='ready')findingState('error',reportText('波形暂不可用，请重新选择。','Waveform unavailable. Select a finding again.'));});
   if(!findingImage.complete)findingState('loading',reportText('正在载入波形…','Loading waveform…'));
