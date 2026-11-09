@@ -180,51 +180,6 @@ def build(workspace):
                 interval_convention='half_open', analysis_modified=False)
 
 
-def report_methods(workspace):
-    """Match the report's selected score components, including limited checks.
-
-    Zero-weight background evidence remains available but is not selected by
-    default. Aggregate scores expand to their own evidence children; an
-    unavailable child's configured weight must not be mistaken for zero.
-    """
-    from project_score_cache import load_root
-    from ephys_qc.score_registry import SPECS
-    request = _json(workspace.root / 'request.json', {})
-    declared = request.get('plan', {}).get('input_modality', {})
-    modality = declared.get('value') if isinstance(declared, dict) else declared
-    # The non-EEG renderers read this frozen artifact directly. EEG reports use
-    # a validated publication, then their frozen report_view (saved_reports).
-    if modality in {'ecog', 'seeg', 'extracellular'}:
-        score = _json(workspace.root / 'artifacts' / 'method-scores.json', {}).get('project_score')
-    else:
-        published = load_root(workspace.root)
-        score = (published or {}).get('report_view', {}).get('score')
-    if not score:
-        import ijson
-        with (workspace.root / 'result.json').open('rb') as f:
-            score = next(ijson.items(f, 'report_view.score', use_float=True), None)
-    if not score:
-        score = _json(workspace.root / 'artifacts' / 'method-scores.json', {}).get('project_score')
-    if not isinstance(score, dict): return None  # Historical unscored reports.
-    aliases = dict(continuity='raw_continuity_review', thomson_line='line_noise',
-                   hf_burst='high_frequency_burst', prep_nonspatial='prep_nonspatial_review',
-                   ieeg_numeric_integrity='raw_continuity_review',
-                   neuropixels_numeric_integrity='raw_continuity_review',
-                   neuropixels_constant_channels='raw_continuity_review')
-    selected = set()
-    def visit(row):
-        weight = row.get('configured_weight', row.get('weight', 1))
-        if not _finite(weight) or weight <= 0: return
-        children = row.get('evidence_components', [])
-        if children:
-            for item in children: visit(item)
-        else:
-            key = row.get('method_id') or SPECS.get(row.get('id'), {}).get('method_id') or row.get('id')
-            selected.add(aliases.get(key, key))
-    for row in score.get('components', []): visit(row)
-    return selected
-
-
 def locations(workspace):
     from presentation_cache import cached, stamps
     from review_workspace import __file__ as review_code
@@ -236,8 +191,9 @@ def locations(workspace):
     raw = cached(workspace.root, 'finding-locations-v1', stamps(paths),
                  lambda: json.dumps(build(workspace), ensure_ascii=False, allow_nan=False, separators=(',', ':')).encode())
     data = json.loads(raw)
-    # Resolve outside the detector cache: a score publication can change the
-    # displayed scheme without changing any saved detection or waveform.
-    selected = report_methods(workspace)
-    data['default_method_ids'] = [m['id'] for m in data['methods'] if selected is None or m['id'] in selected]
+    # Candidate visibility depends only on saved findings, never score weights.
+    # Keep methods without locations available in a separate disclosure.
+    found = {row['method'] for row in data['findings']}
+    data['default_method_ids'] = [m['id'] for m in data['methods'] if m['id'] in found]
+    data['selection_policy'] = 'all_saved_candidates'
     return data

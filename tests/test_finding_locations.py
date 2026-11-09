@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(REPO/'src'), str(REPO/'apps/workbench')]
-from finding_locations import build, locations, read_locations, report_methods
+from finding_locations import build, locations, read_locations
 from review_workspace import ReviewWorkspace
 
 
@@ -80,36 +80,33 @@ class Locations(unittest.TestCase):
         self.save('artifacts/M06_muscle.json',{'candidates':[{'channel_index':0,'start_seconds':1,'stop_seconds':2}]})
         self.assertEqual(len(locations(workspace)['findings']),1)
 
-    def test_default_checks_follow_published_report_not_all_executed(self):
-        self.save('artifacts/M03_continuity.json', {'candidates':[]})
-        self.save('artifacts/M06_gnosis_high_band.json', {'candidates':[]})
+    def test_candidates_default_on_regardless_of_score_or_publication(self):
+        candidate={'channel_index':0,'start_seconds':1,'stop_seconds':2}
+        self.save('artifacts/M03_continuity.json', {'candidates':[candidate]})
+        self.save('artifacts/M06_gnosis_high_band.json', {'candidates':[candidate]})
+        self.save('artifacts/M06_gnosis_low_band.json', {'candidates':[]})
         self.save('result.json', {'modules':[], 'report_view':{'score':{'components':[
             {'id':'integrity','configured_weight':1}, {'id':'gnosis_high_band','configured_weight':0}]}}})
         workspace=ReviewWorkspace(self.root)
         first=locations(workspace)
-        self.assertEqual(first['default_method_ids'], ['raw_continuity_review'])
+        self.assertEqual(set(first['default_method_ids']), {'raw_continuity_review','gnosis_high_band'})
+        self.assertEqual(first['selection_policy'], 'all_saved_candidates')
+        self.assertIn('gnosis_low_band', [m['id'] for m in first['methods']])
         from project_score_cache import _signature, SCHEMA
         self.save('project-score-view.json', {'schema':SCHEMA,
             'signature':_signature(self.root,['request.json','result.json']),
             'summary':{'report_view':{'score':{'components':[
                 {'id':'integrity','configured_weight':0},
-                {'id':'gnosis_high_band','configured_weight':1,'weight':0,'automatically_excluded':True}]}}}})
+                {'id':'gnosis_high_band','configured_weight':1}]}}}})
         second=locations(workspace)
-        self.assertEqual(second['default_method_ids'], ['gnosis_high_band'], 'Limited selected checks stay in the scheme')
-        self.assertEqual(first['methods'],second['methods'], 'Additional executed checks remain available')
-        self.assertEqual(first['findings'],second['findings'], 'No evidence is recomputed or discarded')
-        # Invalid publications fall back exactly as the HTML report does.
-        self.save('request.json', {'input':{'id':'changed'}})
-        self.assertEqual(report_methods(workspace), {'raw_continuity_review'})
+        self.assertEqual(first,second, 'Reweighting never changes candidate visibility')
 
-    def test_aggregate_score_expands_its_selected_children(self):
-        self.save('artifacts/method-scores.json', {'project_score':{'components':[
-            {'id':'ieeg_numeric_integrity','configured_weight':.3},
-            {'id':'ieeg_signal_stability','configured_weight':.7,'evidence_components':[
-                {'id':'mne_amplitude_time','configured_weight':1},
-                {'id':'fieldtrip_zvalue','configured_weight':1,'weight':0,'automatically_excluded':True},
-                {'id':'ieeg_group_outliers','configured_weight':0}]}]}})
-        self.assertEqual(report_methods(ReviewWorkspace(self.root)), {'raw_continuity_review','mne_amplitude','fieldtrip_zvalue'})
+    def test_unscored_channel_candidate_defaults_on_without_time_shading(self):
+        self.save('artifacts/M05_gnosis_psd_deviation.json', {'candidates':[
+            {'channel_index':0,'localization':'channel_only','analysis_range':[5,25]}]})
+        data=locations(ReviewWorkspace(self.root))
+        self.assertEqual(data['default_method_ids'], ['gnosis_psd_deviation'])
+        self.assertEqual(data['findings'][0]['localization'], 'channel')
 
     def test_channel_context_uses_saved_analysis_range_not_whole_record(self):
         self.save('artifacts/M05_gnosis_psd_deviation.json', {'candidates':[

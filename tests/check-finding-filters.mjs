@@ -28,7 +28,8 @@ const index={warnings:[],methods:[{id:'hf',label:'高频突发',label_en:'HF',co
  {id:'3',method:'low',channels:['b'],start:14,stop:17,localization:'interval'}]};
 index.methods.push({id:'psd',label:'频谱差异',color:'#7f7953',location_count:1},
  {id:'integrity',label:'信号完整性',color:'#b45309',location_count:1});
-index.default_method_ids=['hf','low','psd'];
+index.methods.push({id:'empty',label:'无候选检查',color:'#42546b',location_count:0});
+index.default_method_ids=['hf','low','psd','integrity'];
 index.findings.push({id:'4',method:'psd',channels:['b'],start:0,stop:120,localization:'channel'},
  {id:'5',method:'integrity',channels:['a'],start:13,stop:18,localization:'interval'});
 const reads=[];let failSource=false;
@@ -41,8 +42,8 @@ const runtime={document,URLSearchParams,console,setTimeout,clearTimeout,window:n
 }};runtime.window=runtime;
 vm.runInNewContext(code,runtime);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));await tick();await tick();
-assert.equal(list.children.length,3,'Only selected scheme intervals shown initially');
-assert(!get('finding-filters').children[2].open,'Other executed checks initially folded');
+assert.equal(list.children.length,4,'Every saved interval shown initially, including unscored checks');
+assert(!get('finding-filters').children[2].open,'Checks without locations initially folded');
 const rangeBefore=get('wave-range').textContent,readsBefore=reads.length;
 get('finding-fullscreen').fire('click');await tick();
 assert(inspector.classList.contains('finding-is-fullscreen'));assert.equal(get('finding-fullscreen').getAttribute('aria-pressed'),'true');
@@ -62,7 +63,7 @@ const channelBox=get('wave-channel-options').children[1].children[0];channelBox.
 const svg=created.find(n=>n.id==='wave-plot');
 assert(svg.innerHTML.includes('data-mark-channel="b"'),'Comparison channel must show its existing detection');
 assert(svg.innerHTML.includes('data-mark-method="low"'),'Simultaneous other-check overlays visible');
-assert(!svg.innerHTML.includes('data-mark-method="integrity"'),'Executed background checks are not selected');
+assert(svg.innerHTML.includes('data-mark-method="integrity"'),'Unscored findings are visible by default');
 get('finding-kinds').children[1].fire('click');await tick();
 assert.equal(list.children.length,1,'Channel results are separate from precise intervals');
 assert.equal(get('finding-title').textContent,'AF4 · 频谱差异');
@@ -72,17 +73,20 @@ assert(!svg.innerHTML.includes('data-mark-method="psd"')&&!svg.innerHTML.include
 get('finding-kinds').children[0].fire('click');await tick();
 const extraBox=get('finding-filters').children[2].children[1].children[0].children[0];extraBox.checked=true;extraBox.fire('change');
 assert.equal(list.children.length,4);assert(svg.innerHTML.includes('data-mark-method="integrity"'));
-get('finding-filters').children[0].children[1].fire('click');await tick();
+assert(!svg.innerHTML.includes('data-mark-method="empty"'),'No locations are invented for empty checks');
+boxes()[3].checked=false;boxes()[3].fire('change');
 assert.equal(list.children.length,3);assert(!svg.innerHTML.includes('data-mark-method="integrity"'));
+get('finding-filters').children[0].children[1].fire('click');await tick();
+assert.equal(list.children.length,4);assert(svg.innerHTML.includes('data-mark-method="integrity"'));
 const again=get('wave-channel-options').children[1].children[0];again.checked=true;again.fire('change');await tick();
 boxes()[1].checked=false;boxes()[1].fire('change');
-assert.equal(list.children.length,2);assert(!svg.innerHTML.includes('data-mark-method="low"'));
+assert.equal(list.children.length,3);assert(!svg.innerHTML.includes('data-mark-method="low"'));
 const readCount=reads.length;
 get('finding-filters').children[0].children[2].fire('click');
 assert(!svg.innerHTML.includes('data-mark-channel'),'Hide all removes all lane annotations');
 assert.equal(reads.length,readCount,'Filters do not run QC or reload native waveforms');
 get('finding-filters').children[0].children[1].fire('click');
-assert.equal(list.children.length,3);assert(svg.innerHTML.includes('data-mark-method="low"'));
+assert.equal(list.children.length,4);assert(svg.innerHTML.includes('data-mark-method="low"'));
 get('finding-search').value='AF4';get('finding-search').fire('input');assert.equal(list.children.length,2);
 list.children[1].fire('click');await tick();assert.equal(get('finding-title').textContent,'AF4 · 低频异常');
 assert(get('finding-measure').textContent.includes('14–17'));
@@ -92,4 +96,4 @@ assert.equal(get('wave-channel-count').textContent,'15 / 15');
 assert(get('wave-channel-options').children[15].children[0].disabled,'Sixteenth lane cannot be added');
 const selectedBox=get('wave-channel-options').children[4].children[0];selectedBox.checked=false;selectedBox.fire('change');await tick();
 assert.equal(get('wave-channel-count').textContent,'14 / 15');assert(!get('wave-channel-options').children[15].children[0].disabled);
-console.log('PASS report scheme defaults, optional background checks, channel vs interval scopes, fullscreen, 15-channel limit, filters and comparison overlays');
+console.log('PASS all candidates default on, manual filtering and reset, empty checks, channel vs interval scopes, fullscreen and 15-channel comparison');

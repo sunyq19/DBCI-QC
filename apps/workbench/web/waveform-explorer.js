@@ -435,8 +435,8 @@
   function renderFilters(){
     filters.replaceChildren();
     const heading=doc.createElement('div');heading.className='finding-filter-heading';
-    const title=doc.createElement('strong');title.textContent=t('报告检查项','Report checks');heading.append(title);
-    const all=doc.createElement('button'),none=doc.createElement('button');all.type=none.type='button';all.textContent=t('恢复本方案','Reset to scheme');none.textContent=t('全部隐藏','Hide all');
+    const title=doc.createElement('strong');title.textContent=t('候选检查项','Checks with findings');heading.append(title);
+    const all=doc.createElement('button'),none=doc.createElement('button');all.type=none.type='button';all.textContent=t('全部显示','Show all');none.textContent=t('全部隐藏','Hide all');
     function apply(){renderFilters();refreshLocations();}
     all.addEventListener('click',()=>{activeMethods=new Set(locationIndex.default_method_ids);apply();});none.addEventListener('click',()=>{activeMethods.clear();apply();});heading.append(all,none);filters.append(heading);
     function optionsFor(methods){
@@ -454,12 +454,12 @@
     const others=locationIndex.methods.filter(m=>!primary.has(m.id));
     if(others.length){
       const extra=doc.createElement('details'),summary=doc.createElement('summary');extra.className='finding-extra-checks';extra.open=extrasOpen;
-      summary.textContent=t('其他已执行检查','Other executed checks')+` · ${others.length}`;
+      summary.textContent=t('无定位结果的检查','Checks without locations')+` · ${others.length}`;
       extra.addEventListener('toggle',()=>{extrasOpen=extra.open;});extra.append(summary,optionsFor(others));filters.append(extra);
     }
   }
   function startLocations(data){
-    locationIndex=data;data.default_method_ids??=data.methods.map(m=>m.id);activeMethods=new Set(data.default_method_ids);
+    locationIndex=data;data.default_method_ids??=data.methods.filter(m=>data.findings.some(r=>r.method===m.id)).map(m=>m.id);activeMethods=new Set(data.default_method_ids);
     const sidebar=panel.closest('.finding-workspace').querySelector('.finding-sidebar');
     const kinds=doc.createElement('div');kinds.id='finding-kinds';kinds.className='finding-kinds';kinds.setAttribute('aria-label',t('定位类型','Finding scope'));sidebar.append(kinds);
     const search=doc.createElement('input');search.type='search';search.id='finding-search';search.placeholder=t('筛选通道','Filter channels');search.setAttribute('aria-label',search.placeholder);search.addEventListener('input',refreshLocations);
@@ -470,7 +470,7 @@
     const rows=selectedLocations();
     const first=rows.find(r=>r.localization!=='channel'&&r.channels.includes(old?.dataset.channelId)&&r.start<=Number(old.dataset.start)&&r.stop>=Number(old.dataset.stop))||rows.find(r=>r.localization!=='channel')||rows[0];
     if(first)locationKind=first.localization==='channel'?'channel':'interval';
-    if(first)chooseLocation(first);else{clearLocation();image.hidden=true;activity('ready',t('本方案没有已保存的候选位置。','No candidate locations saved for this scheme.'));}
+    if(first)chooseLocation(first);else{clearLocation();image.hidden=true;activity('ready',t('本次没有已保存的候选位置。','No candidate locations were saved for this run.'));}
   }
   const contextPromise=readJSON(`${base}/waveform-context`).then(data=>{info=data;return true;}).catch(()=>false);
   if(filters){
