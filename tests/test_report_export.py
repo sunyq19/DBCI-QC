@@ -81,9 +81,9 @@ class ReportExportTests(unittest.TestCase):
         overview=page.split('<header id="overview"')[1].split('</header>')[0]
         self.assertNotIn('同等计入',overview)
         self.assertNotIn('按设定比例',overview)
-        results=page.split('<details id="score-table"')[1].split('</details>')[0]
-        self.assertIn('>权重</th>',results)
-        self.assertIn('class="result-weight">50.0%</td>',results)
+        results=page.split('<details id="score-table"')[1].split('<details id="review"')[0]
+        self.assertIn('>本次权重</span>',results)
+        self.assertIn('class="score-share">50.0%</span>',results)
         self.assertIn('class="finding-workspace"',page)
         self.assertIn('class="finding-item"',page)
         self.assertNotIn('class="finding-table"',page)

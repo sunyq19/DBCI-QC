@@ -89,7 +89,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
     checks = section('score-table')
     # Put channel/time drill-downs in the detail section, after the actionable findings.
     extra = ''
-    marker = '<details'
+    marker = '<!-- score-supplemental -->'
     if marker in checks:
         at = checks.index(marker); extra, checks = checks[at:], checks[:at]
     checks=re.sub(r'<h2>.*?</h2>','',checks,count=1,flags=re.S)
@@ -192,3 +192,6 @@ section>p.muted{font-size:12px;margin:0 0 10px}.scope,.footnote{font-size:12px}p
 @media(max-width:600px){.report-summary{grid-template-columns:1fr;gap:12px}.report-total{border:0}.figure-heading>span{font-size:11px}.finding-caption{font-size:10px}}
 @media print{.report-actions,aside,script{display:none}.shell{display:block;max-width:none;padding:0}.report-summary{grid-template-columns:180px 1fr}.finding-workspace{height:auto;display:block;overflow:visible;break-inside:avoid}.finding-sidebar{display:none}.finding-preview{display:block}.finding-stage{display:block}.finding-stage #finding-image{height:auto;opacity:1!important}#finding-status{display:none!important}.report-details-body{padding:0}.report-detail-group{background:#fff}}
 """
+
+from .score_presentation import CSS as SCORE_CSS
+CSS += SCORE_CSS

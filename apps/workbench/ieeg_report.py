@@ -190,21 +190,14 @@ def render(store, identifier, language='zh-CN'):
     score_html='';score=read(artifacts/'method-scores.json').get('project_score')
     if score:
         from ephys_qc.ieeg_scoring import NUMERIC, STABILITY
+        from ephys_qc.score_presentation import score_tree
         grouped=bool(score.get('preset')) or any(r['id']==STABILITY and r.get('configured_weight',0)>0 for r in score['components'])
         primary=[r for r in score['components'] if r.get('configured_weight',r.get('weight',0))>0 or grouped and r['id'] in {NUMERIC,STABILITY}]
         names={NUMERIC:t('数值有效性','Numerical validity'),STABILITY:t('信号稳定性','Signal stability')}
-        body=''.join('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (
-            names.get(r['id'],r['name']),f"{r['value']:.2f}" if measured(r.get('value')) else '—',
-            f"{100*r.get('normalized_weight',0):.1f}%",t('无有效结果，本次不计入','No valid result; excluded') if r.get('automatically_excluded') else r['reason']))+'</tr>' for r in primary)
         total=f"{score['value']:.2f}" if measured(score.get('value')) else '—'
         label=modality+' '+t('基础评分','basic score') if score.get('preset') else t('项目自定义评分','Project score')
-        score_html=f'<div class="ieeg-score-panel"><div><span>{label}</span><strong>{total}<small> / 100</small></strong></div><p>'+t('相关检查合并计一次；分数仅反映已执行的检查。','Related checks count once; the score covers the checks performed.')+'</p></div>'+table([t('计分项','Component'),t('得分 / 100','Score / 100'),t('本次权重','Effective share'),t('检查发现','Findings')],body)
+        score_html=f'<div class="ieeg-score-panel"><div><span>{label}</span><strong>{total}<small> / 100</small></strong></div><p>'+t('相关检查合并计一次；分数仅反映已执行的检查。','Related checks count once; the score covers the checks performed.')+'</p></div>'+score_tree(primary, modality=item['modality'], english=en, names=names, total_available=measured(score.get('value')))
         if score.get('missing_reason'):score_html+='<p class="secondary">'+esc(score['missing_reason'])+'</p>'
-        stability=next((r for r in score['components'] if r['id']==STABILITY),{})
-        members=stability.get('evidence_components',[])
-        if members:
-            evidence=''.join('<tr>'+''.join('<td>'+esc(v)+'</td>' for v in (r['name'],f"{r['value']:.2f}" if measured(r.get('value')) else '—',r['reason']))+'</tr>' for r in members)
-            score_html+='<details class="disclosure"><summary>'+t('稳定性依据 · 取最低分，不累加','Stability evidence · minimum, not cumulative')+'</summary>'+table([t('检查','Check'),'/ 100',t('说明','Note')],evidence)+'</details>'
         details+='<p>'+t('评分版本','Scoring version')+': '+esc(score.get('preset') or score['version'])+'</p><p>'+t('数值有效性只计算NaN/Inf；相关信号候选取最低分作为稳定性，之后按两个分项的有效权重平均。这是项目初版，尚未经专家校准。','Numerical validity counts NaN/Inf only. Stability takes the minimum related check score; the two components are then weighted. This project draft is not expert-calibrated.')+'</p><p><a href="'+('/en' if en else '')+'/standards/ieeg-scoring">'+t('颅内评分规则','Intracranial scoring rules')+'</a></p>'
     initial_window=all_candidates[0]['window']['id']+'--' if all_candidates and all_candidates[0]['window'].get('id') else ''
     charts_url=f'/api/v1/jobs/{identifier}/visualizations'+('?window='+quote(initial_window) if initial_window else '')

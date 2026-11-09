@@ -57,13 +57,14 @@ def render(store, identifier, language='zh-CN'):
     results=measurements
     if project:
         from ephys_qc.neuropixels_scoring import NUMERIC, STATE, CONSTANT, AP
+        from ephys_qc.score_presentation import score_tree
         labels={NUMERIC:t('数值有效性','Numerical validity'),STATE:t('通道状态','Channel status'),
                 CONSTANT:t('整窗恒值通道','Fully constant channels'),AP:t('AP通道离群','AP channel outliers')}
         point=lambda v:f'{v:.2f}' if measured(v) else '—'
         parts=project['components'];state=next((r for r in parts if r['id']==STATE),{})
         active=state.get('assessed_methods',[])
         basis=' + '.join(labels.get(k,k) for k in active) or t('暂无有效证据','No valid evidence')
-        primary=[]
+        primary=[];findings={}
         for r in parts:
             if not r.get('configured_weight',0)>0 and r['id'] not in {NUMERIC,STATE}:continue
             if r.get('automatically_excluded'):explanation=t('受限，本次不计入','Unavailable; excluded from this total')
@@ -71,9 +72,9 @@ def render(store, identifier, language='zh-CN'):
             elif r['id']==NUMERIC:explanation=t(f"{100-r['value']:.2f}% 的采样点为NaN或Inf",f"{100-r['value']:.2f}% of samples are NaN or Inf")
             elif r['id']==STATE:explanation=t(f"{100-r['value']:.2f}% 候选通道窗负担；",f"{100-r['value']:.2f}% candidate channel-window burden; ")+basis
             else:explanation=t('原方法候选比例','Original method candidate fraction')
-            primary.append((labels.get(r['id'],r['name']),point(r.get('value')),f"{100*r.get('normalized_weight',0):.1f}%",explanation))
+            primary.append(r);findings[r['id']]=explanation
         results='<div class="ieeg-score-panel"><div><span>'+t('Neuropixels 项目评分','Neuropixels project score')+'</span><strong>'+point(project.get('value'))+'<small> / 100</small></strong></div><p>'+t('仅评价本次有效的连续电压检查。','Applies only to the valid voltage checks in this run.')+'</p></div>'
-        results+=table([t('计分项','Component'),t('分项 / 100','Score / 100'),t('有效权重','Effective share'),t('检查发现','Findings')],primary)
+        results+=score_tree(primary, modality='extracellular', english=en, names=labels, findings=findings, total_available=measured(project.get('value')))
         if state:
             results+='<p class="secondary">'+t('通道状态：同一通道在同一窗口只计一次。','Channel status: each channel counts once per analysis window.')+'</p>'
             if not method_runs:results+='<p class="secondary">'+t('本次通道状态仅含整窗恒值；AP离群未启用或不适用。','Channel status uses fully constant windows only; AP outliers are disabled or inapplicable.')+'</p>'
