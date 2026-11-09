@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "catalog-ff663e01cdb76e76b5a8b89e32691b2e6777ccd51629318906b71557915b5898",
-  "sequence": 5,
+  "id": "catalog-98088535b713f7322b14468251cb62f061d93224e9c500fd8db5c1bb4cf26c5d",
+  "sequence": 6,
   "sourceVersion": "1.0.0rc3.dev40",
-  "sourceCommit": "80d7776ff85bad173772f87946504f59c93c2110",
+  "sourceCommit": "local",
   "doc": {
     "schemaVersion": 1,
     "title": "数据质控流程",
@@ -4257,7 +4257,7 @@
       {
         "id": "VIS",
         "title": "结果可视化",
-        "summary": "统一展示层 · 按需要选图",
+        "summary": "波形、频谱与异常定位",
         "kind": "report",
         "status": "ready",
         "scope": [
@@ -4265,13 +4265,13 @@
         ],
         "x": 1110,
         "y": 1020,
-        "description": "雷佳欣路线与灵犀云路线的图表集中在同一层级。按图的用途选择；来源保留在详情里。",
+        "description": "查看波形、频谱和通道指标，定位异常区间。",
         "inputs": "已保存的单份或分窗质控结果",
         "outputs": "波形、频谱、通道指标、候选时间与频带图",
-        "conditions": "仅渲染已有证据；缺少依赖时提示先运行对应检查。当前图表适配头皮EEG。",
-        "methods": "DBCI-QC 可视化插件登记与SVG渲染；无需重新计算QC。",
+        "conditions": "需要相应质控结果；当前支持头皮 EEG。",
+        "methods": "基于已保存的质控结果绘图。",
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-        "notes": "地形图待坐标接入，雷达图待尺度规则确认。当前不伪造坐标和参考分布。",
+        "notes": "头皮地形图与雷达图暂未接入。",
         "entryType": "support",
         "scoring": [
           {
@@ -4299,11 +4299,11 @@
             "y": 20,
             "description": "查看原始波形，定位需要复核的时间段。",
             "inputs": "已保存的检查结果；依赖 M02、M06、M09",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "已有波形快照可查看；原文件可读时，报告支持前后拖动与最多6道同步对照。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4331,11 +4331,11 @@
             "y": 20,
             "description": "逐道查看 PREP 指标和线长；不同单位分开绘制。",
             "inputs": "已保存的检查结果；依赖 M05",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "对应通道指标已计算；候选标记沿用检测结果。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4361,13 +4361,13 @@
             ],
             "x": 20,
             "y": 20,
-            "description": "查看各通道频谱；两条路线分图展示。",
+            "description": "查看各通道的频率能量分布，对照不同处理方案。",
             "inputs": "已保存的检查结果；依赖 M04",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要 PSD 与频率轴；统一显示 dB re μV²/Hz，不把处理前后变化当改善。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4395,11 +4395,11 @@
             "y": 20,
             "description": "展示逐通道工频命中窗占比。",
             "inputs": "已保存的检查结果；依赖 M04",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要工频窗口观测；占比是通道窗命中率，不是受污染时长。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4427,11 +4427,11 @@
             "y": 20,
             "description": "横向条形图展示伪差、低频和高频候选时间占比。",
             "inputs": "已保存的检查结果；依赖 M06",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要对应灵犀云方法结果；缺测显示未评，不补零。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4459,11 +4459,11 @@
             "y": 20,
             "description": "按通道标出候选区间，沿用原始记录时间。",
             "inputs": "已保存的检查结果；依赖 M06",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要原始时间坐标下的候选区间；拼接频谱不用于时间定位。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Jlei61/BrainElecQC\nhttps://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4491,11 +4491,11 @@
             "y": 20,
             "description": "通道×五频带热图，颜色固定为 0–100%。",
             "inputs": "已保存的检查结果；依赖 M04",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要灵犀云相对功率结果；比例不代表质量分。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4523,11 +4523,11 @@
             "y": 20,
             "description": "通道×五频带热图，标注 μV 与当前色标。",
             "inputs": "已保存的检查结果；依赖 M04",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要灵犀云幅值结果；不跨不同色标直接比较颜色。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4555,11 +4555,11 @@
             "y": 20,
             "description": "显示各通道频谱距离及候选通道。",
             "inputs": "已保存的检查结果；依赖 M05",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要灵犀云 PSD 差异结果；频谱离群不自动等于坏道。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4585,13 +4585,13 @@
             ],
             "x": 20,
             "y": 20,
-            "description": "用区间与落点展示参考范围，替代堆叠雷达图。",
+            "description": "对照各频带的测量值与参考范围。",
             "inputs": "已保存的检查结果；依赖 M04",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "需要参考上下界及实测值；参考库适用性仍需确认。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4619,11 +4619,11 @@
             "y": 20,
             "description": "按电极位置展示通道指标。",
             "inputs": "已保存的检查结果；依赖 M02、M04、M05",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "待接入可信坐标或用户确认的标准 montage；不凭通道名静默猜位置。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
@@ -4651,11 +4651,11 @@
             "y": 20,
             "description": "比较多维特征轮廓。",
             "inputs": "已保存的检查结果；依赖 M04、M05、M06",
-            "outputs": "统一配色的可选图表；保留单位、时间范围和缺测状态",
+            "outputs": "波形与统计图，附单位、时间范围和缺测说明",
             "conditions": "待确认尺度、方向和归一化；暂不将不同量纲拼成总分。",
-            "methods": "DBCI-QC统一展示；读取来源算法结果，不复用Notebook样式",
+            "methods": "基于已保存的质控结果绘图。",
             "evidence": "https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE\nhttps://github.com/sunyq19/DBCI-QC/blob/main/docs/visualizations.md",
-            "notes": "选择图表不会启动算法、改写候选或改变评分。来源指指标/展示思路，图形由本平台绘制。",
+            "notes": "图表用于定位和复核，不单独参与评分。",
             "entryType": "visualization",
             "scoring": [
               {
