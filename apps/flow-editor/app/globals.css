@@ -116,3 +116,6 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 
 .sketch-workspace .flow-svg.editable .graph-node{cursor:pointer}
 .sketch-workspace .graph-node.selected .node-shape{stroke:#2861d9}
+
+.sketch-workspace .flow-svg.editable .graph-node.selected{cursor:grab;touch-action:none}
+.sketch-workspace .flow-svg.editable.dragging,.sketch-workspace .flow-svg.editable.dragging *{cursor:grabbing!important}
