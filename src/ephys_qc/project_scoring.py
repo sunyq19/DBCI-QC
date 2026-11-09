@@ -29,13 +29,13 @@ def normalize(config, modality, selected, extensions=()):
         weights = {s['id']: s['default_weight'] for s in outputs(modality)
                    if s['default_weight'] and s['module_id'] in selected}
         return {'version': VERSION, 'weights': weights} if weights else None
-    if not isinstance(config, dict) or not {'version', 'weights'} <= set(config) or set(config)-{'version','weights','preset'} or config['version'] not in (*METHOD_VERSIONS, LEGACY_VERSION):
+    if not isinstance(config, dict) or not {'version', 'weights'} <= set(config) or set(config)-{'version','weights','preset','group_weights'} or config['version'] not in (*METHOD_VERSIONS, LEGACY_VERSION):
         raise ValueError('评分配置须包含有效的 project-weighted 版本及 weights。')
     if 'preset' in config:
-        from .ieeg_scoring import PRESETS
+        from .ieeg_scoring import PRESETS, LEGACY_PRESETS
         from .neuropixels_scoring import PRESET
         presets={**PRESETS,'extracellular':PRESET}
-        if modality not in presets or config['preset']!=presets[modality]:
+        if modality not in presets or config['preset'] not in {presets[modality], LEGACY_PRESETS.get(modality)}:
             raise ValueError('评分方案版本与模态不匹配。')
     weights = config['weights']
     legacy = config['version'] == LEGACY_VERSION
@@ -50,8 +50,11 @@ def normalize(config, modality, selected, extensions=()):
         if value and not enabled(registry[key], selected, extensions):
             raise ValueError(registry[key]['name']+'方法未选择；请启用方法及模块或将权重设为 0。')
     if modality in {'ecog','seeg'}:
-        from .ieeg_scoring import validate_family_weights
+        from .ieeg_scoring import validate_family_weights, child_weights
         validate_family_weights(weights)
+        child_weights(config)
+    elif 'group_weights' in config:
+        raise ValueError('当前模态不支持稳定性子项权重。')
     if modality=='extracellular':
         from .neuropixels_scoring import validate_family_weights
         validate_family_weights(weights)

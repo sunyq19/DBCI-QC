@@ -1064,6 +1064,7 @@
   function renderScoringControls() {
     const box=$("scoring-controls");
     const optionalOpen=box.querySelector?.('.scoring-optional')?.open;
+    const childOpen=box.querySelector?.('.scoring-children')?.open;
     if(!state.input){box.innerHTML='<p class="small muted">读取文件后可设置计分项目。</p>';return;}
     const intracranial=['ecog','seeg'].includes(inputModality(state.input));
     const neuropixels=inputModality(state.input)==='extracellular';
@@ -1074,7 +1075,13 @@
     const total=Object.values(weights).filter(v=>numeric(v)&&v>0).reduce((a,b)=>a+b,0), historical=state.mode==="job";
     const field=spec=>`<label>${escape(spec.name)}<span><input type="number" data-score-weight="${spec.id}" aria-label="${escape(spec.name)}计分比重" min="0" max="100" step="any" value="${weights[spec.id]||0}" ${historical?"disabled":""}><small>${scoreShareLabel(weights[spec.id],total)}</small></span></label>`;
     const basic=specs.filter(s=>s.default_weight || (intracranial||neuropixels) && groupIds.includes(s.id)),extras=specs.filter(s=>!basic.includes(s));
-    box.innerHTML=(neuropixels?'<p class="small muted">默认：数值有效性30%、通道状态70%。整窗恒值与适用的AP离群按通道去重。</p>':intracranial?'<p class="small muted">默认：数值有效性30%、信号稳定性70%。稳定性相关检查只取最低分，不重复计权。</p>':'')+'<p class="small muted">调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。</p>'+ (basic.length?'<div class="scoring-weight-fields">'+basic.map(field).join('')+'</div>':'')+
+    const childIds=['mne_amplitude_channels','mne_amplitude_time','ieeg_range_plateau','fieldtrip_zvalue','ieeg_group_outliers'];
+    const childSpecs=allSpecs.filter(s=>childIds.includes(s.id) && state.selected.has(s.module_id) && state.extensions.has(s.method_id));
+    const childWeights=Object.fromEntries(childIds.map(id=>[id,config.scoring?.group_weights?.ieeg_signal_stability?.[id]??1]));
+    const childTotal=childSpecs.reduce((sum,s)=>sum+childWeights[s.id],0);
+    const legacyChildren=intracranial && config.scoring && !config.scoring.group_weights && !config.scoring.preset?.endsWith('/0.2');
+    const children=intracranial && grouped ? '<details class="scoring-children"'+(childOpen?' open':'')+'><summary>信号稳定性 · 子项权重</summary><p class="small muted">'+(legacyChildren?'当前配置保留旧版最低分规则；调整子项权重后使用加权方案。':'已启用子项按权重平均，受限项不计入。')+'</p><div class="scoring-weight-fields">'+childSpecs.map(s=>`<label>${escape(s.name)}<span><input type="number" data-score-child="${s.id}" aria-label="${escape(s.name)}子项比重" min="0" max="100" step="any" value="${childWeights[s.id]}" ${historical?'disabled':''}><small>${legacyChildren?'—':scoreShareLabel(childWeights[s.id],childTotal)}</small></span></label>`).join('')+'</div></details>':'';
+    box.innerHTML=(neuropixels?'<p class="small muted">默认：数值有效性30%、通道状态70%。整窗恒值与适用的AP离群按通道去重。</p>':intracranial?'<p class="small muted">默认：数值有效性30%、信号稳定性70%。展开可调整稳定性子项权重。</p>':'')+'<p class="small muted">调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。</p>'+ (basic.length?'<div class="scoring-weight-fields">'+basic.map(field).join('')+'</div>':'')+children+
       (extras.length?'<details class="scoring-optional"'+(optionalOpen?' open':'')+'><summary>可选计分项 · '+extras.length+'</summary><p class="small muted">设为大于 0 时会启用对应方法。不同方法可能检查同一问题，请按需选择。</p><div class="scoring-weight-fields">'+extras.map(field).join('')+'</div></details>':'')+
       '<p class="small muted">'+(config.scoring?.version==='project-weighted/1.2'?'受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。':'0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。')+'</p><a href="'+(neuropixels?'/standards/neuropixels-scoring':intracranial?'/standards/ieeg-scoring':'/standards/eeg-scoring')+'" target="_blank" rel="noopener">评分规则</a>';
     box.querySelectorAll('[data-score-weight]').forEach(input=>input.addEventListener('change',()=>{
@@ -1086,6 +1093,15 @@
       if(value>0){state.selected.add(spec.module_id);if(spec.reducer==='np_state')state.selected.add('M03');if(!['core','prep','ieeg_numeric','np_numeric','np_constant','np_state'].includes(spec.reducer)) state.extensions.add(spec.method_id);}
       invalidatePlan();renderModuleOptions();
     }));
+    box.querySelectorAll('[data-score-child]').forEach(input=>{if(!input.dataset.scoreChild)return;input.addEventListener('change',()=>{
+      const value=Number(input.value);
+      if(!input.value.trim() || !Number.isFinite(value) || value<0 || value>100){input.setCustomValidity('计分比重须为 0–100');input.reportValidity();return;}
+      input.setCustomValidity('');
+      state.draftConfig=clone(config);
+      state.draftConfig.scoring={...config.scoring,version:'project-weighted/1.2',preset:inputModality(state.input)+'-basic-score/0.2',
+        weights:{...weights},group_weights:{ieeg_signal_stability:{...childWeights,[input.dataset.scoreChild]:value}}};
+      invalidatePlan();renderModuleOptions();
+    });});
   }
 
   function renderModuleOptions() {

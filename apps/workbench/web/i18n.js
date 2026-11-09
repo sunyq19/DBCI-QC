@@ -38,7 +38,10 @@ RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态�
 数值有效性	Numerical validity
 信号稳定性	Signal stability
 颅内评分规则	Intracranial scoring rules
-默认：数值有效性30%、信号稳定性70%。稳定性相关检查只取最低分，不重复计权。	Default: numerical validity 30%, signal stability 70%. Related stability checks use the minimum score and count once.
+默认：数值有效性30%、信号稳定性70%。展开可调整稳定性子项权重。	Default: numerical validity 30%, stability 70%. Expand to adjust stability child weights.
+信号稳定性 · 子项权重	Signal stability · Child weights
+当前配置保留旧版最低分规则；调整子项权重后使用加权方案。	This configuration retains the historical minimum rule. Editing a child weight selects the weighted preset.
+已启用子项按权重平均，受限项不计入。	Enabled checks use a weighted mean; unavailable checks are excluded.
 文件量程端点平台	File encoding-limit plateaus
 分组触点幅度离群	Within-group contact amplitude outliers
 颅内检查规则	Intracranial check rules

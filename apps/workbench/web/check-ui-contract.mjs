@@ -939,6 +939,28 @@ check("Neuropixels grouped weights stay editable without adding fictitious exten
   field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,0);
   t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
 });
+check("intracranial child weights are editable, scoped, and invalidate a plan",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
+  const specs=[
+    {id:'ieeg_numeric_integrity',method_id:'ieeg_numeric_integrity',module_id:'M03',name:'数值有效性',reducer:'ieeg_numeric'},
+    {id:'ieeg_signal_stability',method_id:'mne_amplitude',module_id:'M03',name:'信号稳定性',reducer:'ieeg_stability'},
+    {id:'mne_amplitude_time',method_id:'mne_amplitude',module_id:'M03',name:'MNE时间候选',reducer:'intervals'},
+    {id:'fieldtrip_zvalue',method_id:'fieldtrip_zvalue',module_id:'M06',name:'跳变',reducer:'intervals'}];
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'seeg-basic-score/0.2',weights:{ieeg_numeric_integrity:30,ieeg_signal_stability:70},group_weights:{ieeg_signal_stability:{mne_amplitude_time:1,fieldtrip_zvalue:1}}};
+  t.state.selected.add('M03');t.state.extensions.add('mne_amplitude');
+  const field={dataset:{scoreChild:'mne_amplitude_time'},value:'3',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const box=t.get('scoring-controls');box.querySelectorAll=selector=>selector==='[data-score-child]'?[field]:[];
+  t.renderScoringControls();assert(box.innerHTML.includes('data-score-child="mne_amplitude_time"'));
+  assert(!box.innerHTML.includes('data-score-child="fieldtrip_zvalue"'));
+  t.state.plan={plan_id:'old'};field.change();
+  assert.equal(t.currentConfig().scoring.group_weights.ieeg_signal_stability.mne_amplitude_time,3);
+  assert.equal(t.currentConfig().scoring.weights.ieeg_signal_stability,70);assert.equal(t.state.plan,null);
+  assert(!t.state.extensions.has('fieldtrip_zvalue'));
+  field.value='NaN';field.change();assert(field.error);
+  field.value='0';field.change();assert.equal(t.currentConfig().scoring.group_weights.ieeg_signal_stability.mne_amplitude_time,0);
+  t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
+});
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}
 console.log(`${tests.length-failures}/${tests.length} pure JavaScript checks passed. Visual/browser behavior is not tested.`);

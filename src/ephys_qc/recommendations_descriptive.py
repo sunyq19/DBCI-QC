@@ -84,7 +84,7 @@ def recommend_descriptive(record, submitted=None):
     result['cautions'] += ['当前为ECoG基础描述流程；不运行PREP、头皮桥接/LOF、FOOOFα指标或肌电阈值。',
                            '不根据触点名推测电极邻接、脑区、共同参考或植入位置。',
                            '工频附近能量只作观察量，不以固定比值自动判定污染。',
-                           '默认评分为数值有效性30%、信号稳定性70%；相关候选只取最低分计一次，项目参数尚未经过专家校准。']
+                           '默认评分为数值有效性30%、信号稳定性70%；稳定性子项按可调权重平均，受限项不计入，项目参数尚未经过专家校准。']
     if record['modality']=='extracellular':
         result['cautions'][-1]='默认总分仅评价所选连续电压检查；未验证神经元单元质量。'
     if facts['reference_scheme'] == 'unknown':

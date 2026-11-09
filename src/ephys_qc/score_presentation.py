@@ -69,16 +69,20 @@ def module_names(modality):
 
 
 def breakdown(row, *, english=False, total_available=True, measurement_text=None, modality='scalp_eeg'):
-    """Show the actual reducer and its evidence; child scores are not new weights."""
+    """Show the saved reducer and effective shares, including historical rules."""
     t = lambda zh, en: en if english else zh
     esc = lambda value: escape(str(value), quote=True)
-    minimum = row['id'] == 'ieeg_signal_stability'
+    stability = row['id'] == 'ieeg_signal_stability'
+    weighted = stability and row.get('aggregation') == 'weighted_child_mean'
+    minimum = stability and not weighted
     union = row['id'] == 'neuropixels_channel_state'
-    grouped = minimum or union
+    grouped = stability or union
     children = row.get('evidence_components', []) if grouped else [row]
     active = set(row.get('assessed_methods', []))
     rejected = {r['id']: r.get('reason', '') for r in row.get('unavailable_methods', []) if isinstance(r, dict)}
-    if minimum:
+    if weighted:
+        rule = t('子项按本次有效权重平均；受限项不计入。', 'Children use their effective weighted mean; unavailable results are excluded.')
+    elif minimum:
         rule = t('取有效子项的最低分；同类证据不累加扣分。', 'Use the lowest valid child score; related deductions are not added.')
     elif union:
         rule = t('先合并候选通道；同一通道在同一窗口只计一次。', 'Union candidate channels first; each channel counts once per window.')
@@ -99,7 +103,9 @@ def breakdown(row, *, english=False, total_available=True, measurement_text=None
         valid = child.get('status') == 'computed' and number(child.get('value'))
         used = valid and (not grouped or child['id'] in active)
         limiting = minimum and used and number(value) and value < 100 and math.isclose(child['value'], value, abs_tol=1e-9, rel_tol=0)
-        if not used:
+        if weighted and used:
+            role = t('按权重计入', 'Weighted')
+        elif not used:
             role = t('本次未计入', 'Not used')
         elif limiting:
             role = t('决定本项得分', 'Determines this score')
@@ -118,15 +124,21 @@ def breakdown(row, *, english=False, total_available=True, measurement_text=None
         module_text = t('所属模块 ', 'Module ') + str(module) if module else t('历史结果未记录模块', 'Module not stored in this historical result')
         if module and not english and module in module_names(modality):
             module_text += ' · ' + module_names(modality)[module]
+        weighting = (f'<td>{100*child.get("normalized_weight",0):.1f}%</td><td>'
+                     + (amount((100-child['value'])*child['normalized_weight']) if used else '—') + '</td>') if weighted else f'<td><span class="score-role">{esc(role)}</span></td>'
+        if weighted and not used:
+            evidence = t('权重设为 0；', 'Weight set to zero; ') + evidence if child.get('configured_weight') == 0 else t('本次未计入；', 'Excluded; ') + evidence
         body += (f'<tr data-score-method="{esc(child["id"])}"' + (' class="score-determining"' if limiting else '') + '>'
                  f'<th scope="row">{esc(name(child, english))}<small>{esc(module_text)}</small></th>'
                  f'<td class="score-child-points">{points(child.get("value"))}</td>'
-                 f'<td><span class="score-role">{esc(role)}</span></td><td>{esc(evidence)}</td></tr>')
+                 + weighting + f'<td>{esc(evidence)}</td></tr>')
     if not children:
         body = '<tr><td colspan="4">' + t('这份历史报告未保存子模块明细；保留原分数。', 'Child evidence was not stored in this historical report; its score is retained.') + '</td></tr>'
     headers = [t('模块 / 检查', 'Module / check'), t('得分 / 100', 'Score / 100'), t('计分作用', 'Scoring role'), t('实际测量', 'Measurement')]
+    if weighted:
+        headers = [t('模块 / 检查', 'Module / check'), t('得分 / 100', 'Score / 100'), t('本项权重', 'Child share'), t('本项扣分', 'Deduction'), t('实际测量', 'Measurement')]
     return (f'<div class="score-breakdown"><p class="score-rule">{esc(rule)}</p><p class="score-impact">{esc(impact)}</p>'
-            '<div class="score-evidence-scroll"><table class="score-evidence"><thead><tr>'
+            '<div class="score-evidence-scroll"><table class="score-evidence'+(' score-weighted-children' if weighted else '')+'"><thead><tr>'
             + ''.join('<th scope="col">'+esc(h)+'</th>' for h in headers)
             + '</tr></thead><tbody>'+body+'</tbody></table></div></div>')
 
@@ -151,6 +163,9 @@ def score_tree(rows, *, english=False, findings=None, names=None, weight_labels=
             elif row['id'] == 'ieeg_signal_stability':
                 limiting = next((r for r in row.get('evidence_components', []) if r['id'] == row.get('limiting_method')), None)
                 finding = (name(limiting, english) + t('决定本项得分', ' determines this score')) if limiting else row.get('reason', '')
+                if row.get('aggregation') == 'weighted_child_mean':
+                    count = len(row.get('assessed_methods', []))
+                    finding = t(f'{count} 项有效检查按权重平均', f'Weighted mean of {count} valid checks')
                 if row.get('value') == 100:
                     finding = t('已完成的检查未产生扣分', 'No deductions from the checks performed')
             else:
@@ -183,6 +198,7 @@ CSS = '''
 .score-tree table.score-evidence thead th{color:#65758a;background:#edf2f8;font-weight:400}
 .score-tree table.score-evidence th:nth-child(1){width:28%;font-weight:500}.score-tree table.score-evidence th:nth-child(2){width:13%}.score-tree table.score-evidence th:nth-child(3){width:23%}.score-tree table.score-evidence th:nth-child(4){width:36%}
 .score-tree .score-evidence small{display:block;margin-top:3px;font-size:11px;color:#6d7d90}.score-tree .score-child-points{font-variant-numeric:tabular-nums;font-weight:600}
+.score-tree table.score-weighted-children th:nth-child(1){width:27%}.score-tree table.score-weighted-children th:nth-child(2){width:12%}.score-tree table.score-weighted-children th:nth-child(3){width:12%}.score-tree table.score-weighted-children th:nth-child(4){width:12%}.score-tree table.score-weighted-children th:nth-child(5){width:37%}
 .score-tree table.score-evidence tr.score-determining{background:#edf4ff}.score-tree table.score-evidence tr.score-determining th{box-shadow:inset 3px 0 #2a62bc}.score-tree .score-determining .score-role{color:#2459bc;font-weight:600}
 @media(max-width:680px){.score-tree{--score-columns:minmax(110px,1.4fr) minmax(70px,.8fr) minmax(80px,.8fr)}.score-tree .score-tree-head span:last-child{display:none}.score-tree .score-finding{grid-column:1/-1;padding-left:22px;font-size:12px}.score-tree details.score-component>summary.score-summary{gap:5px 12px;padding:12px 8px}.score-tree .score-breakdown{padding:12px 8px}.score-tree .score-points{font-size:16px}}
 @media print{.score-tree .score-component::details-content{display:block!important;content-visibility:visible!important}.score-tree .score-breakdown{display:block!important;background:white;padding:8px 0}.score-tree .score-evidence-scroll{overflow:visible}.score-tree table.score-evidence{min-width:0}.score-tree details.score-component{break-inside:avoid}.score-toggle{display:none}.score-tree .score-tree-head,.score-tree details.score-component>summary.score-summary{padding:8px;font-size:10px;gap:8px}.score-tree .score-points{font-size:13px}.score-tree table.score-evidence td,.score-tree table.score-evidence th{font-size:9px;padding:6px}}

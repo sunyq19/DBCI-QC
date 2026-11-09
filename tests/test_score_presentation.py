@@ -34,7 +34,7 @@ class ScorePresentationTests(unittest.TestCase):
     def test_minimum_names_cause_and_weighted_impact_without_mutating_saved_result(self):
         children=[row('mne_amplitude_channels'),row('mne_amplitude_time',.31,378),
                   row('fieldtrip_zvalue',9.88,378),row('ieeg_range_plateau')]
-        score=aggregate([row(NUMERIC,0,7182000),*children,stability_output(children)], default_config('seeg'))
+        score=aggregate([row(NUMERIC,0,7182000),*children,stability_output(children)], {'version':'project-weighted/1.2','preset':'seeg-basic-score/0.1','weights':{NUMERIC:30,STABILITY:70}})
         before=copy.deepcopy(score)
         primary=[r for r in score['components'] if r['id'] in {NUMERIC,STABILITY}]
         html=score_tree(primary)
@@ -61,6 +61,21 @@ class ScorePresentationTests(unittest.TestCase):
         self.assertIn('综合分扣 3.5 分',html)
         missing=stability_output(children[2:]);missing['automatically_excluded']=True
         self.assertIn('本次权重为 0',score_tree([missing]))
+
+    def test_weighted_children_show_shares_and_deductions(self):
+        config=default_config('seeg')
+        config['group_weights'][STABILITY].update(mne_amplitude_time=3,fieldtrip_zvalue=1)
+        children=[row('mne_amplitude_time',20),row('fieldtrip_zvalue',0),observation(SPECS['ieeg_range_plateau'],reason='unknown range')]
+        scored=aggregate([row(NUMERIC),*children],config)
+        html=score_tree([r for r in scored['components'] if r['id']==STABILITY])
+        self.assertIn('子项按本次有效权重平均',html)
+        self.assertIn('75.0%',html)
+        self.assertIn('25.0%',html)
+        self.assertIn('<td>15</td>',html)
+        self.assertIn('本次未计入',html)
+        self.assertNotIn('决定本项得分',html)
+        self.assertNotIn('最低分',html)
+        self.assertIn('综合分扣 10.5 分',html)
 
     def test_union_keeps_distinct_aggregation_and_rejected_identity_evidence(self):
         from ephys_qc.neuropixels_scoring import STATE, CONSTANT, AP

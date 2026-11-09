@@ -37,8 +37,8 @@ SPECS = {key:dict(id=key,method_id=method,module_id=module,name=name,unit=unit,r
                  interpretation='指定方法未命中的比例；候选不是已确认坏道或伪迹。')
          for key,method,module,name,unit,reducer,modalities in _ROWS}
 
-SPECS['ieeg_signal_stability'].update(formula='min(valid related-method scores)',
-    interpretation='相关候选只取最低分计一次，不代表逐样本异常并集。')
+SPECS['ieeg_signal_stability'].update(formula='sum(valid child score * child weight) / sum(valid child weight)',
+    interpretation='有效子项按权重平均；只通过稳定性汇总计入综合分，不代表异常区间并集。')
 
 SPECS['neuropixels_channel_state'].update(formula='100 * (1 - duration_weighted_union_channel_fraction)',
     interpretation='逐窗对恒值与适用AP候选按来源通道取并集，再按通道窗时长加权。')

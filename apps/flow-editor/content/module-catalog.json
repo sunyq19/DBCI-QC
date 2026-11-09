@@ -870,14 +870,14 @@
     "src/ephys_qc/dataset_qc/review.py": "ec5bebed299b93f5eddfb7222a8abea6d776d07f31d6dbe440fbd14c14956d52",
     "src/ephys_qc/dataset_qc/review_report.py": "03d4bd6f1f60486b4763d059fd48bc954033ef5e4b4a30004b638a45b62f6b92",
     "apps/workbench/package_reviews.py": "14d46d5e8028a3924a4ae47901b311984c30eddde01e45a6d3cea078eab4304d",
-    "src/ephys_qc/score_registry.py": "d5bb8054616890e3fd6cd89554e498f236f6c26b309db90fcdfffd697281b4cb",
-    "src/ephys_qc/project_scoring.py": "80a5eb46454bcc764e7754cd22522360422ddda4d9edd327ab68b7c545ed9de5",
-    "src/ephys_qc/ieeg_scoring.py": "7061e3a983307ae245d59ffe1b12b055dbdf3cd436b9ac2001f214999aa18075",
+    "src/ephys_qc/score_registry.py": "d5bab4910a5159cc2ede850ff4a0ca4e8dc7b6ed1e6d97ef1ae1f75417f09ab4",
+    "src/ephys_qc/project_scoring.py": "b07d6231cd13358cd24e5a4d91912db540038622e9c515bc76d4a22265d2ca98",
+    "src/ephys_qc/ieeg_scoring.py": "7cbf8a13cc3d5a371e4c9b0784450cdba862a14539623b5af9d5e72c4631ace4",
     "src/ephys_qc/neuropixels_scoring.py": "9777f461ba577911dd759a2a0f7b3559d8ef731b185d48640bb674934c96bfa9",
-    "docs/ieeg-scoring.md": "b88726162d54bcabeb0f65da059c13f72dffddc453675ec0c6653348e60f74cd",
+    "docs/ieeg-scoring.md": "4cf17039b5ca5f293c68d3497135cec5e1cfe8cc883f572fab1534c7d47ca042",
     "docs/neuropixels-scoring.md": "f9b33db8a5f99c375d0d087be0afcd5ec7b06b1a9e453af9adfb6b170ce45155",
     "docs/eeg-scoring.md": "1f5c3e37494dd29c864996665d558c499feaeb76096bf44a6c654592f88d7b2f",
-    "src/ephys_qc/flow_contracts.py": "55298602a4f48534367386d3ceaa44466d9ebc5759ba63588a7d4e1b3875e2f3"
+    "src/ephys_qc/flow_contracts.py": "4af2ccbafadd5b7ed95498af5d224ccf7f47855adaa0ae1b7577233991bb8142"
   },
   "modules": {
     "M01": [
@@ -1669,9 +1669,9 @@
               "信号稳定性 · ieeg_signal_stability"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)；min(valid related-method scores)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)；sum(valid child score * child weight) / sum(valid child weight)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           },
           {
             "scope": "seeg",
@@ -1683,9 +1683,9 @@
               "信号稳定性 · ieeg_signal_stability"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)；min(valid related-method scores)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)；sum(valid child score * child weight) / sum(valid child weight)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -1785,7 +1785,7 @@
             "weight": "数值有效性30%；可调整",
             "rule": "仅NaN/Inf占比：100 ×（1 − 无效数值 / 受检采样点）。恒值问题另归入稳定性。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -1818,9 +1818,9 @@
               "文件量程端点平台 · ieeg_range_plateau"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "文件量程端点平台仅在EDF/BDF有有效标定时默认启用。稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "文件量程端点平台仅在EDF/BDF有有效标定时默认启用。稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           },
           {
             "scope": "seeg",
@@ -1830,9 +1830,9 @@
               "文件量程端点平台 · ieeg_range_plateau"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "文件量程端点平台仅在EDF/BDF有有效标定时默认启用。稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "文件量程端点平台仅在EDF/BDF有有效标定时默认启用。稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -1866,7 +1866,7 @@
             "weight": "数值有效性30%；可调整",
             "rule": "仅NaN/Inf占比：100 ×（1 − 无效数值 / 受检采样点）。恒值问题另归入稳定性。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -2622,9 +2622,9 @@
               "分组触点幅度离群 · ieeg_group_outliers"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           },
           {
             "scope": "seeg",
@@ -2634,9 +2634,9 @@
               "分组触点幅度离群 · ieeg_group_outliers"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -3080,9 +3080,9 @@
               "FieldTrip 跳变区间 · fieldtrip_zvalue"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           },
           {
             "scope": "seeg",
@@ -3092,9 +3092,9 @@
               "FieldTrip 跳变区间 · fieldtrip_zvalue"
             ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
-            "rule": "稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "ieeg-score/0.1"
+            "version": "ieeg-score/0.2"
           }
         ]
       },
@@ -3571,7 +3571,7 @@
             "weight": "信号完整性 33.3% / 工频干扰 33.3% / 高频突发 33.3%",
             "rule": "按默认方案的有效权重加权平均；权重可以调整。PREP、MNE、FASTER、FieldTrip及灵犀云中已具备分数接口的方法可以另选，不默认全部加入。",
             "limited": "可选方法可能重复标记同一问题。本版未做所有EEG方法之间的统一去重；同类方法优先作为替代方案比较。工频已声明被滤除时未评，不能补100分。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           }
         ]
       },
@@ -3587,13 +3587,13 @@
         ],
         "x": 20,
         "y": 20,
-        "description": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再取最低有效分作为稳定性。",
+        "description": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。",
         "inputs": "各方法保存的有效计分证据与本次权重",
         "outputs": "分项、综合分、有效权重、未评原因及版本",
         "conditions": "整份执行范围及来源核验有效；仅对本次已完成检查解释分数。",
         "methods": "项目计分汇总；不重新执行检测算法。",
         "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/apps/flow-editor/content/scoring-rules/ieeg-scoring.md",
-        "notes": "同类证据仅计一次；原始项不再独立加权。取最低分是保守合并规则，不是异常并集，可能低估多个独立问题的合计负担。 现为项目试行方案，尚未通过专家审核。",
+        "notes": "子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。 现为项目试行方案，尚未通过专家审核。",
         "entryType": "support",
         "scoring": [
           {
@@ -3602,9 +3602,9 @@
             "canOutputScore": false,
             "outputs": [],
             "weight": "数值有效性30% + 信号稳定性70%",
-            "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再取最低有效分作为稳定性。",
-            "limited": "同类证据仅计一次；原始项不再独立加权。取最低分是保守合并规则，不是异常并集，可能低估多个独立问题的合计负担。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。",
+            "limited": "子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。",
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           },
           {
             "scope": "seeg",
@@ -3612,9 +3612,9 @@
             "canOutputScore": false,
             "outputs": [],
             "weight": "数值有效性30% + 信号稳定性70%",
-            "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再取最低有效分作为稳定性。",
-            "limited": "同类证据仅计一次；原始项不再独立加权。取最低分是保守合并规则，不是异常并集，可能低估多个独立问题的合计负担。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。",
+            "limited": "子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。",
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           }
         ]
       },
@@ -3646,7 +3646,7 @@
             "weight": "数值有效性30% + 通道状态70%",
             "rule": "数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的AP离群取并集；按通道窗时长汇总。LF/LFP只使用恒值依据。",
             "limited": "同一来源通道在同一窗口只计一次。任一窗受限的原始方法不进入整份并集，候选仍保留。原始恒值/AP与合并项不能重复分权重。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           }
         ]
       },
@@ -3681,7 +3681,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           },
           {
             "scope": "ecog",
@@ -3691,7 +3691,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           },
           {
             "scope": "seeg",
@@ -3701,7 +3701,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           },
           {
             "scope": "np",
@@ -3711,7 +3711,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.1 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
           }
         ]
       }

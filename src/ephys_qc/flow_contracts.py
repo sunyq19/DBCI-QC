@@ -46,7 +46,7 @@ def method_entry(m, scope):
         return entry(scope,'default' if default else 'optional',names,
             f'并入信号稳定性{ES}；原始项不再单独加权',
             ('文件量程端点平台仅在EDF/BDF有有效标定时默认启用。' if key=='ieeg_range_plateau' else '')+
-            '稳定性取有效相关方法的整份分数最低值，只计一次；不声称逐样本异常并集。选择可选证据会改变稳定性的依据。',version=ieeg_scoring.VERSION,
+            '稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。',version=ieeg_scoring.VERSION,
             limited='无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。'+LIMITED)
     if key=='neuropixels_continuity':
         return entry(scope,'default',names,f'数值有效性{NI}；整窗恒值并入通道状态{NS}',rule='NaN/Inf按采样点计分。整窗恒值按来源通道身份进入通道状态；短暂量化重复只测量。恒值不另分总分权重。',version=neuropixels_scoring.VERSION)
@@ -75,8 +75,8 @@ def attach_scoring(catalog, roots, node, base):
          '按默认方案的有效权重加权平均；权重可以调整。PREP、MNE、FASTER、FieldTrip及灵犀云中已具备分数接口的方法可以另选，不默认全部加入。',
          '可选方法可能重复标记同一问题。本版未做所有EEG方法之间的统一去重；同类方法优先作为替代方案比较。工频已声明被滤除时未评，不能补100分。','docs/eeg-scoring.md'),
         ('score_ieeg','ECoG / sEEG · 默认两项',['ecog','seeg'],f'数值有效性{EI} + 信号稳定性{ES}',
-         '稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再取最低有效分作为稳定性。',
-         '同类证据仅计一次；原始项不再独立加权。取最低分是保守合并规则，不是异常并集，可能低估多个独立问题的合计负担。','docs/ieeg-scoring.md'),
+         '稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。',
+         '子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。','docs/ieeg-scoring.md'),
         ('score_np','Neuropixels · 默认两项',['np'],f'数值有效性{NI} + 通道状态{NS}',
          '数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的AP离群取并集；按通道窗时长汇总。LF/LFP只使用恒值依据。',
          '同一来源通道在同一窗口只计一次。任一窗受限的原始方法不进入整份并集，候选仍保留。原始恒值/AP与合并项不能重复分权重。','docs/neuropixels-scoring.md'),

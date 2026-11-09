@@ -182,13 +182,20 @@ def aggregate(rows,config,*,coverage_complete=True):
     import hashlib,json
     weights=config['weights']
     if set(weights)-set(SPECS) or any(not number(w) or not 0<=w<=100 for w in weights.values()):raise ValueError('无效评分权重')
-    from .ieeg_scoring import NUMERIC, STABILITY, PRESETS, validate_family_weights
+    from .ieeg_scoring import NUMERIC, STABILITY, PRESETS, validate_family_weights, child_weights, uses_weighted_children, stability_output
     if config.get('preset') in PRESETS.values() or {NUMERIC, STABILITY}.intersection(weights):
         validate_family_weights(weights)
+        child_weights(config)
     from .neuropixels_scoring import NUMERIC as NP_NUMERIC, STATE as NP_STATE, CONSTANT as NP_CONSTANT, validate_family_weights as validate_np
     if {NP_NUMERIC,NP_STATE,NP_CONSTANT}.intersection(weights):validate_np(weights)
     if len({r['id'] for r in rows})!=len(rows):raise ValueError('同一计分输出不能重复纳入')
     index={r['id']:r for r in rows};parts=[]
+    if uses_weighted_children(config):
+        # Reweight saved method evidence as well as newly computed outputs.
+        evidence=[r for r in rows if r['id'] != STABILITY]
+        known={r['id'] for r in evidence}
+        evidence += [r for r in index.get(STABILITY,{}).get('evidence_components',[]) if r['id'] not in known]
+        index[STABILITY]=stability_output(evidence, config)
     for key in dict.fromkeys([*index,*weights]):
         spec=SPECS[key];row=copy.deepcopy(index.get(key) or observation(spec,reason='所选计分方法没有有效输出。'))
         if row.get('value') is not None and (row.get('status')!='computed' or not number(row.get('candidate_amount')) or not number(row.get('assessed_amount')) or not 0<=row['candidate_amount']<=row['assessed_amount'] or row['assessed_amount']<=0 or not math.isclose(row['value'],100*(1-row['candidate_amount']/row['assessed_amount']),abs_tol=1e-9)):
@@ -208,7 +215,7 @@ def aggregate(rows,config,*,coverage_complete=True):
     value=sum(p['value']*p['weight'] for p in active)/total_weight if active and not blocking and coverage_complete else None
     h=index.get('hf_burst',{})
     return dict(version=config['version'],name='项目自定义评分',value=value,status='project_trial' if active else 'unavailable' if any(weights.values()) else 'disabled',components=parts,
-        preset=config.get('preset'),weights=copy.deepcopy(weights),configuration_id=hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16],
+        preset=config.get('preset'),weights=copy.deepcopy(weights),group_weights=copy.deepcopy(config.get('group_weights',{})),configuration_id=hashlib.sha256(json.dumps(config,sort_keys=True,separators=(',',':')).encode()).hexdigest()[:16],
         effective_weights={p['id']:p['weight'] for p in parts},excluded_components=excluded,
         formula=FORMULA,aggregation='method_fraction_then_weighted_mean',coverage_complete=coverage_complete,
         missing_components=missing,missing_reason='未选择计分项' if not any(weights.values()) else '检查范围未完整覆盖' if not coverage_complete else
@@ -282,7 +289,7 @@ def finalize(result,rows,*,coverage_complete=True):
             index[key]=observation(SPECS[key],reason='所属模块未完成，已保存证据需复核。')
     if modality in {'ecog','seeg'}:
         from .ieeg_scoring import STABILITY, stability_output
-        index[STABILITY]=stability_output(list(index.values()))
+        index[STABILITY]=stability_output(list(index.values()), result['qc_config'].get('scoring'))
     if modality=='extracellular':
         from .neuropixels_scoring import STATE,state_output
         if STATE not in index:index[STATE]=state_output(list(index.values()))
