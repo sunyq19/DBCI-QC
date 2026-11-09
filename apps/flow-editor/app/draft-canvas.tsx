@@ -3,7 +3,7 @@ import {useRef,useState,useEffect,useLayoutEffect} from 'react';
 import {Minus,Plus,Maximize2,ArrowLeft} from 'lucide-react';
 import {type FlowDoc,type FlowNode,displayNodes,drawingEdges,nodeTitle,flattenNodes,sketchFor,edgePath,NODE_W,NODE_H,CANVAS_W,CANVAS_H} from '../lib/flow';
 import {clampScale,wheelPixels,wheelScale} from '../lib/canvas-zoom';
-export default function DraftCanvas({doc,selected,select,inspect,clearSelection,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,inspectEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;inspect:(id:string)=>void;clearSelection:()=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;inspectEdge:(id:string)=>void;add:(parent?:string)=>void;level:string;setLevel:(id:string)=>void}){
+export default function DraftCanvas({doc,selected,select,inspect,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,inspectEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;inspect:(id:string)=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;inspectEdge:(id:string)=>void;add:(parent?:string)=>void;level:string;setLevel:(id:string)=>void}){
  const svg=useRef<SVGSVGElement>(null),rail=useRef<HTMLDivElement>(null),wire=useRef<{source:string;start:[number,number]}|null>(null);
  const [scale,setScale]=useState(.78),[pointer,setPointer]=useState<[number,number]|null>(null),autoFit=useRef(true);
  const scaleNow=useRef(scale),zoomAnchor=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
@@ -13,6 +13,7 @@ export default function DraftCanvas({doc,selected,select,inspect,clearSelection,
  const fit=()=>{if(rail.current)setScale(Math.max(.4,Math.min(1,(rail.current.clientWidth-36)/CANVAS_W)));};
  useEffect(()=>{fit();const observer=new ResizeObserver(()=>{if(autoFit.current)fit();});if(rail.current)observer.observe(rail.current);return()=>observer.disconnect();},[]);
  useEffect(()=>{rail.current?.scrollTo({top:0,left:0});},[level]);
+ useEffect(()=>{if(!linkFrom){wire.current=null;setPointer(null);}},[linkFrom]);
  useLayoutEffect(()=>{
   scaleNow.current=scale;const anchor=zoomAnchor.current,container=rail.current,rect=svg.current?.getBoundingClientRect();
   if(anchor&&container&&rect){container.scrollLeft+=rect.left+anchor.x*scale-anchor.clientX;container.scrollTop+=rect.top+anchor.y*scale-anchor.clientY;}
@@ -36,20 +37,13 @@ export default function DraftCanvas({doc,selected,select,inspect,clearSelection,
   container.addEventListener('wheel',wheel,{passive:false});
   return()=>{container.removeEventListener('wheel',wheel);cancelAnimationFrame(frame);};
  },[]);
- function clearBlank(e:React.MouseEvent<HTMLDivElement>){
-  const target=e.target as Element;
-  if(target!==e.currentTarget&&target!==svg.current)return;
-  const bounds=e.currentTarget.getBoundingClientRect();
-  if(e.clientX>=bounds.left+e.currentTarget.clientLeft+e.currentTarget.clientWidth||e.clientY>=bounds.top+e.currentTarget.clientTop+e.currentTarget.clientHeight)return;
-  wire.current=null;setPointer(null);clearSelection();
- }
  function point(e:React.PointerEvent){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
  function move(e:React.PointerEvent){if(!wire.current)return;const p=point(e);if(p)setPointer([p.x,p.y]);}
  function finish(e:React.PointerEvent){const w=wire.current;if(w){const p=point(e),target=p&&nodes.find(n=>p.x>=n.x-8&&p.x<=n.x+NODE_W+8&&p.y>=n.y-8&&p.y<=n.y+NODE_H+8&&n.id!==w.source);if(target){connect(w.source,target.id);setLinkFrom('');}wire.current=null;setPointer(null);}}
  function startWire(e:React.PointerEvent,n:FlowNode){e.stopPropagation();if(!writable)return;setLinkFrom(n.id);wire.current={source:n.id,start:[n.x+NODE_W,n.y+NODE_H/2]};e.currentTarget.setPointerCapture(e.pointerId);setPointer(wire.current.start);}
  return <div className="draft-canvas">
   <div className="canvas-context">{parent?<button onClick={()=>setLevel('')}><ArrowLeft size={14}/>全部模块</button>:<span>单击选中模块 · 双击查看详情</span>}{parent&&<strong>{nodeTitle(parent)}</strong>}{writable&&<button onClick={()=>add(level||undefined)}><Plus size={14}/>{parent?'子模块':'模块'}</button>}</div>
-  <div className="canvas-scroll" ref={rail} onDragStart={e=>e.preventDefault()} onClick={clearBlank}>
+  <div className="canvas-scroll" ref={rail} onDragStart={e=>e.preventDefault()}>
    <svg ref={svg} className={'flow-svg '+(writable?'editable':'')} aria-label="可编辑流程画布" width={CANVAS_W*scale} height={CANVAS_H*scale} viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`} onPointerMove={move} onPointerUp={finish} onPointerCancel={()=>{wire.current=null;setPointer(null);}}>
     <defs><marker id="draft-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9" fill="#7890b1"/></marker></defs>
     {edges.map(e=>{const a=index.get(e.source)!,b=index.get(e.target)!;let p=edgePath(a,b);if(Math.abs(a.y-b.y)<70&&Math.abs(a.x-b.x)>NODE_W+180){const right=b.x>a.x,sx=a.x+(right?NODE_W:0),tx=b.x+(right?0:NODE_W),sy=a.y+NODE_H/2,ty=b.y+NODE_H/2,top=Math.max(12,Math.min(a.y,b.y)-30),d=right?1:-1;p={d:`M${sx},${sy} C${sx+24*d},${sy} ${sx+24*d},${top} ${sx+48*d},${top} L${tx-48*d},${top} C${tx-24*d},${top} ${tx-24*d},${ty} ${tx},${ty}`,x:(sx+tx)/2,y:top-6};}return <g className={'graph-edge '+(selectedEdge===e.id?'selected':'')} key={e.id} role="button" tabIndex={0} aria-label={'连接 '+nodeTitle(index.get(e.source)!)+' 到 '+nodeTitle(index.get(e.target)!)} aria-pressed={selectedEdge===e.id} onClick={()=>setSelectedEdge(e.id)} onDoubleClick={event=>{event.stopPropagation();inspectEdge(e.id);}} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();inspectEdge(e.id);}else if(event.key===' '){event.preventDefault();setSelectedEdge(e.id);}}}><path d={p.d} className="edge-hit"/><path d={p.d} className="edge-line" markerEnd="url(#draft-arrow)"/>{e.label&&<text x={p.x} y={p.y} className="edge-label" textAnchor="middle">{e.label}</text>}</g>;})}
