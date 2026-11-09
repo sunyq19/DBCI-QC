@@ -12,6 +12,7 @@ def percent(weights, key):
 
 EEG_WEIGHTS=project_scoring.normalize(None,"scalp_eeg",["M03","M04","M06"])["weights"]
 IEEG_WEIGHTS=ieeg_scoring.default_config("ecog")["weights"]
+SEEG_WEIGHTS=ieeg_scoring.default_config("seeg")["weights"]
 NP_WEIGHTS=neuropixels_scoring.default_config()["weights"]
 EI=percent(IEEG_WEIGHTS,ieeg_scoring.NUMERIC)
 ES=percent(IEEG_WEIGHTS,ieeg_scoring.STABILITY)
@@ -42,6 +43,10 @@ def method_entry(m, scope):
         EI=percent(weights,ieeg_scoring.NUMERIC);ES=percent(weights,ieeg_scoring.STABILITY)
         if key in ('ecog_continuity','seeg_continuity'):
             return entry(scope,'default',names,f'数值有效性{EI}；可调整','仅NaN/Inf占比：100 ×（1 − 无效数值 / 受检采样点）。恒值问题另归入稳定性。',version=ieeg_scoring.VERSION)
+        if key=='ieeg_spectrum_fit':
+            return entry(scope,'default' if scope=='seeg' else 'optional',names,
+                ('工频'+percent(weights,'ieeg_spectrum_fit')+'；可调整' if scope=='seeg' else '默认0%；可选计分'),
+                '原版MNE多窗F检验；100×（1−命中完整通道窗/有效完整通道窗）。50/60Hz同窗命中不重复计数；已声明滤除或超出频带的目标未评，不补满分。',version='seeg-basic-score/0.3')
         default=key in IEEG_DEFAULTS and weights.get(ieeg_scoring.STABILITY,0)>0
         return entry(scope,'default' if default else 'optional',names,
             f'并入信号稳定性{ES}；原始项不再单独加权',
@@ -50,9 +55,14 @@ def method_entry(m, scope):
             limited='无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。'+LIMITED)
     if key=='neuropixels_continuity':
         return entry(scope,'default',names,f'数值有效性{NI}；整窗恒值并入通道状态{NS}',rule='NaN/Inf按采样点计分。整窗恒值按来源通道身份进入通道状态；短暂量化重复只测量。恒值不另分总分权重。',version=neuropixels_scoring.VERSION)
+    if key in {'spikeinterface_coherence_psd','spikeinterface_lfp_neighbors'}:
+        return entry(scope,'default',names,f'条件满足时并入通道状态{NS}；不另分总分权重',
+            rule=('AP：IBL原版区分dead/noise/out，默认仅dead/noise计分；out只展示，需明确设置才纳入。' if key.endswith('coherence_psd') else 'LF/LFP：原版邻域R²检测，不应用300Hz高通；必须有微米坐标且每道有邻居。')+
+            '同一来源通道在同一窗口与其他通道证据取并集，避免重复扣分。',version=neuropixels_scoring.VERSION,
+            limited='几何、shank、时长或有效标签不足则此方法不进入整份并集；其他有效方法继续计分。'+LIMITED)
     if key==AP_METHOD:
-        return entry(scope,'default',names,f'AP条件满足时并入通道状态{NS}；原始项权重0',rule='AP已确认且分组、时长及频带满足条件时默认使用原版MAD/std离群；不用于LF/LFP。与整窗恒值按同一来源通道、同一分析窗取并集，不重复计数。',version=neuropixels_scoring.VERSION,limited='任一分析窗受限时，该方法不进入整份并集；已检出候选仍保留。恒值完整有效时可独立支撑通道状态。'+LIMITED)
-    return entry(scope,'default',names,f'通道状态{NS}；可调整',rule='汇总整窗恒值与适用的AP离群，逐窗按来源通道取并集，再按通道窗时长加权。LF仅使用恒值；AP与LF不混排。合并项和原始项不能重复加权。',version=neuropixels_scoring.VERSION)
+        return entry(scope,'default',names,f'AP条件满足时并入通道状态{NS}；原始项权重0',rule='AP已确认且分组、时长及频带满足条件且几何方法不可用时默认使用原版MAD/std离群；不用于LF/LFP。与整窗恒值按同一来源通道、同一分析窗取并集，不重复计数。',version=neuropixels_scoring.VERSION,limited='任一分析窗受限时，该方法不进入整份并集；已检出候选仍保留。恒值完整有效时可独立支撑通道状态。'+LIMITED)
+    return entry(scope,'default',names,f'通道状态{NS}；可调整',rule='汇总整窗恒值与适用的AP离群，逐窗按来源通道取并集，再按通道窗时长加权。LF可在来源几何齐全时加入邻域一致性；AP与LF不混排。合并项和原始项不能重复加权。',version=neuropixels_scoring.VERSION)
 
 def attach_scoring(catalog, roots, node, base):
     contracts={}
@@ -74,11 +84,14 @@ def attach_scoring(catalog, roots, node, base):
         ('score_eeg','EEG · 默认三项',['eeg'],' / '.join(SPECS[k]['name']+' '+percent(EEG_WEIGHTS,k) for k in EEG_WEIGHTS),
          '按默认方案的有效权重加权平均；权重可以调整。PREP、MNE、FASTER、FieldTrip及灵犀云中已具备分数接口的方法可以另选，不默认全部加入。',
          '可选方法可能重复标记同一问题。本版未做所有EEG方法之间的统一去重；同类方法优先作为替代方案比较。工频已声明被滤除时未评，不能补100分。','docs/eeg-scoring.md'),
-        ('score_ieeg','ECoG / sEEG · 默认两项',['ecog','seeg'],f'数值有效性{EI} + 信号稳定性{ES}',
+        ('score_ieeg','ECoG · 默认两项',['ecog'],f'数值有效性{EI} + 信号稳定性{ES}',
          '稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。',
          '子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。','docs/ieeg-scoring.md'),
+        ('score_seeg','sEEG · 默认三项',['seeg'],f"数值有效性{percent(SEEG_WEIGHTS,ieeg_scoring.NUMERIC)} + 信号稳定性{percent(SEEG_WEIGHTS,ieeg_scoring.STABILITY)} + 工频{percent(SEEG_WEIGHTS,'ieeg_spectrum_fit')}",
+         'MNE平线、有效文件量程与MNE多窗工频默认执行；FieldTrip跳变和MNE分组LOF可选。稳定性子项加权，工频按完整通道窗命中率单独汇总。',
+         '权重可调，受限项退出计分。LOF必须确认比较组和参考；不把脑区差异、病理活动自动当作坏道。旧版两项报告保留。','docs/ieeg-scoring.md'),
         ('score_np','Neuropixels · 默认两项',['np'],f'数值有效性{NI} + 通道状态{NS}',
-         '数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的AP离群取并集；按通道窗时长汇总。LF/LFP只使用恒值依据。',
+         '数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的探针方法取并集；按通道窗时长汇总。AP优先采用IBL失活/噪声检查，无几何则退回MAD；LF/LFP有几何时采用邻域一致性。',
          '同一来源通道在同一窗口只计一次。任一窗受限的原始方法不进入整份并集，候选仍保留。原始恒值/AP与合并项不能重复分权重。','docs/neuropixels-scoring.md'),
         ('score_weight','权重与受限项',list(MODES.values()),'综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重',
          project_scoring.FORMULA+'权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。',

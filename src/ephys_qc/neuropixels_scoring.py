@@ -2,13 +2,13 @@
 import copy
 import math
 
-VERSION = 'neuropixels-score/0.1'
-PRESET = 'neuropixels-voltage-score/0.1'
+VERSION = 'neuropixels-score/0.2'
+PRESET = 'neuropixels-voltage-score/0.2'
 NUMERIC = 'neuropixels_numeric_integrity'
 CONSTANT = 'neuropixels_constant_channels'
 STATE = 'neuropixels_channel_state'
 AP = 'spikeinterface_bad_channels'
-EVIDENCE = (CONSTANT, AP)
+EVIDENCE = (CONSTANT, AP, 'spikeinterface_coherence_psd', 'spikeinterface_lfp_neighbors')
 
 
 def default_config():
@@ -122,7 +122,7 @@ def state_output(rows, *, windows=None):
                 unions.append({'window_id': None if windows is None else windows[index]['id'],
                                'scope': copy.deepcopy(scope), 'candidate_channel_ids': sorted(affected),
                                'assessed_channel_count': len(ids)})
-            reason = '整窗恒值与适用的AP离群按通道并集合并，同一通道在同一窗口只计一次。'
+            reason = '整窗恒值与适用的探针方法按通道并集合并，同一通道在同一窗口只计一次。'
     except (ValueError, TypeError, KeyError) as error:
         bad = total = None; reason = str(error)
     out = observation(SPECS[STATE], bad, total, scope=scope if windows is None else {}, reason=reason)

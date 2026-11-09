@@ -4,12 +4,12 @@
 
 ## 1 范围与评价对象
 
-本版固定Neuropixels连续电压的检查项目、触发条件和报告要求。适用于已核验的SpikeGLX AP/LF和具有明确Neuropixels设备声明的NWB连续ElectricalSeries。兼容执行配置`neuropixels-voltage/2`，推荐方案版本`neuropixels-basic-recipe/0.2`。本文件是项目规范，不是已发布的行业标准，也未完成检测准确性校准。
+本版固定Neuropixels连续电压的检查项目、触发条件和报告要求。适用于已核验的SpikeGLX AP/LF和具有明确Neuropixels设备声明的NWB连续ElectricalSeries。兼容执行配置`neuropixels-voltage/2`，推荐方案版本`neuropixels-basic-recipe/0.3`。本文件是项目规范，不是已发布的行业标准，也未完成检测准确性校准。
 
 | 对象 | 本版处理 | 不得混淆 |
 | --- | --- | --- |
-| AP连续电压 | 文件、时间、完整性、频谱、通道统计；有条件时增加AP通道离群 | 高频包含神经放电，不能套用EEG肌电规则 |
-| LF / LFP连续电压 | 文件、时间、完整性、低频频谱与通道统计 | 不套用AP的300 Hz高通和离群参数 |
+| AP连续电压 | 文件、时间、完整性、频谱、通道统计；有几何时增加IBL失活/噪声候选，无几何时可回退MAD | 高频包含神经放电，不能套用EEG肌电规则 |
+| LF / LFP连续电压 | 文件、时间、完整性、低频频谱、通道统计及有条件的邻域一致性 | 不套用AP的300 Hz高通和离群参数 |
 | 分选后units / spikes | 尚未接入；另列后续输入和指标要求 | 一个记录通道不等于一个神经元 |
 
 IBL分别提供原始电压RMS/频谱检查与分选结果指标；本版采用这种评价对象分层，不声称已运行完整IBL流程。[IBL原始数据质控接口](https://docs.internationalbrainlab.org/_autosummary/ibllib.ephys.ephysqc.html)
@@ -29,8 +29,8 @@ SpikeGLX文件长度应与保存字数、采样率及记录时长相符，`first
                          ↓
              完整性、频谱、逐通道统计
                          ↓
-          AP且shank/窗口条件满足 → AP通道离群
-          LF/LFP或条件不足      → 保留描述量
+          AP且几何/窗口条件满足 → IBL相干与高频噪声；仅shank齐全可回退MAD
+          LF/LFP且几何/邻居齐全 → 邻域一致性；条件不足保留描述量
                          ↓
                有事件表 → 核对事件时间
                          ↓
@@ -45,7 +45,7 @@ SpikeGLX文件长度应与保存字数、采样率及记录时长相符，`first
 
 结构不合法或无法标定：拒绝该信号进入检查。检查完成但发现非有限值、整窗恒值或AP离群：给出复核线索和位置。条件不足、失败或未接入：明确列为未评；不得解释为正常。
 
-默认采用数值有效性30%、通道状态70%的项目评分，权重可调。数值有效性统计NaN/Inf；通道状态合并整窗恒值与适用的AP离群，同一通道同一窗口只计一次，再按通道窗时长汇总。LF/LFP只采用恒值检查。原始检查不再单独重复计权。
+默认采用数值有效性30%、通道状态70%的项目评分，权重可调。数值有效性统计NaN/Inf；通道状态合并整窗恒值与适用的AP离群，同一通道同一窗口只计一次，再按通道窗时长汇总。LF/LFP有几何及邻居时加入邻域一致性，否则只采用恒值依据。原始检查不再单独重复计权。
 
 受限计分项有效权重归零，其余有效项重新归一化；某原始方法缺少窗口证据时，整份通道状态不采用该方法，但仍保留检出的候选。全部不可用、权重全为0或整份执行范围不完整时无综合分。此分数仅评价实际检查范围，不代表漂移、同步或unit质量。公式、算例与边界见[Neuropixels评分规则](/standards/neuropixels-scoring)，检测条件见[检查规则](/standards/neuropixels-checks)。
 
@@ -79,7 +79,7 @@ Welch PSD采用Hann窗、50%重叠和逐段去均值。AP默认0.1秒，LF/LFP�
 
 逐道输出有限样本数量、均值、标准差、RMS和峰峰值。RMS包含神经活动，不能改名为噪声地板。
 
-AP有来源shank映射、每杆至少8个选中神经道且窗口满足执行限制时，推荐已接入的SpikeInterface原版MAD路径：300 Hz高通、0.3秒抽样块、20块、seed=0、阈值为各杆通道MAD中位数的5倍。仅检测高离散度noise候选；good只代表未超此阈值。参数为项目初版配置，不是行业合格线。IBL coherence+psd、dead/out分类当前未接入。[SpikeInterface方法说明](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels)
+AP具有微米坐标、shank、时长和频带条件时，优先推荐SpikeInterface原版IBL coherence+psd，保留dead/noise/out标签。缺少几何而shank可用时，回退MAD筛查。LF/LFP仅在每道都有同杆邻居时采用原版neighborhood_r2，不应用AP的300Hz高通。候选需复核，上游初值不等于行业合格线。完整条件、参数与来源见[检查规则](/standards/neuropixels-checks)。
 
 [模块详情](/standards/neuropixels/modules/M05)
 

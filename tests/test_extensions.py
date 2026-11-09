@@ -20,7 +20,7 @@ def facts(**overrides):
 class ExtensionPlanningTests(unittest.TestCase):
     def test_specs_are_independent_optional_objects(self):
         first = extension_specs()
-        self.assertEqual({s["id"] for s in first}, {"mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof", "autoreject_global", "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue", "spikeinterface_bad_channels", "gnosis_line_length", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band", "gnosis_band_power", "gnosis_band_amplitude", "gnosis_psd_deviation", "gnosis_reference_ranges", "ieeg_range_plateau", "ieeg_group_outliers"})
+        self.assertEqual({s["id"] for s in first}, {"mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof", "autoreject_global", "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue", "spikeinterface_bad_channels", "gnosis_line_length", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band", "gnosis_band_power", "gnosis_band_amplitude", "gnosis_psd_deviation", "gnosis_reference_ranges", "ieeg_range_plateau", "ieeg_group_outliers", "ieeg_spectrum_fit", "ieeg_mne_lof", "spikeinterface_coherence_psd", "spikeinterface_lfp_neighbors"})
         self.assertEqual(len(first), len({s['id'] for s in first}))
         self.assertTrue(all(s["category"] == "optional" and bool(s["source"]["license"]) for s in first))
         first[0]["defaults"]["flat_volts"] = 77

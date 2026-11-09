@@ -5,6 +5,10 @@ CONTRACT = 'method-score/1'
 SCALP = ['scalp_eeg']
 # id, method, module, label, native denominator, output reducer, modality scope
 _ROWS = [
+ ('ieeg_spectrum_fit','ieeg_spectrum_fit','M04','多窗工频候选','channel_windows','spectrum_windows',['seeg','ecog']),
+ ('ieeg_mne_lof','ieeg_mne_lof','M05','分组触点 LOF','channels','channels',['seeg','ecog']),
+ ('spikeinterface_coherence_psd','spikeinterface_coherence_psd','M05','IBL 失活与噪声通道','channels','channels',['extracellular']),
+ ('spikeinterface_lfp_neighbors','spikeinterface_lfp_neighbors','M05','LF 邻域一致性','channels','channels',['extracellular']),
  ('integrity','continuity','M03','信号完整性','channel_samples','core',SCALP),
  ('line_noise','thomson_line','M04','工频干扰','channel_windows','core',SCALP),
  ('hf_burst','hf_burst','M06','高频突发','channel_seconds','core',SCALP),
@@ -41,7 +45,7 @@ SPECS['ieeg_signal_stability'].update(formula='sum(valid child score * child wei
     interpretation='有效子项按权重平均；只通过稳定性汇总计入综合分，不代表异常区间并集。')
 
 SPECS['neuropixels_channel_state'].update(formula='100 * (1 - duration_weighted_union_channel_fraction)',
-    interpretation='逐窗对恒值与适用AP候选按来源通道取并集，再按通道窗时长加权。')
+    interpretation='逐窗对恒值与适用探针候选按来源通道取并集，再按通道窗时长加权。')
 
 def outputs(modality=None, method_id=None):
     return [deepcopy(s) for s in SPECS.values() if

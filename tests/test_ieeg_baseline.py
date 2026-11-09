@@ -42,7 +42,7 @@ class BaselineTests(unittest.TestCase):
             proposal=recommend(source)
             self.assertTrue(proposal['can_apply'])
             self.assertEqual(proposal['qc_config']['method_config']['extension_parameters']['mne_amplitude'],FLAT_PARAMETERS)
-            self.assertEqual(proposal['qc_config']['scoring']['weights'],{'ieeg_numeric_integrity':30,'ieeg_signal_stability':70})
+            self.assertEqual(proposal['qc_config']['scoring']['weights'],({'ieeg_numeric_integrity':30,'ieeg_signal_stability':50,'ieeg_spectrum_fit':20} if modality=='seeg' else {'ieeg_numeric_integrity':30,'ieeg_signal_stability':70}))
             custom=recommend(source,{'method_config':{'extensions':['mne_amplitude'],'extension_parameters':{'mne_amplitude':{'min_duration_seconds':.3}}}})
             self.assertEqual(custom['qc_config']['method_config']['extension_parameters']['mne_amplitude']['min_duration_seconds'],.3)
             self.assertEqual(source,original)

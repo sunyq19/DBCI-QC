@@ -47,7 +47,8 @@ def extension_specs():
     from .research_runtime import extension_specs as research_specs
     from .gnosis_catalog import extension_specs as gnosis_specs
     from .ieeg_methods import extension_specs as ieeg_specs
-    return copy.deepcopy(_SPECS) + additional_specs() + research_specs() + gnosis_specs() + ieeg_specs()
+    from .voltage_methods import extension_specs as voltage_specs
+    return copy.deepcopy(_SPECS) + additional_specs() + research_specs() + gnosis_specs() + ieeg_specs() + voltage_specs()
 
 
 def _spec(extension_id):
@@ -96,6 +97,9 @@ def _parameters(extension_id, params):
 
 
 def evaluate_extension(extension_id, facts, params=None):
+    from .voltage_methods import IDS as VOLTAGE_IDS, evaluate_extension as voltage_call
+    if extension_id in VOLTAGE_IDS:
+        return voltage_call(extension_id, facts, params)
     from .ieeg_methods import IDS as IEEG_IDS, evaluate_extension as ieeg_call
     if extension_id in IEEG_IDS:
         return ieeg_call(extension_id, facts, params)
@@ -187,6 +191,9 @@ def run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds,
 
 
 def _run_extension(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, *, facts=None):
+    from .voltage_methods import IDS as VOLTAGE_IDS, run_extension as voltage_call
+    if extension_id in VOLTAGE_IDS:
+        return voltage_call(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)
     from .ieeg_methods import IDS as IEEG_IDS, run_extension as ieeg_call
     if extension_id in IEEG_IDS:
         return ieeg_call(extension_id, data_volts, sfreq, channel_names, start_seconds, parameters, facts=facts)

@@ -3,17 +3,17 @@ import copy
 import math
 
 VERSION = 'ieeg-score/0.2'
-PRESETS = {m: f'{m}-basic-score/0.2' for m in ('ecog', 'seeg')}
+PRESETS = {'ecog': 'ecog-basic-score/0.2', 'seeg': 'seeg-basic-score/0.3'}
 LEGACY_PRESETS = {m: f'{m}-basic-score/0.1' for m in ('ecog', 'seeg')}
 NUMERIC = 'ieeg_numeric_integrity'
 STABILITY = 'ieeg_signal_stability'
 EVIDENCE = ('mne_amplitude_channels', 'mne_amplitude_time', 'ieeg_range_plateau',
-            'fieldtrip_zvalue', 'ieeg_group_outliers')
+            'fieldtrip_zvalue', 'ieeg_group_outliers', 'ieeg_mne_lof')
 
 
 def default_config(modality):
     return {'version': 'project-weighted/1.2', 'preset': PRESETS[modality],
-            'weights': {NUMERIC: 30, STABILITY: 70},
+            'weights': ({NUMERIC: 30, STABILITY: 50, 'ieeg_spectrum_fit': 20} if modality=='seeg' else {NUMERIC: 30, STABILITY: 70}),
             'group_weights': {STABILITY: {key: 1 for key in EVIDENCE}}}
 
 

@@ -76,6 +76,21 @@ class SpikeGLXReaderTests(unittest.TestCase):
         np.testing.assert_array_equal(self.read(reader), raw[:, :2].T.astype(float) * np.array([.6/512/30, .6/512/50])[:,None])
         self.assertEqual(reader.metadata()['acquisition']['sampling_rate_hz'], 2500.)
 
+    @unittest.skipUnless(importlib.util.find_spec('probeinterface'), 'Requires ProbeInterface')
+    def test_lf_geometry_maps_acquired_ids_to_contacts_not_sync(self):
+        import numpy as np
+        from probeinterface import read_imro
+        reader, path, _ = self.reader(band='lf', overrides={'imDatPrb_pn':'NP1010'})
+        rows = '(NP1010,4)' + ''.join(f'({i} 0 0 {100+100*i} {20+10*i} 1)' for i in range(4))
+        imro = self.root / 'expected.imro'; imro.write_text(rows)
+        expected = read_imro(imro).contact_positions[[1, 3]]
+        channels = reader.metadata()['channels']
+        np.testing.assert_array_equal([c['probe_position_um'] for c in channels[:2]], expected)
+        self.assertEqual([c['acquired_index'] for c in channels], [5, 7, 8])
+        self.assertEqual([c['probe_grid']['shank'] for c in channels[:2]], [0, 0])
+        self.assertNotIn('probe_position_um', channels[2])
+        self.assertTrue(all('read_imro' in c['probe_geometry_source'] for c in channels[:2]))
+
     def test_np2_fixed_gain_single_and_four_shank(self):
         import numpy as np
         for probe in (21, 24):

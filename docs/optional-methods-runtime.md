@@ -95,7 +95,7 @@ python scripts/configure_research_runtime.py \
 ## 6. 来源与许可
 
 - [MNE-FASTER](https://github.com/wmvanvliet/mne-faster)：BSD-3-Clause；独立Python实现，不是MNE内置FASTER。
-- [SpikeInterface](https://github.com/SpikeInterface/spikeinterface)：MIT；本版只接std/mad。
+- [SpikeInterface](https://github.com/SpikeInterface/spikeinterface)：MIT；接入std/mad、IBL coherence+psd及LF neighborhood_r2；后两者需来源探针几何。
 - [clean_rawdata ASR源码](https://github.com/sccn/clean_rawdata/blob/master/asr_calibrate.m)：仓库GPL-3.0，ASR文件另有UC教育、研究、非营利用途和商业使用说明。科研运行不表示已解决商业部署许可。
 - [CleanLine](https://github.com/sccn/cleanline)：仓库包含GPL-3.0-or-later文件及分别许可的依赖；本版调用`cleanLineNoise`新实现，保留整份上游许可，不把所有文件归为同一许可。
 - [Zapline-plus](https://github.com/MariusKlug/zapline-plus)：GPL-3.0，保留NoiseTools等依赖说明。

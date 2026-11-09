@@ -50,7 +50,7 @@ test('scope views keep matching descendants and shared parents without changing 
   assert.ok(view.drawing!.edges.every(e=>ids.has(e.source)&&ids.has(e.target)));
   assert.ok(all.every(n=>scope==='all'||n.scope.includes(scope)||!!n.children?.length));
   if(scope==='eeg'){assert.ok(ids.has('score_eeg'));assert.ok(!ids.has('score_ieeg'));assert.ok(!ids.has('score_np'));}
-  if(scope==='ecog'||scope==='seeg'){assert.ok(ids.has('score_ieeg'));assert.ok(!ids.has('score_eeg'));assert.ok(!ids.has('score_np'));}
+  if(scope==='ecog'||scope==='seeg'){assert.ok(ids.has(scope === 'seeg' ? 'score_seeg' : 'score_ieeg'));assert.ok(!ids.has('score_eeg'));assert.ok(!ids.has('score_np'));}
   if(scope==='np'){assert.ok(ids.has('score_np'));assert.ok(!ids.has('score_ieeg'));}
  }
  assert.deepEqual(source,snapshot);

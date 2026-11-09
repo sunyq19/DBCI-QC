@@ -55,7 +55,14 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
             candidates=payload.get('candidates')
             if not isinstance(candidates,list):raise ValueError('未返回候选清单')
             kind=spec['reducer'];reason='候选按当前方法参数判定；不等于已确认伪迹。'
-            if kind in {'encoding_samples','assessed_channels'}:
+            if kind=='spectrum_windows':
+                rows=payload.get('measurements',[])
+                if not rows or any(r.get('channel_name') not in names or not isinstance(r.get('detected_frequencies_hz'),list) for r in rows):raise ValueError('缺少逐道多窗证据')
+                bad=sum(bool(r['detected_frequencies_hz']) for r in rows);total=len(rows)
+                if payload.get('assessed_windows')!=total or payload.get('candidate_windows')!=bad or len(candidates)!=bad:raise ValueError('多窗计数不一致')
+                scope['unused_tail_seconds']=payload.get('unused_tail_seconds')
+                reason='命中工频的完整通道窗 / 实际检查的完整通道窗；不足一窗的尾段不计为通过。'
+            elif kind in {'encoding_samples','assessed_channels'}:
                 assessed=payload.get('assessed_channel_names',[])
                 if not assessed or len(set(assessed))!=len(assessed) or not set(assessed)<=set(names):
                     raise ValueError('缺少有效判定的通道分母')
@@ -92,6 +99,13 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
                     labels=payload.get('channel_labels',[])
                     if {r.get('channel_name') for r in labels if r.get('label')=='noise'}!=affected:raise ValueError('标签与候选不一致')
                     if len(labels)!=len(names) or {r.get('channel_name') for r in labels}!=set(names) or any(r.get('label') not in {'good','noise'} for r in labels):raise ValueError('SpikeInterface 存在未评通道')
+                if identifier in {'spikeinterface_coherence_psd','spikeinterface_lfp_neighbors'}:
+                    labels=payload.get('channel_labels',[]);used=set(payload.get('scored_labels',[]))
+                    if len(labels)!=len(names) or {r.get('channel_name') for r in labels}!=set(names) or any(r.get('label') not in {'good','dead','noise','out'} for r in labels):raise ValueError('探针通道标签不完整')
+                    if {r['channel_name'] for r in labels if r['label'] in used}!=affected:raise ValueError('探针标签与候选不一致')
+                if identifier=='ieeg_mne_lof':
+                    scores=payload.get('channel_scores',[])
+                    if len(scores)!=len(names) or {r['channel_name'] for r in scores}!=set(names) or not all(number(r.get('negative_outlier_factor')) for r in scores):raise ValueError('分组LOF证据不完整')
                 bad,total=len(affected),len(names)
                 reason='涉及候选的通道数 / 受检通道数；整份按分析块时长加权，不代表实际污染时长。'
                 if kind=='pairs':reason='桥接对涉及的通道去重计数；不按通道对数量重复扣分。'
@@ -150,7 +164,7 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
             else:raise ValueError('该方法尚无可计算的评分适配器')
             score=observation(spec,bad,total,reason=reason,scope=scope,artifact=artifact)
             score['parameters']=copy.deepcopy(payload.get('parameters',{}))
-            if identifier=='spikeinterface_bad_channels':
+            if identifier in {'spikeinterface_bad_channels','spikeinterface_coherence_psd','spikeinterface_lfp_neighbors'}:
                 from .neuropixels_scoring import attach_ap_identity
                 attach_ap_identity(score,payload)
             result.append(score)

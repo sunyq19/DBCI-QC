@@ -26,7 +26,7 @@ test('unknown snapshots fail explicitly and malformed saves add no history',asyn
 test('hierarchy upgrade covers the registry and preserves every fixed snapshot and existing edit',async()=>{
  const {withCatalog}=await import('../lib/catalog');const {flattenNodes,updateNode,removeNode}=await import('../lib/flow');const {ensureHierarchy}=await import('../lib/repository');
  const d=withCatalog(seed),all=flattenNodes(d.nodes);
- assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,49);
+ assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,53);
  assert.equal(all.filter(n=>n.entryType==='method'&&n.status==='planned').length,3);
  assert.equal(all.filter(n=>n.entryType==='reader').length,6);
  assert.equal(all.filter(n=>n.entryType==='check').length,11);
@@ -88,7 +88,7 @@ test('visualizations have one separate hierarchy and do not count as QC algorith
  const before=JSON.stringify(old);const doc=withCatalog(old.doc);const root=doc.nodes.find(n=>n.id==='VIS')!;
  assert.equal(root.children?.length,12);assert.equal(root.children?.filter(n=>n.status==='ready').length,10);
  assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='visualization').length,12);
- assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,49);
+ assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,53);
  assert.ok(doc.edges.some(e=>e.source==='M09'&&e.target==='VIS'));
  assert.deepEqual(withCatalog(doc),doc);assert.equal(JSON.stringify(old),before);
 });

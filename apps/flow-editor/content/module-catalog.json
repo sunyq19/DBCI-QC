@@ -1,5 +1,5 @@
 {
-  "catalogVersion": "1.0.0rc3.dev40",
+  "catalogVersion": "1.0.0rc3.dev41",
   "roots": [
     {
       "id": "INPUT",
@@ -853,9 +853,11 @@
     }
   ],
   "sourceFiles": {
+    "src/ephys_qc/voltage_methods.py": "5a4e14013d7a7082e7d4e60cf6bd0ac63f898739e098191ad5eec56e0eb9ebc6",
+    "src/ephys_qc/readers/spikeglx_reader.py": "353819c82eb9fec0a24ae1218aca24a5b5a6fe6be1de4d5262e82b77bb06f3b1",
     "src/ephys_qc/visualizations/catalog.py": "cd5cf03fdb2f9df4719ff54e9e462a345e09325875c939372b9cae3d1cc46df0",
     "src/ephys_qc/visualizations/render.py": "0ba6e7f39f9cd8a34823047f48b88c791a906553558d9c07f7576c0aa07f5a84",
-    "src/ephys_qc/method_registry.py": "6d6d92cb197b6cf83c43e953cd16cc498d9ddd63569fbda19c9688ce22c6bb21",
+    "src/ephys_qc/method_registry.py": "199e8b93f08a065b8d7a8002ff667b384b5048ffb504a5df9d1afd33f87f2c3f",
     "src/ephys_qc/readers/__init__.py": "22ef0b06571e3b3f0abb1c5125c4dc78183eb1187f61fea285ae02c273f3351e",
     "src/ephys_qc/research_runtime.py": "c0c33b9f1624ee7b71be02d7bf49fc8848faab7fa7034bafa15bd6eb1b6ea2b8",
     "src/ephys_qc/descriptive_catalog.py": "bef03bd2aab2a8a557f624e4a8d261029a1e6ee184e0758cc33b8e30738f3bf1",
@@ -870,14 +872,14 @@
     "src/ephys_qc/dataset_qc/review.py": "ec5bebed299b93f5eddfb7222a8abea6d776d07f31d6dbe440fbd14c14956d52",
     "src/ephys_qc/dataset_qc/review_report.py": "03d4bd6f1f60486b4763d059fd48bc954033ef5e4b4a30004b638a45b62f6b92",
     "apps/workbench/package_reviews.py": "14d46d5e8028a3924a4ae47901b311984c30eddde01e45a6d3cea078eab4304d",
-    "src/ephys_qc/score_registry.py": "d5bab4910a5159cc2ede850ff4a0ca4e8dc7b6ed1e6d97ef1ae1f75417f09ab4",
-    "src/ephys_qc/project_scoring.py": "b07d6231cd13358cd24e5a4d91912db540038622e9c515bc76d4a22265d2ca98",
-    "src/ephys_qc/ieeg_scoring.py": "7cbf8a13cc3d5a371e4c9b0784450cdba862a14539623b5af9d5e72c4631ace4",
-    "src/ephys_qc/neuropixels_scoring.py": "9777f461ba577911dd759a2a0f7b3559d8ef731b185d48640bb674934c96bfa9",
-    "docs/ieeg-scoring.md": "4cf17039b5ca5f293c68d3497135cec5e1cfe8cc883f572fab1534c7d47ca042",
-    "docs/neuropixels-scoring.md": "f9b33db8a5f99c375d0d087be0afcd5ec7b06b1a9e453af9adfb6b170ce45155",
+    "src/ephys_qc/score_registry.py": "3fde001973059e5fc1b42875d03f245f010fa67cc834d78b20f9d63f3f821081",
+    "src/ephys_qc/project_scoring.py": "3edcb9dc9b4e527749ee9df157bd49373789ca383dc9dce846b5d5c36b4aabd1",
+    "src/ephys_qc/ieeg_scoring.py": "26de2003e41ea7d97c1ec57a212bc2ce51b79e04aee34526b99ad8d2ab86b504",
+    "src/ephys_qc/neuropixels_scoring.py": "eebba0a3469b7f3683fa3fb556fd40a81e84d7cf2bf8a59813f3e06ded071ed0",
+    "docs/ieeg-scoring.md": "66656b40bc3ee1654fa90047123fb1a87942d69f7cdd8df04bbe509887c16728",
+    "docs/neuropixels-scoring.md": "239acbda8f15869886e7707c4b9b612fc0763cf1c239a9424533e5b9ee087743",
     "docs/eeg-scoring.md": "1f5c3e37494dd29c864996665d558c499feaeb76096bf44a6c654592f88d7b2f",
-    "src/ephys_qc/flow_contracts.py": "4af2ccbafadd5b7ed95498af5d224ccf7f47855adaa0ae1b7577233991bb8142"
+    "src/ephys_qc/flow_contracts.py": "42b79324ec1229e7a18296409ef1aa849c1cdde0b48a0ba16d14003e5fa94373"
   },
   "modules": {
     "M01": [
@@ -1682,7 +1684,7 @@
               "MNE 幅度区间候选 · mne_amplitude_time",
               "信号稳定性 · ieeg_signal_stability"
             ],
-            "weight": "并入信号稳定性70%；原始项不再单独加权",
+            "weight": "并入信号稳定性50%；原始项不再单独加权",
             "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)；sum(valid child score * child weight) / sum(valid child weight)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
             "version": "ieeg-score/0.2"
@@ -1829,7 +1831,7 @@
             "outputs": [
               "文件量程端点平台 · ieeg_range_plateau"
             ],
-            "weight": "并入信号稳定性70%；原始项不再单独加权",
+            "weight": "并入信号稳定性50%；原始项不再单独加权",
             "rule": "文件量程端点平台仅在EDF/BDF有有效标定时默认启用。稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
             "version": "ieeg-score/0.2"
@@ -1901,7 +1903,7 @@
             "weight": "数值有效性30%；整窗恒值并入通道状态70%",
             "rule": "NaN/Inf按采样点计分。整窗恒值按来源通道身份进入通道状态；短暂量化重复只测量。恒值不另分总分权重。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "neuropixels-score/0.1"
+            "version": "neuropixels-score/0.2"
           }
         ]
       }
@@ -2130,6 +2132,53 @@
             "rule": "没有独立质量判定及有效分母，保留测量或流程输出。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
             "version": "method-score/1"
+          }
+        ]
+      },
+      {
+        "id": "f_ieeg_spectrum_fit",
+        "title": "MNE 多窗工频检测",
+        "summary": "手动选择",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "ecog",
+          "seeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "用多窗 F 检验定位工频附近的稳定窄带成分，保留触点和时间窗。",
+        "inputs": "原生电压\n目标工频仍在可测频带内\n至少4秒",
+        "outputs": "候选、逐道证据与适用条件\n可追溯的分项得分",
+        "conditions": "原生电压\n目标工频仍在可测频带内\n至少4秒\n满足本方法输入条件时。",
+        "methods": "MNE-Python\n调用 MNE spectrum_fit 的原版检测内核；独立4秒窗，p=0.01按上游窗口采样点数校正，仅收集所选工频±1Hz，每通道窗命中多个频率只记一次。\nmne.filter._get_window_thresh / _mt_spectrum_remove",
+        "evidence": "https://mne.tools/stable/generated/mne.filter.notch_filter.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+        "notes": "默认检查50/60Hz基频；显著窄带不是设备故障诊断。已声明滤除的频率未评。使用MNE私有内核，版本和函数签名须通过验收。",
+        "entryType": "method",
+        "scoring": [
+          {
+            "scope": "ecog",
+            "role": "optional",
+            "canOutputScore": true,
+            "outputs": [
+              "多窗工频候选 · ieeg_spectrum_fit"
+            ],
+            "weight": "默认0%；可选计分",
+            "rule": "原版MNE多窗F检验；100×（1−命中完整通道窗/有效完整通道窗）。50/60Hz同窗命中不重复计数；已声明滤除或超出频带的目标未评，不补满分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "seeg-basic-score/0.3"
+          },
+          {
+            "scope": "seeg",
+            "role": "default",
+            "canOutputScore": true,
+            "outputs": [
+              "多窗工频候选 · ieeg_spectrum_fit"
+            ],
+            "weight": "工频20%；可调整",
+            "rule": "原版MNE多窗F检验；100×（1−命中完整通道窗/有效完整通道窗）。50/60Hz同窗命中不重复计数；已声明滤除或超出频带的目标未评，不补满分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "seeg-basic-score/0.3"
           }
         ]
       },
@@ -2633,7 +2682,54 @@
             "outputs": [
               "分组触点幅度离群 · ieeg_group_outliers"
             ],
+            "weight": "并入信号稳定性50%；原始项不再单独加权",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "ieeg-score/0.2"
+          }
+        ]
+      },
+      {
+        "id": "f_ieeg_mne_lof",
+        "title": "MNE 分组触点 LOF",
+        "summary": "手动选择",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "ecog",
+          "seeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "在已确认可比较的一组触点中寻找波形离群触点。",
+        "inputs": "明确的逐触点比较组\n参考可比性已确认\n各组通道数大于邻居数",
+        "outputs": "候选、逐道证据与适用条件\n可追溯的分项得分",
+        "conditions": "明确的逐触点比较组\n参考可比性已确认\n各组通道数大于邻居数\n满足本方法输入条件时。",
+        "methods": "MNE-Python\n每组独立调用 MNE find_bad_channels_lof；保留原版LOF分数、候选和参考分组。\nmne.preprocessing.find_bad_channels_lof",
+        "evidence": "https://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+        "notes": "默认可选、不自动启用。脑区差异或病理活动也可离群；1.5是方法初值，不是颅内脑电合格线。",
+        "entryType": "method",
+        "scoring": [
+          {
+            "scope": "ecog",
+            "role": "optional",
+            "canOutputScore": true,
+            "outputs": [
+              "分组触点 LOF · ieeg_mne_lof"
+            ],
             "weight": "并入信号稳定性70%；原始项不再单独加权",
+            "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "ieeg-score/0.2"
+          },
+          {
+            "scope": "seeg",
+            "role": "optional",
+            "canOutputScore": true,
+            "outputs": [
+              "分组触点 LOF · ieeg_mne_lof"
+            ],
+            "weight": "并入信号稳定性50%；原始项不再单独加权",
             "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
             "version": "ieeg-score/0.2"
@@ -2732,9 +2828,77 @@
               "SpikeInterface 噪声通道 · spikeinterface_bad_channels"
             ],
             "weight": "AP条件满足时并入通道状态70%；原始项权重0",
-            "rule": "AP已确认且分组、时长及频带满足条件时默认使用原版MAD/std离群；不用于LF/LFP。与整窗恒值按同一来源通道、同一分析窗取并集，不重复计数。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "rule": "AP已确认且分组、时长及频带满足条件且几何方法不可用时默认使用原版MAD/std离群；不用于LF/LFP。与整窗恒值按同一来源通道、同一分析窗取并集，不重复计数。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "任一分析窗受限时，该方法不进入整份并集；已检出候选仍保留。恒值完整有效时可独立支撑通道状态。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "neuropixels-score/0.1"
+            "version": "neuropixels-score/0.2"
+          }
+        ]
+      },
+      {
+        "id": "f_spikeinterface_coherence_psd",
+        "title": "IBL 相干与高频噪声",
+        "summary": "手动选择",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "np"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "区分 AP 失活、噪声和组织外候选通道。",
+        "inputs": "AP电压与正确标定\n来源可追溯的探针位置和shank\n每杆至少12道",
+        "outputs": "候选、逐道证据与适用条件\n可追溯的分项得分",
+        "conditions": "AP电压与正确标定\n来源可追溯的探针位置和shank\n每杆至少12道\n满足本方法输入条件时。",
+        "methods": "SpikeInterface / IBL\n原版 SpikeInterface coherence+psd；每杆独立按探针深度排序，300Hz高通副本，抽样投票返回good/dead/noise/out。\nspikeinterface.preprocessing.detect_bad_channels(method=\"coherence+psd\")",
+        "evidence": "https://spikeinterface.readthedocs.io/en/0.104.2/api.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+        "notes": "dead/noise参与通道并集；out默认只展示，可明确启用。组织外标签不是解剖定位。超过三分之一候选时保留警告。",
+        "entryType": "method",
+        "scoring": [
+          {
+            "scope": "np",
+            "role": "default",
+            "canOutputScore": true,
+            "outputs": [
+              "IBL 失活与噪声通道 · spikeinterface_coherence_psd"
+            ],
+            "weight": "条件满足时并入通道状态70%；不另分总分权重",
+            "rule": "AP：IBL原版区分dead/noise/out，默认仅dead/noise计分；out只展示，需明确设置才纳入。同一来源通道在同一窗口与其他通道证据取并集，避免重复扣分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "几何、shank、时长或有效标签不足则此方法不进入整份并集；其他有效方法继续计分。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "neuropixels-score/0.2"
+          }
+        ]
+      },
+      {
+        "id": "f_spikeinterface_lfp_neighbors",
+        "title": "SpikeInterface LF 邻域一致性",
+        "summary": "手动选择",
+        "kind": "conditional",
+        "status": "ready",
+        "scope": [
+          "np"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "检查 LF/LFP 通道与邻近触点的波形一致性。",
+        "inputs": "LF/LFP电压\n以微米为单位的来源探针位置\n每道在指定半径内有邻居",
+        "outputs": "候选、逐道证据与适用条件\n可追溯的分项得分",
+        "conditions": "LF/LFP电压\n以微米为单位的来源探针位置\n每道在指定半径内有邻居\n满足本方法输入条件时。",
+        "methods": "SpikeInterface\n原版 neighborhood_r2：各道与邻域中位信号的相关系数平方，抽样中位数低于0.9列为候选；不应用AP高通。\nspikeinterface.preprocessing.detect_bad_channels(method=\"neighborhood_r2\")",
+        "evidence": "https://spikeinterface.readthedocs.io/en/0.104.2/api.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+        "notes": "真实局部活动也可降低一致性。无邻居的通道不伪装通过；当前整项未评。半径30微米是上游默认，可调整。",
+        "entryType": "method",
+        "scoring": [
+          {
+            "scope": "np",
+            "role": "default",
+            "canOutputScore": true,
+            "outputs": [
+              "LF 邻域一致性 · spikeinterface_lfp_neighbors"
+            ],
+            "weight": "条件满足时并入通道状态70%；不另分总分权重",
+            "rule": "LF/LFP：原版邻域R²检测，不应用300Hz高通；必须有微米坐标且每道有邻居。同一来源通道在同一窗口与其他通道证据取并集，避免重复扣分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+            "limited": "几何、shank、时长或有效标签不足则此方法不进入整份并集；其他有效方法继续计分。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+            "version": "neuropixels-score/0.2"
           }
         ]
       },
@@ -3091,7 +3255,7 @@
             "outputs": [
               "FieldTrip 跳变区间 · fieldtrip_zvalue"
             ],
-            "weight": "并入信号稳定性70%；原始项不再单独加权",
+            "weight": "并入信号稳定性50%；原始项不再单独加权",
             "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
             "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
             "version": "ieeg-score/0.2"
@@ -3494,9 +3658,9 @@
               "通道状态 · neuropixels_channel_state"
             ],
             "weight": "通道状态70%；可调整",
-            "rule": "汇总整窗恒值与适用的AP离群，逐窗按来源通道取并集，再按通道窗时长加权。LF仅使用恒值；AP与LF不混排。合并项和原始项不能重复加权。\n接口公式：100 * (1 - duration_weighted_union_channel_fraction)",
+            "rule": "汇总整窗恒值与适用的AP离群，逐窗按来源通道取并集，再按通道窗时长加权。LF可在来源几何齐全时加入邻域一致性；AP与LF不混排。合并项和原始项不能重复加权。\n接口公式：100 * (1 - duration_weighted_union_channel_fraction)",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-            "version": "neuropixels-score/0.1"
+            "version": "neuropixels-score/0.2"
           }
         ]
       },
@@ -3571,19 +3735,18 @@
             "weight": "信号完整性 33.3% / 工频干扰 33.3% / 高频突发 33.3%",
             "rule": "按默认方案的有效权重加权平均；权重可以调整。PREP、MNE、FASTER、FieldTrip及灵犀云中已具备分数接口的方法可以另选，不默认全部加入。",
             "limited": "可选方法可能重复标记同一问题。本版未做所有EEG方法之间的统一去重；同类方法优先作为替代方案比较。工频已声明被滤除时未评，不能补100分。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           }
         ]
       },
       {
         "id": "score_ieeg",
-        "title": "ECoG / sEEG · 默认两项",
+        "title": "ECoG · 默认两项",
         "summary": "数值有效性30% + 信号稳定性70%",
         "kind": "report",
         "status": "trial",
         "scope": [
-          "ecog",
-          "seeg"
+          "ecog"
         ],
         "x": 20,
         "y": 20,
@@ -3604,17 +3767,39 @@
             "weight": "数值有效性30% + 信号稳定性70%",
             "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。",
             "limited": "子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
-          },
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
+          }
+        ]
+      },
+      {
+        "id": "score_seeg",
+        "title": "sEEG · 默认三项",
+        "summary": "数值有效性30% + 信号稳定性50% + 工频20%",
+        "kind": "report",
+        "status": "trial",
+        "scope": [
+          "seeg"
+        ],
+        "x": 20,
+        "y": 20,
+        "description": "MNE平线、有效文件量程与MNE多窗工频默认执行；FieldTrip跳变和MNE分组LOF可选。稳定性子项加权，工频按完整通道窗命中率单独汇总。",
+        "inputs": "各方法保存的有效计分证据与本次权重",
+        "outputs": "分项、综合分、有效权重、未评原因及版本",
+        "conditions": "整份执行范围及来源核验有效；仅对本次已完成检查解释分数。",
+        "methods": "项目计分汇总；不重新执行检测算法。",
+        "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/apps/flow-editor/content/scoring-rules/ieeg-scoring.md",
+        "notes": "权重可调，受限项退出计分。LOF必须确认比较组和参考；不把脑区差异、病理活动自动当作坏道。旧版两项报告保留。 现为项目试行方案，尚未通过专家审核。",
+        "entryType": "support",
+        "scoring": [
           {
             "scope": "seeg",
             "role": "measurement",
             "canOutputScore": false,
             "outputs": [],
-            "weight": "数值有效性30% + 信号稳定性70%",
-            "rule": "稳定性使用MNE平线，文件有标定时加入端点平台；分组触点离群、FieldTrip跳变可选。先汇总每个方法的整份分数，再按子项有效权重平均得到稳定性。",
-            "limited": "子项默认同等计入，权重可调；受限或权重为0的子项不计入，其余重新分配比例。稳定性仅占一次综合分权重，子项不再另外计入总分。加权得分不是异常区间并集。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "weight": "数值有效性30% + 信号稳定性50% + 工频20%",
+            "rule": "MNE平线、有效文件量程与MNE多窗工频默认执行；FieldTrip跳变和MNE分组LOF可选。稳定性子项加权，工频按完整通道窗命中率单独汇总。",
+            "limited": "权重可调，受限项退出计分。LOF必须确认比较组和参考；不把脑区差异、病理活动自动当作坏道。旧版两项报告保留。",
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           }
         ]
       },
@@ -3629,7 +3814,7 @@
         ],
         "x": 20,
         "y": 20,
-        "description": "数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的AP离群取并集；按通道窗时长汇总。LF/LFP只使用恒值依据。",
+        "description": "数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的探针方法取并集；按通道窗时长汇总。AP优先采用IBL失活/噪声检查，无几何则退回MAD；LF/LFP有几何时采用邻域一致性。",
         "inputs": "各方法保存的有效计分证据与本次权重",
         "outputs": "分项、综合分、有效权重、未评原因及版本",
         "conditions": "整份执行范围及来源核验有效；仅对本次已完成检查解释分数。",
@@ -3644,9 +3829,9 @@
             "canOutputScore": false,
             "outputs": [],
             "weight": "数值有效性30% + 通道状态70%",
-            "rule": "数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的AP离群取并集；按通道窗时长汇总。LF/LFP只使用恒值依据。",
+            "rule": "数值有效性检查NaN/Inf。通道状态按整窗恒值和条件适用的探针方法取并集；按通道窗时长汇总。AP优先采用IBL失活/噪声检查，无几何则退回MAD；LF/LFP有几何时采用邻域一致性。",
             "limited": "同一来源通道在同一窗口只计一次。任一窗受限的原始方法不进入整份并集，候选仍保留。原始恒值/AP与合并项不能重复分权重。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           }
         ]
       },
@@ -3681,7 +3866,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           },
           {
             "scope": "ecog",
@@ -3691,7 +3876,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           },
           {
             "scope": "seeg",
@@ -3701,7 +3886,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           },
           {
             "scope": "np",
@@ -3711,7 +3896,7 @@
             "weight": "综合分 = Σ（有效分项分数 × 权重）/ Σ有效权重",
             "rule": "分项 = 100 × (1 − 候选量 / 有效检查量)；总分 = Σ(分项 × 权重) / Σ权重。权重可配置，0表示主动不计入。分项缺少有效证据时本次有效权重自动置0，其余有效项重新归一化。模块部分受限不代表所有输出都无效，按每个计分输出判断。",
             "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。只有在检查范围、方法、处理史、有效项目及权重相同时，分数才适合比较。100分表示本次有效检查未检出候选。",
-            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.1"
+            "version": "project-weighted/1.2 / ieeg-score/0.2 / neuropixels-score/0.2"
           }
         ]
       }

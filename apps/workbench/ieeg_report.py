@@ -38,7 +38,7 @@ def collect(artifacts, windows):
     """Aggregate disjoint saved windows by stable contact identity, never labels."""
     contacts = {}; flats = []; done = 0; failures = []; complete_samples = 0; invalid = 0
     extra={key:dict(windows=0,candidates=[],candidate_count=0,measurements=[],reasons=[],artifacts=[])
-           for key in ('ieeg_range_plateau','ieeg_group_outliers','fieldtrip_zvalue')}
+           for key in ('ieeg_range_plateau','ieeg_group_outliers','fieldtrip_zvalue','ieeg_spectrum_fit','ieeg_mne_lof')}
     for window in windows:
         prefix = window['id']+'--' if window.get('id') else ''
         stats = read(artifacts/(prefix+'M05_channel_description.json'))
@@ -68,7 +68,7 @@ def collect(artifacts, windows):
         elif flat:
             failures.append(flat.get('reason') or flat.get('status','未完成'))
         for key,summary in extra.items():
-            mid={'ieeg_range_plateau':'M03','ieeg_group_outliers':'M05','fieldtrip_zvalue':'M06'}[key]
+            mid={'ieeg_range_plateau':'M03','ieeg_group_outliers':'M05','fieldtrip_zvalue':'M06','ieeg_spectrum_fit':'M04','ieeg_mne_lof':'M05'}[key]
             filename=prefix+mid+'_'+key+'.json'; payload=read(artifacts/filename)
             if not payload:continue
             summary['artifacts'].append(filename)
@@ -125,10 +125,10 @@ def render(store, identifier, language='zh-CN'):
         (t('工频邻域','Line-frequency neighborhoods'),t(f'{spec_count} 组有效测量',f'{spec_count} valid measurements'),t('测量各触点的 50 / 60 Hz 邻域功率；不将谱峰自动判为噪声。','Measure 50 / 60 Hz band power; a peak is not automatically noise.')),
         (t('触点统计','Contact statistics'),t(f'{len(contacts)} 道',f'{len(contacts)} contacts'),t('RMS、峰峰值及非有限值计数；用于定位和比较。','RMS, peak-to-peak voltage and non-finite counts for review.')),
     ]
-    labels={'ieeg_range_plateau':t('量程端点平台','Encoding-limit plateaus'),
+    labels={'ieeg_spectrum_fit':t('多窗工频候选','Multitaper line candidates'),'ieeg_mne_lof':t('分组触点 LOF','Grouped contact LOF'),'ieeg_range_plateau':t('量程端点平台','Encoding-limit plateaus'),
             'ieeg_group_outliers':t('分组触点离群','Within-group outliers'),
             'fieldtrip_zvalue':t('相邻跳变线索','Adjacent-change candidates')}
-    explanations={'ieeg_range_plateau':t('连续至少3点落在文件标定端点；提示可能削顶，不等同于硬件饱和。','Runs at file encoding limits; possible clipping, not proven hardware saturation.'),
+    explanations={'ieeg_spectrum_fit':t('原版MNE多窗F检验；显示命中触点与完整4秒窗，不足一窗的尾段不计为通过。','Original MNE F-test; contact and full-window evidence. Short tails are not counted as passing.'),'ieeg_mne_lof':t('原版MNE，按明确比较组独立运行；离群不等于坏道。','Original MNE, independently within confirmed comparison groups; outliers need review.'),'ieeg_range_plateau':t('连续至少3点落在文件标定端点；提示可能削顶，不等同于硬件饱和。','Runs at file encoding limits; possible clipping, not proven hardware saturation.'),
         'ieeg_group_outliers':t('仅在明确的比较组内评估；参考未确认的组只保留测量。','Compare only declared groups; unconfirmed reference groups remain descriptive.'),
         'fieldtrip_zvalue':t('原版 FieldTrip 相邻差分 z 值；发作及刺激也可能触发，须复核。','Original FieldTrip sample-difference z values; seizures or stimulation can also trigger candidates.')}
     additional=[]

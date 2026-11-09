@@ -18,7 +18,7 @@
 
 ## 2 AP条件方法的固定口径
 
-执行环境须安装SpikeInterface研究扩展；缺失依赖时该项未评，基础描述仍保留。当前调用SpikeInterface 0.104.2的原函数`detect_bad_channels`，默认`method=mad`。逐杆300 Hz高通，固定随机种子0，20个0.3秒抽样块；MAD高于同杆中位数5倍时标记noise。可选择std替代MAD，但两者不是两个独立扣分项。
+执行环境须安装SpikeInterface研究扩展；缺失依赖时该项未评，基础描述仍保留。当前调用SpikeInterface 0.104.2的原函数`detect_bad_channels`，无可用几何时采用`method=mad`，几何齐全时优先`coherence+psd`。逐杆300 Hz高通，固定随机种子0，20个0.3秒抽样块；MAD高于同杆中位数5倍时标记noise。可选择std替代MAD，但两者不是两个独立扣分项。
 
 执行窗口需1–120秒，输入浮点矩阵不超过256 MiB，采样率须支持高通，至少有两个抽样块。长记录按内存上限切窗，尾段逐窗核验；没有执行的窗口不算没有候选。抽样块可能重叠，20×0.3秒不能当作6秒独立覆盖。源电压不被检测时的内部高通覆盖。
 
@@ -26,21 +26,30 @@
 
 原始AP通道离群分项：`100 × (1 − 不重复候选通道数 / 已评通道数)`。多窗汇总使用`Σ候选通道数×窗时长 / Σ已评通道数×窗时长`，不是精确污染时长；任一分析窗缺少有效分项则整份该项未评。不按候选条数、脑区或疾病重复扣分。
 
-## 3 待接入项目
+## 3 新增检查（2026-11-09）
+
+| 检查 | 条件与原版实现 | 计分 |
+| --- | --- | --- |
+| NP10 IBL相干与高频噪声 | SpikeInterface coherence+psd；AP、可追溯微米几何、每杆超过11道；正确电压标定 | dead/noise进入通道状态并集；out默认仅展示 |
+| NP11 LF邻域一致性 | SpikeInterface neighborhood_r2；LF/LFP、同杆30µm内有邻居、至少两个1秒块 | R²低于0.9的通道进入状态并集 |
+
+以上直接调用上游0.104.2，ProbeInterface0.4.2解析探针几何。LF不做300Hz高通。参数、随机种子、候选标签和原版来源保存于报告详情。条件不足时该方法未评，不能记100分。
+
+## 4 待接入项目
 
 | 项目 | 所需输入 | 当前状态 |
 | --- | --- | --- |
-| IBL coherence+psd | 正确物理几何、深度顺序、逐probe/shank的AP | 未接入，不展示dead/out为已实现 |
+
 | 同步字错误/丢样校验 | 对应设备与版本的状态位、原始同步字 | 未接入；普通恒值不替代错误位证据 |
 | 跨流同步 | 至少两路同步事件及各自时钟 | 未接入，不因文件同时存在而宣布通过 |
 | 量程削顶 | 已核验硬件/文件编码边界与增益 | 尚未建立本模态独立判定，不迁移EDF端点规则 |
 | 探针漂移 | 检测/定位的spikes或可用运动估计输入、时间与几何 | 未接入；短样例不证明长期稳定 |
 | 分选单元质控 | sorting、unit身份、spike时间和指标所需波形/振幅等 | 未接入，独立于连续电压报告 |
 
-## 4 来源与项目决定
+## 5 来源与项目决定
 
 - [SpikeGLX元数据](https://billkarsh.github.io/SpikeGLX/Sgl_help/Metadata_Help.html)：支持帧、标定、原点和同步字角色核对；状态位有版本适用条件，尚未接入解码。
-- [SpikeInterface预处理](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels)：区分std/MAD与coherence+psd；后者才提供dead/out。当前只接入前者。
+- [SpikeInterface预处理](https://spikeinterface.readthedocs.io/en/stable/modules/preprocessing.html#detect-bad-channels-interpolate-bad-channels)：区分std/MAD与coherence+psd；后者才提供dead/out。当前接入MAD/std及coherence+psd，并增加LF的neighborhood_r2。
 - [IBL原始质控](https://docs.internationalbrainlab.org/_autosummary/ibllib.ephys.ephysqc.html)：参考RMS与频谱随通道/时间展示的思路；不声称完整复现IBL流程。
 - [Allen单元指标](https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html)：作为后续unit维度与适用边界参考；不把其数据集过滤参数移作本项目通用阈值。
 

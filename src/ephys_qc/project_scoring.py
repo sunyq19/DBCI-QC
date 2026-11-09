@@ -35,7 +35,7 @@ def normalize(config, modality, selected, extensions=()):
         from .ieeg_scoring import PRESETS, LEGACY_PRESETS
         from .neuropixels_scoring import PRESET
         presets={**PRESETS,'extracellular':PRESET}
-        if modality not in presets or config['preset'] not in {presets[modality], LEGACY_PRESETS.get(modality)}:
+        if modality not in presets or config['preset'] not in {presets[modality], LEGACY_PRESETS.get(modality), *({'seeg-basic-score/0.2'} if modality=='seeg' else {'neuropixels-voltage-score/0.1'} if modality=='extracellular' else set())}:
             raise ValueError('评分方案版本与模态不匹配。')
     weights = config['weights']
     legacy = config['version'] == LEGACY_VERSION

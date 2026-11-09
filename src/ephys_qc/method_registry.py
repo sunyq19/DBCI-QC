@@ -113,6 +113,8 @@ def methods(modality='scalp_eeg'):
     candidates = [_classification(row, modality) for row in research_methods(modality)]
     from .ieeg_methods import extension_specs as ieeg_specs
     candidates += [_classification(row, modality) for row in ieeg_specs() if modality in row['research_modalities']]
+    from .voltage_methods import extension_specs as voltage_specs
+    candidates += [_classification(row, modality) for row in voltage_specs() if modality in row['research_modalities']]
     if modality in DESCRIPTIVE:
         from .descriptive_catalog import custom_methods, _adapt
         shared = [row for row in rows if row['module_id'] in {'M01', 'M02', 'M07', 'M08', 'M09'}]

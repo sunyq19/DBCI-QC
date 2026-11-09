@@ -20,7 +20,7 @@ class IeegScoreTests(unittest.TestCase):
         self.assertEqual(group['value'],80)
         self.assertEqual(len(group['evidence_components']),5)
         score=aggregate([row(NUMERIC,100),*evidence,group],default_config('seeg'))
-        self.assertEqual(score['value'],89.5)
+        self.assertEqual(score['value'],90.625)
         self.assertEqual(sum(r['weight']>0 for r in score['components']),2)
         self.assertEqual(evidence,original)
 
@@ -56,7 +56,7 @@ class IeegScoreTests(unittest.TestCase):
         self.assertEqual(group['assessed_methods'],['mne_amplitude_time','fieldtrip_zvalue'])
         self.assertEqual(group['unavailable_methods'],['mne_amplitude_channels'])
         self.assertEqual([r['normalized_weight'] for r in group['evidence_components']],[.75,.25,0,0])
-        self.assertEqual(aggregate([row(NUMERIC,100),*children],config)['value'],89.5)
+        self.assertEqual(aggregate([row(NUMERIC,100),*children],config)['value'],90.625)
         config['group_weights'][STABILITY]={key:0 for key in EVIDENCE}
         score=aggregate([row(NUMERIC,100),*children],config)
         self.assertIsNone(next(r for r in score['components'] if r['id']==STABILITY)['value'])
@@ -68,7 +68,7 @@ class IeegScoreTests(unittest.TestCase):
         historical=stability_output(children)
         config=default_config('seeg')
         scored=aggregate([row(NUMERIC,100),historical],config)
-        self.assertEqual(scored['value'],93)
+        self.assertEqual(scored['value'],93.75)
         legacy={'version':'project-weighted/1.2','preset':'seeg-basic-score/0.1','weights':{NUMERIC:30,STABILITY:70}}
         self.assertEqual(aggregate([row(NUMERIC,100),historical],legacy)['value'],86)
         self.assertEqual(historical['value'],80)
@@ -104,7 +104,7 @@ class IeegScoreTests(unittest.TestCase):
             with self.assertRaises(ValueError):aggregate([row(NUMERIC,100)],bad)
             bad=default_config('seeg' if modality=='ecog' else 'ecog')
             with self.assertRaises(ValueError):normalize(bad,modality,['M03'],['mne_amplitude'])
-        self.assertEqual(recommend(recording('extracellular'))['qc_config']['scoring']['preset'],'neuropixels-voltage-score/0.1')
+        self.assertEqual(recommend(recording('extracellular'))['qc_config']['scoring']['preset'],'neuropixels-voltage-score/0.2')
 
     def test_failed_module_cannot_supply_a_stability_score(self):
         result={'input_modality':'seeg','selected_modules':['M03','M08'],

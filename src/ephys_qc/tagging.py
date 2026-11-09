@@ -81,6 +81,7 @@ def data_facts(record, config=None):
             'comparison_group_labels': ([groups.get(f"{record['id']}:ch:{i}") for i in indices] if isinstance(groups,dict) else groups),
             'stream_band': metadata.get('acquisition', {}).get('stream_band'),
             'probe_shanks': [(c.get('probe_grid') or {}).get('shank') for c in selected],
+            'probe_positions_um': [c.get('probe_position_um') for c in selected],
             'sampling_rate_hz': next(iter(rates)) if len(rates) == 1 else None,
             'n_eeg': len(indices), 'window_seconds': selection.get('duration_seconds'),
             'verified_voltage': bool(selected) and len(selected) == len(indices) and

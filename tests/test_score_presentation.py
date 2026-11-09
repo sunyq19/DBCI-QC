@@ -75,7 +75,9 @@ class ScorePresentationTests(unittest.TestCase):
         self.assertIn('本次未计入',html)
         self.assertNotIn('决定本项得分',html)
         self.assertNotIn('最低分',html)
-        self.assertIn('综合分扣 10.5 分',html)
+        # Missing line evidence removes its 20%; stability becomes 50/(30+50).
+        self.assertIn('62.5%',html)
+        self.assertIn('综合分扣 9.38 分',html)
 
     def test_union_keeps_distinct_aggregation_and_rejected_identity_evidence(self):
         from ephys_qc.neuropixels_scoring import STATE, CONSTANT, AP

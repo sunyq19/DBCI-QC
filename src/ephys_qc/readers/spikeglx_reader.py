@@ -214,6 +214,44 @@ class SpikeGLXReader(SourceGuard):
                     raise ValueError('SpikeGLX snsShankMap 条目无效。')
                 channel['probe_grid'] = dict(zip(('shank', 'column', 'row', 'used'), [_int(v, 'snsShankMap') for v in fields]))
             geometry = 'source_grid_indices_not_anatomical_coordinates'
+        self.geometry_warning = None
+        if geometry or (band == 'lf' and meta.get('imDatPrb_pn')):
+            try:
+                from probeinterface import read_spikeglx, read_imro
+                from importlib.metadata import version
+                neural = [c for c in self.channels if c['quantity'] == 'voltage']
+                if band == 'lf':
+                    # read_spikeglx 0.4.2 discards LF acquired IDs (384+) as sync.
+                    # Read the exact source IMRO instead, retaining its declared part number.
+                    import tempfile
+                    table = meta['imroTbl']
+                    with tempfile.TemporaryDirectory(prefix='dbci-imro-') as td:
+                        imro_path = Path(td) / 'source.imro'
+                        imro_path.write_text('(' + meta['imDatPrb_pn'] + table[table.index(','):])
+                        parsed_probe = read_imro(imro_path)
+                    ids = parsed_probe.contact_annotations['channel_ids']
+                    shanks = parsed_probe.shank_ids
+                    positions = {int(i): (list(map(float, xy)), int(shanks[j]) if shanks is not None else 0 if probe == 0 else None)
+                        for j, (i, xy) in enumerate(zip(ids, parsed_probe.contact_positions))}
+                    position_map = {}
+                    for c in neural:
+                        xy, shank = positions[c['acquired_index'] - acquired[0]]
+                        if shank is None:raise ValueError('Unresolved probe shank')
+                        c['probe_grid'] = {'shank': shank}
+                        position_map[c['source_index']] = xy
+                    parser = 'read_imro / source META part number, IMRO and LF acquired-channel offset'
+                else:
+                    parsed_probe = read_spikeglx(self.path.with_suffix('.meta'))
+                    position_map = {int(i): list(map(float, xy)) for i, xy in zip(parsed_probe.device_channel_indices, parsed_probe.contact_positions)}
+                    parser = 'read_spikeglx / source META'
+                if set(position_map) != {c['source_index'] for c in neural}:
+                    raise ValueError('ProbeInterface geometry does not match saved neural channels')
+                for c in neural:
+                    c['probe_position_um'] = position_map[c['source_index']]
+                    c['probe_geometry_source'] = 'ProbeInterface ' + version('probeinterface') + ' ' + parser
+                geometry = 'probeinterface_source_probe_geometry_um_not_anatomical_coordinates'
+            except (ImportError, ValueError, KeyError, AssertionError, NotImplementedError, IndexError, TypeError) as error:
+                self.geometry_warning = str(error)
         self.assert_unchanged()
         self.fs, self.origin, self.n_times = fs, origin, n_times
         self.acquisition = {'system': 'SpikeGLX', 'stream_band': band, 'probe_type': probe,
@@ -255,7 +293,7 @@ class SpikeGLXReader(SourceGuard):
                           'channel_type': c['channel_type'], 'channel_type_source': c['channel_type_source'],
                           'sampling_rate_hz': self.fs, 'acquired_index': c['acquired_index'],
                           'stream_band': c['stream_band'], 'gain': c['gain'],
-                          **({'probe_grid': copy.deepcopy(c['probe_grid'])} if 'probe_grid' in c else {})} for c in self.channels],
+                          **({k: copy.deepcopy(c[k]) for k in ('probe_grid','probe_position_um','probe_geometry_source') if k in c})} for c in self.channels],
             'raw_signal_count': len(self.channels), 'annotation_signal_count': 0,
             'size_bytes': sum(f['size_bytes'] for f in self.source_files), 'reader_id': 'native_spikeglx',
             'reader_version': 'spikeglx-adapter/1', 'backend_version': 'native-int16-memmap/1',

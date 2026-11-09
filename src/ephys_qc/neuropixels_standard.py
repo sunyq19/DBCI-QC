@@ -1,8 +1,8 @@
 """Metadata-only Neuropixels voltage recipe; independent from sorted-unit QC."""
 from copy import deepcopy
 
-VERSION = 'neuropixels-qc/0.2'
-RECIPE = 'neuropixels-basic-recipe/0.2'
+VERSION = 'neuropixels-qc/0.3'
+RECIPE = 'neuropixels-basic-recipe/0.3'
 AP_METHOD = 'spikeinterface_bad_channels'
 
 
@@ -26,4 +26,8 @@ def configure(config, record, plan, submitted=None):
     if any(evaluate_extension(AP_METHOD, {**facts, 'window_seconds': seconds}, params)['status'] in {'ready', 'partial'}
            for seconds in sorted(set(durations))):
         result['method_config']['extensions'] = sorted(set(result['method_config'].get('extensions', [])) | {AP_METHOD})
+    from .voltage_methods import evaluate_extension as evaluate_voltage
+    choice = 'spikeinterface_coherence_psd' if facts.get('stream_band')=='ap' else 'spikeinterface_lfp_neighbors'
+    if any(evaluate_voltage(choice, {**facts, 'window_seconds': seconds})['status']=='ready' for seconds in durations):
+        result['method_config']['extensions'] = sorted((set(result['method_config'].get('extensions', [])) - {AP_METHOD}) | {choice})
     return result
