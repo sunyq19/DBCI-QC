@@ -101,22 +101,17 @@ def breakdown(row, *, english=False, total_available=True, measurement_text=None
     body = ''
     for child in children:
         valid = child.get('status') == 'computed' and number(child.get('value'))
-        used = valid and (not grouped or child['id'] in active)
+        used = valid and (child['id'] in active if grouped else not row.get('automatically_excluded') and number(weight) and weight > 0)
         limiting = minimum and used and number(value) and value < 100 and math.isclose(child['value'], value, abs_tol=1e-9, rel_tol=0)
-        if weighted and used:
-            role = t('按权重计入', 'Weighted')
-        elif not used:
-            role = t('本次未计入', 'Not used')
-        elif limiting:
-            role = t('决定本项得分', 'Determines this score')
-        elif union:
-            role = t('合并计入，重复只计一次', 'Included in the deduplicated union')
-        elif minimum and child['value'] == 100:
-            role = t('未扣分', 'No deduction')
-        elif minimum:
-            role = t('不叠加扣分', 'No additional deduction')
+        if not used:
+            share = '0%'
+        elif weighted:
+            share = f'{100*child.get("normalized_weight",0):.1f}%'
+        elif grouped:
+            # Union and historical minimum reducers have no per-child weights.
+            share = '—'
         else:
-            role = t('本项计分依据', 'Scoring basis')
+            share = f'{100*weight:.1f}%'
         evidence = measurement_text if not grouped and measurement_text else measurement(child, english)
         if not used and child['id'] in rejected:
             evidence = rejected[child['id']]
@@ -124,21 +119,17 @@ def breakdown(row, *, english=False, total_available=True, measurement_text=None
         module_text = t('所属模块 ', 'Module ') + str(module) if module else t('历史结果未记录模块', 'Module not stored in this historical result')
         if module and not english and module in module_names(modality):
             module_text += ' · ' + module_names(modality)[module]
-        weighting = (f'<td>{100*child.get("normalized_weight",0):.1f}%</td><td>'
-                     + (amount((100-child['value'])*child['normalized_weight']) if used else '—') + '</td>') if weighted else f'<td><span class="score-role">{esc(role)}</span></td>'
-        if weighted and not used:
+        if not used:
             evidence = t('权重设为 0；', 'Weight set to zero; ') + evidence if child.get('configured_weight') == 0 else t('本次未计入；', 'Excluded; ') + evidence
         body += (f'<tr data-score-method="{esc(child["id"])}"' + (' class="score-determining"' if limiting else '') + '>'
                  f'<th scope="row">{esc(name(child, english))}<small>{esc(module_text)}</small></th>'
                  f'<td class="score-child-points">{points(child.get("value"))}</td>'
-                 + weighting + f'<td>{esc(evidence)}</td></tr>')
+                 + f'<td>{esc(share)}</td><td>{esc(evidence)}</td></tr>')
     if not children:
         body = '<tr><td colspan="4">' + t('这份历史报告未保存子模块明细；保留原分数。', 'Child evidence was not stored in this historical report; its score is retained.') + '</td></tr>'
-    headers = [t('模块 / 检查', 'Module / check'), t('得分 / 100', 'Score / 100'), t('计分作用', 'Scoring role'), t('实际测量', 'Measurement')]
-    if weighted:
-        headers = [t('模块 / 检查', 'Module / check'), t('得分 / 100', 'Score / 100'), t('本项权重', 'Child share'), t('本项扣分', 'Deduction'), t('实际测量', 'Measurement')]
+    headers = [t('模块', 'Module'), t('得分', 'Score'), t('权重', 'Weight'), t('检查发现', 'Findings')]
     return (f'<div class="score-breakdown"><p class="score-rule">{esc(rule)}</p><p class="score-impact">{esc(impact)}</p>'
-            '<div class="score-evidence-scroll"><table class="score-evidence'+(' score-weighted-children' if weighted else '')+'"><thead><tr>'
+            '<div class="score-evidence-scroll"><table class="score-evidence"><thead><tr>'
             + ''.join('<th scope="col">'+esc(h)+'</th>' for h in headers)
             + '</tr></thead><tbody>'+body+'</tbody></table></div></div>')
 
@@ -196,10 +187,9 @@ CSS = '''
 .score-tree .score-evidence-scroll{overflow-x:auto;margin-top:12px}.score-tree table.score-evidence{width:100%;min-width:600px;table-layout:fixed;border-collapse:collapse;margin:0;background:white;font-size:12px}
 .score-tree table.score-evidence th,.score-tree table.score-evidence td{padding:10px 12px;border:0;border-bottom:1px solid #e4eaf2;vertical-align:top;text-align:left;white-space:normal;overflow-wrap:anywhere;font-size:12px}
 .score-tree table.score-evidence thead th{color:#65758a;background:#edf2f8;font-weight:400}
-.score-tree table.score-evidence th:nth-child(1){width:28%;font-weight:500}.score-tree table.score-evidence th:nth-child(2){width:13%}.score-tree table.score-evidence th:nth-child(3){width:23%}.score-tree table.score-evidence th:nth-child(4){width:36%}
+.score-tree table.score-evidence th:nth-child(1){width:28%;font-weight:500}.score-tree table.score-evidence th:nth-child(2){width:13%}.score-tree table.score-evidence th:nth-child(3){width:13%}.score-tree table.score-evidence th:nth-child(4){width:46%}
 .score-tree .score-evidence small{display:block;margin-top:3px;font-size:11px;color:#6d7d90}.score-tree .score-child-points{font-variant-numeric:tabular-nums;font-weight:600}
-.score-tree table.score-weighted-children th:nth-child(1){width:27%}.score-tree table.score-weighted-children th:nth-child(2){width:12%}.score-tree table.score-weighted-children th:nth-child(3){width:12%}.score-tree table.score-weighted-children th:nth-child(4){width:12%}.score-tree table.score-weighted-children th:nth-child(5){width:37%}
-.score-tree table.score-evidence tr.score-determining{background:#edf4ff}.score-tree table.score-evidence tr.score-determining th{box-shadow:inset 3px 0 #2a62bc}.score-tree .score-determining .score-role{color:#2459bc;font-weight:600}
+.score-tree table.score-evidence tr.score-determining{background:#edf4ff}.score-tree table.score-evidence tr.score-determining th{box-shadow:inset 3px 0 #2a62bc}
 @media(max-width:680px){.score-tree{--score-columns:minmax(110px,1.4fr) minmax(70px,.8fr) minmax(80px,.8fr)}.score-tree .score-tree-head span:last-child{display:none}.score-tree .score-finding{grid-column:1/-1;padding-left:22px;font-size:12px}.score-tree details.score-component>summary.score-summary{gap:5px 12px;padding:12px 8px}.score-tree .score-breakdown{padding:12px 8px}.score-tree .score-points{font-size:16px}}
 @media print{.score-tree .score-component::details-content{display:block!important;content-visibility:visible!important}.score-tree .score-breakdown{display:block!important;background:white;padding:8px 0}.score-tree .score-evidence-scroll{overflow:visible}.score-tree table.score-evidence{min-width:0}.score-tree details.score-component{break-inside:avoid}.score-toggle{display:none}.score-tree .score-tree-head,.score-tree details.score-component>summary.score-summary{padding:8px;font-size:10px;gap:8px}.score-tree .score-points{font-size:13px}.score-tree table.score-evidence td,.score-tree table.score-evidence th{font-size:9px;padding:6px}}
 '''
