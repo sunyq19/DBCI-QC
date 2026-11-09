@@ -43,10 +43,22 @@ sEEG工频命中率高，说明显著窄带证据广泛存在，不能据此断�
 
 ## 4 自动检查
 
-86项针对性测试及223个子测试通过。覆盖原版方法输出一致性、原始电压不变、声明滤除频率不补满分、缺少几何/参考时退出、LF通道映射及跨方法候选去重。合成LF样例触发上游“候选超过三分之一”警告，作为可解释边界保留。
+786项全库测试及666个子测试通过；协作页46项测试及2项评分来源测试通过。覆盖原版方法输出一致性、原始电压不变、声明滤除频率不补满分、缺少几何/参考时退出、LF通道映射及跨方法候选去重。合成LF样例触发上游“候选超过三分之一”警告，作为可解释边界保留。
 
 协作页从当前代码生成56项方法（53项已接入，3项计划）；保持模块层级、评分角色、来源链接及版本合并规则。工作台和协作页的默认权重均来自代码源。
 
 ## 5 方法来源
 
 [MNE工频](https://mne.tools/stable/generated/mne.filter.notch_filter.html) · [MNE LOF](https://mne.tools/stable/generated/mne.preprocessing.find_bad_channels_lof.html) · [SpikeInterface](https://spikeinterface.readthedocs.io/en/0.104.2/api.html)
+
+## 6 演示服务实际运行
+
+012部署版重新通过上传、确认、推荐、后台执行生成了以下运行，均加入“我的数据”。分项从保存的分子分母复算，综合分按有效权重独立复算。原有记录保留。
+
+| 数据与方案 | 演示服务运行ID |
+| --- | --- |
+| sEEG MNE · 多窗工频基础方案 | `19374246b4c34c838b4e046f2d9560fa` |
+| sEEG HUP060 · 工频与跳变方案 | `272ee1bc8dab44e6899ac6bf9bf3655a` |
+| Neuropixels Pt03 AP · IBL通道检查 | `92a479975a444283965ca8d6fa15d6e6` |
+| Neuropixels Pt02 AP · IBL通道检查 | `acda83b5fe4748069ddf706dc9383266` |
+| Neuropixels Pt01 LF · 邻域一致性 | `d88f0371e40a40f6a508e829da7ba007` |

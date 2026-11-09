@@ -128,7 +128,7 @@ def render(store, identifier, language='zh-CN'):
     labels={'ieeg_spectrum_fit':t('多窗工频候选','Multitaper line candidates'),'ieeg_mne_lof':t('分组触点 LOF','Grouped contact LOF'),'ieeg_range_plateau':t('量程端点平台','Encoding-limit plateaus'),
             'ieeg_group_outliers':t('分组触点离群','Within-group outliers'),
             'fieldtrip_zvalue':t('相邻跳变线索','Adjacent-change candidates')}
-    explanations={'ieeg_spectrum_fit':t('原版MNE多窗F检验；显示命中触点与完整4秒窗，不足一窗的尾段不计为通过。','Original MNE F-test; contact and full-window evidence. Short tails are not counted as passing.'),'ieeg_mne_lof':t('原版MNE，按明确比较组独立运行；离群不等于坏道。','Original MNE, independently within confirmed comparison groups; outliers need review.'),'ieeg_range_plateau':t('连续至少3点落在文件标定端点；提示可能削顶，不等同于硬件饱和。','Runs at file encoding limits; possible clipping, not proven hardware saturation.'),
+    explanations={'ieeg_spectrum_fit':t('原版MNE多窗F检验；显著窄带不等于幅度大或设备故障。定位完整检测窗，尾段不补满分。','Original MNE F-test; contact and full-window evidence. Short tails are not counted as passing.'),'ieeg_mne_lof':t('原版MNE，按明确比较组独立运行；离群不等于坏道。','Original MNE, independently within confirmed comparison groups; outliers need review.'),'ieeg_range_plateau':t('连续至少3点落在文件标定端点；提示可能削顶，不等同于硬件饱和。','Runs at file encoding limits; possible clipping, not proven hardware saturation.'),
         'ieeg_group_outliers':t('仅在明确的比较组内评估；参考未确认的组只保留测量。','Compare only declared groups; unconfirmed reference groups remain descriptive.'),
         'fieldtrip_zvalue':t('原版 FieldTrip 相邻差分 z 值；发作及刺激也可能触发，须复核。','Original FieldTrip sample-difference z values; seizures or stimulation can also trigger candidates.')}
     additional=[]
@@ -149,6 +149,13 @@ def render(store, identifier, language='zh-CN'):
     results=table([t('检查项目','Check'),t('检查结果','Result'),t('解释','Interpretation')],''.join('<tr>'+''.join('<td>'+esc(c)+'</td>' for c in row)+'</tr>' for row in rows))
     finding_rows=[]
     all_candidates=flats+additional
+    highlights=[]
+    for key,summary in data['extra'].items():
+        if summary['candidate_count']:
+            count=summary['candidate_count'];nchan=len({c['channel_id'] for c in summary['candidates'] if c.get('channel_id')})
+            highlights.append(labels[key]+t(f'：{nchan} 道 · {count} 条',f': {nchan} contacts · {count} candidates'))
+    if flats:highlights.insert(0,flat_name+'：'+flat_result)
+    headline='；'.join(highlights[:2]) or flat_name+'：'+flat_result
     for c in all_candidates[:200]:
         w=c['window'];a=c.get('start_seconds');b=c.get('stop_seconds')
         channel=c.get('name') or t('所选通道合并','Across selected contacts')
@@ -160,7 +167,8 @@ def render(store, identifier, language='zh-CN'):
     headings=[t('位置','Location'),t('原始记录时间','Original time'),t('发现','Finding')]
     findings=table(headings,''.join(finding_rows[:len(flats)])) if flats else '<p>'+t('本次已执行的平线检查未检出候选。','No sustained-flat candidates in the assessed windows.')+'</p>' if nflat else '<p>'+t('尚无持续平线检查结果。','No sustained-flat results are available.')+'</p>'
     if additional:
-        findings+='<details class="disclosure"><summary>'+t(f'增强方法候选 · {len(additional)} 条',f'Additional-method candidates · {len(additional)}')+'</summary>'+table(headings,''.join(finding_rows[len(flats):]))+'</details>'
+        if not flats:findings=''
+        findings+='<details class="disclosure"><summary>'+t(f'候选触点与时间 · {len(additional)} 条',f'Candidate contacts and times · {len(additional)}')+'</summary>'+table(headings,''.join(finding_rows[len(flats):]))+'</details>'
     if data['nonfinite']:
         findings+='<p>'+t('存在非有限值，查看下方触点统计定位通道。','Non-finite values found; see contact statistics below.')+'</p>'
     if len(all_candidates)>200:
@@ -193,18 +201,20 @@ def render(store, identifier, language='zh-CN'):
         from ephys_qc.score_presentation import score_tree
         grouped=bool(score.get('preset')) or any(r['id']==STABILITY and r.get('configured_weight',0)>0 for r in score['components'])
         primary=[r for r in score['components'] if r.get('configured_weight',r.get('weight',0))>0 or grouped and r['id'] in {NUMERIC,STABILITY}]
+        order={NUMERIC:0,STABILITY:1,'ieeg_spectrum_fit':2}
+        primary.sort(key=lambda r:order.get(r['id'],3))
         names={NUMERIC:t('数值有效性','Numerical validity'),STABILITY:t('信号稳定性','Signal stability')}
         total=f"{score['value']:.2f}" if measured(score.get('value')) else '—'
         label=modality+' '+t('基础评分','basic score') if score.get('preset') else t('项目自定义评分','Project score')
         score_html=f'<div class="ieeg-score-panel"><div><span>{label}</span><strong>{total}<small> / 100</small></strong></div><p>'+(t('子项按权重汇总；分数仅反映已执行的检查。','Children use weighted aggregation; the score covers the checks performed.') if any(r.get('aggregation')=='weighted_child_mean' for r in score['components']) else t('相关检查合并计一次；分数仅反映已执行的检查。','Related checks count once; the score covers the checks performed.'))+'</p></div>'+score_tree(primary, modality=item['modality'], english=en, names=names, total_available=measured(score.get('value')))
         if score.get('missing_reason'):score_html+='<p class="secondary">'+esc(score['missing_reason'])+'</p>'
-        details+='<p>'+t('评分版本','Scoring version')+': '+esc(score.get('preset') or score['version'])+'</p><p>'+(t('数值有效性只计算NaN/Inf；稳定性按有效子项的权重平均，之后按两个分项的有效权重汇总。权重为项目设置，尚未经专家校准。','Numerical validity counts NaN/Inf only. Stability is the weighted mean of valid child checks; the two components are then weighted. Weights are project settings, not expert-calibrated.') if any(r.get('aggregation')=='weighted_child_mean' for r in score['components']) else t('数值有效性只计算NaN/Inf；相关信号候选取最低分作为稳定性，之后按两个分项的有效权重平均。这是项目初版，尚未经专家校准。','Numerical validity counts NaN/Inf only. Stability takes the minimum related check score; the two components are then weighted. This project draft is not expert-calibrated.'))+'</p><p><a href="'+('/en' if en else '')+'/standards/ieeg-scoring">'+t('颅内评分规则','Intracranial scoring rules')+'</a></p>'
+        details+='<p>'+t('评分版本','Scoring version')+': '+esc(score.get('preset') or score['version'])+'</p><p>'+(t('数值有效性只计算NaN/Inf；稳定性按有效子项的权重平均，之后按本次有效计分项的权重汇总。权重为项目设置，尚未经专家校准。','Numerical validity counts NaN/Inf only. Stability is the weighted mean of valid child checks; the valid components are then weighted. Weights are project settings, not expert-calibrated.') if any(r.get('aggregation')=='weighted_child_mean' for r in score['components']) else t('数值有效性只计算NaN/Inf；相关信号候选取最低分作为稳定性，之后按两个分项的有效权重平均。这是项目初版，尚未经专家校准。','Numerical validity counts NaN/Inf only. Stability takes the minimum related check score; the two components are then weighted. This project draft is not expert-calibrated.'))+'</p><p><a href="'+('/en' if en else '')+'/standards/ieeg-scoring">'+t('颅内评分规则','Intracranial scoring rules')+'</a></p>'
     initial_window=all_candidates[0]['window']['id']+'--' if all_candidates and all_candidates[0]['window'].get('id') else ''
     charts_url=f'/api/v1/jobs/{identifier}/visualizations'+('?window='+quote(initial_window) if initial_window else '')
     facts=[(modality,t('模态','Modality')),(info['channels'],t('分析触点','Contacts')),(num(coverage.get('completed_seconds'))+' s',t('已检查时长','Checked duration')),(', '.join(num(r) for r in info['rates_hz'])+' Hz',t('采样率','Sampling rate'))]
     facthtml=''.join(f'<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>' for v,k in facts)
     web=Path(__file__).with_name('web');css=(web/'ui-tokens.css').read_text()+(web/'dataset-report.css').read_text()+SECTION_CSS+EXTRA_CSS
-    return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(job.get('run_name') or item['label'])}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report ieeg-report"><main><p class="eyebrow">DBCI-QC · {modality} {t('基础方案','basic scheme')}</p><h1>{esc(job.get('run_name') or item['label'])}</h1><p class="secondary">{esc(item['label'])}</p><dl class="dataset-facts">{facthtml}</dl><div class="ieeg-result"><strong>{state}</strong><span>{flat_name}：{flat_result}</span></div><p class="secondary">{explanation}</p><ol class="ieeg-flow"><li>{t('读取与确认','Read and confirm')}</li><li>{t('完整性与量程','Integrity and range')}</li><li>{t('频谱、触点与跳变','Spectra, contacts and transients')}</li><li>{t('汇总与复核','Summarize and review')}</li></ol>{report_section('results',t('检查结果','Results'),score_html+results,opened=True)}{report_section('locations',t('问题定位','Review locations'),findings,opened=bool(all_candidates or data['nonfinite']))}{inline_charts(charts_url,english=en)}{report_section('details',t('报告详情','Report details'),stats+details)}<footer>DBCI-QC · {t('基础方案试用版，候选需复核','Basic trial scheme; candidates require review')}<button id="print-report">{t('打印 / PDF','Print / PDF')}</button></footer></main></body></html>'''
+    return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(job.get('run_name') or item['label'])}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report ieeg-report"><main><p class="eyebrow">DBCI-QC · {modality} {t('基础方案','basic scheme')}</p><h1>{esc(job.get('run_name') or item['label'])}</h1><p class="secondary">{esc(item['label'])}</p><dl class="dataset-facts">{facthtml}</dl><div class="ieeg-result"><strong>{state}</strong><span>{esc(headline)}</span></div><p class="secondary">{explanation}</p><ol class="ieeg-flow"><li>{t('读取与确认','Read and confirm')}</li><li>{t('完整性与量程','Integrity and range')}</li><li>{t('频谱、触点与跳变','Spectra, contacts and transients')}</li><li>{t('汇总与复核','Summarize and review')}</li></ol>{report_section('results',t('检查结果','Results'),score_html+results,opened=True)}{report_section('locations',t('问题定位','Review locations'),findings,opened=bool(all_candidates or data['nonfinite']))}{inline_charts(charts_url,english=en)}{report_section('details',t('报告详情','Report details'),stats+details)}<footer>DBCI-QC · {t('基础方案试用版，候选需复核','Basic trial scheme; candidates require review')}<button id="print-report">{t('打印 / PDF','Print / PDF')}</button></footer></main></body></html>'''
 
 
 EXTRA_CSS='''
