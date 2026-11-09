@@ -4,12 +4,12 @@ import {Minus,Plus,Maximize2,ArrowLeft} from 'lucide-react';
 import {type FlowDoc,type FlowNode,displayNodes,drawingEdges,nodeTitle,flattenNodes,sketchFor,edgePath,NODE_W,NODE_H,CANVAS_W,CANVAS_H} from '../lib/flow';
 export default function DraftCanvas({doc,selected,select,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;add:(parent?:string)=>void;level:string;setLevel:(id:string)=>void}){
  const svg=useRef<SVGSVGElement>(null),rail=useRef<HTMLDivElement>(null),drag=useRef<{id:string;x:number;y:number;nodeX:number;nodeY:number;moved:boolean}|null>(null),wire=useRef<{source:string;start:[number,number]}|null>(null);
- const [scale,setScale]=useState(.78),[pointer,setPointer]=useState<[number,number]|null>(null);
+ const [scale,setScale]=useState(.78),[pointer,setPointer]=useState<[number,number]|null>(null),autoFit=useRef(true);
  const all=flattenNodes(doc.nodes),parent=all.find(n=>n.id===level),raw=level?parent?.children||[]:doc.nodes;
  const nodes=displayNodes(raw).map((n,i)=>level&&!n.sketch?.positioned?{...n,x:70+(i%4)*320,y:70+Math.floor(i/4)*170}:n),index=new Map(nodes.map(n=>[n.id,n]));
  const edges=drawingEdges(doc).filter(e=>index.has(e.source)&&index.has(e.target));
  const fit=()=>{if(rail.current)setScale(Math.max(.4,Math.min(1,(rail.current.clientWidth-36)/CANVAS_W)));};
- useEffect(()=>{fit();},[]);
+ useEffect(()=>{fit();const observer=new ResizeObserver(()=>{if(autoFit.current)fit();});if(rail.current)observer.observe(rail.current);return()=>observer.disconnect();},[]);
  useEffect(()=>{rail.current?.scrollTo({top:0,left:0});},[level]);
  function point(e:React.PointerEvent){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
  function start(e:React.PointerEvent,n:FlowNode){if(e.button!==0)return;if(linkFrom){select(n.id);return;}select(n.id);if(!writable)return;const p=point(e);if(!p)return;e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:n.id,x:p.x,y:p.y,nodeX:n.x,nodeY:n.y,moved:false};}
@@ -31,6 +31,6 @@ export default function DraftCanvas({doc,selected,select,writable,patch,checkpoi
     </g>)}
    </svg>
   </div>
-  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':'选中连线可修改文字或删除'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" onClick={()=>setScale(v=>Math.max(.3,v-.1))}><Minus size={16}/></button><span>{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" onClick={()=>setScale(v=>Math.min(1.5,v+.1))}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" onClick={fit}><Maximize2 size={16}/></button></div></div>
+  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':'选中连线可修改文字或删除'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" onClick={()=>{autoFit.current=false;setScale(v=>Math.max(.3,v-.1));}}><Minus size={16}/></button><span>{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" onClick={()=>{autoFit.current=false;setScale(v=>Math.min(1.5,v+.1));}}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" onClick={()=>{autoFit.current=true;fit();}}><Maximize2 size={16}/></button></div></div>
  </div>;
 }

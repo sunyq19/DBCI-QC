@@ -8,6 +8,7 @@ import {catalogHash} from '../lib/sync';
 import {makePasswordVerifier,unlockEditing} from '../lib/access';
 import {POST,GET} from '../app/api/attachments/route';
 import {env} from './helpers/identity';
+import {filterFlow,FLOW_FILTERS} from '../lib/flow-view';
 const manifest=JSON.parse(readFileSync('content/sync-manifest.json','utf8'));
 function database(){const sql=new DatabaseSync(':memory:');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+f,'utf8'));function prepare(query:string,args:any[]=[]):any{return{bind(...v:any[]){return prepare(query,v)},async first(){return sql.prepare(query).get(...args)||null},async all(){return{results:sql.prepare(query).all(...args)}},async run(){return{meta:sql.prepare(query).run(...args)}}}}return {prepare,async batch(ss:any[]){return Promise.all(ss.map(s=>s.run()))}} as D1Database;}
 const origin='https://sunyq19.github.io',base='https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/api/attachments';
@@ -37,4 +38,33 @@ test('attachments require editing, validate files and survive removal from later
 });
 test('visual examples link actual image and measurement files, planned modules have no fabricated image',()=>{
  const examples=JSON.parse(readFileSync('content/visual-examples.json','utf8'));let ready=0;for(const [id,e]of Object.entries(examples)as any){if(e.availability==='planned'){assert.equal(e.image,undefined);continue;}if(id!=='VIS')ready++;assert.match(e.sourceUrl,/openneuro/);assert.ok(readFileSync('public/'+e.image).length>1000);if(id!=='VIS')assert.ok(readFileSync('public/'+e.dataUrl,'utf8').split('\n').length>2);}assert.equal(ready,10);
+});
+test('scope views keep matching descendants and shared parents without changing drafts or connections',()=>{
+ const source=structuredClone(manifest.doc),before=structuredClone(source);
+ const parent=source.nodes.find((n:any)=>n.id==='M08')!;
+ parent.sketch={title:'讨论中的评分方案',body:'尚未保存的讨论文字'};
+ const snapshot=structuredClone(source);
+ for(const [scope]of FLOW_FILTERS){
+  const view=filterFlow(source,scope),all=flattenNodes(view.nodes),ids=new Set(all.map(n=>n.id));
+  assert.ok(view.edges.every(e=>ids.has(e.source)&&ids.has(e.target)));
+  assert.ok(view.drawing!.edges.every(e=>ids.has(e.source)&&ids.has(e.target)));
+  assert.ok(all.every(n=>scope==='all'||n.scope.includes(scope)||!!n.children?.length));
+  if(scope==='eeg'){assert.ok(ids.has('score_eeg'));assert.ok(!ids.has('score_ieeg'));assert.ok(!ids.has('score_np'));}
+  if(scope==='ecog'||scope==='seeg'){assert.ok(ids.has('score_ieeg'));assert.ok(!ids.has('score_eeg'));assert.ok(!ids.has('score_np'));}
+  if(scope==='np'){assert.ok(ids.has('score_np'));assert.ok(!ids.has('score_ieeg'));}
+ }
+ assert.deepEqual(source,snapshot);
+ assert.equal(filterFlow(source,'eeg').nodes.find(n=>n.id==='M08')!.title,'讨论中的评分方案');
+ assert.deepEqual(before,manifest.doc);
+});
+test('filtered nested drawings omit hidden nodes and keep only visible child edges',()=>{
+ const doc=structuredClone(manifest.doc),children=doc.nodes.find((n:any)=>n.id==='M08')!.children!;
+ const eeg=children.find((n:any)=>n.id==='score_eeg')!,ieeg=children.find((n:any)=>n.id==='score_ieeg')!;
+ doc.drawing={edges:[{id:'compare',source:eeg.id,target:ieeg.id,label:'比较'}]};
+ assert.equal(filterFlow(doc,'all').drawing!.edges.length,1);
+ assert.equal(filterFlow(doc,'eeg').drawing!.edges.length,0);
+ eeg.sketch={title:'',body:'',hidden:true};
+ assert.ok(!flattenNodes(filterFlow(doc,'all').nodes).some(n=>n.id===eeg.id));
+ assert.equal(filterFlow(doc,'all').drawing!.edges.length,0);
+ assert.equal(doc.drawing.edges.length,1);
 });
