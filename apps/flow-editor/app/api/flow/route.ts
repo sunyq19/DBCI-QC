@@ -1,7 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { getChatGPTUser } from '../../chatgpt-auth';
-import { isEditor } from '../../../lib/flow';
-import { AppError,readFlow,saveFlow,freezeFlow,ensureHierarchy,syncCatalog,discussFlow } from '../../../lib/repository';
+import { AppError,readFlow,saveFlow,freezeFlow,ensureHierarchy,syncCatalog,discussFlow,forkFlow } from '../../../lib/repository';
 import {readCatalog,catalogStatus} from '../../../lib/catalog-source';
 import {editorFor,allowedOrigin,withCors,preflight} from '../../../lib/access';
 export const OPTIONS=preflight;
@@ -23,24 +21,18 @@ export async function GET(request:Request){try{
 export async function POST(request:Request){try{
   const respond=(value:unknown,status=200)=>withCors(request,response(value,status));
   if(!allowedOrigin(request))return respond({error:'仅接受本协作页发起的修改'},403);
-  let actor=await editorFor(request,db(),(env as unknown as Record<string,string>).FLOW_OWNER_TOKEN_HASH);
-  if(!actor){
-    // Existing hosted owner identity remains a recovery route, never a public-page requirement.
-    if(request.headers.get('origin')!==new URL(request.url).origin)return respond({error:'请使用维护者提供的成员编辑链接'},401);
-    const user=await getChatGPTUser();
-    if(!user)return respond({error:'请使用维护者提供的成员编辑链接'},401);
-    if(!isEditor(user.email,env.FLOW_EDITOR_EMAILS))return respond({error:'当前账号只有查看权限'},403);
-    actor={id:user.userId,label:'项目维护者',role:'owner'};
-  }
+  const actor=await editorFor(request,db(),(env as unknown as Record<string,string>).FLOW_EDIT_PASSWORD_VERIFIER);
+  if(!actor)return respond({error:'请先输入编辑密码'},401);
   if(!request.headers.get('content-type')?.startsWith('application/json'))throw new AppError('需要 JSON 请求');
   const raw=await request.text();if(new TextEncoder().encode(raw).length>2000000)throw new AppError('内容超出 2 MB 限制',413);
   const body=JSON.parse(raw);
   if(!body||typeof body!=='object')throw new AppError('请求内容不正确');
-  if(['save','freeze','discuss'].includes(body.action))await syncCatalog(db(),await readCatalog());
+  if(['save','fork','freeze','discuss'].includes(body.action))await syncCatalog(db(),await readCatalog());
   if(body.action==='save'){
     let doc;try{const {validateDoc}=await import('../../../lib/flow');doc=validateDoc(body.doc);}catch(e){throw new AppError(e instanceof Error?e.message:'流程图无效');}
     return respond(await saveFlow(db(),body.baseRevision,doc,body.note,actor.id));
   }
+  if(body.action==='fork')return respond(await forkFlow(db(),body.sourceRevision,body.expectedHead,body.doc,body.note,actor.id,await readCatalog()));
   if(body.action==='freeze')return respond(await freezeFlow(db(),body.revision,body.label,body.note??'',actor.id));
   if(body.action==='discuss')return respond(await discussFlow(db(),body,actor));
   throw new AppError('不支持的操作');

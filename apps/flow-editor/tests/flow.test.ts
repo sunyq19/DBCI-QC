@@ -3,12 +3,12 @@ import {CATALOG_ID,CATALOG_LABEL,withCatalog} from '../lib/catalog';
 import {flattenNodes} from '../lib/flow';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {seed} from '../lib/seed';
 import {validateDoc,isEditor} from '../lib/flow';
 import {initialize,readFlow,saveFlow,freezeFlow,digest} from '../lib/repository';
 function database(){
- const sql=new DatabaseSync(':memory:');sql.exec(readFileSync('drizzle/0000_high_moonstone.sql','utf8'));
+ const sql=new DatabaseSync(':memory:');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+f,'utf8'));
  function prepare(query:string,args:unknown[]=[]):any{return{bind(...values:unknown[]){return prepare(query,values);},async first(){return sql.prepare(query).get(...args as any[])||null;},async all(){return{results:sql.prepare(query).all(...args as any[])};},async run(){return{meta:sql.prepare(query).run(...args as any[])};}};}
  return{prepare,async batch(statements:any[]){sql.exec('BEGIN');try{const r=[];for(const s of statements)r.push(await s.run());sql.exec('COMMIT');return r;}catch(e){sql.exec('ROLLBACK');throw e;}}} as unknown as D1Database;
 }

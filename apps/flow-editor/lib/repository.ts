@@ -1,13 +1,13 @@
 import {withCatalog,CATALOG_ID,CATALOG_LABEL,CATALOG_NOTE} from './catalog';
 import { seed } from './seed';
 import { validateDoc, flattenNodes, updateNode, type FlowDoc } from './flow';
-export const SAVE_SQL = `INSERT INTO flow_revisions (revision, document, hash, author_id, note, created_at)
- SELECT ?,?,?,?,?,? WHERE (SELECT COALESCE(MAX(revision),0) FROM flow_revisions)=? RETURNING revision`;
+export const SAVE_SQL = `INSERT INTO flow_revisions (revision, document, hash, author_id, note, created_at, based_on_revision)
+ SELECT ?,?,?,?,?,?,(SELECT MAX(revision) FROM flow_revisions) WHERE (SELECT COALESCE(MAX(revision),0) FROM flow_revisions)=? RETURNING revision`;
 export const FREEZE_SQL = `INSERT INTO flow_versions (id,label,revision,note,author_id,created_at)
  SELECT ?,?,?,?,?,? WHERE (SELECT MAX(revision) FROM flow_revisions)=? RETURNING id`;
 export class AppError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function digest(doc:FlowDoc){const data=new TextEncoder().encode(JSON.stringify(doc));return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data)),b=>b.toString(16).padStart(2,'0')).join('');}
-type Revision={revision:number;document:string;hash:string;note:string;created_at:string};
+type Revision={revision:number;document:string;hash:string;note:string;created_at:string;based_on_revision:number|null};
 type Version={id:string;label:string;revision:number;note:string;created_at:string};
 export async function initialize(db:D1Database){
   if(await db.prepare('SELECT revision FROM flow_revisions LIMIT 1').first())return;
@@ -21,13 +21,13 @@ export async function readFlow(db:D1Database,opts:{version?:string|null;revision
   await initialize(db);
   const latest=await db.prepare('SELECT MAX(revision) AS revision FROM flow_revisions').first<{revision:number}>();
   if(opts.head)return{latestRevision:latest!.revision};
-  if(opts.history){return{latestRevision:latest!.revision,revisions:(await db.prepare('SELECT revision,hash,note,created_at FROM flow_revisions ORDER BY revision DESC LIMIT 100').all()).results};}
+  if(opts.history){return{latestRevision:latest!.revision,revisions:(await db.prepare('SELECT revision,hash,note,created_at,based_on_revision FROM flow_revisions ORDER BY revision DESC LIMIT 100').all()).results};}
   let version:Version|null=null,rev=opts.revision||latest!.revision;
   if(opts.version){version=await db.prepare('SELECT id,label,revision,note,created_at FROM flow_versions WHERE id=?').bind(opts.version).first<Version>();if(!version)throw new AppError('固定版本不存在',404);rev=version.revision;}
-  const r=await db.prepare('SELECT revision,document,hash,note,created_at FROM flow_revisions WHERE revision=?').bind(rev).first<Revision>();
+  const r=await db.prepare('SELECT revision,document,hash,note,created_at,based_on_revision FROM flow_revisions WHERE revision=?').bind(rev).first<Revision>();
   if(!r)throw new AppError('历史记录不存在',404);
   const versions=(await db.prepare('SELECT id,label,revision,note,created_at FROM flow_versions ORDER BY created_at DESC,id DESC').all<Version>()).results;
-  return{doc:JSON.parse(r.document),revision:r.revision,hash:r.hash,note:r.note,createdAt:r.created_at,version,latestRevision:latest!.revision,versions,view:opts.version?'version':opts.revision?'history':'draft'};
+  return{doc:JSON.parse(r.document),revision:r.revision,hash:r.hash,note:r.note,createdAt:r.created_at,basedOnRevision:r.based_on_revision,version,latestRevision:latest!.revision,versions,view:opts.version?'version':opts.revision?'history':'draft'};
 }
 export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string,authorId:string,allowDiscussion=false){
   if(!Number.isSafeInteger(base)||base<1)throw new AppError('保存基准版本无效');
@@ -35,11 +35,7 @@ export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string
   const current=await db.prepare('SELECT document FROM flow_revisions ORDER BY revision DESC LIMIT 1').first<Revision>();
   if(current)checkSourceFields(JSON.parse(current.document),validateDoc(doc));
   const valid=validateDoc(doc);
-  if(!allowDiscussion&&current){
-    const before=new Map(flattenNodes(JSON.parse(current.document).nodes).map(n=>[n.id,n.discussion]));
-    const after=new Map(flattenNodes(valid.nodes).map(n=>[n.id,n.discussion]));
-    for(const id of new Set([...before.keys(),...after.keys()]))if(JSON.stringify(before.get(id))!==JSON.stringify(after.get(id)))throw new AppError('批注通过讨论区发布，不能通过导入或草稿改写');
-  }
+  if(!allowDiscussion&&current)checkDiscussionFields(JSON.parse(current.document),valid);
   if(new TextEncoder().encode(JSON.stringify(valid)).length>1800000)throw new AppError('协作内容已达容量限制，请导出备份后联系维护者',413);
   const hash=await digest(valid),revision=base+1,now=new Date().toISOString();
   const saved=await db.prepare(SAVE_SQL).bind(revision,JSON.stringify(valid),hash,authorId,note.trim(),now,base).first();
@@ -120,4 +116,26 @@ export async function discussFlow(db:D1Database,body:{baseRevision:number;nodeId
   }
   const doc={...current.doc,nodes:updateNode(current.doc.nodes,node.id,{discussion:list})};
   return saveFlow(db,current.revision,doc,actor.label+' · '+node.title+' · '+({comment:'添加批注',reply:'回复讨论',resolve:'标记已处理',reopen:'重新讨论'}[body.operation]||'讨论'),actor.id,true);
+}
+
+function checkDiscussionFields(beforeDoc:FlowDoc,afterDoc:FlowDoc){
+ const before=new Map(flattenNodes(beforeDoc.nodes).map(n=>[n.id,n.discussion]));
+ const after=new Map(flattenNodes(afterDoc.nodes).map(n=>[n.id,n.discussion]));
+ for(const id of new Set([...before.keys(),...after.keys()]))if(JSON.stringify(before.get(id))!==JSON.stringify(after.get(id)))throw new AppError('批注通过讨论区发布，不能通过导入或草稿改写');
+}
+// Copy an immutable snapshot into a new head, while retaining its parent and current implementation.
+export async function forkFlow(db:D1Database,sourceRevision:number,expectedHead:number,doc:unknown,note:string,authorId:string,manifest:import('./sync').CatalogManifest){
+ if(!Number.isSafeInteger(sourceRevision)||sourceRevision<1||!Number.isSafeInteger(expectedHead)||expectedHead<1)throw new AppError('来源或保存基准版本无效');
+ if(typeof note!=='string'||!note.trim()||note.length>300)throw new AppError('请填写 1–300 字的修改说明');
+ const source=await db.prepare('SELECT document FROM flow_revisions WHERE revision=?').bind(sourceRevision).first<Revision>();
+ if(!source)throw new AppError('来源版本不存在',404);
+ const original=JSON.parse(source.document),incoming=validateDoc(doc);
+ checkSourceFields(original,incoming);checkDiscussionFields(original,incoming);
+ const {mergeCatalog}=await import('./sync');const valid=validateDoc(mergeCatalog(incoming,manifest));
+ const document=JSON.stringify(valid);if(new TextEncoder().encode(document).length>1800000)throw new AppError('协作内容已达容量限制，请导出备份后联系维护者',413);
+ const revision=expectedHead+1,hash=await digest(valid),createdAt=new Date().toISOString();
+ const saved=await db.prepare(`INSERT INTO flow_revisions (revision,document,hash,author_id,note,created_at,based_on_revision)
+ SELECT ?,?,?,?,?,?,? WHERE (SELECT MAX(revision) FROM flow_revisions)=? RETURNING revision`).bind(revision,document,hash,authorId,note.trim(),createdAt,sourceRevision,expectedHead).first();
+ if(!saved)throw new AppError('其他成员已保存新修改。当前起草内容仍保留，请先查看新版再合并。',409);
+ return{revision,hash,createdAt,doc:valid,basedOnRevision:sourceRevision};
 }
