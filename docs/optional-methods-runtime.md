@@ -9,7 +9,7 @@
 | 方法 | 模块与模态 | 本版实际调用 | 输出与边界 |
 |---|---|---|---|
 | FASTER | M05 · EEG | `mne_faster.find_bad_channels`，1.2.2 | 按方差、相关、Hurst、峰度和可测工频列出通道候选；固定段不是任务试次；不是完整FASTER流程。 |
-| SpikeInterface | M05 · Neuropixels AP | `detect_bad_channels(method="mad"/"std")`，0.104.2 | 按源文件声明的shank分别高通、固定种子抽样，输出good/noise；good仅指未超本阈值。不含IBL coherence+psd、dead/out、LF或单元质量。 |
+| SpikeInterface | M05 · Neuropixels AP | `detect_bad_channels(method="mad"/"std")`，0.104.2 | 按源文件声明的shank分别高通、固定种子抽样，输出good/noise；good仅指未超本阈值。此行仅指MAD/std路径；本版另接入IBL coherence+psd与LF邻域一致性，见[探针检查规则](/standards/neuropixels-checks)。不含分选后单元质量。 |
 | FieldTrip | M06 · EEG/ECoG/sEEG | `ft_artifact_zvalue(absdiff="yes", cumulative="no")` | 最大单道差分z值及区间候选；无带通、无边界扩展，无空间合并。病理放电也可能触发，不能据此判坏或剔除。 |
 | ASR | M06 · EEG | clean_rawdata原版 `asr_calibrate/asr_process` | 保存校准状态与重建影响；只支持已明确选择校准段的单窗口。不是自动清洗流水线，不推断校准段干净。 |
 | CleanLine | M04 · EEG | 官方 `cleanLineNoise` 新实现 | 指定单个工频；前后PSD、逐道变化量和指纹；不自动添加谐波。末尾不足滑窗部分保留原值。不是legacy `cleanline` 调用。 |

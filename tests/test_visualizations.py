@@ -45,6 +45,25 @@ class VisualizationTests(unittest.TestCase):
         self.assertIn('不是整份记录的汇总图',page)
         self.assertNotIn('当前图表：原记录 0–240 秒',page)
         with self.assertRaises(ValueError):render_gallery({'artifacts':[]},load,window='../')
+    def test_original_probe_labels_are_visible_without_quality_recalculation(self):
+        data={'status':'completed','calculated':True,'channel_labels':[{'channel_name':'AP348','label':'dead'},{'channel_name':'AP350','label':'good'}]}
+        old=copy.deepcopy(data)
+        page=render_gallery({'artifacts':[{'name':'M05_spikeinterface_coherence_psd.json'}]},lambda _:data)
+        self.assertIn('AP348: 失活候选',page)
+        self.assertIn('这是分类索引，不是解剖位置图',page)
+        self.assertIn('spikeinterface.readthedocs.io',page)
+        self.assertNotIn('BrainElecQC / PREP',page)
+        self.assertEqual(old,data)
+
+    def test_multitaper_visuals_use_complete_window_counts_and_preserve_source(self):
+        data={'status':'completed','calculated':True,'range':{'start_seconds':0,'stop_seconds':8},'measurements':[{'channel_name':'A1','detected_frequencies_hz':[50]},{'channel_name':'A1','detected_frequencies_hz':[]}], 'candidates':[{'channel_name':'A1','start_seconds':0,'stop_seconds':4}]}
+        page=render_gallery({'artifacts':[{'name':'M04_ieeg_spectrum_fit.json'}]},lambda _:data)
+        self.assertIn('多窗工频命中率',page)
+        self.assertIn('A1: 50 %',page)
+        self.assertIn('多窗工频候选',page)
+        self.assertIn('mne.filter.notch_filter',page)
+        self.assertNotIn('BrainElecQC / PREP',page)
+
     def test_units_and_unsafe_labels(self):
         a=spectrum([1,2],[[1e-12,1e-11]],['C3'],1e12)
         b=spectrum([1,2],[[1,10]],['C3'],1)

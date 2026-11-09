@@ -185,6 +185,9 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         elif source == 'MNE':
             url='https://mne.tools/stable/generated/mne.preprocessing.annotate_amplitude.html'
             sources[url]='MNE annotate_amplitude'
+        elif source in {'SpikeInterface','MNE spectrum_fit','FieldTrip','DBCI-QC / EDF'}:
+            url={'SpikeInterface':'https://spikeinterface.readthedocs.io/en/0.104.2/api.html','MNE spectrum_fit':'https://mne.tools/stable/generated/mne.filter.notch_filter.html','FieldTrip':'https://www.fieldtriptoolbox.org/tutorial/preproc/automatic_artifact_rejection/','DBCI-QC / EDF':'https://www.edfplus.info/specs/edf.html'}[source]
+            sources[url]=source
         elif source == 'DBCI-QC':
             sources[PROJECT]='DBCI-QC'
         else:
@@ -199,6 +202,21 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         if key=='channel_metrics':
             d=evidence('M05_bad_channels.json');rows=d.get('channels',[]);out=''
             contacts=evidence('M05_channel_description.json').get('channels',[])
+            for method,title in [('spikeinterface_coherence_psd','AP 通道分类'),('spikeinterface_lfp_neighbors','LF 邻域一致性候选')]:
+                payload=evidence('M05_'+method+'.json')
+                if payload.get('status')!='completed' or not payload.get('calculated'):continue
+                labels=payload.get('channel_labels',[])
+                mapping={c['adapter_name']:c.get('raw_name',c['adapter_name']) for c in payload.get('channel_mapping',[])}
+                colors={'good':'#dce8f8','dead':'#b45309','noise':'#d97706','out':'#64748b'}
+                names={'good':'未标记','dead':'失活候选','noise':'噪声候选','out':'组织外候选'}
+                if method.endswith('lfp_neighbors'):names['noise']='低一致性候选'
+                legend=' · '.join(names[k]+' '+str(sum(r.get('label')==k for r in labels)) for k in colors if any(r.get('label')==k for r in labels))
+                parts=[]
+                for i,row in enumerate(labels):
+                    x=18+(i%16)*54;y=18+(i//16)*32;label=row.get('label');name=mapping.get(row.get('channel_name'),row.get('channel_name','—'))
+                    parts.append(f'<rect x="{x}" y="{y}" width="48" height="25" rx="3" fill="{colors.get(label,"#f1f5f9")}"><title>{esc(name)}: {esc(names.get(label,label))}</title></rect>')
+                    parts.append(text(x+24,y+17,name,text_anchor='middle',font_size='9',fill=INK if label=='good' else 'white'))
+                out+=section(title,'<p class="caption">'+esc(legend)+'</p>'+svg(''.join(parts),45+math.ceil(len(labels)/16)*32,title)+'<p class="caption">按保存通道顺序排列；这是分类索引，不是解剖位置图。组织外候选默认不计分。</p>','SpikeInterface')
             if contacts:
                 for field,label in [('rms_volts','触点 RMS'),('peak_to_peak_volts','触点峰峰值')]:
                     out+=section(label,bars([(c['channel_name'],c[field]*1e6 if finite(c.get(field)) else None,False) for c in contacts],'μV',limit=limit)+'<p class="caption">所选分析窗口的电压统计；幅度差异不直接判定为坏道。</p>','连续电压')
@@ -223,14 +241,21 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
             from ..report_view import line_summary
             payload=evidence('M04_spectral.json').get('line_noise',{})
             observations=payload.get('observations',[])
+            mt=evidence('M04_ieeg_spectrum_fit.json');mt_html=''
+            if mt.get('status')=='completed' and mt.get('calculated'):
+                counts={}
+                for row in mt.get('measurements',[]):
+                    n=row['channel_name'];v=counts.setdefault(n,[0,0]);v[0]+=bool(row.get('detected_frequencies_hz'));v[1]+=1
+                mt_html=section('多窗工频命中率',bars([(n,100*a/b,a>0) for n,(a,b) in counts.items() if b],'%',limit=limit,upper=100)+'<p class="caption">显著完整通道窗占比，不是工频幅度或污染时长。未检测尾段不补满分。</p>','MNE spectrum_fit')
             if any('band_power_v2' in c for c in observations):
-                out=''
+                out=mt_html
                 for hz in sorted({c['nominal_hz'] for c in observations if finite(c.get('nominal_hz'))}):
                     rows=[c for c in observations if c.get('nominal_hz')==hz]
                     out+=section(f'{hz:g} Hz 邻域功率',bars([(c['channel_name'],c['band_power_v2']*1e12 if c.get('status')=='computed' and finite(c.get('band_power_v2')) else None,False) for c in rows],'μV²',limit=limit)+'<p class="caption">窄带能量观察，未设置污染阈值；灰色未评不按零处理。</p>','连续电压')
                 return out or missing('没有可测的工频邻域。')
+            if mt_html and not payload:return mt_html
             d=line_summary(payload)
-            return section('工频命中窗 / 可评窗口',bars([(c['name'],c['percent'],bool(c['hits'])) for c in d['channels']],'%',limit=limit,upper=100),'雷佳欣')
+            return mt_html+section('工频命中窗 / 可评窗口',bars([(c['name'],c['percent'],bool(c['hits'])) for c in d['channels']],'%',limit=limit,upper=100),'雷佳欣')
         if key in ['artifact_burden','timeline']:
             out=''
             for m,label in [('artifact','伪差候选'),('low_band','低频异常'),('high_band','高频异常')]:
@@ -246,7 +271,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                     rows=[{**c,'channel_name':'所选通道合并'} for c in flat.get('candidates',[]) if c.get('localization')=='interval_only']
                     bounds=flat.get('range',{})
                     out+=section('平线 / 相邻变化候选' if flat.get('parameters',{}).get('peak_volts') is not None else '持续平线候选',timeline(rows,bounds.get('start_seconds'),bounds.get('stop_seconds'),limit)+'<p class="caption">时间标记是所选通道的合并区间。仅标记到通道的结果见报告检查明细。</p>','MNE')
-                for filename,label,source in [('M03_ieeg_range_plateau.json','文件量程端点平台','DBCI-QC / EDF'),('M06_fieldtrip_zvalue.json','相邻跳变线索','FieldTrip')]:
+                for filename,label,source in [('M03_ieeg_range_plateau.json','文件量程端点平台','DBCI-QC / EDF'),('M06_fieldtrip_zvalue.json','相邻跳变线索','FieldTrip'),('M04_ieeg_spectrum_fit.json','多窗工频候选','MNE spectrum_fit')]:
                     item=evidence(filename)
                     if item.get('calculated'):
                         bounds=item.get('range',{})
@@ -265,11 +290,11 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
         return missing('尚未接入。')
     if automatic:
         if window+'waveform.png' in declared:selected.append('waveform')
-        if evidence('M05_bad_channels.json').get('channels') or evidence('M05_channel_description.json').get('channels') or gnosis('line_length'):selected.append('channel_metrics')
+        if any(window+'M05_'+k+'.json' in declared for k in ['spikeinterface_coherence_psd','spikeinterface_lfp_neighbors']) or evidence('M05_bad_channels.json').get('channels') or evidence('M05_channel_description.json').get('channels') or gnosis('line_length'):selected.append('channel_metrics')
         if window+'M04_spectral.json' in declared or gnosis('band_power') or gnosis('psd_deviation'):selected.append('psd')
-        if window+'M04_spectral.json' in declared:selected.append('interference')
+        if window+'M04_spectral.json' in declared or window+'M04_ieeg_spectrum_fit.json' in declared:selected.append('interference')
         if any(gnosis(k) for k in ['artifact','low_band','high_band']):selected.extend(['artifact_burden','timeline'])
-        elif window+'M06_muscle.json' in declared or window+'M03_mne_amplitude.json' in declared:selected.append('timeline')
+        elif window+'M04_ieeg_spectrum_fit.json' in declared or window+'M06_muscle.json' in declared or window+'M03_mne_amplitude.json' in declared:selected.append('timeline')
         for key,method in [('band_power','band_power'),('band_amplitude','band_amplitude'),('psd_distance','psd_deviation'),('reference_ranges','reference_ranges')]:
             if gnosis(method):selected.append(key)
     groups=[
