@@ -10,6 +10,7 @@ export default function DraftCanvas({doc,selected,select,writable,patch,checkpoi
  const edges=drawingEdges(doc).filter(e=>index.has(e.source)&&index.has(e.target));
  const fit=()=>{if(rail.current)setScale(Math.max(.4,Math.min(1,(rail.current.clientWidth-36)/CANVAS_W)));};
  useEffect(()=>{fit();},[]);
+ useEffect(()=>{rail.current?.scrollTo({top:0,left:0});},[level]);
  function point(e:React.PointerEvent){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
  function start(e:React.PointerEvent,n:FlowNode){if(e.button!==0)return;if(linkFrom){select(n.id);return;}select(n.id);if(!writable)return;const p=point(e);if(!p)return;e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:n.id,x:p.x,y:p.y,nodeX:n.x,nodeY:n.y,moved:false};}
  function move(e:React.PointerEvent){const p=point(e);if(!p)return;if(wire.current){setPointer([p.x,p.y]);return;}const d=drag.current;if(!d||!writable)return;if(!d.moved&&Math.hypot(p.x-d.x,p.y-d.y)>3){checkpoint();d.moved=true;}if(d.moved)patch(d.id,{sketch:{...sketchFor(all.find(n=>n.id===d.id)!),positioned:true},x:Math.round(Math.max(20,Math.min(CANVAS_W-NODE_W-20,d.nodeX+p.x-d.x))),y:Math.round(Math.max(20,Math.min(CANVAS_H-NODE_H-20,d.nodeY+p.y-d.y)))});}
