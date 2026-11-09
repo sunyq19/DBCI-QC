@@ -109,3 +109,8 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
  .canvas-context{padding:8px 12px;flex-wrap:wrap}
  .canvas-footer>span{max-width:45%;font-size:10px}
 }
+
+.sketch-workspace .canvas-scroll{cursor:grab;user-select:none}
+.sketch-workspace .canvas-scroll.panning,.sketch-workspace .canvas-scroll.panning *{cursor:grabbing!important}
+.sketch-workspace .canvas-scroll .graph-edge{cursor:pointer}
+@media(max-width:720px){.sketch-workspace .canvas-footer{height:auto;min-height:38px;gap:8px;padding-block:6px}.sketch-workspace .canvas-footer>span{max-width:none;flex:1;line-height:1.5}.sketch-workspace .zoom-controls{flex-shrink:0}}
