@@ -1,16 +1,41 @@
 'use client';
-import {useRef,useState,useEffect} from 'react';
+import {useRef,useState,useEffect,useLayoutEffect} from 'react';
 import {Minus,Plus,Maximize2,ArrowLeft} from 'lucide-react';
 import {type FlowDoc,type FlowNode,displayNodes,drawingEdges,nodeTitle,flattenNodes,sketchFor,edgePath,NODE_W,NODE_H,CANVAS_W,CANVAS_H} from '../lib/flow';
+import {clampScale,wheelPixels,wheelScale} from '../lib/canvas-zoom';
 export default function DraftCanvas({doc,selected,select,writable,patch,checkpoint,connect,linkFrom,setLinkFrom,selectedEdge,setSelectedEdge,add,level,setLevel}:{doc:FlowDoc;selected:string;select:(id:string)=>void;writable:boolean;patch:(id:string,p:Partial<FlowNode>)=>void;checkpoint:()=>void;connect:(source:string,target:string)=>void;linkFrom:string;setLinkFrom:(id:string)=>void;selectedEdge:string;setSelectedEdge:(id:string)=>void;add:(parent?:string)=>void;level:string;setLevel:(id:string)=>void}){
  const svg=useRef<SVGSVGElement>(null),rail=useRef<HTMLDivElement>(null),drag=useRef<{id:string;x:number;y:number;nodeX:number;nodeY:number;moved:boolean}|null>(null),wire=useRef<{source:string;start:[number,number]}|null>(null);
  const [scale,setScale]=useState(.78),[pointer,setPointer]=useState<[number,number]|null>(null),autoFit=useRef(true);
+ const scaleNow=useRef(scale),zoomAnchor=useRef<{x:number;y:number;clientX:number;clientY:number}|null>(null);
  const all=flattenNodes(doc.nodes),parent=all.find(n=>n.id===level),raw=level?parent?.children||[]:doc.nodes;
  const nodes=displayNodes(raw).map((n,i)=>level&&!n.sketch?.positioned?{...n,x:70+(i%4)*320,y:70+Math.floor(i/4)*170}:n),index=new Map(nodes.map(n=>[n.id,n]));
  const edges=drawingEdges(doc).filter(e=>index.has(e.source)&&index.has(e.target));
  const fit=()=>{if(rail.current)setScale(Math.max(.4,Math.min(1,(rail.current.clientWidth-36)/CANVAS_W)));};
  useEffect(()=>{fit();const observer=new ResizeObserver(()=>{if(autoFit.current)fit();});if(rail.current)observer.observe(rail.current);return()=>observer.disconnect();},[]);
  useEffect(()=>{rail.current?.scrollTo({top:0,left:0});},[level]);
+ useLayoutEffect(()=>{
+  scaleNow.current=scale;const anchor=zoomAnchor.current,container=rail.current,rect=svg.current?.getBoundingClientRect();
+  if(anchor&&container&&rect){container.scrollLeft+=rect.left+anchor.x*scale-anchor.clientX;container.scrollTop+=rect.top+anchor.y*scale-anchor.clientY;}
+  zoomAnchor.current=null;
+ },[scale]);
+ function zoom(next:number,clientX?:number,clientY?:number){
+  const container=rail.current,rect=svg.current?.getBoundingClientRect();if(!container||!rect||next===scaleNow.current)return;
+  const bounds=container.getBoundingClientRect(),x=clientX??bounds.left+container.clientWidth/2,y=clientY??bounds.top+container.clientHeight/2;
+  zoomAnchor.current={x:(x-rect.left)/scaleNow.current,y:(y-rect.top)/scaleNow.current,clientX:x,clientY:y};autoFit.current=false;setScale(next);
+ }
+ useEffect(()=>{
+  const container=rail.current;if(!container)return;
+  let frame=0,pixels=0,x=0,y=0;
+  const wheel=(e:WheelEvent)=>{
+   if(!e.ctrlKey)return;
+   // Cancel browser page zoom only over this canvas; ordinary wheel scrolling is native.
+   e.preventDefault();e.stopPropagation();if(drag.current||wire.current)return;
+   pixels+=wheelPixels(e.deltaY,e.deltaMode,container.clientHeight);x=e.clientX;y=e.clientY;
+   if(!frame)frame=requestAnimationFrame(()=>{frame=0;zoom(wheelScale(scaleNow.current,pixels),x,y);pixels=0;});
+  };
+  container.addEventListener('wheel',wheel,{passive:false});
+  return()=>{container.removeEventListener('wheel',wheel);cancelAnimationFrame(frame);};
+ },[]);
  function point(e:React.PointerEvent){const matrix=svg.current?.getScreenCTM();return matrix?new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse()):null;}
  function start(e:React.PointerEvent,n:FlowNode){if(e.button!==0)return;if(linkFrom){select(n.id);return;}select(n.id);if(!writable)return;const p=point(e);if(!p)return;e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:n.id,x:p.x,y:p.y,nodeX:n.x,nodeY:n.y,moved:false};}
  function move(e:React.PointerEvent){const p=point(e);if(!p)return;if(wire.current){setPointer([p.x,p.y]);return;}const d=drag.current;if(!d||!writable)return;if(!d.moved&&Math.hypot(p.x-d.x,p.y-d.y)>3){checkpoint();d.moved=true;}if(d.moved)patch(d.id,{sketch:{...sketchFor(all.find(n=>n.id===d.id)!),positioned:true},x:Math.round(Math.max(20,Math.min(CANVAS_W-NODE_W-20,d.nodeX+p.x-d.x))),y:Math.round(Math.max(20,Math.min(CANVAS_H-NODE_H-20,d.nodeY+p.y-d.y)))});}
@@ -31,6 +56,6 @@ export default function DraftCanvas({doc,selected,select,writable,patch,checkpoi
     </g>)}
    </svg>
   </div>
-  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':'选中连线可修改文字或删除'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" onClick={()=>{autoFit.current=false;setScale(v=>Math.max(.3,v-.1));}}><Minus size={16}/></button><span>{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" onClick={()=>{autoFit.current=false;setScale(v=>Math.min(1.5,v+.1));}}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" onClick={()=>{autoFit.current=true;fit();}}><Maximize2 size={16}/></button></div></div>
+  <div className="canvas-footer"><span>{linkFrom?'点击目标模块完成连线':'Ctrl + 滚轮缩放'}</span><div className="zoom-controls"><button className="icon" aria-label="缩小" title="缩小" onClick={()=>zoom(clampScale(scaleNow.current-.1))}><Minus size={16}/></button><span aria-live="polite" aria-label="画布缩放比例">{Math.round(scale*100)}%</span><button className="icon" aria-label="放大" title="放大" onClick={()=>zoom(clampScale(scaleNow.current+.1))}><Plus size={16}/></button><button className="icon" aria-label="适应宽度" title="适应宽度" onClick={()=>{autoFit.current=true;zoomAnchor.current=null;fit();}}><Maximize2 size={16}/></button></div></div>
  </div>;
 }
