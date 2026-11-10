@@ -81,6 +81,18 @@ class SummaryTests(unittest.TestCase):
         snap=signal();snap['result']['report_view']['score']['value']=float('nan')
         self.assertIsNone(summarize_signal(snap)['score'])
 
+    def test_project_score_appears_in_overview_without_cross_modality_aggregate(self):
+        snap=signal();snap['result'].pop('report_view')
+        snap['result']['project_score']={'value':51.93,'version':'project-weighted/1.2'}
+        data=aggregate_overview(self.plan, signals={self.r['id']:snap})
+        data.update(package_id='pilot',label='Pilot',manifest_hash='test')
+        self.assertEqual(data['records'][0]['signal']['score'],51.93)
+        self.assertIsNone(data['dataset_score'])
+        self.assertIn('本方案评分 51.93 / 100',render_overview(data))
+        self.assertIn('Workflow score 51.93 / 100',render_overview(data,language='en'))
+        snap['source_status']='mismatch'
+        self.assertIsNone(summarize_signal(snap)['score'])
+
     def test_file_conflict_only_attributed_to_affected_record(self):
         # An item can list every file. Its one missing file must not taint every record.
         (self.root/self.r['channels_tsv']).unlink()
@@ -203,6 +215,7 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(result['coverage']['total_seconds'], 10)
         self.assertNotIn('candidate_index', result)
         self.assertNotIn('report_view', result)
+        self.assertEqual(result['score_summary']['value'],88.51)
         self.store.dataset_summaries.clear()
         with patch('dataset_overview.read_signal_summary', side_effect=AssertionError('must use valid disk cache')):
             self.assertEqual(self.store.dataset_result('a' * 32), result)
@@ -219,7 +232,7 @@ class SummaryTests(unittest.TestCase):
             self.assertEqual(featured_reports(self.store)[0]['reported'], 1)
             report = render_overview(build_overview(self.store, 'pilot'))
             self.assertIn('/api/v1/jobs/', report)
-            self.assertNotIn('88.51', report)
+            self.assertIn('本方案评分 88.51 / 100', report)
             self.assertNotIn('EEG 分数 / 分项', report)
             self.plan['scope'] = 'new selection'
             self.config.write_text(json.dumps(self.plan))

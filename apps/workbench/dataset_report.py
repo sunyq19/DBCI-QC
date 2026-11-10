@@ -59,7 +59,7 @@ def render(data, language='zh-CN'):
         ('D02', t('个体资料核对', 'Within-subject metadata'), t('编号、通道表、单位、采样率和事件时间', 'Identifiers, channel table, units, sample rates and event timing'), module_outcome('D02')),
         ('D03', t('同组记录比较', 'Within-group comparison'), t('按声明的比较组核对；不同来源、模态或 AP/LF 不混比', 'Compare declared groups; keep sources, modalities and AP/LF separate'), module_outcome('D03')),
         ('M03–M07', t('信号检查', 'Signal checks'),
-         t('EEG：完整性、频谱、通道及伪迹；其他模态：完整性、频谱和接触点统计', 'EEG: integrity, spectra, channels and artifacts. Other modalities: integrity, spectra and contact statistics'),
+         t('按模态和所选方案检查完整性、频谱、通道及伪迹', 'Integrity, spectra, channels and artifacts according to modality and selected methods'),
          t(f'{summary["reported"]} / {len(records)} 份报告', f'{summary["reported"]} / {len(records)} reports'))]
     check_html = ''.join(f'<tr><th><small>{esc(mid)}</small>{esc(name)}</th><td>{esc(purpose)}</td><td class="outcome">{esc(outcome)}</td></tr>' for mid, name, purpose, outcome in check_rows)
 
@@ -98,7 +98,9 @@ def render(data, language='zh-CN'):
         coverage = t('已检查样本全长', 'Full sample checked') if sig.get('full_duration_computed') else t('检查范围见报告', 'See report for coverage')
         rates = ', '.join(number(rate) for rate in display.get('rates_hz', []))
         info = ' · '.join(filter(None, [display.get('format'), (t(f'{display["channels"]} 道', f'{display["channels"]} channels') if display.get('channels') else ''), rates + ' Hz' if rates else '', number(display.get('duration_seconds')) + ' s']))
-        record_rows.append(f'<tr><th>{esc(record["subject"])}<small>{esc(record["id"])}</small></th><td>{esc(info)}<small>{esc(coverage)}</small></td><td>{esc(" · ".join(pieces))}</td><td>{button}</td></tr>')
+        score = sig.get('score')
+        scored = f'<strong>{t("本方案评分", "Workflow score")} {score:.2f} / 100</strong><small>{esc(" · ".join(pieces))}</small>' if not status and isinstance(score, (int, float)) else esc(' · '.join(pieces))
+        record_rows.append(f'<tr><th>{esc(record["subject"])}<small>{esc(record["id"])}</small></th><td>{esc(info)}<small>{esc(coverage)}</small></td><td>{scored}</td><td>{button}</td></tr>')
 
     # Unknowns remain in the audit, grouped by check type instead of amplified
     # into a wall of warnings for every record and downstream dependency.
@@ -114,8 +116,7 @@ def render(data, language='zh-CN'):
         field_text = ', '.join(fields) or t('仅记录分组', 'Group only')
         group_rows += f'<li><strong>{esc(group.get("label", group["id"]))}</strong> · {esc(field_text)}</li>'
     scope_note = t('仅代表这些公开样本；不代表原始研究的完整数据集。', 'These public samples do not represent the complete upstream study.') if example else ''
-    non_eeg = any(r['modality'] != 'scalp_eeg' for r in records)
-    method_note = t('ECoG、sEEG、Neuropixels 当前提供技术描述，不套用头皮 EEG 的判坏阈值；相邻恒值可能来自量化，不直接判为坏道。', 'ECoG, sEEG and Neuropixels currently receive technical measurements without scalp-EEG rejection thresholds. Adjacent equal values can reflect quantization, not bad channels.') if non_eeg else t('工频与伪迹是待复核线索。缺少参考构型或辅助导联时，对应检查不会自动判为通过。', 'Interference and artifact detections are review candidates. Checks requiring unknown references or absent auxiliary channels are not counted as passes.')
+    method_note = t('逐份显示本方案评分，分项与权重见报告。不同模态或检查方案的分数不直接比较；未评项目不计入。', 'Scores belong to each recording and workflow; see the report for components and weights. Do not compare unlike modalities or workflows. Unassessed items are excluded.') if any(r['signal'].get('score') is not None for r in records) else t('各模态按适用方法检查，结果见逐份报告；未评项目不计为通过。', 'Each modality uses applicable methods; see recording reports. Unassessed items are not passes.')
     return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} · {t('数据集报告','Dataset report')}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report">
 +<header class="report-header"><a href="/#demo-reports">← {t('质控台','Workbench')}</a><span>{t('数据集报告','Dataset report')}</span><nav><a href="?lang={'zh-CN' if en else 'en'}{('&amp;job=' + esc(data['dataset_job']['id'])) if data.get('dataset_job') else ''}">{'中文' if en else 'EN'}</a><button id="print-report">{t('打印 / PDF','Print / PDF')}</button></nav></header>
 +<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / {t('公开样本示例' if example else '数据集检查', 'Public sample' if example else 'Dataset QC')}</p><h1>{esc(title)}</h1><p class="secondary">{esc(source_title) + ' · ' if run_name else ''}{esc(description)}</p></div></div>

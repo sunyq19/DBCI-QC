@@ -234,7 +234,9 @@ def publish(config,destination):
                 html=html.replace('</main>', '<details class="disclosure"><summary>'+('Sources and licenses' if language=='en' else '来源与许可')+'</summary><ul>'+''.join(links)+'</ul></details></main>')
                 put(f'datasets/{pid}.{language}.html',clean(html,f'/api/v1/packages/{pid}/overview/report',language))
             for jid in sorted(jobids):
-                html=clean(served_report(store,jid,language),f'/api/v1/jobs/{jid}/report',language)
+                # Public snapshots cannot use a live raw-signal inspector. Keep
+                # the saved candidate tables instead of an empty loading panel.
+                html=clean(served_report(store,jid,language,interactive=False),f'/api/v1/jobs/{jid}/report',language)
                 if jid in comparison_jobs:
                     url=replacement+f'comparisons/{comparison_jobs[jid]["comparison_id"]}.{language}.html'
                     label='← EEG workflow comparison' if language=='en' else '← 返回 EEG 方案对照'
@@ -269,7 +271,22 @@ def publish(config,destination):
         files={str(f.relative_to(out)):hashlib.sha256(f.read_bytes()).hexdigest() for f in sorted(out.rglob('*')) if f.is_file()}
         comparison_rows=[{k:v for k,v in c.items() if k in {'id','label','label_en','description','description_en'}} for c in comparisons]
         for row in comparison_rows:row.update(url=f'/examples/{release}/comparisons/{row["id"]}.zh-CN.html',url_en=f'/examples/{release}/comparisons/{row["id"]}.en.html',cached=True)
-        manifest={'schema_version':'example-cache/1','release':release,'published_at':datetime.now(timezone.utc).isoformat(),'examples':rows,'comparisons':comparison_rows,'files':files,'raw_data_included':False}
+        # Keep the exact run and scoring provenance with the release. Checking
+        # this receipt prevents a current UI from silently shipping old scores.
+        report_scores={}
+        for jid in sorted(jobids):
+            job=store.job(jid)
+            path=store.root/'jobs'/jid/'artifacts/method-scores.json'
+            score=json.loads(path.read_text()).get('project_score') if path.is_file() else None
+            if not score:
+                score=(report_view(jid) or {}).get('score') or {}
+            declared=job.get('plan',{}).get('input_modality',{})
+            report_scores[jid]={'modality':declared.get('value') if isinstance(declared,dict) else declared,
+                'created_at':job['created_at'],'preset':score.get('preset'),'version':score.get('version'),
+                'value':score.get('value'),'components':[{k:c.get(k) for k in
+                    ('id','value','status','configured_weight','weight','normalized_weight','automatically_excluded')}
+                    for c in score.get('components',[])]}
+        manifest={'schema_version':'example-cache/1','release':release,'published_at':datetime.now(timezone.utc).isoformat(),'examples':rows,'comparisons':comparison_rows,'report_scores':report_scores,'files':files,'raw_data_included':False}
         target=destination/release
         if not target.exists():shutil.copytree(out,target)
         pending=destination/'manifest.tmp';pending.write_text(json.dumps(manifest,ensure_ascii=False,indent=2));pending.replace(destination/'manifest.json')

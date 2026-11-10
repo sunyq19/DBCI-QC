@@ -130,6 +130,11 @@ def recommend(record, qc_config=None, *, reset_methods=False):
         elif modality == 'extracellular':
             from .neuropixels_scoring import default_config
             config['scoring'] = default_config()
+            # Reset means restore the conditional baseline, not an explicit
+            # user deselection of every AP/LF method.
+            from .neuropixels_standard import configure
+            baseline = build_plan(record, _BASE_MODULES, config)
+            config = configure(config, record, baseline, submitted={})
         elif modality == 'scalp_eeg':
             from .project_scoring import normalize
             config['scoring'] = normalize(None, modality, ['M03', 'M04', 'M06'])

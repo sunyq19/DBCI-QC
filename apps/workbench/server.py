@@ -463,7 +463,7 @@ class Store:
         try:
             if cache_path.stat().st_size <= 65536:
                 saved = read_json(cache_path)
-                if (isinstance(saved, dict) and saved.get('version') == 'dataset-display/1' and
+                if (isinstance(saved, dict) and saved.get('version') == 'dataset-display/2' and
                         saved.get('signature') == list(signature) and isinstance(saved.get('summary'), dict)):
                     with self.lock:
                         if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
@@ -479,7 +479,7 @@ class Store:
             if len(self.dataset_summaries) >= 128: self.dataset_summaries.pop(next(iter(self.dataset_summaries)))
             self.dataset_summaries[id_] = (signature, copy.deepcopy(result))
             try:
-                save_json(cache_path, {'version': 'dataset-display/1', 'signature': list(signature), 'summary': result})
+                save_json(cache_path, {'version': 'dataset-display/2', 'signature': list(signature), 'summary': result})
             except OSError:
                 pass  # Read-only archives still produce an in-memory summary.
         return result

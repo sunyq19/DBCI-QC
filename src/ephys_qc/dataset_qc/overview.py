@@ -25,7 +25,7 @@ def summarize_signal(snapshot):
     view = result.get('report_view') or {}
     coverage = result.get('coverage') or view.get('coverage') or {}
     scope = result.get('scope') or job.get('plan', {}).get('qc_config', {}).get('scope')
-    score = view.get('score') or {}
+    score = result.get('score_summary') or view.get('score') or result.get('project_score') or {}
     valid_report = status == 'completed' and bool(result) and not snapshot.get('result_error')
     usable = valid_report and source_status != 'mismatch'
     if not usable: score = {}

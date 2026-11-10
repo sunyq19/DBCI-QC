@@ -50,7 +50,7 @@ def report_file(store, identifier):
     return target
 
 
-def served_report(store, identifier, language='zh-CN'):
+def served_report(store, identifier, language='zh-CN', *, interactive=True):
     from server import insert_report_navigation
     report = report_file(store, identifier).read_text(encoding='utf-8')
     from project_score_cache import load
@@ -76,7 +76,8 @@ def served_report(store, identifier, language='zh-CN'):
         replacement=report_section('locations', 'Review locations' if language=='en' else '问题定位',
             location_inspector(f'/api/v1/jobs/{identifier}', english=language=='en'), opened=True)
         # These renderers own the boundary between top-level locations/charts.
-        report=re.sub(r'<details id="locations".*?(?=<details id="charts")', lambda _:replacement, report, count=1, flags=re.S)
+        if interactive:
+            report=re.sub(r'<details id="locations".*?(?=<details id="charts")', lambda _:replacement, report, count=1, flags=re.S)
         report=report.replace('</head>', '<link rel="stylesheet" href="/waveform-explorer.css"><script src="/waveform-explorer.js" defer></script></head>',1)
 
     # Every relative resource is still checked against the artifact manifest by

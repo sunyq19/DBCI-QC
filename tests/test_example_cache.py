@@ -11,6 +11,31 @@ from server import Handler
 
 
 class ExampleCacheTests(unittest.TestCase):
+    def test_seeg_and_probe_examples_use_current_scoring_and_saved_findings(self):
+        from ephys_qc.ieeg_scoring import default_config as ieeg_config
+        from ephys_qc.neuropixels_scoring import default_config as probe_config
+        store=SimpleNamespace(settings={});data=manifest(store)
+        expected={'seeg':ieeg_config('seeg')['preset'],
+                  'extracellular':probe_config()['preset']}
+        counts={'seeg':0,'extracellular':0}
+        for jid,score in data['report_scores'].items():
+            mode=score['modality']
+            if mode not in expected:continue
+            counts[mode]+=1
+            self.assertEqual(score['preset'],expected[mode])
+            self.assertIsInstance(score['value'],(float,int))
+            active=[c for c in score['components'] if c['weight'] and c['weight']>0]
+            self.assertGreater(len(active),1)
+            self.assertAlmostEqual(score['value'],sum(c['value']*c['weight'] for c in active)/sum(c['weight'] for c in active))
+            html=asset(store,f'/examples/{data["release"]}/records/{jid}.zh-CN.html').read_text()
+            self.assertIn(f'{score["value"]:.2f}',html)
+            self.assertNotIn('data-location-inspector',html)
+            example=next(e for e in data['examples'] if e['modality']==mode)
+            overview=asset(store,example['url']).read_text()
+            self.assertIn(f'本方案评分 {score["value"]:.2f} / 100',overview)
+            self.assertNotIn('当前提供技术描述',overview)
+        self.assertEqual(counts,{'seeg':2,'extracellular':3})
+
     def test_shipped_snapshot_hashes_and_links_are_self_contained(self):
         store=SimpleNamespace(settings={})
         data=manifest(store)

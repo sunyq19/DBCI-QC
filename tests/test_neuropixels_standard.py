@@ -18,6 +18,17 @@ def source(band='ap',count=16,seconds=4):
 
 
 class NeuropixelsStandardTests(unittest.TestCase):
+    def test_reset_restores_eligible_ap_detector_after_user_deselection(self):
+        r = source()
+        config = {'method_config': {'extensions': []}}
+        ordinary = recommend(r, config)
+        reset = recommend(r, config, reset_methods=True)
+        self.assertNotIn('spikeinterface_bad_channels', ordinary['qc_config']['method_config']['extensions'])
+        self.assertIn('spikeinterface_bad_channels', reset['qc_config']['method_config']['extensions'])
+        self.assertEqual(config, {'method_config': {'extensions': []}})
+        lf = recommend(source('lf'), config, reset_methods=True)
+        self.assertNotIn('spikeinterface_bad_channels', lf['qc_config']['method_config']['extensions'])
+
     def test_ap_is_conditional_and_user_can_deselect(self):
         r=source();before=copy.deepcopy(r)
         proposal=recommend(r)

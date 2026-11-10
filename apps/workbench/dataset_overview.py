@@ -19,12 +19,18 @@ def read_signal_summary(path):
     import ijson
     result = {'coverage': {}, 'recording': {}, 'modules': []}
     module = None
+    scores = {key: {} for key in ('project_score', 'report_view.score')}
+    score_fields = {key + '.' + field: (key, field) for key in scores
+                    for field in ('value', 'version', 'preset')}
     coverage_fields = {'total_seconds', 'completed_seconds', 'failed_seconds',
                        'unexecuted_seconds', 'gap_seconds'}
     try:
         with Path(path).open('rb') as handle:
             for prefix, event, value in ijson.parse(handle, use_float=True):
                 if event in {'string', 'number', 'boolean', 'null'}:
+                    if prefix in score_fields:
+                        key, field = score_fields[prefix]
+                        scores[key][field] = value
                     if prefix in {'schema_version', 'scope', 'status', 'analysis_profile'}:
                         result[prefix] = value
                     elif prefix.startswith('coverage.') and prefix[9:] in coverage_fields:
@@ -43,6 +49,7 @@ def read_signal_summary(path):
         raise ValueError('Incomplete recording result') from error
     if not result.get('schema_version') or result.get('scope') not in {'window', 'recording'}:
         raise ValueError('Missing recording result structure')
+    result['score_summary'] = scores['report_view.score'] or scores['project_score']
     return result
 
 
