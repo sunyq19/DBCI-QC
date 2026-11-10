@@ -176,14 +176,16 @@ class Store:
 
     def recommend_request(self, body):
         from ephys_qc.recommendations import recommend
-        if not isinstance(body, dict) or set(body) - {'input_id', 'qc_config'}:
+        if not isinstance(body, dict) or set(body) - {'input_id', 'qc_config', 'reset_methods'}:
             raise ValueError('推荐请求仅接受已登记数据和当前分析配置。')
+        if 'reset_methods' in body and not isinstance(body['reset_methods'], bool):
+            raise ValueError('恢复默认推荐须使用布尔值。')
         identifier = body.get('input_id')
         if not isinstance(identifier, str) or identifier not in self.inputs:
             raise ValueError('请先完成数据读取与字段确认。')
         with self.lock:
             record = copy.deepcopy(self.inputs[identifier])
-        return recommend(record, body.get('qc_config'))
+        return recommend(record, body.get('qc_config'), reset_methods=body.get('reset_methods', False))
 
     def package_records(self, identifier):
         result = self.packages.records(identifier)

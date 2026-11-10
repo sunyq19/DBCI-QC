@@ -117,6 +117,41 @@ check("changing input resets extensions and manual context to source defaults",(
   const t=harness();t.setExtension("mne_amplitude",true);t.setContext("disease","other");t.setContext("age_group","adult");t.selectInput("input-1");
   assert.equal(t.state.extensions.size,0);assert.equal(t.state.contextTags.disease,"unknown");assert.equal(t.state.contextTags.age_group,"unknown");assert.equal(t.state.contextTags.task,"attention");
 });
+check("pipeline cards select modules, synchronize the sidebar and keep details separate",()=>{
+  const t=harness();t.renderPipeline();
+  let markup=t.get("pipeline").innerHTML;
+  assert.equal((markup.match(/data-pipeline-module=/g)||[]).length,5);
+  assert.equal((markup.match(/class="pipeline-info"/g)||[]).length,5);
+  assert(markup.includes('for="pipeline-option-M04"'));assert(!t.get("pipeline-recommend-button").hidden);
+  const change=(id,checked)=>t.get("pipeline").dispatch("change",{target:{closest:()=>({dataset:{pipelineModule:id},checked})}});
+  change("M04",false);assert(!t.state.selected.has("M04"));
+  assert(!/data-module="M04" checked/.test(t.get("module-options").innerHTML));
+  assert(!/data-pipeline-module="M04" checked/.test(t.get("pipeline").innerHTML));
+  assert.equal(t.state.plan,null);assert(t.state.manualDraft);
+  t.setModuleSelected("M04",true);assert(/data-pipeline-module="M04" checked/.test(t.get("pipeline").innerHTML));
+  for(const id of ["M01","M02","M08","M09"]){change(id,false);assert(t.body().selected_modules.includes(id));}
+  t.state.mode="job";t.state.job={id:"frozen",status:"completed",modules:[],plan:{selected_modules:["M04"]}};
+  const before=[...t.state.selected];change("M04",false);assert.deepEqual([...t.state.selected],before);
+  t.renderPipeline();assert(!t.get("pipeline").innerHTML.includes("data-pipeline-module="));assert(t.get("pipeline-recommend-button").hidden);
+  t.state.mode="draft";t.clearInputDraft();assert(!t.get("pipeline").innerHTML.includes("data-pipeline-module="));
+});
+check("restoring recommendations explicitly resets prior scoring, without creating jobs or changing scope",async()=>{
+  let t;const requests=[];
+  t=harness(async(url,options)=>{const body=JSON.parse(options.body);requests.push([url,body]);
+    if(url.endsWith("/recommend"))return response(recommendationFixture(t,{qc_config:{...t.currentConfig(),method_config:{extensions:["mne_amplitude"]},scoring:{version:"project-weighted/1.2",weights:{integrity:1,line_noise:1,hf_burst:1}}}}));
+    if(url.endsWith("/plan"))return response(planFixture(body));
+    throw Error(url);
+  });
+  t.state.configurationOrigin={created_at:"2026-11-10"};t.state.extensions.add("gnosis_artifact");
+  t.state.draftConfig.scoring={version:"project-weighted/1.2",weights:{gnosis_artifact:100}};
+  t.get("start-seconds").value=12;t.setScope("window");
+  t.get("extension-parameters").value="{unfinished";t.state.parameterDirty=true;
+  assert(await t.prepareRecommendedPlan());
+  assert.equal(requests[0][1].reset_methods,true);assert.equal(requests[0][1].qc_config.selection.start_seconds,12);
+  assert(!t.state.extensions.has("gnosis_artifact"));assert.equal(t.state.configurationOrigin,null);
+  assert.equal(t.currentConfig().scoring.weights.integrity,1);assert.equal(t.state.scope,"window");
+  assert(t.validPlan());assert(!requests.some(([url])=>url.endsWith("/jobs")));assert(!t.state.parameterDirty);
+});
 check("each additional dataset restores its own explicit background without cross-record leakage",()=>{
   const t=harness();
   for(const [id,task] of [["closed-eye","rest"],["motor","motor"],["sleep-edf","sleep"],["chb-mit","unknown"]]){
@@ -366,7 +401,7 @@ check("late plan success and late failure cannot replace a newly selected input 
 check("manual edits during auto preparation preserve choices and discard late automatic recommendations",async()=>{
   const wait=deferred();let t;t=harness(()=>wait.promise);const pending=t.selectInput("input-0",{autoPrepare:true});const rec=recommendationFixture(t);
   t.setExtension("mne_muscle",true);t.setContext("disease","other");assert(t.state.manualDraft);const key=t.fingerprint();wait.resolve(response(rec));await pending;
-  assert.equal(t.fingerprint(),key);assert(t.state.extensions.has("mne_muscle"));assert.equal(t.state.recommendation,null);assert(!t.state.recommending);assert(!t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("恢复推荐方案"));
+  assert.equal(t.fingerprint(),key);assert(t.state.extensions.has("mne_muscle"));assert.equal(t.state.recommendation,null);assert(!t.state.recommending);assert(!t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("恢复默认推荐"));
 });
 check("failed, blocked, unsupported and malformed auto recommendations never enable default Start",async()=>{
   for(const result of [new Error("offline"),{can_apply:false,status:"needs_input"},{can_apply:false,status:"unsupported"},{can_apply:true,qc_config:null}]){

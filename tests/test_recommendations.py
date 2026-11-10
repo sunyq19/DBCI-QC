@@ -35,6 +35,37 @@ def reverse_objects(value):
 
 
 class RecommendationTests(unittest.TestCase):
+    def test_restore_default_drops_gnosis_weights_and_methods_but_keeps_data_selection(self):
+        r = recording()
+        config = copy.deepcopy(recommend(r)['qc_config'])
+        config['scope'] = 'window'
+        config['selection']['start_seconds'] = 25
+        config['method_config']['extensions'] = ['gnosis_line_length', 'gnosis_artifact']
+        config['scoring'] = {'version':'project-weighted/1.2', 'weights':{
+            'integrity':0, 'line_noise':0, 'hf_burst':0,
+            'gnosis_line_length':40, 'gnosis_artifact':60}}
+        before = copy.deepcopy(config)
+        preserved = recommend(r, config)
+        self.assertIn('gnosis_line_length', preserved['qc_config']['method_config']['extensions'])
+        result = recommend(r, config, reset_methods=True)
+        self.assert_round_trip(r, result)
+        self.assertEqual(result['configuration_mode'], 'default')
+        self.assertEqual(result['qc_config']['method_config']['extensions'], ['mne_amplitude'])
+        positive = {k:v for k,v in result['qc_config']['scoring']['weights'].items() if v > 0}
+        self.assertEqual(positive, {'integrity':1, 'line_noise':1, 'hf_burst':1})
+        self.assertIn('M05', result['selected_modules'])
+        self.assertEqual(result['qc_config']['selection'], config['selection'])
+        self.assertEqual(result['qc_config']['method_config']['comparison_groups'], config['method_config']['comparison_groups'])
+        self.assertEqual(config, before)
+        # A registered custom default cannot merge old positive weights back in.
+        r['default_config'] = copy.deepcopy(config)
+        frozen = copy.deepcopy(r)
+        result = recommend(r, config, reset_methods=True)
+        self.assert_round_trip(r, result)
+        self.assertEqual(result['qc_config']['scoring']['weights']['gnosis_artifact'], 0)
+        self.assertNotIn('gnosis_artifact', result['qc_config']['method_config']['extensions'])
+        self.assertEqual(r, frozen)
+
     def assert_round_trip(self, record, result):
         self.assertEqual(result["status"], "ready", result["summary"])
         self.assertTrue(result["can_apply"])

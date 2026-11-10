@@ -14,6 +14,10 @@
 选择模块	Select modules
 方法与计分设置	Methods and scoring
 沿用上次方案	Using last run
+沿用上次方案 · 可继续修改	Using last run · editable
+恢复默认推荐	Restore default recommendation
+点击卡片选择模块 · ⓘ 查看说明	Click a card to select · ⓘ for details
+查看说明	View details
 选择检查模块，可调整方法、参数和计分权重。	Choose checks, methods, parameters and scoring weights.
 连接服务…	Connecting…
 服务已连接	Connected
@@ -1111,7 +1115,7 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 扩展参数 JSON	Extension parameters (JSON)
 应用参数修改	Apply parameters
 手动推荐与预览	Recommendations and preview
-需要回到推荐配置时，可恢复推荐方案。	Restore the recommended configuration when needed.
+需要回到推荐配置时，可恢复默认推荐。	Restore the recommended configuration when needed.
 恢复推荐方案	Restore recommendation
 采用推荐	Apply recommendation
 预览执行计划	Preview execution plan
@@ -1391,7 +1395,7 @@ ECoG 触点	ECoG contacts
 手动方案已就绪，点击开始检查。	The manual plan is ready. Select Start check.
 推荐方案已就绪，点击开始检查。	The recommended plan is ready. Select Start check.
 手动修改已保留。点击开始检查后会先核对最新方案。	Manual changes are retained. The latest plan will be validated when you select Start check.
-方案尚未就绪，可点击恢复推荐方案重试。	The plan is not ready. Restore the recommendation to try again.
+方案尚未就绪，可点击恢复默认推荐重试。	The plan is not ready. Restore the default recommendation to try again.
 辅助导联	Auxiliary channels
 分析 EEG	Analysis EEG
 当前配置未指定 ECG / EOG / EMG 辅助导联，不按名称推测。	No ECG / EOG / EMG channel is explicitly configured. Roles are not inferred here from names.

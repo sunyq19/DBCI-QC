@@ -322,7 +322,7 @@
     const rates = [...new Set(arr(state.input?.metadata?.channels).filter(channel => indices.includes(channel.index)).map(channel => channel.sampling_rate_hz).filter(numeric))];
     const facts = state.input ? `<p class="small muted">${analysisChannelCount(indices.length)} · ${rates.map(rate => number(rate)).join(" / ") || "未知"} Hz · 原记录 ${number(selection.start_seconds,3)}–${number(selection.start_seconds + selection.duration_seconds,3)} 秒</p>` : "";
     if (!recommendation || !recommendationValid()) {
-      container.innerHTML = facts + (state.recommending ? '<p class="recommendation-summary">正在准备推荐方案…</p><p class="small muted">核对数据条件后即可开始检查。</p>' : state.manualDraft ? `<p class="recommendation-summary">手动方案 · 修改已保留</p><p class="small muted">${validPlan() ? "方案已就绪。" : "开始检查时会先核对最新配置。"}</p><button class="text-button" data-reset-recommend>恢复推荐方案</button>` : '<p class="small muted">推荐方案尚未就绪。</p><button class="text-button" data-reset-recommend>重新准备推荐方案</button>');
+      container.innerHTML = facts + (state.recommending ? '<p class="recommendation-summary">正在准备推荐方案…</p><p class="small muted">核对数据条件后即可开始检查。</p>' : state.manualDraft ? `<p class="recommendation-summary">${state.configurationOrigin ? "沿用上次方案 · 可继续修改" : "手动方案 · 修改已保留"}</p><p class="small muted">${validPlan() ? "方案已就绪。" : "开始检查时会先核对最新配置。"}</p><button class="text-button" data-reset-recommend>恢复默认推荐</button>` : '<p class="small muted">推荐方案尚未就绪。</p><button class="text-button" data-reset-recommend>重新准备推荐方案</button>');
       return;
     }
     const missing = arr(recommendation.missing_fields), blocking = missing.filter(field => field.blocking), optionalMissing = missing.filter(field => !field.blocking);
@@ -343,15 +343,15 @@
   }
 
   async function prepareRecommendedPlan() {
-    if (!state.input || state.submitting) return false;
-    if (state.parameterDirty && !applyParameters()) { setError("plan-error","高级参数有误，请展开高级设置修正。"); $("advanced-settings").open = true; return false; }
+    if (!state.input || state.submitting || state.mode !== "draft") return false;
     invalidatePlan({manual:false});
-    return makeRecommendation({autoApply:true});
+    return makeRecommendation({autoApply:true,resetMethods:true});
   }
 
-  async function makeRecommendation({autoApply = false} = {}) {
+  async function makeRecommendation({autoApply = false,resetMethods = false} = {}) {
     if (validation() || state.recommending || state.submitting || state.planning || state.mode !== "draft") return false;
     const epoch = state.draftEpoch, key = fingerprint(), request = {input_id:state.input.id,qc_config:currentConfig()};
+    if (resetMethods) request.reset_methods = true;
     const current = () => epoch === state.draftEpoch && state.mode === "draft";
     state.recommending = true; setError("recommendation-error",null); renderRecommendation(); updateActions();
     try {
@@ -539,7 +539,7 @@
   }
 
   function setModuleSelected(id, checked) {
-    if (state.submitting || !optionalModules().includes(id) || (checked && !selectableModule(id))) return;
+    if (!state.input || state.filePending || state.mode !== "draft" || state.submitting || unsupportedInput() || !optionalModules().includes(id) || (checked && !selectableModule(id))) return;
     if (checked) state.selected.add(id);
     else {
       state.selected.delete(id);
@@ -549,7 +549,7 @@
     }
     const score=state.draftConfig?.scoring;
     if(score && !checked) for(const spec of scoringOutputs()) if(spec.module_id===id) score.weights[spec.id]=0;
-    renderScoringControls();invalidatePlan();
+    renderModuleOptions();invalidatePlan();
   }
 
   function setContext(field, value) {
@@ -588,7 +588,8 @@
     $("plan-button").innerHTML = state.planning ? '<span class="spinner" aria-hidden="true"></span> 正在核对…' : "核对手动方案";
     $("run-button").innerHTML = state.submitting ? '<span class="spinner" aria-hidden="true"></span> 正在准备检查…' : '<span aria-hidden="true">▶</span> 开始检查';
     $("recommend-button").disabled = Boolean(invalid || busy || !state.catalog);
-    $("recommend-button").innerHTML = state.recommending ? '<span class="spinner" aria-hidden="true"></span> 正在准备推荐…' : "恢复推荐方案";
+    $("recommend-button").innerHTML = state.recommending ? '<span class="spinner" aria-hidden="true"></span> 正在准备推荐…' : "恢复默认推荐";
+    $("pipeline-recommend-button").disabled = Boolean(invalid || busy || !state.catalog || state.mode !== "draft");
     $("apply-recommendation-button").disabled = Boolean(busy || unsupportedInput() || !recommendationValid() || state.recommendation?.can_apply !== true || state.recommendationApplied);
     $("apply-recommendation-button").textContent = state.recommendationApplied ? "已采用推荐" : "采用推荐";
     $("apply-parameters-button").disabled = !state.input || busy;
@@ -615,7 +616,7 @@
     renderVisibility();
     renderExtraction();
     renderPipeline();
-    $("action-hint").textContent = invalid || (state.submitting ? "正在核对并提交这份方案，请勿重复操作。" : state.recommending ? "正在根据这份数据准备推荐方案，不会自动运行。" : state.planning ? "正在核对最新方案的适用条件。" : state.mode === "job" ? "正在查看已有运行。选择一份数据可准备新的检查。" : validPlan() ? `${state.manualDraft ? "手动" : "推荐"}方案已就绪，点击开始检查。` : state.manualDraft ? "手动修改已保留。点击开始检查后会先核对最新方案。" : "方案尚未就绪，可点击恢复推荐方案重试。");
+    $("action-hint").textContent = invalid || (state.submitting ? "正在核对并提交这份方案，请勿重复操作。" : state.recommending ? "正在根据这份数据准备推荐方案，不会自动运行。" : state.planning ? "正在核对最新方案的适用条件。" : state.mode === "job" ? "正在查看已有运行。选择一份数据可准备新的检查。" : validPlan() ? `${state.manualDraft ? "手动" : "推荐"}方案已就绪，点击开始检查。` : state.manualDraft ? "手动修改已保留。点击开始检查后会先核对最新方案。" : "方案尚未就绪，可点击恢复默认推荐重试。");
     if (state.mode === "draft" && unsupportedInput()) $("action-hint").textContent = "当前模态仅保存提取信息，不运行其他模态的质控。";
   }
 
@@ -1108,6 +1109,7 @@
   }
 
   function renderModuleOptions() {
+    const focusedOption = document.activeElement?.id;
     $("module-selection-note").innerHTML = state.configurationOrigin
       ? `<span>沿用上次方案</span> · <time data-i18n-skip>${escape(date(state.configurationOrigin.created_at))}</time>`
       : "选择检查模块，可调整方法、参数和计分权重。";
@@ -1119,6 +1121,7 @@
       return `<div class="module-option"><input type="checkbox" id="option-${id}" data-module="${id}" ${state.selected.has(id) && module.selectable !== false ? "checked" : ""} ${module.selectable === false ? "disabled" : ""}><label for="option-${id}"><code>${id}</code><span>${escape(module.name)}${module.selectable === false ? ' <span class="tag subtle">尚未接入</span>' : ""}</span></label><button class="module-help" data-detail="${id}" aria-label="查看 ${escape(module.name)} 的依据">i</button></div>`;
     }).join("") + `<p class="fixed-modules">固定步骤：${fixedModules().map(id => `<span>${id} ${escape(modules.find(m => m.id === id)?.name || "")}</span>`).join(" · ")}</p>`;
     $("module-options").querySelectorAll("input").forEach(input => input.addEventListener("change", () => setModuleSelected(input.dataset.module,input.checked)));
+    if (focusedOption?.startsWith("option-")) $(focusedOption)?.focus?.({preventScroll:true});
   }
 
   // Keep the service payload unchanged: unselected is a presentation state,
@@ -1165,6 +1168,12 @@
     const can=methodRows.filter(m=>["ready","partial"].includes(m.status)).length, missing=methodRows.filter(m=>m.status==="blocked").length;
     const availability=methodRows.length ? `${can} 项可检查${missing?` · ${missing} 项缺条件`:''}` : '';
     const stateLabel=status==="partial" ? (state.mode==="job"?"已完成部分检查":"部分项目可用") : STATUS[status]||status;
+    const editable = state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() && optionalModules().includes(id) && selectableModule(id);
+    if (editable) {
+      const selected = state.selected.has(id), busy = state.submitting || state.loadingRecord;
+      const dependency = arr(module?.dependencies).filter(item => optionalModules().includes(item));
+      return `<div class="pipeline-node editable ${escape(css)} ${selected ? "choice-selected" : ""}"><label class="pipeline-choice" for="pipeline-option-${escape(id)}"><span class="node-top"><span class="node-id">${escape(id)}</span><span class="node-selection"><span>${selected ? "已选择" : "未选择"}</span><input type="checkbox" id="pipeline-option-${escape(id)}" data-pipeline-module="${escape(id)}" ${selected ? "checked" : ""} ${busy ? "disabled" : ""} aria-label="选择 ${escape(id)} ${escape(moduleLabel(id))}"></span></span><span class="node-name">${escape(moduleLabel(id))}</span>${availability ? `<span class="node-dependency">${escape(availability)}</span>` : ""}${dependency.length ? `<span class="node-dependency">${escape("依赖 " + dependency.join(" · "))}</span>` : ""}</label><button type="button" class="pipeline-info" data-detail="${escape(id)}" aria-label="查看 ${escape(id)} ${escape(moduleLabel(id))} 说明" title="查看说明">ⓘ</button></div>`;
+    }
     return `<button class="pipeline-node ${escape(css)}" data-detail="${escape(id)}" ${module ? "" : "disabled"} aria-label="${escape(id)} ${escape(node.name || module?.name || moduleLabel(id))}，${escape(stateLabel)}，查看详情" title="${escape(node.reason || "查看模块详情")}"><span class="node-top"><span class="node-id">${escape(id)}</span>${status === "framework" ? "" : `<span class="node-state">${escape(stateLabel)}</span>`}</span><span class="node-name">${escape(moduleLabel(id))}</span>${availability?`<span class="node-dependency">${escape(availability)}</span>`:""}${arr(module?.dependencies).some(dependency => optionalModules().includes(dependency)) ? `<span class="node-dependency">${escape("依赖 " + module.dependencies.filter(dependency => optionalModules().includes(dependency)).join(" · "))}</span>` : ""}</button>`;
   }
 
@@ -1173,11 +1182,16 @@
     const groups = workflowGroups();
     const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div></section>`).join("");
     if ($("pipeline").innerHTML !== markup) {
-      const focusedId = document.activeElement?.closest?.("#pipeline [data-detail]")?.getAttribute("data-detail");
+      const focused = document.activeElement?.closest?.("#pipeline [data-pipeline-module], #pipeline [data-detail]");
+      const attribute = focused?.hasAttribute("data-pipeline-module") ? "data-pipeline-module" : "data-detail";
+      const focusedId = focused?.getAttribute(attribute);
       $("pipeline").innerHTML = markup || '<p class="small muted">正在读取模块目录</p>';
-      if (moduleOrder().includes(focusedId)) $("pipeline").querySelector(`[data-detail="${focusedId}"]`)?.focus({preventScroll:true});
+      if (moduleOrder().includes(focusedId)) $("pipeline").querySelector(`[${attribute}="${focusedId}"]`)?.focus({preventScroll:true});
     }
     const historical = state.mode === "job", hasInput = Boolean(state.input) && !state.filePending;
+    const choosing = !historical && hasInput && !unsupportedInput();
+    $("pipeline-help").textContent = choosing ? "点击卡片选择模块 · ⓘ 查看说明" : "点击模块查看说明";
+    $("pipeline-recommend-button").hidden = !choosing;
     $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
     if (historical) {
@@ -1528,7 +1542,7 @@
       await prepared;
       if (request !== state.selectionRequest || state.input?.id !== record.id) return false;
       state.configurationOrigin = saved.previous_run;
-      renderModuleOptions();
+      renderModuleOptions(); renderRecommendation();
       $("advanced-settings").open = true;
       $("workflow-panel").open = true;
       $("advanced-settings").scrollIntoView({block:"start"});
@@ -2017,6 +2031,11 @@
     if (anchor) revealNavigationTarget(anchor.getAttribute("href"));
   });
   document.addEventListener("click",openLibraryLink);
+  $("pipeline").addEventListener("change",event=>{
+    const input=event.target.closest("[data-pipeline-module]");
+    if(input)setModuleSelected(input.dataset.pipelineModule,input.checked);
+  });
+  $("pipeline-recommend-button").addEventListener("click",prepareRecommendedPlan);
   window.addEventListener("hashchange",openModuleFromHash);
   window.addEventListener("hashchange",()=>revealNavigationTarget());
   revealNavigationTarget();

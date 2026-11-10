@@ -99,7 +99,7 @@ def _review_focus(context):
     return focus
 
 
-def recommend(record, qc_config=None):
+def recommend(record, qc_config=None, *, reset_methods=False):
     """Return a proposal whose selected_modules/qc_config reproduce plan_id.
 
     Valid JSON with missing/unsupported metadata returns needs_input/unsupported;
@@ -112,6 +112,33 @@ def recommend(record, qc_config=None):
     _canonical(qc_config)
     record = copy.deepcopy(record)
     submitted = copy.deepcopy(qc_config)
+    if reset_methods:
+        # Restore the product default, not a recommendation constrained by the
+        # previous scheme's nonzero weights. Retain data facts and time range.
+        from .planning import _merge
+        config = _merge(record.get('default_config', {}), submitted or {})
+        config.setdefault('method_config', {})['extensions'] = []
+        previous_weights = (config.get('scoring') or {}).get('weights', {})
+        modality = record.get('modality')
+        if modality in {'ecog', 'seeg'}:
+            from .ieeg_scoring import default_config
+            config['scoring'] = default_config(modality)
+        elif modality == 'extracellular':
+            from .neuropixels_scoring import default_config
+            config['scoring'] = default_config()
+        elif modality == 'scalp_eeg':
+            from .project_scoring import normalize
+            config['scoring'] = normalize(None, modality, ['M03', 'M04', 'M06'])
+        else:
+            config.pop('scoring', None)
+        if config.get('scoring'):
+            # Explicit zeros prevent registered custom weights from reappearing
+            # through the planner's merge. Disabled methods remain unselected.
+            config['scoring']['weights'] = {**dict.fromkeys(previous_weights, 0),
+                                            **config['scoring']['weights']}
+        result = recommend(record, config)
+        result['configuration_mode'] = 'default'
+        return result
     scope_missing = []
     modality = record.get("modality")
     if modality in {'seeg', 'extracellular'}:
