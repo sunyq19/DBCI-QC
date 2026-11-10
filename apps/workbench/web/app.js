@@ -164,12 +164,42 @@
     } finally { clearTimeout(timer); }
   }
 
+  function selectedCoreMethods() {
+    const configured=state.draftConfig?.method_config?.core_methods;
+    const available=allMethods().filter(m=>optionalModules().includes(m.module_id)&&!m.optional_extension&&m.implementation==='available');
+    return available.filter(m=>Array.isArray(configured)?configured.includes(m.id):state.selected.has(m.module_id)).map(m=>m.id);
+  }
+  function isMethodSelected(method) {
+    return method.optional_extension ? state.extensions.has(method.id) : selectedCoreMethods().includes(method.id);
+  }
+  function deriveSelectedModules() {
+    state.selected=new Set(allMethods().filter(m=>optionalModules().includes(m.module_id)&&m.implementation==='available'&&isMethodSelected(m)).map(m=>m.module_id));
+  }
+  function dropUnselectedScoreWeights() {
+    const score=state.draftConfig?.scoring;if(!score)return;
+    const model=scoreConfigurationModel(),enabled=new Set([...model.rows,...model.children].map(s=>s.id));
+    for(const id of Object.keys(score.weights))if(!enabled.has(id))score.weights[id]=0;
+  }
+  function setCoreMethod(id,checked) {
+    const method=allMethods().find(m=>m.id===id&&!m.optional_extension&&m.implementation==='available');
+    if(!method||!state.input||state.mode!=='draft'||state.filePending||state.submitting||unsupportedInput())return;
+    state.draftConfig=currentConfig();
+    const chosen=new Set(selectedCoreMethods());
+    if(checked)chosen.add(id);else chosen.delete(id);
+    state.draftConfig.method_config.core_methods=[...chosen].sort();
+    if(!checked&&state.draftConfig.scoring)for(const spec of scoringOutputs()) {
+      const actual=['ieeg_numeric','np_numeric','np_constant'].includes(spec.reducer)?(inputModality(state.input)==='extracellular'?'neuropixels':inputModality(state.input))+'_continuity':spec.method_id;
+      if(actual===id)state.draftConfig.scoring.weights[spec.id]=0;
+    }
+    deriveSelectedModules();dropUnselectedScoreWeights();renderModuleOptions();invalidatePlan();
+  }
+
   function currentConfig() {
     if (!state.input) return null;
     const config = clone(state.draftConfig || state.input.default_config || {});
     config.selection = {...(config.selection || {}),start_seconds:Number($("start-seconds").value),duration_seconds:Number($("duration-seconds").value)};
     config.context_tags = {...state.contextTags};
-    config.method_config = {...(config.method_config || {}),extensions:[...state.extensions].sort()};
+    config.method_config = {...(config.method_config || {}),extensions:[...state.extensions].sort(),core_methods:selectedCoreMethods()};
     config.scope = state.scope;
     if(inputModality(state.input)!=="scalp_eeg" && Object.keys(config.scoring?.weights||{}).some(k=>Object.hasOwn(SCORE_KEYS,k))) delete config.scoring;
     if(!config.scoring && inputModality(state.input)==="scalp_eeg" && Object.values(SCORE_KEYS).some(([mid])=>state.selected.has(mid)))
@@ -531,15 +561,21 @@
   function setExtension(id, checked) {
     const method = extensionMethods().find(item => item.id === id);
     if (!method || !state.input || state.mode !== "draft" || state.filePending || state.submitting || !selectableModule(method.module_id) || unsupportedInput()) return;
-    if (checked) { state.extensions.add(id); state.selected.add(method.module_id); }
+    state.draftConfig=currentConfig();
+    if (checked) { state.extensions.add(id); }
     else { state.extensions.delete(id); if(state.draftConfig?.scoring) for(const spec of scoringOutputs()) if(spec.method_id===id) state.draftConfig.scoring.weights[spec.id]=0; }
+    deriveSelectedModules();dropUnselectedScoreWeights();
     $("extension-selection-note").hidden = false;
-    $("extension-selection-note").textContent = checked ? `已选择 ${method.name}，同时选中 ${method.module_id}。依赖和条件将在规划时核对。` : `已关闭 ${method.name}；所属模块的其他方法仍按模块选择执行。`;
+    $("extension-selection-note").textContent = checked ? `已选择 ${method.name}，同时选中 ${method.module_id}。依赖和条件将在规划时核对。` : `已关闭 ${method.name}。`;
     renderModuleOptions(); invalidatePlan();
   }
 
   function setModuleSelected(id, checked) {
     if (!state.input || state.filePending || state.mode !== "draft" || state.submitting || unsupportedInput() || !optionalModules().includes(id) || (checked && !selectableModule(id))) return;
+    state.draftConfig=currentConfig();
+    const core=new Set(selectedCoreMethods());
+    allMethods().filter(m=>m.module_id===id&&!m.optional_extension&&m.implementation==='available').forEach(m=>checked?core.add(m.id):core.delete(m.id));
+    state.draftConfig.method_config.core_methods=[...core].sort();
     if (checked) state.selected.add(id);
     else {
       state.selected.delete(id);
@@ -549,7 +585,7 @@
     }
     const score=state.draftConfig?.scoring;
     if(score && !checked) for(const spec of scoringOutputs()) if(spec.module_id===id) score.weights[spec.id]=0;
-    renderModuleOptions();invalidatePlan();
+    deriveSelectedModules();dropUnselectedScoreWeights();renderModuleOptions();invalidatePlan();
   }
 
   function setContext(field, value) {
@@ -1063,7 +1099,7 @@
   const SCORE_KEYS = {integrity:["M03","信号完整性"],line_noise:["M04","工频干扰"],hf_burst:["M06","高频突发"]};
   function scoringOutputs() {
     const outputs=arr(state.catalog?.modules).flatMap(m=>arr(m.methods).flatMap(method=>arr(method.scoring?.outputs)));
-    if(!outputs.length && inputModality(state.input)==="scalp_eeg") return Object.entries(SCORE_KEYS).map(([id,[module_id,name]])=>({id,module_id,name,default_weight:1,method_id:id,reducer:'core'}));
+    if(!outputs.length && inputModality(state.input)==="scalp_eeg") return Object.entries(SCORE_KEYS).map(([id,[module_id,name]])=>({id,module_id,name,default_weight:1,method_id:({integrity:'continuity',line_noise:'thomson_line',hf_burst:'hf_burst'})[id],reducer:'core'}));
     return [...new Map(outputs.map(s=>[s.id,s])).values()];
   }
   const STABILITY_CHILDREN = ['mne_amplitude_channels','mne_amplitude_time','ieeg_range_plateau','fieldtrip_zvalue','ieeg_group_outliers','ieeg_mne_lof'];
@@ -1074,8 +1110,13 @@
     const family=intracranial?STABILITY_CHILDREN:neuropixels?NP_STATE_CHILDREN:[];
     const groupId=intracranial?'ieeg_signal_stability':'neuropixels_channel_state';
     const grouped=(intracranial||neuropixels) && (!config?.scoring || config.scoring.preset || Object.hasOwn(weights,groupId));
-    const enabled=spec=>(fixedModules().includes(spec.module_id)||state.selected.has(spec.module_id)) &&
-      (['core','prep','ieeg_numeric','np_numeric','np_constant','np_state'].includes(spec.reducer)||state.extensions.has(spec.method_id));
+    const core=new Set(selectedCoreMethods());
+    const enabled=spec=>{
+      if(spec.reducer==='ieeg_stability')return all.some(s=>STABILITY_CHILDREN.includes(s.id)&&state.selected.has(s.module_id)&&state.extensions.has(s.method_id));
+      if(['core','prep'].includes(spec.reducer))return core.has(spec.method_id);
+      if(['ieeg_numeric','np_numeric','np_constant'].includes(spec.reducer))return core.has((modality==='extracellular'?'neuropixels':modality)+'_continuity');
+      return (fixedModules().includes(spec.module_id)||state.selected.has(spec.module_id)) && state.extensions.has(spec.method_id) || spec.reducer==='np_state';
+    };
     const advice=state.methodGuidanceKey===methodGuidanceKey()?state.methodGuidance:null;
     const gates=new Map([...arr(advice?.method_options), ...arr(advice?.recommended_methods),...arr(advice?.optional_methods),...arr(advice?.blocked_methods)]
       .filter(g=>!['not_selected','skipped'].includes(g.applicability||g.status)).map(g=>[g.id,{...g,status:g.applicability||g.status}]));
@@ -1171,9 +1212,9 @@
     $("module-options").innerHTML = optionalModules().map(id => {
       const module = modules.find(item => item.id === id);
       if (!module) return "";
-      return `<div class="module-option"><input type="checkbox" id="option-${id}" data-module="${id}" ${state.selected.has(id) && module.selectable !== false ? "checked" : ""} ${module.selectable === false ? "disabled" : ""}><label for="option-${id}"><code>${id}</code><span>${escape(module.name)}${module.selectable === false ? ' <span class="tag subtle">尚未接入</span>' : ""}</span></label><button class="module-help" data-detail="${id}" aria-label="查看 ${escape(module.name)} 的依据">i</button></div>`;
+      return `<div class="module-option"><button type="button" class="text-button" data-open-methods="${id}"><code>${id}</code> ${escape(module.name)}</button><span class="small muted">${allMethods().filter(m=>m.module_id===id&&isMethodSelected(m)).length} 项已选</span></div>`;
     }).join("") + `<p class="fixed-modules">固定步骤：${fixedModules().map(id => `<span>${id} ${escape(modules.find(m => m.id === id)?.name || "")}</span>`).join(" · ")}</p>`;
-    $("module-options").querySelectorAll("input").forEach(input => input.addEventListener("change", () => setModuleSelected(input.dataset.module,input.checked)));
+    $("module-options").querySelectorAll("[data-open-methods]").forEach(button=>button.addEventListener("click",()=>{state.openPipelineModule=button.dataset.openMethods;renderPipeline();ensureMethodGuidance();$("pipeline-method-panel")?.scrollIntoView({block:"center"});}));
     if (focusedOption?.startsWith("option-")) $(focusedOption)?.focus?.({preventScroll:true});
   }
 
@@ -1224,7 +1265,7 @@
     const editable = state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() && optionalModules().includes(id) && selectableModule(id);
     if (editable) {
       const methods = allMethods().filter(method=>method.module_id===id && method.implementation==="available");
-      const chosen = methods.filter(method=>state.selected.has(id) && (!method.optional_extension || state.extensions.has(method.id))).length;
+      const chosen = methods.filter(method=>isMethodSelected(method)).length;
       const expanded = state.openPipelineModule === id;
       return `<button type="button" class="pipeline-node method-group ${chosen ? "choice-selected" : ""} ${expanded ? "expanded" : ""}" data-pipeline-expand="${escape(id)}" aria-expanded="${expanded}" aria-controls="pipeline-method-panel"><span class="node-top"><span class="node-id">${escape(id)}</span><span class="node-state">${chosen} / ${methods.length} 项已选</span></span><span class="node-name">${escape(moduleLabel(id))}</span><span class="node-expand" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
     }
@@ -1236,6 +1277,7 @@
     const config = currentConfig();
     delete config.scoring;
     config.method_config.extensions = [];
+    delete config.method_config.core_methods;
     return JSON.stringify({input_id:state.input.id,qc_config:config,reset_methods:true});
   }
 
@@ -1269,19 +1311,17 @@
       const gate = gates.get(method.id), current = methodApplicability(method);
       const status = method.implementation !== "available" ? "planned" : gate?.applicability || (current.selected && !["skipped","not_selected"].includes(current.status) ? current.status : "unplanned");
       const restricted = ["partial","blocked"].includes(status);
-      const selected = state.selected.has(id) && (!method.optional_extension || state.extensions.has(method.id));
+      const selected = isMethodSelected(method);
       const scoreable = Boolean(method.can_output_score || method.scoring?.can_output_score);
       const sourceReason = gate?.reason || current.reason || "";
       const reason = sourceReason.includes("expensive_methods=run") ? "整份检查默认跳过该方法；可切换为片段检查后重新核对。" : sourceReason;
       const locked = busy || method.implementation !== "available" || status === "blocked" && !selected;
-      const toggle = method.optional_extension
-        ? `<input type="checkbox" data-extension="${escape(method.id)}" id="pipeline-method-${escape(method.id)}" ${selected?"checked":""} ${locked?"disabled":""} aria-label="${escape(method.name)}">`
-        : `<span class="method-linked" title="随基础检查启用">${selected?"✓":"—"}</span>`;
-      const label = method.optional_extension ? `<label for="pipeline-method-${escape(method.id)}">${escape(method.name)}</label>` : `<strong>${escape(method.name)}</strong>`;
-      return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span><span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}${!method.optional_extension?'<span class="method-linked-note">随基础检查</span>':""}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
+      const toggle = `<input type="checkbox" ${method.optional_extension?'data-extension':'data-core-method'}="${escape(method.id)}" id="pipeline-method-${escape(method.id)}" ${selected?'checked':''} ${locked?'disabled':''} aria-label="${escape(method.name)}">`;
+      const label = `<label for="pipeline-method-${escape(method.id)}">${escape(method.name)}</label>`;
+      return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span><span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
     };
     const available = methods.filter(method=>method.implementation==="available"), planned=methods.filter(method=>method.implementation!=="available");
-    return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><label class="pipeline-base-toggle"><input type="checkbox" id="pipeline-option-${escape(id)}" data-pipeline-module="${escape(id)}" ${state.selected.has(id)?"checked":""} ${busy?"disabled":""}><span>启用本模块</span></label><p class="pipeline-method-hint">基础方法随模块运行；扩展方法可逐项选择。</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
+    return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><p class="pipeline-method-hint">选择检查项后自动启用本模块。</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
   }
 
   function togglePipelineModule(id) {
@@ -2159,8 +2199,8 @@
     }
   });
   $("pipeline").addEventListener("change",event=>{
-    const input=event.target.closest("[data-pipeline-module]");
-    if(input)setModuleSelected(input.dataset.pipelineModule,input.checked);
+    const input=event.target.closest("[data-core-method]");
+    if(input&&!input.disabled)setCoreMethod(input.dataset.coreMethod,input.checked);
   });
   $("pipeline-recommend-button").addEventListener("click",prepareRecommendedPlan);
   window.addEventListener("hashchange",openModuleFromHash);

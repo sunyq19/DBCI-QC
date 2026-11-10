@@ -1,6 +1,7 @@
 """M04 continuous voltage: Welch density and configured narrowband observations, no classification."""
 from importlib.metadata import version
 from .common import method_prefix, finite_float, identity, inputs, provenance
+from ...method_selection import selected
 
 
 def run(context):
@@ -8,6 +9,8 @@ def run(context):
     from scipy.signal import welch
     data, fs, config = inputs(context)
     state = context.state
+    prefix = method_prefix(context)
+    line_selected = selected(context.config, prefix + '_line_description')
     requested = round(config['psd_window_seconds'] * fs)
     length = min(data.shape[1], requested)
     payload = {**provenance(context, data), 'method': method_prefix(context) + '_welch_and_narrowband_description',
@@ -40,7 +43,7 @@ def run(context):
         if status != 'computed': incomplete = True
         payload['psd']['channels'].append({**ident, 'status': status})
         payload['psd']['power_v2_hz'].append(None if power is None else power.tolist())
-        for nominal in config['line_frequencies_hz']:
+        for nominal in config['line_frequencies_hz'] if line_selected else []:
             half = max(1., resolution) if resolution else None
             item = {**ident, 'nominal_hz': nominal, 'half_width_hz': half, 'status': status,
                     'band_power_v2': None, 'peak_frequency_hz': None, 'peak_density_v2_hz': None,
@@ -60,6 +63,11 @@ def run(context):
             payload['line_noise']['observations'].append(item)
     observations = payload['line_noise']['observations']
     payload['line_noise']['status'] = 'computed' if all(r['status'] == 'computed' for r in observations) else 'partial'
+    if not line_selected:
+        payload['line_noise'] = {'status':'not_selected','observations':[],'assessment':'not_selected'}
+        observations = []
+    if not selected(context.config, prefix + '_welch_psd'):
+        payload['psd'] = {'status':'not_selected','frequencies_hz':[],'power_v2_hz':[],'channels':[]}
     context.save('M04_spectral.json', payload)
     context.row['summary'] = {'analysis_profile': payload['analysis_profile'], 'psd_channel_count': len(data),
         'psd_computed_channel_count': sum(c['status'] == 'computed' for c in payload['psd']['channels']),

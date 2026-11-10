@@ -118,6 +118,8 @@ def recommend(record, qc_config=None, *, reset_methods=False):
         from .planning import _merge
         config = _merge(record.get('default_config', {}), submitted or {})
         config.setdefault('method_config', {})['extensions'] = []
+        config['method_config'].pop('core_methods', None)
+        record.get('default_config', {}).get('method_config', {}).pop('core_methods', None)
         previous_weights = (config.get('scoring') or {}).get('weights', {})
         modality = record.get('modality')
         if modality in {'ecog', 'seeg'}:
@@ -207,6 +209,7 @@ def recommend(record, qc_config=None, *, reset_methods=False):
     extra_ids = [m["id"] for m in extension_specs() if "scalp_eeg" in m.get("research_modalities", ["scalp_eeg"])
                  and not (config.get("scope") == "recording" and m["id"] == "asr_bursts")]
     probe_config = copy.deepcopy(config)
+    probe_config["method_config"].pop("core_methods", None)
     probe_config["method_config"]["extensions"] = extra_ids
     try:
         candidate_plan = build_plan(record, ["M03", "M04", "M05", "M06", "M07"], probe_config)

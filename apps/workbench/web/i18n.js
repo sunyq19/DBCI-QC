@@ -35,6 +35,7 @@
 计分与参数	Scoring and parameters
 完整方法列表	Full method list
 整份检查默认跳过该方法；可切换为片段检查后重新核对。	This method is skipped for whole-recording checks. Switch to a time window to reassess its eligibility.
+选择检查项后自动启用本模块。	Selecting a check enables this module.
 启用本模块	Enable this module
 基础方法随模块运行；扩展方法可逐项选择。	Base checks run together; extensions can be selected individually.
 随基础检查	With base checks

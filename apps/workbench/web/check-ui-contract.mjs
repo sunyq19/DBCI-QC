@@ -13,8 +13,9 @@ const fields = ["disease","age_group","task"];
 const rawMethod = (id,category,extra={}) => ({id,name:`方法 ${id}`,category,description:"测试用方法说明",inputs:["原始数据"],outputs:["候选"],requirements:["明确配置"],source:{name:"Source",url:"https://example.test/method",license:"BSD-3-Clause"},implementation:"available",limitations:["仍需复核"],optional_extension:false,...extra});
 function fixtureCatalog() {
   const modules = ["M01","M02","M03","M04","M05","M06","M07","M08","M09"].map(id => ({id,name:`模块 ${id}`,methods:[],inputs:[],outputs:[],dependencies:[],limitations:[]}));
-  modules.find(m=>m.id==="M03").methods=[rawMethod("basic_check","basic"),rawMethod("mne_amplitude","optional",{optional_extension:true,defaults:{flat:0}})];
-  modules.find(m=>m.id==="M06").methods=[rawMethod("conditional_check","conditional"),rawMethod("mne_muscle","optional",{optional_extension:true}),rawMethod("future_check","optional",{implementation:"planned",optional_extension:true})];
+  modules.find(m=>m.id==="M03").methods=[rawMethod("continuity","basic"),rawMethod("mne_amplitude","optional",{optional_extension:true,defaults:{flat:0}})];
+  modules.find(m=>m.id==="M06").methods=[rawMethod("hf_burst","conditional"),rawMethod("mne_muscle","optional",{optional_extension:true}),rawMethod("future_check","optional",{implementation:"planned",optional_extension:true})];
+  modules.find(m=>m.id==="M04").methods=[rawMethod("thomson_line","conditional"),rawMethod("welch_psd","basic")];
   const inputs = ["rest","attention"].map((task,index) => ({id:`input-${index}`,label:`输入 ${index}`,profile_id:"profile",metadata:{duration_seconds:300,channels:[{index:0,name:"EEG",sampling_rate_hz:160,unit:"uV"}],size_bytes:100},description:"fixture",data_tags:[{key:"sampling_rate_hz",label:"采样率",value:160,display:"160 Hz",kind:"technical",source:"技术头",status:"known"},{key:"coordinates",label:"坐标",value:null,display:"位置未核实",kind:"technical",source:"来源未提供",status:"unknown"},{key:"task",label:"任务",value:task,display:task,kind:"context",source:"来源任务",status:"known"}],default_config:{selection:{eeg_indices:[0],reference_indices:{},start_seconds:0,duration_seconds:30},context_tags:{disease:"unknown",age_group:"unknown",task},method_config:{comparison_groups:["ref"],preserved_option:{a:1}}}}));
   return {modules,inputs,capabilities:{intake:{max_upload_bytes:2147483648}},profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
 }
@@ -30,7 +31,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {setCoreMethod,selectedCoreMethods,isMethodSelected,deriveSelectedModules,scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
@@ -120,7 +121,7 @@ check("changing input resets extensions and manual context to source defaults",(
 check("pipeline cards expand child methods with separate recommendation, eligibility and score labels",async()=>{
   let t;const calls=[];
   t=harness(async(url,options)=>{calls.push([url,JSON.parse(options.body)]);return response({can_apply:true,
-    recommended_methods:[{id:"basic_check",applicability:"ready"},{id:"mne_amplitude",applicability:"partial",reason:"缺少部分条件"}],
+    recommended_methods:[{id:"continuity",applicability:"ready"},{id:"mne_amplitude",applicability:"partial",reason:"缺少部分条件"}],
     optional_methods:[{id:"mne_muscle",applicability:"blocked",reason:"采样带宽不足"}],blocked_methods:[]});});
   t.state.catalog.modules.find(m=>m.id==="M03").methods[0].can_output_score=true;
   t.renderPipeline();let markup=t.get("pipeline").innerHTML;
@@ -131,7 +132,7 @@ check("pipeline cards expand child methods with separate recommendation, eligibi
   assert.equal(t.fingerprint(),before);assert.equal(calls.length,1);assert.equal(calls[0][1].reset_methods,true);
   assert(markup.includes('id="pipeline-method-panel"'));assert(markup.includes('id="pipeline-method-mne_amplitude"'));
   assert(markup.includes('推荐'));assert(markup.includes('部分受限'));assert(markup.includes('缺少部分条件'));
-  assert(markup.includes('可计分'));assert(markup.includes('仅测量'));assert(markup.includes('随基础检查'));
+  assert(markup.includes('可计分'));assert(markup.includes('仅测量'));assert(!markup.includes('随基础检查'));assert(markup.includes('data-core-method="continuity"'));assert(!markup.includes('pipeline-base-toggle'));
   t.setExtension("mne_amplitude",true);assert(t.state.extensions.has("mne_amplitude"));assert(t.state.selected.has("M03"));
   assert(t.get("pipeline").innerHTML.includes('id="pipeline-method-mne_amplitude" checked'));
   assert.equal(calls.length,1,"selecting methods reuses data-condition advice");
@@ -149,7 +150,7 @@ check("method advice cannot overwrite a changed input, and failure never fabrica
   const waiting=deferred();let calls=0;
   const t=harness(async()=>{calls++;return waiting.promise;});
   t.togglePipelineModule("M03");assert(t.get("pipeline").innerHTML.includes("正在核对"));
-  await t.selectInput("input-1");waiting.resolve(response({can_apply:true,recommended_methods:[{id:"basic_check",applicability:"ready"}],optional_methods:[],blocked_methods:[]}));await new Promise(resolve=>setImmediate(resolve));
+  await t.selectInput("input-1");waiting.resolve(response({can_apply:true,recommended_methods:[{id:"continuity",applicability:"ready"}],optional_methods:[],blocked_methods:[]}));await new Promise(resolve=>setImmediate(resolve));
   assert(!t.state.methodGuidance);assert(!t.state.openPipelineModule);assert.equal(calls,1);
   const f=harness(async()=>{throw Error("条件服务不可用");});f.togglePipelineModule("M03");await new Promise(resolve=>setImmediate(resolve));
   assert(f.get("pipeline").innerHTML.includes("条件服务不可用"));assert(f.get("pipeline").innerHTML.includes("条件待核对"));
@@ -286,7 +287,7 @@ function recommendationFixture(t, extra={}) {
 check("Toolkit filters purpose and availability without changing configuration or legacy choices",()=>{
   const t=harness(),before=t.fingerprint();assert.equal(t.toolkitMethods("artifacts","available").length,2);assert.equal(t.toolkitMethods("artifacts","planned")[0].id,"future_check");
   t.get("toolkit-category").value="artifacts";t.get("toolkit-implementation").value="available";t.renderToolkit();const markup=t.get("toolkit-methods").innerHTML;
-  assert(markup.includes("conditional_check"));assert(!markup.includes("mne_amplitude"));assert(markup.includes("按条件启用"));assert(markup.includes("可选增强"));assert(!markup.includes(">条件<"));assert.equal(t.fingerprint(),before);
+  assert(markup.includes("hf_burst"));assert(!markup.includes("mne_amplitude"));assert(markup.includes("按条件启用"));assert(markup.includes("可选增强"));assert(!markup.includes(">条件<"));assert.equal(t.fingerprint(),before);
 });
 check("Toolkit groups methods under modules and three stages; planned methods require explicit browsing",()=>{
   const t=harness();for(const module of t.state.catalog.modules)if(!module.methods.length)module.methods.push(rawMethod(`method_${module.id}`,"basic"));
@@ -508,7 +509,7 @@ check("result tabs switch presentation without launching analysis and reset on a
   t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["scoring-controls","scoring-settings","ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["scoring-controls","scoring-settings","pipeline-method-panel","ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -1049,7 +1050,7 @@ check("Neuropixels grouped weights stay editable without adding fictitious exten
     {id:'neuropixels_constant_channels',method_id:'neuropixels_constant_channels',module_id:'M03',name:'整窗恒值通道',reducer:'np_constant'},
     {id:'neuropixels_channel_state',method_id:'aggregate',module_id:'M08',name:'通道状态',reducer:'np_state'},
     {id:'spikeinterface_bad_channels',method_id:'spikeinterface_bad_channels',module_id:'M05',name:'AP离群',reducer:'channels'}];
-  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>rawMethod(['np_numeric','np_constant'].includes(s.reducer)?'neuropixels_continuity':s.method_id,'basic',{supported_modalities:['extracellular'],optional_extension:!['np_numeric','np_constant','np_state'].includes(s.reducer),scoring:{outputs:[s]}}));
   t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'neuropixels-voltage-score/0.1',weights:{neuropixels_numeric_integrity:30,neuropixels_channel_state:70}};
   const field={dataset:{scoreWeight:'neuropixels_channel_state'},value:'50',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
@@ -1069,7 +1070,7 @@ check("intracranial child weights are editable, scoped, and invalidate a plan",a
     {id:'ieeg_signal_stability',method_id:'mne_amplitude',module_id:'M03',name:'信号稳定性',reducer:'ieeg_stability'},
     {id:'mne_amplitude_time',method_id:'mne_amplitude',module_id:'M03',name:'MNE时间候选',reducer:'intervals'},
     {id:'fieldtrip_zvalue',method_id:'fieldtrip_zvalue',module_id:'M06',name:'跳变',reducer:'intervals'}];
-  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>rawMethod(s.reducer==='ieeg_numeric'?'seeg_continuity':s.method_id,'basic',{supported_modalities:['seeg'],optional_extension:s.reducer!=='ieeg_numeric',scoring:{outputs:[s]}}));
   t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'seeg-basic-score/0.2',weights:{ieeg_numeric_integrity:30,ieeg_signal_stability:70},group_weights:{ieeg_signal_stability:{mne_amplitude_time:1,fieldtrip_zvalue:1}}};
   t.state.selected.add('M03');t.state.extensions.add('mne_amplitude');
   const field={dataset:{scoreChild:'mne_amplitude_time'},value:'30',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
@@ -1105,7 +1106,7 @@ check("inline scoring lives under checks, redistributes percentages, and never p
 check("score preview excludes blocked items, keeps partial checks conditional, and preserves configured weights",()=>{
   const t=harness();
   t.state.methodGuidanceKey=t.methodGuidanceKey();
-  t.state.methodGuidance={method_options:[{id:'line_noise',status:'blocked',reason:'目标频率已滤除'},{id:'hf_burst',status:'partial',reason:'无辅助导联'}]};
+  t.state.methodGuidance={method_options:[{id:'thomson_line',status:'blocked',reason:'目标频率已滤除'},{id:'hf_burst',status:'partial',reason:'无辅助导联'}]};
   const before=JSON.stringify(t.currentConfig());const model=t.scoreConfigurationModel();
   assert(model.rows.find(s=>s.id==='line_noise').blocked);
   assert(!model.rows.find(s=>s.id==='hf_burst').blocked);
@@ -1125,7 +1126,7 @@ check("sEEG spectrum stays visible beside grouped stability and child percentage
     {id:'ieeg_spectrum_fit',method_id:'ieeg_spectrum_fit',module_id:'M04',name:'多窗工频候选',reducer:'spectrum_windows'},
     {id:'mne_amplitude_time',method_id:'mne_amplitude',module_id:'M03',name:'MNE时间',reducer:'intervals'},
     {id:'ieeg_mne_lof',method_id:'ieeg_mne_lof',module_id:'M05',name:'LOF',reducer:'channels'}];
-  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>rawMethod(s.reducer==='ieeg_numeric'?'seeg_continuity':s.method_id,'basic',{supported_modalities:['seeg'],optional_extension:s.reducer!=='ieeg_numeric',scoring:{outputs:[s]}}));
   t.state.extensions=new Set(['mne_amplitude','ieeg_spectrum_fit','ieeg_mne_lof']);
   t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'seeg-basic-score/0.3',weights:{ieeg_numeric_integrity:30,ieeg_signal_stability:50,ieeg_spectrum_fit:20},group_weights:{ieeg_signal_stability:{mne_amplitude_time:1,ieeg_mne_lof:1}}};
   const model=t.scoreConfigurationModel();assert.equal(model.rows.length,3);assert.equal(model.children.length,2);
@@ -1138,6 +1139,29 @@ check("sEEG spectrum stays visible beside grouped stability and child percentage
   t.updateScorePercent('ieeg_mne_lof',0,true);t.updateScorePercent('mne_amplitude_time',0,true);
   assert(t.scoreConfigurationModel().rows.find(s=>s.id==='ieeg_signal_stability').blocked);
 });
+
+check("parents derive from selected children and extension-only does not restore the core",()=>{
+  const t=harness();t.state.plan={plan_id:'old'};
+  t.setCoreMethod('continuity',false);
+  assert(!t.state.selected.has('M03'));assert(!t.body().selected_modules.includes('M03'));
+  assert(!t.currentConfig().method_config.core_methods.includes('continuity'));assert.equal(t.currentConfig().scoring.weights.integrity,0);
+  t.setExtension('mne_amplitude',true);
+  assert(t.state.selected.has('M03'));assert(!t.currentConfig().method_config.core_methods.includes('continuity'));
+  assert(!t.scoreConfigurationModel().rows.some(s=>s.id==='integrity'));
+  t.setExtension('mne_amplitude',false);assert(!t.state.selected.has('M03'));
+  t.setCoreMethod('continuity',true);assert(t.state.selected.has('M03'));assert(t.currentConfig().method_config.core_methods.includes('continuity'));
+  assert.equal(t.state.job,null);assert.equal(t.state.plan,null);
+});
+check("sibling methods remain independent and choices survive draft save and restore",async()=>{
+  const t=harness();t.setCoreMethod('thomson_line',false);
+  assert(t.state.selected.has('M04'));assert(t.currentConfig().method_config.core_methods.includes('welch_psd'));
+  assert.equal(t.currentConfig().scoring.weights.line_noise,0);
+  assert(!t.scoreConfigurationModel().rows.some(s=>s.id==='line_noise'));
+  t.setCoreMethod('welch_psd',false);assert(!t.state.selected.has('M04'));
+  t.saveDraft();await t.restoreDraft();assert(!t.state.selected.has('M04'));assert(!t.currentConfig().method_config.core_methods.includes('thomson_line'));
+  t.state.mode='job';const frozen=JSON.stringify(t.currentConfig());t.setCoreMethod('thomson_line',true);assert.equal(JSON.stringify(t.currentConfig()),frozen);
+});
+
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}
 console.log(`${tests.length-failures}/${tests.length} pure JavaScript checks passed. Visual/browser behavior is not tested.`);

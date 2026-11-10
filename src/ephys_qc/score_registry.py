@@ -67,4 +67,7 @@ def describe(method, modality):
 
 
 def enabled(spec, selected, extensions):
+    if spec['reducer'] == 'ieeg_stability':
+        return any(s['id'] in {'mne_amplitude_channels','mne_amplitude_time','ieeg_range_plateau','fieldtrip_zvalue','ieeg_group_outliers','ieeg_mne_lof'}
+                   and s['module_id'] in selected and s['method_id'] in extensions for s in SPECS.values())
     return spec['module_id'] in selected and (spec['reducer'] in {'core','prep','ieeg_numeric','np_numeric','np_constant','np_state'} or spec['method_id'] in extensions)

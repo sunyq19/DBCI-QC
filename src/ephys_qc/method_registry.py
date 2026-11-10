@@ -204,7 +204,8 @@ def evaluate_methods(record, config, selected_modules, *, assess_unselected=Fals
     result = []
     for method in methods(record.get('modality', 'scalp_eeg')):
         mid, id_ = method['module_id'], method['id']
-        chosen = mid in selected and (not method['optional_extension'] or id_ in extensions)
+        from .method_selection import selected as core_selected
+        chosen = mid in selected and (id_ in extensions if method['optional_extension'] else core_selected(config, id_) if mid in {'M03','M04','M05','M06','M07'} else True)
         status, reason, parameters = 'ready', '适用条件初步满足，仍以实际执行与子方法结果为准。', None
         if method['implementation'] == 'planned':
             status, reason, chosen = 'planned', '扩展目录已登记；尚未接入和完成真实数据验收。', False

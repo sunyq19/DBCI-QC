@@ -200,10 +200,10 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
             if not isinstance(labels,list) or len(labels)!=len(indices) or any(not isinstance(g,str) or not g.strip() for g in labels):
                 raise ValueError('comparison_groups must map every selected contact exactly once')
     else:
-        if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters"}:
+        if not isinstance(methods, dict) or set(methods) - {"comparison_groups", "continuity", "spectral", "bad_channels", "events", "muscle", "extensions", "extension_parameters", "core_methods"}:
             raise ValueError("Invalid method_config fields")
         for key, value in methods.items():
-            if key not in {"comparison_groups", "extensions"} and not isinstance(value, dict):
+            if key not in {"comparison_groups", "extensions", "core_methods"} and not isinstance(value, dict):
                 raise ValueError(f"method_config.{key} must be an object")
         minimum = methods.get("bad_channels", {}).get("min_group_channels", 4)
         if type(minimum) is not int or minimum < 4:
@@ -234,6 +234,13 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         gate = evaluate_extension(extension, facts, supplied_params.get(extension))
         supplied_params[extension] = gate['parameters']
     modules = catalog(modality)
+    from .method_selection import validate as validate_children
+    child_modules = validate_children(config, [method for module in modules for method in module['methods']])
+    # Explicit child selection derives parents. HF keeps its continuity guard
+    # internally, without turning an unselected M03 into a reported check.
+    if child_modules is not None:
+        for module in modules:
+            if module['id'] == 'M06': module['dependencies'] = ['M02']
     known = {m["id"]: m for m in modules}
     if selected_modules is None:
         requested = set(known)
@@ -241,7 +248,7 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
         if not isinstance(selected_modules, list) or any(not isinstance(m, str) or m not in known for m in selected_modules):
             raise ValueError("selected_modules must contain known module IDs")
         requested = set(selected_modules)
-    selected = requested | {m["id"] for m in modules if m["required"]}
+    selected = (requested if child_modules is None else child_modules) | {m["id"] for m in modules if m["required"]}
     selected |= {extra_specs[extension]['module_id'] for extension in extras}
     while True:
         extended = selected | {d for m in selected for d in known[m]["dependencies"]}
@@ -267,13 +274,13 @@ def _build_window_plan(input_record, selected_modules=None, qc_config=None):
                       route(modality)['label'] + '伪迹方法尚未接入；不迁移头皮ECG/EOG/肌电阈值。')
         elif modality in DESCRIPTIVE and mid == 'M04' and length < methods[route(modality)['key']]['psd_window_seconds']:
             status, reason = 'partial', '选区短于所设PSD窗长；实际窗长与不可测范围将明确记录。'
-        elif modality == "scalp_eeg" and mid == "M05" and (not labels or min(Counter(labels).values()) < minimum):
+        elif modality == "scalp_eeg" and mid == "M05" and (child_modules is None or "prep_nonspatial" in methods["core_methods"]) and (not labels or min(Counter(labels).values()) < minimum):
             status, reason = "partial", "参考组未声明或部分组不足4道；保留描述量，相关组的队列阈值不启用"
-        elif modality == "scalp_eeg" and mid == "M05" and fs <= 100:
+        elif modality == "scalp_eeg" and mid == "M05" and (child_modules is None or "prep_nonspatial" in methods["core_methods"]) and fs <= 100:
             status, reason = "partial", "采样率不高于100 Hz，高频分项不可评"
-        elif modality == "scalp_eeg" and mid == "M06" and (set(refs) != {"ecg", "eog", "emg"} or length < 10 or min(100, .45 * fs) - 30 < 20):
+        elif modality == "scalp_eeg" and mid == "M06" and child_modules is None and (set(refs) != {"ecg", "eog", "emg"} or length < 10 or min(100, .45 * fs) - 30 < 20):
             status, reason = "partial", "部分辅助导联、时长或有效频带不足；可计算的线索保留，缺失项不计为合格"
-        elif modality == "scalp_eeg" and mid == "M04" and length < 10:
+        elif modality == "scalp_eeg" and mid == "M04" and (child_modules is None or "spectral_model" in methods["core_methods"]) and length < 10:
             status, reason = "partial", "短于10秒，部分谱拟合不可评"
         elif mid == "M07" and not input_record.get("annotation"):
             status, reason = "skipped", "没有登记事件或状态标注；不推断任务或睡眠状态"

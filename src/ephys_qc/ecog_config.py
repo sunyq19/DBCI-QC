@@ -7,7 +7,7 @@ PROFILE = 'ecog-basic/1'
 def validate_ecog_methods(methods):
     if not isinstance(methods, dict):
         raise ValueError('method_config must be an object')
-    if set(methods) - {'ecog', 'comparison_groups', 'extensions', 'extension_parameters'}:
+    if set(methods) - {'ecog', 'comparison_groups', 'extensions', 'extension_parameters', 'core_methods'}:
         raise ValueError('ECoG does not accept scalp EEG method parameters or thresholds')
     config = methods.get('ecog', {})
     if not isinstance(config, dict) or set(config) - {'psd_window_seconds', 'line_frequencies_hz'}:
@@ -22,4 +22,5 @@ def validate_ecog_methods(methods):
         raise ValueError('ecog.line_frequencies_hz requires 1–8 distinct positive finite frequencies')
     return {'ecog': {'psd_window_seconds': float(seconds), 'line_frequencies_hz': sorted(float(f) for f in frequencies)},
             'comparison_groups': methods.get('comparison_groups'), 'extensions': methods.get('extensions', []),
-            'extension_parameters': methods.get('extension_parameters', {})}
+            'extension_parameters': methods.get('extension_parameters', {}),
+            **({'core_methods': methods['core_methods']} if 'core_methods' in methods else {})}

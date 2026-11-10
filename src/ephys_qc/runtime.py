@@ -286,10 +286,16 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
         row["status"] = "partial" if node["status"] == "partial" else "completed"
         try:
             track_sources(mid)
-            run_module(mid, ModuleContext(
-                record=record, plan=plan, config=config, state=state, result=result, row=row,
-                source=source, root=root, artifacts=artifacts, write_artifact=save,
-                source_context=source_context))
+            from .method_selection import core_for_module, CHECK_MODULES
+            from .method_registry import methods as method_catalog
+            run_core = mid not in CHECK_MODULES or bool(core_for_module(config, method_catalog(modality), mid))
+            if run_core:
+                run_module(mid, ModuleContext(
+                    record=record, plan=plan, config=config, state=state, result=result, row=row,
+                    source=source, root=root, artifacts=artifacts, write_artifact=save,
+                    source_context=source_context))
+            else:
+                row['reason'] = '仅执行已选子方法。'
             if mid in {'M03', 'M04', 'M05', 'M06'}:
                 run_extras(mid, row)
             row["duration_seconds"] = time.perf_counter() - started

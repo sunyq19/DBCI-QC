@@ -291,6 +291,7 @@ def payload_outputs(name,payload,modality,recording):
 
 
 def finalize(result,rows,*,coverage_complete=True):
+    from .method_selection import score_selected
     selected=result['selected_modules'];extensions=result['qc_config'].get('method_config',{}).get('extensions',[])
     modality=result.get('input_modality') or result.get('qc_config',{}).get('modality')
     # Runtime stores input_modality as a string; the profile fallback supports SDK fixtures.
@@ -310,7 +311,7 @@ def finalize(result,rows,*,coverage_complete=True):
         if module_status.get('M08') in {'failed','skipped','cancelled','interrupted'}:
             index[STATE]=observation(SPECS[STATE],reason='汇总模块未完成。')
     result['method_scores']=[index.get(s['id']) or observation(s,reason='方法未完成或没有完整计分证据。')
-        for s in outputs(modality) if enabled(s,selected,extensions)]
+        for s in outputs(modality) if enabled(s,selected,extensions) and score_selected(s,result['qc_config'],modality)]
     config=result.get('qc_config',{}).get('scoring')
     if config and config['version'] in {'project-weighted/1.1','project-weighted/1.2'}:
         result['project_score']=aggregate(result['method_scores'],config,coverage_complete=coverage_complete)

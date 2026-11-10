@@ -38,7 +38,7 @@ def validate_descriptive_methods(methods, modality, metadata=None):
     if modality == 'ecog':
         return validate_ecog_methods(methods)
     key = route(modality)['key']
-    if not isinstance(methods, dict) or set(methods) - {key, 'comparison_groups', 'extensions', 'extension_parameters'}:
+    if not isinstance(methods, dict) or set(methods) - {key, 'comparison_groups', 'extensions', 'extension_parameters', 'core_methods'}:
         raise ValueError(f'{key} accepts only its own measurement configuration; scalp and other modality parameters are incompatible')
     default = default_methods(modality, metadata)[key]
     actual = methods.get(key, default)
