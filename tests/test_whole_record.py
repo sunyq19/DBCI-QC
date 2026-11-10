@@ -60,6 +60,33 @@ def fake_runner(calls, *, fail_at=None, mismatch=False):
 
 
 class WholePlanTests(unittest.TestCase):
+    def test_basic_eeg_121_seconds_does_not_create_unassessable_one_second_tail(self):
+        source = record(duration=121., fs=512., channels=8)
+        options = {**config(120), 'method_config': {'core_methods':
+            ['continuity', 'thomson_line', 'hf_burst']}}
+        plan = build_plan(source, ['M03', 'M04', 'M06'], options)
+        self.assertEqual([w['duration_seconds'] for w in plan['windows']], [60.5, 60.5])
+        self.assertEqual([(w['start_sample'], w['stop_sample']) for w in plan['windows']],
+                         [(0, 30976), (30976, 61952)])
+        self.assertEqual(sum(w['duration_seconds'] for w in plan['windows']), 121.)
+        self.assertTrue(all(w['duration_seconds'] <= 120 for w in plan['windows']))
+        replay = build_plan(source, plan['selected_modules'], plan['qc_config'])
+        self.assertEqual(plan['plan_id'], replay['plan_id'])
+        for method in plan['method_applicability']:
+            if method['id'] == 'hf_burst':
+                self.assertNotIn('blocked', method['window_status_counts'])
+
+    def test_balancing_preserves_real_gap_and_does_not_invent_context_for_short_segment(self):
+        source = record(duration=124., fs=512., channels=8)
+        source['metadata']['continuous_segments'] = [
+            {'segment_id': 'a', 'start_sample': 0, 'stop_sample': 121*512, 'recording_start_seconds': 0.},
+            {'segment_id': 'b', 'start_sample': 123*512, 'stop_sample': 124*512, 'recording_start_seconds': 123.}]
+        plan = build_plan(source, ['M03', 'M04', 'M06'], config(120))
+        self.assertEqual([(w['start_seconds'], w['duration_seconds']) for w in plan['windows']],
+                         [(0., 60.5), (60.5, 60.5), (123., 1.)])
+        self.assertEqual(plan['coverage_plan']['gap_seconds'], 2.)
+        self.assertEqual(plan['coverage_plan']['available_samples'], 122*512)
+
     def test_gnosis_short_tail_is_balanced_before_detection_with_no_sample_loss(self):
         source = record(duration=733., fs=512., channels=4)
         source['default_config']['method_config'].update(extensions=['gnosis_high_band'])
@@ -69,14 +96,15 @@ class WholePlanTests(unittest.TestCase):
         self.assertEqual(spans[:5],[(i*120.,120.) for i in range(5)])
         self.assertEqual(sum(w['stop_sample']-w['start_sample'] for w in plan['windows']),733*512)
         self.assertTrue(all(a['stop_sample']==b['start_sample'] for a,b in zip(plan['windows'],plan['windows'][1:])))
-        self.assertEqual(plan['window_partition'],'gnosis_balanced_short_tail/1')
+        self.assertEqual(plan['window_partition'],'balanced_short_tail/2')
+        self.assertTrue(plan['short_tail_rebalanced'])
         short = build_plan(record(duration=25., fs=256., channels=4), ['M06'],
                            {**config(12), 'method_config':{'extensions':['gnosis_high_band']}})
         self.assertEqual([w['duration_seconds'] for w in short['windows']],[12.,12.,1.])
 
     def test_all_native_samples_including_short_tail_are_planned_once(self):
         plan = build_plan(record(), ['M03'], config())
-        self.assertEqual([(w['start_sample'], w['stop_sample']) for w in plan['windows']], [(0, 6000), (6000, 12000), (12000, 12500)])
+        self.assertEqual([(w['start_sample'], w['stop_sample']) for w in plan['windows']], [(0, 6000), (6000, 9250), (9250, 12500)])
         self.assertEqual(plan['qc_config']['selection']['start_seconds'], 0.)
         self.assertEqual(plan['qc_config']['selection']['duration_seconds'], 125.)
         self.assertEqual(plan['coverage_plan']['available_samples'], 12500)
@@ -104,7 +132,7 @@ class WholePlanTests(unittest.TestCase):
     def test_noninteger_sampling_rate_retains_exact_end_sample(self):
         fs = 300.3074951171875; source = record(duration=40001 / fs, fs=fs)
         plan = build_plan(source, ['M03'], config(120))
-        self.assertEqual(plan['windows'][0]['stop_sample'], 36036)
+        self.assertEqual(plan['windows'][0]['stop_sample'], 20000)
         self.assertEqual(plan['windows'][-1]['stop_sample'], 40001)
         self.assertEqual(sum(w['stop_sample'] - w['start_sample'] for w in plan['windows']), 40001)
 
@@ -185,8 +213,8 @@ class ExecutionCoverageTests(unittest.TestCase):
     def test_middle_failure_keeps_successful_and_unassessed_partitions(self):
         with tempfile.TemporaryDirectory() as folder:
             calls=[]; result = execute_recording(request(), folder, lambda *args:None, window_runner=fake_runner(calls, fail_at=1))
-            self.assertEqual(result['coverage']['completed_seconds'], 65.)
-            self.assertEqual(result['coverage']['failed_seconds'], 60.)
+            self.assertEqual(result['coverage']['completed_seconds'], 92.5)
+            self.assertEqual(result['coverage']['failed_seconds'], 32.5)
             self.assertEqual(result['coverage']['unexecuted_seconds'], 0.)
             self.assertEqual(result['status'], 'partial')
             self.assertEqual([w['status'] for w in result['windows']], ['completed','failed','completed'])

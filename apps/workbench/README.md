@@ -126,7 +126,7 @@
 
 ## 整份记录
 
-`qc_config.scope` 为`window`或`recording`；后者使用`recording_options={window_seconds:120,expensive_methods:"skip"}`。每窗仍受120秒/256 MiB输入限制，按原生样本拆分，不跨文件声明的断点；短尾窗不丢弃。默认昂贵策略仅跳过重复的autoreject交叉验证，显式选择run才逐窗运行。分块可能改变滤波边界、频谱及阈值统计，不能宣称等同全记录一次建模。
+`qc_config.scope` 为`window`或`recording`；后者使用`recording_options={window_seconds:120,expensive_methods:"skip"}`。每窗仍受120秒/256 MiB输入限制，按原生样本拆分，不跨文件声明的断点；短尾窗不丢弃。分段策略 `balanced_short_tail/2` 将短于半窗的尾段与前一窗均分，前提是均分后两段均至少12秒；否则保留原分段及真实限制。该策略对所有方案一致，避免121秒记录被人为拆成120秒加1秒。默认昂贵策略仅跳过重复的autoreject交叉验证，显式选择run才逐窗运行。分块可能改变滤波边界、频谱及阈值统计，不能宣称等同全记录一次建模。
 
 冻结计划保存windows和coverage_plan，运行中保存recording-progress.json；每窗有独立request/result及报告。最终coverage分别列出完成、失败、运行中、未执行、来源缺口及逐模块范围。执行覆盖不是信号质量分；任何失败/未评都不会计为正常。取消保留已有证据，当前版本不自动续算中断窗，可复制配置新建任务。
 
