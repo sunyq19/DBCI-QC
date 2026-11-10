@@ -118,7 +118,7 @@ class RecommendationTests(unittest.TestCase):
         params = result["qc_config"]["method_config"]["extension_parameters"]["mne_amplitude"]
         self.assertIsNone(params["peak_volts"])
         self.assertEqual(params["flat_volts"], 0)
-        self.assertEqual(method_ids(result["optional_methods"]), {"mne_bridge", "mne_lof", "mne_muscle", "autoreject_global", "faster_channels", "cleanline", "zapline_plus", "fieldtrip_zvalue", "gnosis_line_length", "gnosis_psd_deviation", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band", "gnosis_band_power", "gnosis_band_amplitude", "gnosis_reference_ranges"})
+        self.assertEqual(method_ids(result["optional_methods"]), {"spectral_model", "mne_bridge", "mne_lof", "mne_muscle", "autoreject_global", "faster_channels", "cleanline", "zapline_plus", "fieldtrip_zvalue", "gnosis_line_length", "gnosis_psd_deviation", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band", "gnosis_band_power", "gnosis_band_amplitude", "gnosis_reference_ranges"})
         self.assertFalse(result["scope"]["signal_read"])
         self.assertFalse(result["scope"]["job_created"])
 
@@ -206,8 +206,35 @@ class RecommendationTests(unittest.TestCase):
         self.assert_round_trip(r, result)
         self.assertIsNone(result["qc_config"]["method_config"]["comparison_groups"])
         gate = next(m for m in result["method_applicability"] if m["id"] == "prep_nonspatial")
-        self.assertEqual(gate["status"], "partial")
-        self.assertIn("M05", result["selected_modules"])
+        self.assertEqual(gate["status"], "not_selected")
+        self.assertNotIn("M05", result["selected_modules"])
+        option = next(m for m in result['optional_methods'] if m['id'] == 'prep_nonspatial')
+        self.assertEqual(option['applicability'], 'partial')
+
+    def test_eight_channel_eeg_without_auxiliary_gets_independent_basic_checks(self):
+        r = recording(count=8, reference='unknown')
+        r['default_config']['method_config'].update(comparison_groups=None,
+            core_methods=['continuity','welch_psd','thomson_line','spectral_model',
+                          'hf_burst','prep_nonspatial','ecg_locked','eog_locked'])
+        result = recommend(r, reset_methods=True)
+        self.assert_round_trip(r, result)
+        self.assertEqual(set(result['qc_config']['method_config']['core_methods']),
+                         {'continuity','welch_psd','thomson_line','hf_burst'})
+        self.assertFalse({'ecg_locked','eog_locked','prep_nonspatial','spectral_model'} &
+                         method_ids(result['recommended_methods']))
+        hf = next(m for m in result['recommended_methods'] if m['id'] == 'hf_burst')
+        self.assertEqual(hf['applicability'], 'ready')
+        emg = next(m for m in result['missing_fields'] if m['key'].endswith('.emg'))
+        self.assertEqual(emg['blocks_methods'], [])
+
+    def test_true_short_record_does_not_recommend_unassessable_line_or_hf(self):
+        result = recommend(recording(duration=1.))
+        chosen = result['qc_config']['method_config']['core_methods']
+        self.assertIn('continuity', chosen)
+        self.assertIn('welch_psd', chosen)
+        self.assertNotIn('thomson_line', chosen)
+        self.assertNotIn('hf_burst', chosen)
+        self.assertTrue({'thomson_line','hf_burst'} <= method_ids(result['blocked_methods']))
 
     def test_low_sampling_no_auxiliary_omits_unassessable_m06(self):
         r = recording(fs=40)

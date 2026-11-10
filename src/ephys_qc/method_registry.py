@@ -189,7 +189,7 @@ def _hf_applicability(facts, config):
     if facts['window_seconds'] < duration:
         return 'blocked', f'当前窗口短于该方法设定的{duration:g}秒。'
     if not facts['has_emg']:
-        return 'partial', '可计算高频线索，但没有EMG导联支持，不能确认为肌电。'
+        return 'ready', '可计算高频突发；EMG仅作可选旁证，未配置时不确认肌电来源。'
     return 'ready', '采样、时长与EMG配置初步满足；仍需运行核对可用证据。'
 
 
@@ -225,7 +225,10 @@ def evaluate_methods(record, config, selected_modules, *, assess_unselected=Fals
             if frequency_scope['hf_limited_by_history']:
                 status, reason = 'blocked', '已声明滤波范围未保留当前高频方法的完整频带；该分项未评。'
         elif id_ == 'thomson_line':
-            if not frequency_scope['line_evaluable_hz']:
+            minimum = config.get('method_config', {}).get('spectral', {}).get('line_window_seconds', 4.)
+            if facts['window_seconds'] < minimum:
+                status, reason = 'blocked', f'当前片段短于工频检查所需的{minimum:g}秒窗口。'
+            elif not frequency_scope['line_evaluable_hz']:
                 status, reason = 'blocked', '没有可评价的工频目标：采样带宽不足，或目标已被声明滤波/陷波。'
             elif frequency_scope['line_excluded']:
                 status, reason = 'partial', '只评价未被声明滤波/陷波影响的目标频率；其余不计为合格。'

@@ -75,8 +75,11 @@ def _run_selected(context):
             payload['processing_scope'] = assessment
         context.save('M06_muscle.json', payload)
         row['summary'].update(muscle_status=payload['status'], high_frequency_candidate_count=len(payload['candidates']),
+                              emg_reference_status=payload['reference']['status'],
                               continuity_guard_applied=not assessment['hf_limited_by_history'])
-        limited |= payload['status'] != 'ok' or payload['reference']['status'] != 'ok'
+        # EMG supports attribution; its absence does not invalidate EEG-only
+        # high-frequency detection. The source payload retains that limitation.
+        limited |= payload['status'] != 'ok'
     if limited:
         row.update(status='partial', reason='已选方法存在未评条件；详见相应检查结果。')
     return row

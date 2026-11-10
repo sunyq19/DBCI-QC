@@ -13,7 +13,7 @@ from .tagging import data_facts
 from .extensions import extension_specs
 
 SCHEMA_VERSION = "ephys-recommendation/1.0"
-POLICY_VERSION = "scalp-eeg-metadata-rules/1.1.0"
+POLICY_VERSION = "scalp-eeg-metadata-rules/1.2.0"
 _ANNOTATIONS = {"sleep_stages_tsv": "sleep_timeline", "bids_events_tsv": "task_timeline", "clinical_events_tsv": "clinical_timeline"}
 _BASE_MODULES = ["M03", "M04", "M05"]
 
@@ -231,6 +231,17 @@ def recommend(record, qc_config=None, *, reset_methods=False):
     weighted_extras = [spec["method_id"] for key,spec in SPECS.items() if isinstance(scoring,dict) and scoring.get("weights",{}).get(key) and spec["reducer"] not in {"core","prep"}] if scoring else []
     recommended_extras = list(dict.fromkeys([*weighted_extras, *recommended_extras]))
     config["method_config"]["extensions"] = recommended_extras
+    # Recommend executable children, not all methods bundled under an M node.
+    # Spectral parameterization is an optional measurement, not a prerequisite
+    # for PSD or line-noise screening. Missing reference information does not
+    # prevent independent channel/sample checks from running.
+    core = [name for name in ('continuity', 'welch_psd', 'thomson_line', 'hf_burst')
+            if gates[name]['status'] in {'ready', 'partial'}]
+    core += [name for name in ('prep_nonspatial', 'ecg_locked', 'eog_locked')
+             if gates[name]['status'] == 'ready']
+    if annotation_complete and gates[annotation_id]['status'] == 'ready':
+        core.append(annotation_id)
+    config['method_config']['core_methods'] = sorted(core)
     # Only introduce parameters for the newly suggested default. Existing
     # explicit parameters of unselected methods remain available for user review.
     for name in recommended_extras:
@@ -267,7 +278,7 @@ def recommend(record, qc_config=None, *, reset_methods=False):
         "sleep_timeline": "已有明确睡眠分期表，核对原记录时间和覆盖；分期不是质量标签。",
         "task_timeline": "已有支持格式的任务事件表，核对原记录时间；任务事件不是伪迹真值。",
         "clinical_timeline": "已有临床事件表，仅并排呈现来源事件；发作不作为伪迹或扣分依据。",
-        "aggregate": "汇总已评和未评原因；总质量分尚未校准，继续保持null。",
+        "aggregate": "按已选检查与权重汇总有效分项；受限项不计分，保留原因。",
         "report": "保留可追溯证据并交人工复核，不自动删道、删段或清洗。",
         "mne_amplitude": "增加只读相邻采样差分检查；未给参数时默认仅查平线（flat=0、peak=None），不是峰峰值阈值。",
     }
@@ -286,8 +297,10 @@ def recommend(record, qc_config=None, *, reset_methods=False):
             result["blocked_methods"].append(entry(identifier, gate["reason"], gate, disposition="blocked_by_existing_gate"))
         elif active["selected"] and active["status"] in {"ready", "partial"}:
             result["recommended_methods"].append(entry(identifier, reasons.get(identifier, gate["reason"]) + " " + active["reason"], active, disposition="recommended"))
-        elif spec["optional_extension"]:
+        else:
             option_reason = {
+                "prep_nonspatial": "确认可比较的通道组后可启用坏道判定；未确认时仅可选择描述量。",
+                "spectral_model": "可按需增加背景谱与谱峰拟合；不影响基础PSD和工频检查。",
                 "mne_bridge": "参考、比较组和通道数满足现有门槛；桥接候选仍需硬件/波形复核，默认不增加该筛查。",
                 "mne_lof": "同参考比较和邻居数门槛满足；离群不等于坏道，默认不增加额外通道候选。",
                 "mne_muscle": "仅可显式选择探索性高频时间线索；滤波史未知时尤其不能确认肌电，也需排查120Hz谐波。",
@@ -306,9 +319,11 @@ def recommend(record, qc_config=None, *, reset_methods=False):
         missing.append(_missing("preprocessing", "采集/滤波史", "处理史未完整核实；采样率足够不等于目标高频实际保留。", blocks_methods=["mne_muscle"]))
     if not facts["has_coordinates"]:
         missing.append(_missing("verified_electrode_coordinates", "电极位置", "坐标未核实；空间方法和ICA尚未接入，不会因名称像标准电极而推荐。", blocks_methods=["pyprep_ransac", "autoreject_epochs", "ica_iclabel"]))
-    for role, label, blocked in [("ecg", "ECG辅助导联", ["ecg_locked"]), ("eog", "EOG辅助导联", ["eog_locked"]), ("emg", "EMG辅助导联", ["hf_burst"] )]:
+    for role, label, blocked in [("ecg", "ECG辅助导联", ["ecg_locked"]), ("eog", "EOG辅助导联", ["eog_locked"]), ("emg", "EMG辅助导联", [] )]:
         if not facts["has_" + role]:
-            missing.append(_missing("selection.reference_indices." + role, label, "当前未确认并配置该角色，不推断原文件是否含有可用导联；缺失不计作质量差。", blocks_methods=blocked))
+            reason = ("可选的肌电旁证；不影响高频突发检测和计分，缺少时不确认肌电来源。" if role == 'emg' else
+                      "当前未确认并配置该角色，不推断原文件是否含有可用导联；缺失不计作质量差。")
+            missing.append(_missing("selection.reference_indices." + role, label, reason, blocks_methods=blocked))
     if not annotation_complete:
         missing.append(_missing("annotation", "状态/事件标注", "未登记完整且支持的状态或事件表；不从任务/疾病背景推断事件或分期。", blocks_methods=list(_ANNOTATIONS.values())))
     result["cautions"] += [
