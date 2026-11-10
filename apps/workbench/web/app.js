@@ -2182,6 +2182,20 @@
   document.addEventListener("qc:languagechange",()=>{renderRunName();renderWaveform();if(state.records || state.catalog)renderRegisteredInputs();});
   document.addEventListener("visibilitychange",() => { if (!document.hidden && state.job && ACTIVE.has(state.job.status)) refreshJob(); });
   window.addEventListener("beforeunload",clearPoll);
+  window.addEventListener("qc:librarychange",async event=>{
+    const change=event.detail||{};
+    if(change.status!=="restored"){
+      const affected=new Set(change.input_ids||[]);
+      if(affected.has(state.input?.id)||affected.has(state.job?.input_id)){
+        discardDraft();clearInputDraft();renderPipeline();
+      }
+      if((change.intake_ids||[]).includes(state.intake?.id)){
+        state.intake=null;pendingIntakeId(null);renderIntake();
+      }
+    }
+    try{const data=await api("/inputs");state.records=arr(data.inputs);renderRegisteredInputs();await loadHistory();}
+    catch(error){setError("history-error",error.message);}
+  });
   window.addEventListener("beforeunload",saveDraft);
   document.addEventListener("click",event=>{
     const anchor = event.target.closest(".site-header nav a");

@@ -125,3 +125,37 @@ assert.match(hierarchyHtml,/&lt;old config&gt;/);
 assert.match(hierarchyHtml,/查看运行/);
 assert(!hierarchyHtml.includes('workflow:'));
 console.log('Workflow grouping keeps alternative routes visible and previous runs expandable.');
+
+// Archive is a persistent server action, never a browser-only filter or deletion.
+const archiveNodes=new Map(),archiveEvents={},archiveRequests=[];let confirmationAccepted=false,confirmations=[];
+const archiveElement=id=>{if(!archiveNodes.has(id))archiveNodes.set(id,{value:'',events:{},dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},addEventListener(k,v){this.events[k]=v}});return archiveNodes.get(id)};
+const archiveWindow={QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){archiveEvents[k]=v},confirm(message){confirmations.push(message);return confirmationAccepted}};
+vm.runInNewContext(source,{URL,setTimeout:()=>1,clearTimeout(){},window:archiveWindow,document:{getElementById:archiveElement},fetch:(url,options)=>new Promise(resolve=>archiveRequests.push({url,body:options?.body?JSON.parse(options.body):null,resolve}))});
+const archiveFixture=[item('record:a',{label:'保留的数据'}),item('record:b',{label:'归档的数据',archived:true,recent_reports:[{label:'已存报告',url:'/api/v1/jobs/'+ 'b'.repeat(32)+'/report'}]})];
+archiveRequests.shift().resolve({ok:true,json:async()=>({items:archiveFixture})});await flush();
+assert.match(archiveElement('data-library-list').innerHTML,/保留的数据/);
+assert(!archiveElement('data-library-list').innerHTML.includes('归档的数据'));
+assert.equal(archiveElement('data-library-count').textContent,'1');
+assert.match(archiveElement('library-archived').textContent,/归档 · 1/);
+archiveElement('library-archived').events.click();
+assert.match(archiveElement('data-library-list').innerHTML,/归档的数据/);
+assert.match(archiveElement('data-library-list').innerHTML,/data-library-action="restore"/);
+assert.match(archiveElement('data-library-list').innerHTML,/data-library-action="delete"/);
+assert(!archiveElement('data-library-list').innerHTML.includes('<a class="data-library-label"'));
+assert.equal(archiveElement('library-empty-archive').hidden,false);
+archiveElement('library-empty-archive').events.click();
+let action=archiveRequests.shift();assert.equal(action.url,'/api/v1/data/delete-preview');assert.equal(action.body.all_archived,true);
+action.resolve({ok:true,json:async()=>({items:1,labels:['归档的数据'],runs:3,token:'saved-preview'})});await flush();
+assert.equal(archiveRequests.length,0);assert.match(confirmations[0],/3 次检查/); // Cancel sends no deletion.
+confirmationAccepted=true;archiveElement('library-empty-archive').events.click();
+action=archiveRequests.shift();action.resolve({ok:true,json:async()=>({items:1,labels:['归档的数据'],runs:3,token:'saved-preview'})});await flush();
+action=archiveRequests.shift();assert.equal(action.url,'/api/v1/data/delete');assert.equal(action.body.token,'saved-preview');assert.equal(action.body.confirmed,true);
+action.resolve({ok:true,json:async()=>({status:'deleted',input_ids:['b']})});await flush();
+action=archiveRequests.shift();assert.equal(action.url,'/api/v1/data');action.resolve({ok:true,json:async()=>({items:archiveFixture.slice(0,1)})});await flush();
+assert.match(archiveElement('data-library-list').innerHTML,/归档为空/);assert.equal(archiveElement('library-empty-archive').hidden,true);
+archiveElement('library-active').events.click();
+const archiveClick=()=>archiveElement('data-library-list').events.click({preventDefault(){},target:{closest:()=>({dataset:{libraryAction:'archive',id:'record:a'}})}});
+archiveClick();action=archiveRequests.shift();assert.equal(action.url,'/api/v1/data/archive');assert.equal(action.body.ids[0],'record:a');
+action.resolve({ok:false,json:async()=>({error:'数据仍有检查在运行'})});await flush();
+assert.match(archiveElement('data-library-error').textContent,/运行/);assert.match(archiveElement('data-library-list').innerHTML,/保留的数据/);
+console.log('Archive tabs, report access, exact delete preview, confirmation cancellation, server errors and independent active data passed.');

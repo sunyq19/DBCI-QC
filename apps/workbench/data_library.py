@@ -12,6 +12,7 @@ def configuration_source(store, identifier):
     """
     with store.lock:
         requested = copy.deepcopy(store.inputs[identifier])
+        if hasattr(store, 'library_state'): store.library_state.assert_record_active(requested)
         inputs = copy.deepcopy(list(store.inputs.values()))
         jobs = copy.deepcopy(list(store.jobs.values()))
     if (requested.get('availability', {}).get('status') == 'unavailable' or
@@ -151,6 +152,7 @@ def library(store):
                         'url':'/?'+urlencode({'input':item['id']}),
                         'latest_run_url':(f"/api/v1/jobs/{latest['id']}/report" if latest['status'] == 'completed' else '/?'+urlencode({'job':latest['id']})) if latest else None})
     for intake in store.intakes.pending():
+        if hasattr(store, 'library_state') and intake['id'] in store.library_state.state['deleted']['intakes']: continue
         if intake.get('dataset_context') or intake.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         records.append({'id':'intake:'+intake['id'],'kind':'record','label':intake['filename'],
                         'available':True,'format':intake.get('metadata',{}).get('format'), 'status':'needs_confirmation',
@@ -163,5 +165,6 @@ def library(store):
     examples = manifest(store)['examples']
     featured = {'dataset:' + row['package_id'] for row in examples}
     rows = [row for row in rows if row['id'] not in featured]
+    if hasattr(store, 'library_state'): store.library_state.decorate(rows)
     return {'schema_version':'data-library/1','items':rows, 'examples':examples,
             'counts':{'datasets':sum(row['kind'] == 'dataset' for row in rows), 'records':len(records)}}

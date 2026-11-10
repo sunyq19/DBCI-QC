@@ -96,6 +96,7 @@ class BatchJobs:
                 'package_id': body['package_id'], 'manifest_hash': directory['manifest_hash'], 'scope': scope, 'records': rows}
         item['preview_hash'] = digest(rows)
         with self.lock:
+            if hasattr(self.store, 'library_state'): self.store.library_state.assert_package_active(item['package_id'])
             self.items[item['id']] = item
             self._save(item)
         return self.get(item['id'])
@@ -105,6 +106,7 @@ class BatchJobs:
             raise ValueError('请先预览并确认批量检查范围。')
         with self.lock:
             item = self.items[body['preview_id']]
+            if hasattr(self.store, 'library_state'): self.store.library_state.assert_package_active(item['package_id'])
             if item['preview_hash'] != body['preview_hash']:
                 raise ValueError('预览内容不一致。')
             if item['status'] != 'preview':

@@ -122,6 +122,9 @@ class Store:
         threading.Thread(target=self._loop, daemon=True).start()
         from batch_jobs import BatchJobs
         self.batches = BatchJobs(self)
+        from library_lifecycle import LibraryLifecycle
+        self.library_state = LibraryLifecycle(self)
+        self.packages.library_guard = self.library_state.assert_package_active
         threading.Thread(target=self._retention_loop, daemon=True).start()
 
     def expire_uploads(self):
@@ -129,6 +132,7 @@ class Store:
         with self.lock:
             protected = {j.get('record_family', j['input_id']) for j in self.jobs.values() if j['status'] in ACTIVE}
             expired = expire_uploads(self.intakes, protected_families=protected)
+            if hasattr(self, 'library_state'): self.library_state.cleanup()
             for row in expired:
                 for item in self.inputs.values():
                     if item.get('record_family', item['id']) == row['family']:
@@ -169,6 +173,7 @@ class Store:
             raise ValueError('请选择一个已登记的数据文件。')
         with self.lock:
             item = copy.deepcopy(self.inputs[input_id])
+            if hasattr(self, 'library_state'): self.library_state.assert_record_active(item)
         if item.get('availability', {}).get('status') == 'unavailable':
             raise ValueError('来源文件暂时不可用，请恢复原始文件后重新载入服务。')
         plan = build_plan(item, body.get('selected_modules'), body.get('qc_config'))
@@ -201,8 +206,9 @@ class Store:
         return result
 
     def open_package_record(self, body):
-        root, name, context, stream = self.packages.record_source(body)
         with self.link_lock:
+            if hasattr(self, 'library_state'): self.library_state.assert_package_active(body['package_id'])
+            root, name, context, stream = self.packages.record_source(body)
             value = self.intakes.link_record(root, name, context, stream_id=stream)
         return self.intake_status(value['id'])
 
@@ -219,17 +225,20 @@ class Store:
 
     def confirm_intake(self, identifier, body):
         with self.lock:
+            if hasattr(self, 'library_state'): self.library_state.assert_intake_active(identifier)
             record = self.intakes.confirm(identifier, body)
             self.inputs[record['id']] = record
             return {'status': 'registered', 'input': public_input(record)}
 
     def select_intake_stream(self, identifier, body):
         with self.lock:
+            if hasattr(self, 'library_state'): self.library_state.assert_intake_active(identifier)
             return self.intakes.select_stream(identifier, body)
 
     def revise_input(self, identifier, body):
         with self.lock:
             original = self.inputs[identifier]
+            if hasattr(self, 'library_state'): self.library_state.assert_record_active(original)
             family = original.get('record_family', identifier)
             latest = max(i.get('record_revision', 1) for i in self.inputs.values()
                          if i.get('record_family', i['id']) == family)
@@ -278,6 +287,7 @@ class Store:
         with self.lock:
             # Recheck under the same lock as expiry, before a queued job protects its files.
             current = self.inputs[item['id']]
+            if hasattr(self, 'library_state'): self.library_state.assert_record_active(current)
             if current.get('retention', {}).get('state') == 'expired':
                 raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
             parent = body.get('parent_job_id')
@@ -667,7 +677,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == '/api/v1/data':
             from data_library import library
-            return self.json(library(self.store))
+            state = getattr(self.store, 'library_state', None)
+            with state.locked() if state else nullcontext():
+                result = library(self.store)
+            return self.json(result)
         overview_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/overview(?:/(report))?', path)
         if overview_match:
             from dataset_overview import build_overview, render_overview
@@ -778,19 +791,20 @@ class Handler(BaseHTTPRequestHandler):
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
-            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending() if i.get('library_origin') in {'user_upload', 'user_registered'}]})
+            state = getattr(self.store, 'library_state', None)
+            return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending() if i.get('library_origin') in {'user_upload', 'user_registered'} and (not state or (i['id'] not in state.state['deleted']['intakes'] and 'intake:'+i['id'] not in state.state['archived']))]})
         if path == '/api/v1/inputs':
             if urlsplit(self.path).query:
                 raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
             with self.store.lock:
-                records = [public_input(item) for item in self.store.inputs.values() if item.get('library_origin') in {'user_upload', 'user_registered'}]
+                records = [public_input(item) for item in self.store.inputs.values() if item.get('library_origin') in {'user_upload', 'user_registered'} and (not hasattr(self.store, 'library_state') or not self.store.library_state.is_archived(item))]
             return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
             return self.json(public_intake(self.store.intake_status(match.group(1))))
         if path == '/api/v1/jobs':
             with self.store.lock:
-                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]), key=lambda j: j['created_at'], reverse=True)
+                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'} and (not hasattr(self.store, 'library_state') or not self.store.library_state.is_archived(self.store.inputs[j['input_id']]))]), key=lambda j: j['created_at'], reverse=True)
             return self.json({'jobs': jobs})
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform|configuration))?', path)
         if match:
@@ -899,6 +913,14 @@ class Handler(BaseHTTPRequestHandler):
         raise KeyError(path)
 
     def post(self, path):
+        if path in {'/api/v1/data/archive', '/api/v1/data/restore', '/api/v1/data/delete-preview', '/api/v1/data/delete'}:
+            lifecycle = self.store.library_state
+            body = self.body()
+            if path.endswith('/archive'): result = lifecycle.archive(body)
+            elif path.endswith('/restore'): result = lifecycle.archive(body, restore=True)
+            elif path.endswith('/delete-preview'): result = lifecycle.preview(body)
+            else: result = lifecycle.delete(body)
+            return self.json(result)
         from package_review_api import dispatch as package_review_dispatch
         if package_review_dispatch(self, path): return
         from workflow_api import dispatch as workflow_dispatch

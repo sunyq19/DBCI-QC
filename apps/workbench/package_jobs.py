@@ -124,6 +124,7 @@ class PackageJobs:
             baseline_revision = max((int(v.stem) for v in versions), default=0)
         admission = check_dataset_snapshot(p['root'], plan, limits=self.admission_policy) if self.admission_policy else None
         with self.lock:
+            if hasattr(self, 'library_guard'): self.library_guard(p['id'])
             for job in self.jobs.values():
                 if job['package_id']==p['id'] and job['status'] in {'queued','running'}:
                     if job.get('baseline_job_id') != baseline or job['manifest_hash'] != fingerprint(plan):

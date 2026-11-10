@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let items=[],examples=[],limit=6,revision=0,lastLoaded=0,category='data';
+  let items=[],examples=[],limit=6,revision=0,lastLoaded=0,category='data',archived=false,busy=false;
   let cached=false;try{const data=JSON.parse($('example-cache')?.textContent||'null');if(data){if(!cached)examples=data.examples||[];cached=true;}}catch{}
   const en=()=>window.QCI18n?.getLanguage?.()==='en', t=(a,b)=>en()?b:a;
   const status={not_run:['未运行','Not run'],needs_confirmation:['待确认','Confirm information'],running:['运行中','Running'],queued:['排队中','Queued'],completed:['有检查报告','Report available'],failed:['检查失败','Failed'],interrupted:['已中断','Interrupted'],cancelled:['已取消','Cancelled']};
@@ -51,8 +51,12 @@
   }
   function render(){
     const query=$('data-search').value.trim().toLowerCase();
-    const rows=items.filter(r=>(r.category||'data')===category).filter(r=>[r.label,r.format,r.modality,r.kind==='dataset'?'数据集 dataset':'记录 recording'].join(' ').toLowerCase().includes(query));
-    $('data-library-count').textContent=String(items.filter(r=>r.category!=='validation').length);
+    const rows=items.filter(r=>Boolean(r.archived)===archived&&(r.category||'data')===category).filter(r=>[r.label,r.format,r.modality,r.kind==='dataset'?'数据集 dataset':'记录 recording'].join(' ').toLowerCase().includes(query));
+    const archivedCount=items.filter(r=>r.archived).length;
+    $('data-library-count').textContent=String(items.filter(r=>!r.archived&&r.category!=='validation').length);
+    $('library-active').textContent=t('当前','Active');$('library-active').setAttribute('aria-pressed',String(!archived));
+    $('library-archived').textContent=t(`归档${archivedCount?' · '+archivedCount:''}`,`Archive${archivedCount?' · '+archivedCount:''}`);$('library-archived').setAttribute('aria-pressed',String(archived));
+    $('library-empty-archive').hidden=!archived||!archivedCount;$('library-empty-archive').disabled=busy;$('library-empty-archive').textContent=t('清空归档','Empty archive');
     $('library-data').setAttribute('aria-pressed',String(category==='data'));
     $('library-validation').setAttribute('aria-pressed',String(category==='validation'));
     $('library-category-note').hidden=category!=='validation';
@@ -62,10 +66,34 @@
       const workflows=Array.isArray(r.workflow_groups)?r.workflow_groups:[];
       const target=r.available?r.url:r.latest_run_url||r.url;
       const reportsMarkup=workflows.length?workflowRows(workflows):`${reports.length?reportRows(reports.slice(0,2)):''}${reports.length>2?`<details class="data-library-older"><summary>${t('更早的报告','Earlier reports')} · ${reports.length-2}</summary>${reportRows(reports.slice(2))}</details>`:''}`;
-      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span><a class="data-library-label" href="${esc(href(target))}"><strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`} </small></a>${reportsMarkup}</div>`;
-    }).join('')||`<p class="small muted">${items.length?t('暂无匹配数据','No matching data'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
+      const actions=r.archived?`<button type="button" data-library-action="restore" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('恢复','Restore')}</button><button type="button" class="library-danger" data-library-action="delete" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('彻底删除','Delete permanently')}</button>`:`<button type="button" data-library-action="archive" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('归档','Archive')}</button>`;
+      const label=`<strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`}</small>`;
+      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span>${r.archived?`<div class="data-library-label">${label}</div>`:`<a class="data-library-label" href="${esc(href(target))}">${label}</a>`}<details class="library-entry-menu"><summary aria-label="${esc(t('数据操作：','Data actions: ')+r.label)}">⋯</summary><div>${actions}</div></details>${r.archived&&reportsMarkup?`<details class="library-archived-reports"><summary>${t('检查记录与报告','Runs and reports')}</summary>${reportsMarkup}</details>`:reportsMarkup}</div>`;
+    }).join('')||`<p class="small muted">${archived?t('归档为空。','Archive is empty.'):items.some(r=>!r.archived)?t('暂无匹配数据','No matching data'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
+  }
+  async function mutate(action,selection){
+    if(busy)return;busy=true;render();$('data-library-error').hidden=true;$('data-library-message').hidden=true;
+    const post=async(name,body)=>{
+      const response=await fetch('/api/v1/data/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data=await response.json();if(!response.ok)throw Error(data.error||t('操作失败，请重试。','Action failed. Retry.'));return data;
+    };
+    try{
+      let result;
+      if(action==='delete'){
+        const preview=await post('delete-preview',selection);
+        const name=preview.items===1?`“${preview.labels[0]}”`:t(`${preview.items} 项归档数据`,`${preview.items} archived items`);
+        const message=t(`彻底删除${name}？\n将一并删除 ${preview.runs} 次检查的记录、报告和平台保存的文件副本。此操作无法恢复。`,`Permanently delete ${name}?\nThis removes ${preview.runs} runs, their reports and stored upload copies. This cannot be undone.`);
+        if(!window.confirm(message))return;
+        result=await post('delete',{...selection,token:preview.token,confirmed:true});
+      }else result=await post(action,selection);
+      await refresh();
+      if(window.dispatchEvent)window.dispatchEvent(new CustomEvent('qc:librarychange',{detail:result}));
+      $('data-library-message').textContent=result.cleanup_pending?t('记录已删除，部分文件将在后台继续清理。','Records deleted; remaining files will be cleaned in the background.'):action==='archive'?t('已移至归档，可在归档中恢复。','Moved to archive. You can restore it there.'):action==='restore'?t('已恢复到当前数据。','Restored to active data.'):t('已彻底删除。','Permanently deleted.');
+      $('data-library-message').hidden=false;
+    }catch(error){$('data-library-error').textContent=error.message;$('data-library-error').hidden=false;}
+    finally{busy=false;render();}
   }
   async function refresh(){
     const request=++revision;
@@ -87,6 +115,9 @@
   }
   $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh()});
   $('data-search').addEventListener('input',()=>{limit=6;render()});
+  for(const name of ['active','archived'])$('library-'+name).addEventListener('click',()=>{archived=name==='archived';category='data';limit=6;$('data-search').value='';$('data-library-message').hidden=true;render()});
+  $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();mutate(button.dataset.libraryAction,{ids:[button.dataset.id]})}});
+  $('library-empty-archive').addEventListener('click',()=>mutate('delete',{all_archived:true}));
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
