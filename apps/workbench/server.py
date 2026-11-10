@@ -852,6 +852,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json({'error': 'PDF 组件未安装。请在服务环境安装 ephys-qc-workbench[reports]。'}, 503)
             return self.send_bytes(data, 'application/pdf', headers={
                 'Content-Disposition': f'attachment; filename="DBCI-QC-{identifier[:8]}.pdf"'})
+        match = re.fullmatch(r'/api/v1/examples/([a-f0-9]{16})/records/([a-f0-9]{32})/(finding-locations|waveform-context|waveform-window)', path)
+        if match:
+            from example_review import response
+            release, identifier, action = match.groups()
+            if action != 'waveform-window' and urlsplit(self.path).query:
+                raise ValueError('示例目录不接受查询参数。')
+            return self.json(response(self.store, release, identifier, action,
+                                      self.waveform_query() if action == 'waveform-window' else None))
         match = re.fullmatch(r'/api/v1/jobs/([a-f0-9]{32})/(candidates|finding-locations|waveform|waveform-context|waveform-window|review|configuration)', path)
         if match:
             identifier, action = match.groups()

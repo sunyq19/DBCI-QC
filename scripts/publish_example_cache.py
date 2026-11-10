@@ -108,11 +108,25 @@ def publish(config,destination):
             comparison_jobs[jid]={**variant,'comparison_id':comparison['id'],'window':comparison['window'],'limit':comparison.get('limit',64)}
             jobids.add(jid)
     if any(r['reported']!=r['records'] for r in examples):raise ValueError('Publish only after every example has a saved report')
+    # Freeze EEG finding indexes alongside their reports. The server may attach
+    # an explicitly configured, fingerprint-verified source for exploration.
+    interactive_jobs={jid for jid in jobids if store.job(jid).get('plan',{}).get('input_modality',{}).get('value')=='scalp_eeg'}
     destination.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='examples-',dir=destination.parent) as temp:
         out=pathlib.Path(temp);done=set();replacement='/examples/RELEASE/';views={};figures={}
         def put(name,data):
             p=out/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data if isinstance(data,bytes) else data.encode())
+        from example_review import snapshot as review_snapshot
+        review_receipts={}
+        for jid in sorted(interactive_jobs):
+            review=review_snapshot(store.workspace(jid))
+            encoded=json.dumps(review,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+            if re.search(r'/(?:home|media|tmp|mnt)/',encoded):
+                raise ValueError('Machine paths must not be published in example review metadata')
+            put(f'review/{jid}.json',encoded)
+            review_receipts[jid]={'finding_count':len(review['findings']['findings']),
+                'default_method_ids':review['findings']['default_method_ids'],
+                'source_sha256':review['source']['source_sha256']}
         def report_view(jid):
             if jid not in views:
                 saved=load(store,jid)
@@ -208,8 +222,12 @@ def publish(config,destination):
                 result+='#'+fragment
             return result
         def clean(html,origin,language):
-            # Public snapshots retain saved figures, never a live raw-data endpoint.
-            html=re.sub(r'\sdata-waveform-base="[^"]*"','',html)
+            # A release-specific read-only endpoint uses the same frozen index
+            # as this report. Never couple a snapshot to a changing runtime job.
+            def review_base(match):
+                jid=match[1]
+                return f' data-waveform-base="/api/v1/examples/RELEASE/records/{jid}"' if jid in interactive_jobs else ''
+            html=re.sub(r'\sdata-waveform-base="/api/v1/jobs/([a-f0-9]{32})"',review_base,html)
             html=re.sub(r'<pre\b[^>]*>.*?</pre>','',html,flags=re.S|re.I)
             # A public example has no user's live run workspace to restore.
             html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run)\s*</a>','',html)
@@ -217,7 +235,7 @@ def publish(config,destination):
             html=re.sub(r'<img\b[^>]*\bsrc=[\"\']#snapshot-info[\"\'][^>]*>','',html,flags=re.I)
             html=re.sub(r'<a\b[^>]*\bhref=[\"\']#snapshot-info[\"\'][^>]*>(.*?)</a>',lambda m:'<span class="snapshot-unavailable" title="'+('Not included in this example' if language=='en' else '此示例未附带该文件')+'">'+m[1]+'</span>',html,flags=re.S|re.I)
             html=re.sub(r'/(?:home|media|tmp)/[^\s<>"\'&]+','[本地来源路径]',html)
-            note=('Reports and images are included. Raw signals and machine-readable audit files are not included.' if language=='en' else '示例包含报告与图像；未附带原始信号及机器可读的运行证据文件。')
+            note=('Reports, figures and saved EEG finding locations are included. Interactive waveforms require the corresponding example source configured on the server.' if language=='en' else '示例保存报告、图像及 EEG 检查位置。交互波形按需读取服务端配置的对应示例文件。')
             return html.replace('</body>',f'<details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>'+('About this example' if language=='en' else '示例文件说明')+f'</summary><p>{note}</p></details></body>')
         for language in ['zh-CN','en']:
             for pid,o in overviews.items():
@@ -234,8 +252,8 @@ def publish(config,destination):
                 html=html.replace('</main>', '<details class="disclosure"><summary>'+('Sources and licenses' if language=='en' else '来源与许可')+'</summary><ul>'+''.join(links)+'</ul></details></main>')
                 put(f'datasets/{pid}.{language}.html',clean(html,f'/api/v1/packages/{pid}/overview/report',language))
             for jid in sorted(jobids):
-                # Public snapshots cannot use a live raw-signal inspector. Keep
-                # the saved candidate tables instead of an empty loading panel.
+                # EEG keeps its current explorer backed by a frozen index.
+                # Other modalities retain saved candidate tables for now.
                 html=clean(served_report(store,jid,language,interactive=False),f'/api/v1/jobs/{jid}/report',language)
                 if jid in comparison_jobs:
                     url=replacement+f'comparisons/{comparison_jobs[jid]["comparison_id"]}.{language}.html'
@@ -286,7 +304,7 @@ def publish(config,destination):
                 'value':score.get('value'),'components':[{k:c.get(k) for k in
                     ('id','value','status','configured_weight','weight','normalized_weight','automatically_excluded')}
                     for c in score.get('components',[])]}
-        manifest={'schema_version':'example-cache/1','release':release,'published_at':datetime.now(timezone.utc).isoformat(),'examples':rows,'comparisons':comparison_rows,'report_scores':report_scores,'files':files,'raw_data_included':False}
+        manifest={'schema_version':'example-cache/1','release':release,'published_at':datetime.now(timezone.utc).isoformat(),'examples':rows,'comparisons':comparison_rows,'report_scores':report_scores,'review_snapshots':review_receipts,'files':files,'raw_data_included':False}
         target=destination/release
         if not target.exists():shutil.copytree(out,target)
         pending=destination/'manifest.tmp';pending.write_text(json.dumps(manifest,ensure_ascii=False,indent=2));pending.replace(destination/'manifest.json')

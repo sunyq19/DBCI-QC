@@ -1,0 +1,171 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>sEEG · 数据集报告</title><style>/* Keep the viewport width stable when disclosures or dialogs change scrolling. */
+html { scrollbar-gutter: stable; }
+/* Shared workbench language. Load after feature CSS; no remote fonts. */
+:root {
+  color-scheme: light;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --text-title: 22px;
+  --text-section: 16px;
+  --text-body: 14px;
+  --text-control: 13px;
+  --text-note: 12px;
+  --canvas: #fff;
+  --workspace: #f3f5f8;
+  --surface: #fff;
+  --wash: #f5f7fa;
+  --ink: #243449;
+  --muted: #5b687b;
+  --sub: var(--muted);
+  --line: #dfe5ed;
+  --control-line: #ccd2da;
+  --primary: #2459bc;
+  --primary-dark: #1d489a;
+  --primary-light: #eef3fb;
+  --primary-line: #b8cae7;
+  --success: #176b5b;
+  --success-light: #edf7f3;
+  --success-line: #bfdcd0;
+  --blue: var(--primary);
+  --blue-light: var(--primary-light);
+  --amber: #8a5b1c;
+  --amber-light: #fcf5e9;
+  --amber-line: #e8d7b8;
+  --red: #aa3d38;
+  --red-light: #fff2f1;
+  --radius: 6px;
+  --radius-control: 4px;
+  --shadow: none;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --page-width: 1440px;
+  --page-inset: 32px;
+  --header-height: 56px;
+}
+
+/* Dataset and descriptive recording reports share the workbench type scale.
+   Tables scroll inside their own region; the page itself must remain fluid. */
+* { box-sizing: border-box; }
+body.dataset-report {
+  margin: 0;
+  background: var(--canvas, #fff);
+  color: var(--ink, #252b34);
+  font: var(--text-body, 14px)/1.65 var(--font-ui, system-ui, sans-serif);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--primary, #2459bc); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, .table-scroll:focus-visible {
+  outline: 2px solid var(--primary); outline-offset: 3px;
+}
+.report-header, .dataset-report > .saved-report-nav {
+  min-height: var(--header-height, 56px);
+  padding: 12px max(var(--page-inset, 32px), calc((100% - 1056px)/2));
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  font-size: var(--text-control, 13px);
+}
+.report-header > span { color: var(--muted); }
+.report-header nav { margin-left: auto; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.report-header a, .report-header button { white-space: nowrap; }
+button {
+  font: inherit; color: inherit; background: white;
+  border: 1px solid var(--control-line, #ccd2da); min-height: 32px;
+  padding: 5px 12px; border-radius: var(--radius-control, 4px); cursor: pointer;
+}
+main { max-width: 1120px; min-width: 0; margin: 28px auto; padding: 0 var(--page-inset, 32px) 40px; }
+h1, h2, h3, strong { font-weight: 600; }
+h1 { font-size: var(--text-title, 22px); line-height: 1.4; margin: 6px 0 10px; overflow-wrap: anywhere; }
+h2 { font-size: var(--text-section, 16px); margin: 0 0 16px; }
+h2 span { margin-left: 8px; color: var(--muted); font-size: var(--text-control, 13px); font-weight: 400; }
+h3 { font-size: var(--text-body, 14px); margin: 0 0 6px; }
+p { margin: 8px 0; overflow-wrap: anywhere; }
+.secondary, small { color: var(--muted, #68717e); }
+small { display: block; font-size: var(--text-note, 12px); font-weight: 400; overflow-wrap: anywhere; }
+.eyebrow { font-size: var(--text-note, 12px); color: var(--muted); letter-spacing: .02em; }
+.dataset-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; margin: 24px 0; border-top: 1px solid var(--line); padding-top: 20px; }
+.dataset-facts > div { min-width: 0; }
+dt { font-size: var(--text-note, 12px); color: var(--muted); }
+dd { font-size: 20px; line-height: 1.4; margin: 4px 0 0; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.report-conclusion { background: var(--primary-light, #eef3fb); border-left: 3px solid var(--primary); padding: 12px 16px; margin: 24px 0; color: #24416b; }
+section { min-width: 0; margin-top: 28px; }
+.table-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
+table { width: 100%; min-width: 540px; border-collapse: collapse; font-size: var(--text-control, 13px); }
+th, td { text-align: left; vertical-align: top; padding: 12px; border-bottom: 1px solid var(--line); font-weight: 400; overflow-wrap: anywhere; }
+th { font-weight: 500; }
+thead th { background: var(--wash, #f7f8fa); color: var(--muted); font-size: var(--text-note, 12px); }
+.check-table th { width: 185px; }
+.check-table .outcome { width: 220px; text-align: right; }
+.check-table td:nth-child(2) { color: var(--muted); }
+.record-table { min-width: 680px; }
+.record-table th:first-child { width: 24%; }
+.record-table td:nth-child(2) { width: 30%; }
+.record-table td:last-child { text-align: right; white-space: nowrap; }
+.report-link { display: inline-block; border: 1px solid var(--control-line); border-radius: var(--radius-control, 4px); padding: 4px 12px; }
+.finding { padding: 14px 16px; border-left: 3px solid #bf9961; background: #fcfaf6; margin: 10px 0; }
+.finding h3 span { font-size: var(--text-note, 12px); color: var(--muted); font-weight: 400; margin-left: 12px; }
+.disclosure { border-top: 1px solid var(--line); padding: 16px 0; margin-top: 8px; }
+.disclosure:first-of-type { margin-top: 28px; }
+summary { display: flex; align-items: center; gap: 12px; list-style: none; cursor: pointer; font-size: var(--text-control, 13px); font-weight: 500; color: var(--ink); }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: '+'; margin-left: auto; flex: none; color: var(--muted); font-size: 16px; font-weight: 400; }
+details[open] > summary::after { content: '−'; }
+.disclosure > :not(summary) { margin-top: 12px; }
+.disclosure table { font-size: var(--text-note, 12px); }
+footer { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 20px; color: var(--muted); font-size: var(--text-note, 12px); display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 20px; justify-content: space-between; }
+footer > span { min-width: 0; overflow-wrap: anywhere; }
+img { max-width: 100%; height: auto; }
+@media (max-width: 720px) {
+  main { margin: 24px auto; padding: 0 16px 32px; }
+  .report-header, .dataset-report > .saved-report-nav { padding: 12px 16px; gap: 10px 16px; }
+  .report-header > span { display: none; }
+  .dataset-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .check-table th { width: 140px; }
+  .check-table .outcome { width: 160px; }
+  th, td { padding: 10px; }
+}
+@media (max-width: 380px) {
+  .report-header nav { gap: 10px; }
+  h1 { font-size: 20px; }
+}
+@media print {
+  .report-header, .saved-report-nav, .report-link, footer a { display: none; }
+  main { max-width: none; margin: 0; padding: 0; }
+  section { break-inside: avoid; }
+  .disclosure:not([open]) { display: none; }
+  a { color: inherit; }
+  .table-scroll { overflow: visible; }
+  table, .record-table { min-width: 0; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+}
+
+/* Stable, compact report canvas: disclosures grow vertically inside the page. */
+html { scrollbar-gutter:stable; }
+main { width:100%; max-width:1200px; margin:20px auto; }
+.dataset-facts { gap:16px; margin:16px 0; padding-top:12px; }
+.dataset-facts dd { font-size:18px; }
+.report-conclusion { margin:16px 0; padding:10px 12px; font-size:13px; }
+section { margin-top:20px; }
+h2 { margin-bottom:10px; }
+th,td { padding:9px 10px; }
+.disclosure { padding:12px 0; }
+.disclosure:first-of-type { margin-top:20px; }
+.table-scroll { width:100%; min-width:0; }
+table { table-layout:fixed; }
+.report-link:hover { background:var(--primary-light); border-color:var(--primary); text-decoration:none; }
+</style><script src="/examples/ceb24baca8ff4f45/assets/dataset-report.js" defer></script></head><body class="dataset-report">
+<header class="report-header"><a href="/#demo-reports">← 质控台</a><span>数据集报告</span><nav><a href="/examples/ceb24baca8ff4f45/datasets/example-seeg.en.html">EN</a><button id="print-report">打印 / PDF</button></nav></header>
+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / 公开样本示例</p><h1>sEEG</h1><p class="secondary">深部电极 · 两个公开来源</p></div></div>
+<dl class="dataset-facts"><div><dt>个体</dt><dd>2</dd></div><div><dt>记录</dt><dd>2</dd></div><div><dt>样本总时长</dt><dd>438 s</dd></div><div><dt>文件格式</dt><dd>EDF / FIF</dd></div></dl><p class="report-conclusion">2 份信号报告已生成 · 已核对资料未发现不一致</p>
+<section id="checks"><h2>检查了什么</h2><div class="table-scroll" tabindex="0" role="region" aria-label="检查结果"><table class="check-table"><tbody><tr><th><small>D01</small>文件完整性</th><td>清单中的文件是否齐全，记录能否读取</td><td class="outcome">8 / 8 个文件与清单相符</td></tr><tr><th><small>D02</small>个体资料核对</th><td>编号、通道表、单位、采样率和事件时间</td><td class="outcome">7 项一致</td></tr><tr><th><small>D03</small>同组记录比较</th><td>按声明的比较组核对；不同来源、模态或 AP/LF 不混比</td><td class="outcome">2 项一致</td></tr><tr><th><small>M03–M07</small>信号检查</th><td>按模态和所选方案检查完整性、频谱、通道及伪迹</td><td class="outcome">2 / 2 份报告</td></tr></tbody></table></div></section>
+
+<section id="recordings"><h2>逐份结果 <span>2</span></h2><p class="secondary">逐份显示本方案评分，分项与权重见报告。不同模态或检查方案的分数不直接比较；未评项目不计入。</p><div class="table-scroll" tabindex="0" role="region" aria-label="逐份结果"><table class="record-table"><thead><tr><th>个体 / 记录</th><th>检查范围</th><th>信号结果摘要</th><th></th></tr></thead><tbody><tr><th>mne-sample<small>mne-seeg</small></th><td>FIF · 119 道 · 999.41 Hz · 60 s<small>已检查样本全长</small></td><td><strong>本方案评分 80.40 / 100</strong><small>NaN / Inf 0 点 · PSD 119 道</small></td><td><a class="report-link" href="/examples/ceb24baca8ff4f45/records/bc5a52c8f0344e8ab9d33afb65820b76.zh-CN.html">查看报告</a></td></tr><tr><th>sub-HUP060<small>hup060-ictal-run01</small></th><td>EDF · 38 道 · 500 Hz · 378 s<small>已检查样本全长</small></td><td><strong>本方案评分 80.08 / 100</strong><small>NaN / Inf 0 点 · PSD 38 道</small></td><td><a class="report-link" href="/examples/ceb24baca8ff4f45/records/44758354d7614e87b18ef3ff142216b2.zh-CN.html">查看报告</a></td></tr></tbody></table></div></section>
+<details class="disclosure"><summary>本次未核对的资料 · 11 类</summary><p class="secondary">包括缺少配套表、无法唯一匹配或没有同组重复记录的检查；未计为通过，也不等于信号质量差。</p><div class="table-scroll" tabindex="0" role="region" aria-label="未核对资料"><table><tbody><tr><th>受试者与会话对应</th><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td><td>1</td></tr><tr><th>受试者表对应</th><td>未提供或未验证对应表。</td><td>2</td></tr><tr><th>会话表对应</th><td>未提供或未验证对应表。</td><td>2</td></tr><tr><th>记录表对应</th><td>未提供或未验证记录表。</td><td>2</td></tr><tr><th>通道表字段</th><td>通道表需有唯一非空 name，以及 type、units 列。</td><td>1</td></tr><tr><th>通道名称与顺序</th><td>通道表缺失或结构无效，未作比较。</td><td>1</td></tr><tr><th>物理单位</th><td>通道表缺失或结构无效，未作比较。</td><td>1</td></tr><tr><th>采样率</th><td>通道表缺失或结构无效，未作比较。</td><td>1</td></tr><tr><th>记录时长</th><td>文件不可读取或配套表未声明时长。</td><td>1</td></tr><tr><th>可比记录数量</th><td>只有一份记录，无法验证重复记录间一致性。</td><td>4</td></tr><tr><th>组内配套表结构</th><td>核对同组通道表字段；可选列差异保留复核。</td><td>1</td></tr></tbody></table></div></details><details class="disclosure"><summary>检查范围与来源</summary><p>MNE 公开 sEEG 片段与 ds004100/HUP060 发作记录各一份；按来源分组，不视作同一实验队列或完整原始数据集。</p><p>仅代表这些公开样本；不代表原始研究的完整数据集。</p><p><a href="https://mne.tools/stable/auto_tutorials/clinical/20_seeg.html" rel="noreferrer">MNE miscellaneous sEEG sample</a> · <a href="https://openneuro.org/datasets/ds004100" rel="noreferrer">HUP iEEG Epilepsy Dataset</a></p><h3>比较组及核对字段</h3><ul><li><strong>MNE sEEG · 公开样本</strong> · 采样率, 单位</li><li><strong>HUP sEEG · 独立来源</strong> · 采样率, 单位, 参考</li></ul><p>未计算跨个体或跨模态总分；本页未进行人工核验。</p></details>
+<details class="disclosure"><summary>完整检查记录</summary><div class="table-scroll" tabindex="0" role="region" aria-label="检查记录"><table><tbody><tr><td>D01</td><th>应到文件</th><td>mne:recording_package</td><td>pass</td><td>2/2 个应有文件已核对。</td></tr><tr><td>D01</td><th>应到文件</th><td>HUP060:recording_package</td><td>pass</td><td>6/6 个应有文件已核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>mne-seeg</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D01</td><th>记录结构</th><td>hup060-ictal-run01</td><td>pass</td><td>结构可读取；电压标定及配套表另行核对。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>mne-seeg</td><td>unassessed</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>mne-seeg</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>会话表对应</th><td>mne-seeg</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>mne-seeg</td><td>unassessed</td><td>未提供或未验证记录表。</td></tr><tr><td>D02</td><th>通道表字段</th><td>mne-seeg</td><td>unassessed</td><td>通道表需有唯一非空 name，以及 type、units 列。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>mne-seeg</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>mne-seeg</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>采样率</th><td>mne-seeg</td><td>unassessed</td><td>通道表缺失或结构无效，未作比较。</td></tr><tr><td>D02</td><th>记录时长</th><td>mne-seeg</td><td>unassessed</td><td>文件不可读取或配套表未声明时长。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>mne-seeg</td><td>not_applicable</td><td>本检查方案未要求该记录的外部事件表。</td></tr><tr><td>D02</td><th>受试者与会话对应</th><td>hup060-ictal-run01</td><td>pass</td><td>按声明核对路径中的受试者/会话标识，不证明真实身份。</td></tr><tr><td>D02</td><th>受试者表对应</th><td>hup060-ictal-run01</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>会话表对应</th><td>hup060-ictal-run01</td><td>unassessed</td><td>未提供或未验证对应表。</td></tr><tr><td>D02</td><th>记录表对应</th><td>hup060-ictal-run01</td><td>unassessed</td><td>未提供或未验证记录表。</td></tr><tr><td>D02</td><th>通道表字段</th><td>hup060-ictal-run01</td><td>pass</td><td>通道表字段与名称唯一性通过。</td></tr><tr><td>D02</td><th>通道名称与顺序</th><td>hup060-ictal-run01</td><td>pass</td><td>名称集合必须对应；顺序变化单独提示，按名称配对比较。</td></tr><tr><td>D02</td><th>物理单位</th><td>hup060-ictal-run01</td><td>pass</td><td>按文件中的原始标定单位核对，不将软件换算后的 V 当作源单位。</td></tr><tr><td>D02</td><th>采样率</th><td>hup060-ictal-run01</td><td>pass</td><td>核对文件头、通道表及显式配套 JSON；BrainVision 允许半微秒采样间隔舍入。</td></tr><tr><td>D02</td><th>记录时长</th><td>hup060-ictal-run01</td><td>pass</td><td>双时钟已知时按样本数核对时长，允许一个样本的端点差。</td></tr><tr><td>D02</td><th>事件时间与通道</th><td>hup060-ictal-run01</td><td>pass</td><td>检查数值、先后关系、范围及事件通道；负起点保留复核。索引起点未知时只做宽界检查，不猜测 0/1 起点。</td></tr><tr><td>D02</td><th>可比记录数量</th><td>mne-sample / sample / mne-seeg</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D02</td><th>可比记录数量</th><td>sub-HUP060 / ses-presurgery / hup-seeg</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>可比记录数量</th><td>mne-seeg</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>组内配套表结构</th><td>mne-seeg</td><td>unassessed</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>可比记录数量</th><td>hup-seeg</td><td>unassessed</td><td>只有一份记录，无法验证重复记录间一致性。</td></tr><tr><td>D03</td><th>组内配套表结构</th><td>hup-seeg</td><td>pass</td><td>核对同组通道表字段；可选列差异保留复核。</td></tr><tr><td>D03</td><th>重复记录线索</th><td>dataset</td><td>pass</td><td>相同文件内容仅作为重复线索，不据此判定受试者身份。</td></tr></tbody></table></div><p class="secondary">清单指纹: daf39427583c03b5e2e3005d023f002adb02a3bcb73b204b5de68118e268cd8c<br>检查任务: e1269d3a382d41f2a20feeb7afcfc791</p></details>
+<footer>依据已保存的检查结果；打开页面不会重新运行算法。 <span class="snapshot-unavailable" title="此示例未附带该文件">进入检查工作区</span></footer><details class="disclosure"><summary>来源与许可</summary><ul><li><a href="https://mne.tools/stable/auto_tutorials/clinical/20_seeg.html">MNE miscellaneous sEEG sample</a> · d8ceb830cf0b05191dbde118e05f39a410567a8b · BSD-3-Clause (repository LICENSE)</li><li><a href="https://openneuro.org/datasets/ds004100">HUP iEEG Epilepsy Dataset</a> · doi:10.18112/openneuro.ds004100.v1.1.3 · CC0</li></ul></details></main><details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>示例文件说明</summary><p>示例保存报告、图像及 EEG 检查位置。交互波形按需读取服务端配置的对应示例文件。</p></details></body></html>

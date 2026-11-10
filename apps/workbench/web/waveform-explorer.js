@@ -150,6 +150,12 @@
   }
   async function load() {
     invalidate();const token=sequence;
+    if(info?.waveform_available===false){
+      wave=null;svg.setAttribute('hidden','');image.hidden=true;controls.hidden=true;
+      activity('unavailable',t('此服务未配置对应的示例信号文件。','This server has no waveform source configured for this example.'));
+      message(t('已保存的检查位置仍可筛选；报告与图表不受影响。','Saved locations remain filterable; reports and figures are available.'));
+      return;
+    }
     activity('loading',t('正在载入波形…','Loading waveforms…'));message();sync();
     // One read at a time. Repeated navigation replaces the next request instead
     // of starting concurrent native reads that an HTTP abort cannot cancel.

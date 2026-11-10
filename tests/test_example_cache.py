@@ -45,7 +45,10 @@ class ExampleCacheTests(unittest.TestCase):
         for name,digest in data['files'].items():
             path=asset(store,'/examples/'+data['release']+'/'+name)
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(),digest)
-            self.assertIn(path.suffix,{'.html','.css','.js','.png','.svg','.pdf'})
+            self.assertIn(path.suffix,{'.html','.css','.js','.png','.svg','.pdf','.json'})
+            if path.suffix=='.json':
+                self.assertTrue(name.startswith('review/'))
+                self.assertNotRegex(path.read_text(),r'/(?:home|media|tmp|mnt)/')
             if path.suffix=='.html':
                 text=path.read_text()
                 self.assertNotRegex(text,r'/(?:home|media|tmp)/')
@@ -60,6 +63,22 @@ class ExampleCacheTests(unittest.TestCase):
                         self.assertNotEqual(url,'#snapshot-info','Unavailable evidence must not pretend to be a working link')
                         self.assertTrue(re.search(r'id=["\']'+re.escape(unquote(url[1:]))+r'["\']',text),url)
         self.assertEqual({r['modality'] for r in data['examples']},{'scalp_eeg','ecog','seeg','extracellular'})
+
+    def test_eeg_examples_freeze_current_location_viewer_and_all_saved_candidates(self):
+        store=SimpleNamespace(settings={});data=manifest(store)
+        expected={jid for jid,r in data['report_scores'].items() if r['modality']=='scalp_eeg'}
+        self.assertEqual(set(data['review_snapshots']),expected)
+        for jid in expected:
+            saved=json.loads(asset(store,f'/examples/{data["release"]}/review/{jid}.json').read_text())
+            findings=saved['findings'];found={f['method'] for f in findings['findings']}
+            self.assertEqual(set(findings['default_method_ids']),found)
+            self.assertEqual(findings['selection_policy'],'all_saved_candidates')
+            self.assertEqual(len(findings['findings']),data['review_snapshots'][jid]['finding_count'])
+            for language in ['zh-CN','en']:
+                html=asset(store,f'/examples/{data["release"]}/records/{jid}.{language}.html').read_text()
+                self.assertIn(f'data-waveform-base="/api/v1/examples/{data["release"]}/records/{jid}"',html)
+                self.assertIn('id="finding-filters"',html)
+                self.assertIn('id="finding-fullscreen"',html)
 
     def test_html_contains_examples_before_javascript_or_personal_directory(self):
         store=SimpleNamespace(settings={},root=Path('/nonexistent-runtime'))

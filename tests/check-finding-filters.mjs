@@ -33,16 +33,25 @@ index.default_method_ids=['hf','low','psd','integrity'];
 index.findings.push({id:'4',method:'psd',channels:['b'],start:0,stop:120,localization:'channel'},
  {id:'5',method:'integrity',channels:['a'],start:13,stop:18,localization:'interval'});
 const reads=[];let failSource=false;
+const offline=process.env.QC_EXAMPLE_OFFLINE==='1';
 const runtime={document,URLSearchParams,console,setTimeout,clearTimeout,window:null,fetch:async url=>{
  reads.push(url);
  if(url.endsWith('finding-locations'))return {ok:true,json:async()=>index};
- if(url.endsWith('waveform-context'))return {ok:!failSource,json:async()=>({limits:{max_channels:15,max_seconds:60,max_read_bytes:67108864},streams:[{stream_id:'s',sampling_rate_hz:500,segments:[{start_seconds:0,stop_seconds:800}],channels:[{channel_id:'a',name:'FP2',source_index:7},{channel_id:'b',name:'AF4',source_index:2},...Array.from({length:18},(_,i)=>({channel_id:'extra'+i,name:'C'+i,source_index:20+i}))]}]})};
+ if(url.endsWith('waveform-context'))return {ok:!failSource,json:async()=>({waveform_available:!offline,limits:{max_channels:15,max_seconds:60,max_read_bytes:67108864},streams:[{stream_id:'s',sampling_rate_hz:500,segments:[{start_seconds:0,stop_seconds:800}],channels:[{channel_id:'a',name:'FP2',source_index:7},{channel_id:'b',name:'AF4',source_index:2},...Array.from({length:18},(_,i)=>({channel_id:'extra'+i,name:'C'+i,source_index:20+i}))]}]})};
  const p=new URL(url,'http://local').searchParams,start=Number(p.get('start_seconds')),span=Number(p.get('duration_seconds'));
  return {ok:true,json:async()=>({frozen_source_verified:true,channels:p.get('channel_indices').split(',').map(id=>({channel_id:id==='7'?'a':'b',source_index:Number(id),name:id==='7'?'FP2':'AF4',unit:'µV',values:[0,10,0],times_seconds:[start,start+span/2,start+span]}))})};
 }};runtime.window=runtime;
 vm.runInNewContext(code,runtime);
 const tick=()=>new Promise(resolve=>setImmediate(resolve));await tick();await tick();
 assert.equal(list.children.length,4,'Every saved interval shown initially, including unscored checks');
+if(offline){
+ assert(get('finding-status').textContent.includes('未配置'));
+ assert(get('finding-image').hidden,'Do not show a stale image as the selected interval');
+ assert(!reads.some(u=>u.includes('waveform-window')),'No futile raw-source requests');
+ get('finding-search').value='AF4';get('finding-search').fire('input');
+ assert.equal(list.children.length,2,'Saved locations remain searchable without original signals');
+ console.log('PASS offline example keeps findings and clearly identifies unavailable waveforms');process.exit(0);
+}
 assert(!get('finding-filters').children[2].open,'Checks without locations initially folded');
 const rangeBefore=get('wave-range').textContent,readsBefore=reads.length;
 get('finding-fullscreen').fire('click');await tick();
