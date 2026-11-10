@@ -14,6 +14,24 @@
 选择模块	Select modules
 方法与计分设置	Methods and scoring
 方案设置	Workflow settings
+方法参数	Method parameters
+计分组成	Score composition
+调整一项，其余按比例分配；0% 不计入。	Change one percentage; the others adjust proportionally. 0% excludes a check.
+计分项目	Scored check
+汇总子项	Component check
+预计占比	Expected share
+受限，预计不计入	Unavailable; excluded from estimate
+待运行确认	Confirmed after execution
+没有可参与汇总的子项。	No eligible component checks.
+当前选择没有可计分项目。	No score outputs in the current selection.
+子项先加权汇总，仅以信号稳定性计入一次。	Components form a weighted stability score and contribute only once.
+保留历史最低分规则；调整子项后改为加权平均。	Historical minimum rule retained. Editing component weights switches to a weighted mean.
+通道状态 · 合并项目	Channel status · Combined checks
+以下检查按通道合并，同一问题不重复计分。	These checks are combined by channel without duplicate penalties.
+综合分 = 各分项得分 × 实际权重后相加	Overall score = sum of each score × its effective weight
+本次仅展示检查结果，不计算综合分。	Check results only; no overall score.
+运行后无有效分数的项目不计入，其余重新分配。	Checks without valid scores are excluded; remaining weights are redistributed.
+权重须为 0–100%	Weight must be between 0 and 100%.
 计分与参数	Scoring and parameters
 完整方法列表	Full method list
 整份检查默认跳过该方法；可切换为片段检查后重新核对。	This method is skipped for whole-recording checks. Switch to a time window to reassess its eligibility.
@@ -2140,6 +2158,8 @@ EDF技术头与选道	EDF technical header and channel selection
     [/^整份检查 · 记录 (.+) 秒 · 已计算 (.+) 秒 · 失败 (.+) 秒 · 未执行 (.+) 秒 · 数据间隙 (.+) 秒。计算覆盖不代表质量通过。$/, (_,a,b,c,d,e) => `Whole-recording check · Total ${a} s · Computed ${b} s · Failed ${c} s · Unexecuted ${d} s · Data gaps ${e} s. Execution coverage is not a quality pass.`],
     [/^(M0[1-9]) · 详情 ↗$/, (_, id) => `${id} · Details ↗`],
     [/^(.+) ↗$/, (_, title) => `${dictionary[title] || title} ↗`],
+    [/^(\d+) 项预计计入$/, (_,n) => `${n} checks expected to contribute`],
+    [/^(.+?)(子项)?权重百分比$/, (_,name,child) => `${translate(name,"en")} ${child?"component ":""}weight percent`],
     [/^(\d+) \/ (\d+) 项已选$/, (_,n,total) => `${n} / ${total} selected`],
     [/^待接入方法 · (\d+)$/, (_,n) => `Planned methods · ${n}`],
     [/^(M0[1-9]) 检查方法$/, (_,id) => `${id} methods`],

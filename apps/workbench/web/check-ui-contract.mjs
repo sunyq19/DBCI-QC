@@ -30,7 +30,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
@@ -508,7 +508,7 @@ check("result tabs switch presentation without launching analysis and reset on a
   t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["scoring-controls","scoring-settings","ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -940,31 +940,32 @@ check("new records default to full background scope while explicit window drafts
 check("project weights are explicit, editable and invalidate an existing plan",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
   assert.equal(t.currentConfig().scoring.version,'project-weighted/1.2');
-  const field={dataset:{scoreWeight:'line_noise'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const field={dataset:{scoreWeight:'line_noise'},value:'50',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   const box=t.get('scoring-controls');box.querySelectorAll=()=>[field];t.renderScoringControls();
   t.state.plan={plan_id:'old'};field.change();
-  assert.equal(t.currentConfig().scoring.weights.line_noise,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  assert.equal(t.currentConfig().scoring.weights.line_noise,50);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
   assert(box.innerHTML.includes('50%'));assert(box.innerHTML.includes('评分规则'));
-  field.value='-1';field.change();assert(field.error);assert.equal(t.currentConfig().scoring.weights.line_noise,2);
+  field.value='-1';field.change();assert(field.error);assert.equal(t.currentConfig().scoring.weights.line_noise,50);
   t.setModuleSelected('M04',false);assert.equal(t.currentConfig().scoring.weights.line_noise,0);
 });
 check("non EEG cannot inherit scalp scoring and module capability is visible",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
   t.state.draftConfig.scoring={version:'project-weighted/1.0',weights:{integrity:1,line_noise:1,hf_burst:1}};
-  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('参与计分的项目必须全部完成'));
+  assert.equal(t.currentConfig().scoring,undefined);t.renderScoringControls();assert(t.get('scoring-controls').innerHTML.includes('当前选择没有可计分项目'));
   t.state.catalog.modules[2].scoring={can_output_score:false,role:'evidence'};t.showModule('M03');assert(t.get('module-dialog-content').innerHTML.includes('不计分，输出测量与复核线索'));
 });
 check("examples and uploads share native disclosure hierarchy",()=>{
   assert(/<details id="demo-reports"[^>]*supporting-panel/.test(html));
   assert(/<summary><span id="demo-reports-title">/.test(html));
 });
-check("optional score weights select methods, and zero disables a total",async()=>{
+check("selected optional methods expose their score without enabling it automatically",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=modalityCatalog();await t.selectInput("scalp_eeg-0",{autoPrepare:false});
   const m=t.state.catalog.modules.find(m=>m.id==='M06');m.methods=m.methods||[];
   m.methods.push({id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',optional_extension:true,implementation:'available',scoring:{outputs:[{id:'gnosis_artifact',method_id:'gnosis_artifact',module_id:'M06',name:'灵犀云伪差',default_weight:0,reducer:'ratios'}]}});
-  const field={dataset:{scoreWeight:'gnosis_artifact'},value:'2',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  t.setExtension('gnosis_artifact',true);assert.equal(t.currentConfig().scoring.weights.gnosis_artifact||0,0);
+  const field={dataset:{scoreWeight:'gnosis_artifact'},value:'20',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   t.get('scoring-controls').querySelectorAll=()=>[field];t.renderScoringControls();t.state.plan={plan_id:'old'};field.change();
-  assert(t.state.extensions.has('gnosis_artifact'));assert(t.state.selected.has('M06'));assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,2);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  assert(t.state.extensions.has('gnosis_artifact'));assert(t.state.selected.has('M06'));assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,100);assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
   t.state.draftConfig.scoring.weights={gnosis_artifact:2};t.renderScoringControls();field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.gnosis_artifact,0);assert(!field.error);
 });
 check("current report schema displays the weighted score and optional method table",()=>{
@@ -1059,7 +1060,7 @@ check("Neuropixels grouped weights stay editable without adding fictitious exten
   assert.equal(t.currentConfig().scoring.preset,'neuropixels-voltage-score/0.1');assert.equal(t.state.plan,null);
   assert(t.state.selected.has('M03'));assert(!t.state.extensions.has('aggregate'));assert(!t.state.extensions.has('neuropixels_channel_state'));
   field.value='0';field.change();assert.equal(t.currentConfig().scoring.weights.neuropixels_channel_state,0);
-  t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
+  t.state.mode='job';t.renderScoringControls();assert.equal(box.innerHTML,'');
 });
 check("intracranial child weights are editable, scoped, and invalidate a plan",async()=>{
   const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
@@ -1071,17 +1072,71 @@ check("intracranial child weights are editable, scoped, and invalidate a plan",a
   for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
   t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'seeg-basic-score/0.2',weights:{ieeg_numeric_integrity:30,ieeg_signal_stability:70},group_weights:{ieeg_signal_stability:{mne_amplitude_time:1,fieldtrip_zvalue:1}}};
   t.state.selected.add('M03');t.state.extensions.add('mne_amplitude');
-  const field={dataset:{scoreChild:'mne_amplitude_time'},value:'3',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
+  const field={dataset:{scoreChild:'mne_amplitude_time'},value:'30',addEventListener(_event,handler){this.change=handler},setCustomValidity(text){this.error=text},reportValidity(){}};
   const box=t.get('scoring-controls');box.querySelectorAll=selector=>selector==='[data-score-child]'?[field]:[];
   t.renderScoringControls();assert(box.innerHTML.includes('data-score-child="mne_amplitude_time"'));
   assert(!box.innerHTML.includes('data-score-child="fieldtrip_zvalue"'));
   t.state.plan={plan_id:'old'};field.change();
-  assert.equal(t.currentConfig().scoring.group_weights.ieeg_signal_stability.mne_amplitude_time,3);
+  assert.equal(t.currentConfig().scoring.group_weights.ieeg_signal_stability.mne_amplitude_time,100);
   assert.equal(t.currentConfig().scoring.weights.ieeg_signal_stability,70);assert.equal(t.state.plan,null);
   assert(!t.state.extensions.has('fieldtrip_zvalue'));
   field.value='NaN';field.change();assert(field.error);
   field.value='0';field.change();assert.equal(t.currentConfig().scoring.group_weights.ieeg_signal_stability.mne_amplitude_time,0);
-  t.state.mode='job';t.renderScoringControls();assert(box.innerHTML.includes('disabled'));
+  t.state.mode='job';t.renderScoringControls();assert.equal(box.innerHTML,'');
+});
+check("inline scoring lives under checks, redistributes percentages, and never predicts a score",()=>{
+  const t=harness();t.renderPipeline();
+  const graph=t.get('pipeline').innerHTML;
+  assert(graph.indexOf('id="scoring-settings"')>graph.indexOf('data-pipeline-expand="M07"'));
+  assert(graph.indexOf('id="scoring-settings"')<graph.indexOf('data-detail="M08"'));
+  assert(!html.includes('id="scoring-controls"'));
+  t.state.plan={plan_id:'old'};
+  assert(t.updateScorePercent('line_noise',50));
+  const w=t.currentConfig().scoring.weights;
+  assert.equal(w.line_noise,50);assert.equal(w.integrity,25);assert.equal(w.hf_burst,25);
+  assert.equal(t.state.plan,null);assert.equal(t.state.job,null);
+  assert(t.get('scoring-controls').innerHTML.includes('预计占比'));
+  assert(!t.get('scoring-controls').innerHTML.includes('100 分'));
+  t.setModuleSelected('M04',false);
+  assert(!t.scoreConfigurationModel().rows.some(s=>s.id==='line_noise'));
+  const retained=JSON.stringify(t.currentConfig());t.state.mode='job';
+  assert.equal(t.updateScorePercent('integrity',70),false);assert.equal(JSON.stringify(t.currentConfig()),retained);
+});
+check("score preview excludes blocked items, keeps partial checks conditional, and preserves configured weights",()=>{
+  const t=harness();
+  t.state.methodGuidanceKey=t.methodGuidanceKey();
+  t.state.methodGuidance={method_options:[{id:'line_noise',status:'blocked',reason:'目标频率已滤除'},{id:'hf_burst',status:'partial',reason:'无辅助导联'}]};
+  const before=JSON.stringify(t.currentConfig());const model=t.scoreConfigurationModel();
+  assert(model.rows.find(s=>s.id==='line_noise').blocked);
+  assert(!model.rows.find(s=>s.id==='hf_burst').blocked);
+  assert.equal(model.total,3);assert.equal(model.effectiveTotal,2);
+  t.renderScoringControls();const markup=t.get('scoring-controls').innerHTML;
+  assert(markup.includes('受限，预计不计入'));assert(markup.includes('目标频率已滤除'));assert(markup.includes('50%'));
+  assert.equal(t.updateScorePercent('line_noise',50),false);
+  assert.equal(JSON.stringify(t.currentConfig()),before);
+  t.updateScorePercent('integrity',0);t.updateScorePercent('hf_burst',0);
+  assert(t.get('scoring-controls').innerHTML.includes('不计算综合分'));
+});
+check("sEEG spectrum stays visible beside grouped stability and child percentages do not duplicate total votes",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog('seeg');await t.selectInput('seeg-0',{autoPrepare:false});
+  const specs=[
+    {id:'ieeg_numeric_integrity',method_id:'ieeg_numeric_integrity',module_id:'M03',name:'数值有效性',reducer:'ieeg_numeric'},
+    {id:'ieeg_signal_stability',method_id:'mne_amplitude',module_id:'M03',name:'信号稳定性',reducer:'ieeg_stability'},
+    {id:'ieeg_spectrum_fit',method_id:'ieeg_spectrum_fit',module_id:'M04',name:'多窗工频候选',reducer:'spectrum_windows'},
+    {id:'mne_amplitude_time',method_id:'mne_amplitude',module_id:'M03',name:'MNE时间',reducer:'intervals'},
+    {id:'ieeg_mne_lof',method_id:'ieeg_mne_lof',module_id:'M05',name:'LOF',reducer:'channels'}];
+  for(const m of t.state.catalog.modules)m.methods=specs.filter(s=>s.module_id===m.id).map(s=>({id:s.method_id,scoring:{outputs:[s]}}));
+  t.state.extensions=new Set(['mne_amplitude','ieeg_spectrum_fit','ieeg_mne_lof']);
+  t.state.draftConfig.scoring={version:'project-weighted/1.2',preset:'seeg-basic-score/0.3',weights:{ieeg_numeric_integrity:30,ieeg_signal_stability:50,ieeg_spectrum_fit:20},group_weights:{ieeg_signal_stability:{mne_amplitude_time:1,ieeg_mne_lof:1}}};
+  const model=t.scoreConfigurationModel();assert.equal(model.rows.length,3);assert.equal(model.children.length,2);
+  assert.equal(model.rows.find(s=>s.id==='ieeg_spectrum_fit').weight,20);
+  assert(t.updateScorePercent('ieeg_mne_lof',70,true));
+  const score=t.currentConfig().scoring;
+  assert.equal(score.group_weights.ieeg_signal_stability.ieeg_mne_lof,70);assert.equal(score.group_weights.ieeg_signal_stability.mne_amplitude_time,30);
+  assert.equal(score.weights.ieeg_signal_stability,50);assert.equal(score.preset,'seeg-basic-score/0.3');
+  t.state.selected.delete('M04');t.renderScoringControls();assert(!t.scoreConfigurationModel().rows.some(s=>s.id==='ieeg_spectrum_fit'));
+  t.updateScorePercent('ieeg_mne_lof',0,true);t.updateScorePercent('mne_amplitude_time',0,true);
+  assert(t.scoreConfigurationModel().rows.find(s=>s.id==='ieeg_signal_stability').blocked);
 });
 let failures=0;
 for(const [name,run] of tests){try{await run();console.log(`PASS ${name}`)}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`)}}

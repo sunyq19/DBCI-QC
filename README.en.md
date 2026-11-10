@@ -77,7 +77,7 @@ This generates `.local/demo/synthetic.edf` and runs an integrity check. You can 
 
 Implementations are separate files in [`src/ephys_qc/modules/`](src/ephys_qc/modules/). Python and CLI usage is documented in the [toolkit guide](docs/toolkit.md).
 
-When configuring a recording, click M03–M07 in the workflow to expand its methods. Each method shows recommendation, applicability and scoring capability. Core checks follow their parent module; optional methods can be selected individually. Recommendations are independent of the last-run selections. Scoring weights remain separately configurable.
+When configuring a recording, click M03–M07 in the workflow to expand its methods. Each method shows recommendation, applicability and scoring capability. Core checks follow their parent module; optional methods can be selected individually. Recommendations are independent of the last-run selections. Score components and percentage weights appear directly below stage 02 and update with method selections.
 
 EEG reports show an overview, integrity/line-interference/high-frequency-burst components, channel and time results, candidate waveforms and scoring rules. Whole-record processing runs in background chunks and retains coverage and unassessed conditions.
 

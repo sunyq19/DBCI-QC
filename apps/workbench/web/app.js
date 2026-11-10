@@ -650,7 +650,7 @@
     setError("plan-error",null);
     updateWindow(); renderPipeline(); renderPlan(); renderRecommendation(); refreshOpenDialog();
     if (manual) saveDraft();
-    if (state.openPipelineModule) ensureMethodGuidance();
+    if (state.openPipelineModule || $("scoring-controls")?.isConnected) ensureMethodGuidance();
   }
 
   function channelChip(index, role = "") {
@@ -1066,47 +1066,99 @@
     if(!outputs.length && inputModality(state.input)==="scalp_eeg") return Object.entries(SCORE_KEYS).map(([id,[module_id,name]])=>({id,module_id,name,default_weight:1,method_id:id,reducer:'core'}));
     return [...new Map(outputs.map(s=>[s.id,s])).values()];
   }
+  const STABILITY_CHILDREN = ['mne_amplitude_channels','mne_amplitude_time','ieeg_range_plateau','fieldtrip_zvalue','ieeg_group_outliers','ieeg_mne_lof'];
+  const NP_STATE_CHILDREN = ['neuropixels_constant_channels','spikeinterface_bad_channels','spikeinterface_coherence_psd','spikeinterface_lfp_neighbors'];
+  function scoreConfigurationModel() {
+    const config=currentConfig(), all=scoringOutputs(), weights=config?.scoring?.weights || {};
+    const modality=inputModality(state.input), intracranial=['ecog','seeg'].includes(modality), neuropixels=modality==='extracellular';
+    const family=intracranial?STABILITY_CHILDREN:neuropixels?NP_STATE_CHILDREN:[];
+    const groupId=intracranial?'ieeg_signal_stability':'neuropixels_channel_state';
+    const grouped=(intracranial||neuropixels) && (!config?.scoring || config.scoring.preset || Object.hasOwn(weights,groupId));
+    const enabled=spec=>(fixedModules().includes(spec.module_id)||state.selected.has(spec.module_id)) &&
+      (['core','prep','ieeg_numeric','np_numeric','np_constant','np_state'].includes(spec.reducer)||state.extensions.has(spec.method_id));
+    const advice=state.methodGuidanceKey===methodGuidanceKey()?state.methodGuidance:null;
+    const gates=new Map([...arr(advice?.method_options), ...arr(advice?.recommended_methods),...arr(advice?.optional_methods),...arr(advice?.blocked_methods)]
+      .filter(g=>!['not_selected','skipped'].includes(g.applicability||g.status)).map(g=>[g.id,{...g,status:g.applicability||g.status}]));
+    for(const gate of arr(activePlan()?.method_applicability)) if(!['not_selected','skipped'].includes(gate.status)) gates.set(gate.id,gate);
+    const assess=spec=>{
+      let gate=gates.get(spec.method_id);
+      if(['ieeg_numeric','np_numeric','np_constant'].includes(spec.reducer)) gate=gates.get(modality==='extracellular'?'neuropixels_continuity':modality+'_continuity') || gate;
+      const blocked=gate?.status==='blocked'||gate?.status==='planned';
+      return {...spec,blocked,condition:gate?.status||'unplanned',reason:gate?.reason||'',weight:Number(weights[spec.id])||0};
+    };
+    const children=all.filter(s=>family.includes(s.id)&&enabled(s)).map(assess);
+    const rows=all.filter(s=>enabled(s) && !(grouped&&family.includes(s.id))).map(assess);
+    const childWeights=Object.fromEntries(STABILITY_CHILDREN.map(id=>[id,config?.scoring?.group_weights?.ieeg_signal_stability?.[id]??1]));
+    for(const row of rows) if(grouped&&row.id===groupId) {
+      const participating=children.filter(s=>!intracranial||childWeights[s.id]>0);
+      row.blocked=!participating.length||participating.every(s=>s.blocked);
+      row.reason=row.blocked?'没有可参与汇总的子项。':'';
+      row.condition=row.blocked?'blocked':children.some(s=>s.condition!=='ready')?'partial':'ready';
+      row.modules=[...new Set(children.map(s=>s.module_id))].join(' · ');
+    }
+    return {config,rows,weights,children,childWeights,grouped,groupId,intracranial,neuropixels,
+      legacyChildren:intracranial&&!!config?.scoring&&!config.scoring.group_weights&&config.scoring.preset?.endsWith('/0.1'),
+      total:rows.reduce((sum,s)=>sum+Math.max(0,s.weight),0),
+      effectiveTotal:rows.filter(s=>!s.blocked).reduce((sum,s)=>sum+Math.max(0,s.weight),0)};
+  }
+
+  // Store ordinary relative weights, but edit their percentages directly.
+  // Other positive rows keep their ratio. Zero rows never become scored implicitly.
+  function redistributedWeights(rows, weights, id, percent) {
+    const others=rows.filter(s=>s.id!==id&&(weights[s.id]||0)>0);
+    const sum=others.reduce((n,s)=>n+weights[s.id],0), next={...weights};
+    for(const row of rows) next[row.id]=row.id===id ? percent : sum ? (weights[row.id]||0)*(100-percent)/sum : 0;
+    if(!sum && percent>0) next[id]=100;
+    return next;
+  }
+
+  function updateScorePercent(id, value, child=false) {
+    if(state.mode!=='draft'||!state.input||state.filePending||state.submitting||!Number.isFinite(value)||value<0||value>100)return false;
+    const model=scoreConfigurationModel(), rows=child?model.children:model.rows;
+    const row=rows.find(s=>s.id===id);
+    if(!row||row.blocked)return false;
+    const config=clone(model.config);
+    config.scoring={...config.scoring,version:'project-weighted/1.2',weights:{...model.weights}};
+    if(child) {
+      if(!model.intracranial||!model.grouped)return false;
+      // Preserve the current preset; migrate only the legacy minimum-child recipe.
+      if(model.legacyChildren)config.scoring.preset=inputModality(state.input)+'-basic-score/0.2';
+      config.scoring.group_weights={...config.scoring.group_weights,ieeg_signal_stability:
+        redistributedWeights(rows,model.childWeights,id,value)};
+    } else config.scoring.weights=redistributedWeights(rows,model.weights,id,value);
+    state.draftConfig=config;
+    invalidatePlan();renderModuleOptions();return true;
+  }
+
   function renderScoringControls() {
-    const box=$("scoring-controls");
-    const optionalOpen=box.querySelector?.('.scoring-optional')?.open;
-    const childOpen=box.querySelector?.('.scoring-children')?.open;
-    if(!state.input){box.innerHTML='<p class="small muted">读取文件后可设置计分项目。</p>';return;}
-    const intracranial=['ecog','seeg'].includes(inputModality(state.input));
-    const neuropixels=inputModality(state.input)==='extracellular';
-    const allSpecs=scoringOutputs(),config=currentConfig(),weights=config.scoring?.weights || {};
-    const groupIds=neuropixels?['neuropixels_numeric_integrity','neuropixels_channel_state']:['ieeg_numeric_integrity','ieeg_signal_stability'];
-    const grouped=(intracranial||neuropixels) && (!config.scoring || config.scoring.preset || Object.hasOwn(weights,groupIds[1]));
-    const specs=grouped ? allSpecs.filter(s=>groupIds.includes(s.id)) : allSpecs;
-    const total=Object.values(weights).filter(v=>numeric(v)&&v>0).reduce((a,b)=>a+b,0), historical=state.mode==="job";
-    const field=spec=>`<label>${escape(spec.name)}<span><input type="number" data-score-weight="${spec.id}" aria-label="${escape(spec.name)}计分比重" min="0" max="100" step="any" value="${weights[spec.id]||0}" ${historical?"disabled":""}><small>${scoreShareLabel(weights[spec.id],total)}</small></span></label>`;
-    const basic=specs.filter(s=>s.default_weight || (intracranial||neuropixels) && groupIds.includes(s.id)),extras=specs.filter(s=>!basic.includes(s));
-    const childIds=['mne_amplitude_channels','mne_amplitude_time','ieeg_range_plateau','fieldtrip_zvalue','ieeg_group_outliers'];
-    const childSpecs=allSpecs.filter(s=>childIds.includes(s.id) && state.selected.has(s.module_id) && state.extensions.has(s.method_id));
-    const childWeights=Object.fromEntries(childIds.map(id=>[id,config.scoring?.group_weights?.ieeg_signal_stability?.[id]??1]));
-    const childTotal=childSpecs.reduce((sum,s)=>sum+childWeights[s.id],0);
-    const legacyChildren=intracranial && config.scoring && !config.scoring.group_weights && !config.scoring.preset?.endsWith('/0.2');
-    const children=intracranial && grouped ? '<details class="scoring-children"'+(childOpen?' open':'')+'><summary>信号稳定性 · 子项权重</summary><p class="small muted">'+(legacyChildren?'当前配置保留旧版最低分规则；调整子项权重后使用加权方案。':'已启用子项按权重平均，受限项不计入。')+'</p><div class="scoring-weight-fields">'+childSpecs.map(s=>`<label>${escape(s.name)}<span><input type="number" data-score-child="${s.id}" aria-label="${escape(s.name)}子项比重" min="0" max="100" step="any" value="${childWeights[s.id]}" ${historical?'disabled':''}><small>${legacyChildren?'—':scoreShareLabel(childWeights[s.id],childTotal)}</small></span></label>`).join('')+'</div></details>':'';
-    box.innerHTML=(neuropixels?'<p class="small muted">默认：数值有效性30%、通道状态70%。整窗恒值与适用的AP离群按通道去重。</p>':intracranial?'<p class="small muted">默认：数值有效性30%、信号稳定性70%。展开可调整稳定性子项权重。</p>':'')+'<p class="small muted">调整各项对总分的影响。数值相同表示同等计入，右侧显示换算后的比例。</p>'+ (basic.length?'<div class="scoring-weight-fields">'+basic.map(field).join('')+'</div>':'')+children+
-      (extras.length?'<details class="scoring-optional"'+(optionalOpen?' open':'')+'><summary>可选计分项 · '+extras.length+'</summary><p class="small muted">设为大于 0 时会启用对应方法。不同方法可能检查同一问题，请按需选择。</p><div class="scoring-weight-fields">'+extras.map(field).join('')+'</div></details>':'')+
-      '<p class="small muted">'+(config.scoring?.version==='project-weighted/1.2'?'受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。':'0 表示不计入总分。参与计分的项目必须全部完成；全部为 0 时仅展示各项结果。')+'</p><a href="'+(neuropixels?'/standards/neuropixels-scoring':intracranial?'/standards/ieeg-scoring':'/standards/eeg-scoring')+'" target="_blank" rel="noopener">评分规则</a>';
-    box.querySelectorAll('[data-score-weight]').forEach(input=>input.addEventListener('change',()=>{
+    const box=$("scoring-controls"); if(!box)return;
+    if(!state.input||state.filePending||state.mode!=="draft"||unsupportedInput()){box.innerHTML='';return;}
+    const model=scoreConfigurationModel(), {rows,weights,total,effectiveTotal}=model;
+    const childOpen=state.scoreChildrenOpen || box.querySelector?.('.scoring-children')?.open;
+    const percent=(value,denominator)=>denominator>0 ? Math.round(1000*value/denominator)/10 : 0;
+    const share=(value,denominator)=>`${percent(value,denominator)}%`;
+    const tableRow=(s,child=false)=>{
+      const values=child?model.childWeights:weights;
+      const group=child?model.children:rows;
+      const sum=group.reduce((n,row)=>n+(values[row.id]||0),0);
+      const effective=group.filter(row=>!row.blocked).reduce((n,row)=>n+(values[row.id]||0),0);
+      const value=values[s.id]||0;
+      const note=s.blocked?'受限，预计不计入':!value?'不计入总分':s.condition==='ready'?'': '待运行确认';
+      const attr=child?'data-score-child':'data-score-weight';
+      return `<tr class="${s.blocked?'score-unavailable':''}"><td><strong>${escape(s.name)}</strong><span class="score-row-meta">${escape(s.modules||s.module_id)}${note?' · '+escape(note):''}</span>${s.blocked?`<span class="score-row-reason">${escape(s.reason)}</span>`:''}</td><td><label class="score-percent-field"><input id="score-${child?'child-':''}${escape(s.id)}" type="number" ${attr}="${escape(s.id)}" aria-label="${escape(s.name)}${child?'子项':''}权重百分比" min="0" max="100" step="0.1" value="${percent(value,sum)}" ${s.blocked||state.submitting?'disabled':''}><span>%</span></label></td><td class="score-effective">${child&&model.legacyChildren?'—':s.blocked?'0%':share(value,effective)}</td></tr>`;
+    };
+    const table=(items,child=false)=>`<table class="score-composition-table"><thead><tr><th>${child?'汇总子项':'计分项目'}</th><th>权重</th><th>预计占比</th></tr></thead><tbody>${items.map(s=>tableRow(s,child)).join('')}</tbody></table>`;
+    const active=rows.filter(s=>s.weight>0&&!s.blocked);
+    const bars=active.map((s,i)=>`<span style="flex:${s.weight};--score-color:var(--score-${i%5})" title="${escape(s.name)} ${share(s.weight,effectiveTotal)}"></span>`).join('');
+    const children=model.grouped && rows.some(s=>s.id===model.groupId) ? `<details class="scoring-children" ${childOpen?'open':''}><summary>${model.intracranial?'信号稳定性 · 子项权重':'通道状态 · 合并项目'}</summary><p>${model.intracranial?(model.legacyChildren?'保留历史最低分规则；调整子项后改为加权平均。':'子项先加权汇总，仅以信号稳定性计入一次。'):'以下检查按通道合并，同一问题不重复计分。'}</p>${model.intracranial?table(model.children,true):`<ul>${model.children.map(s=>`<li>${escape(s.name)} <span class="muted">${escape(s.module_id)}${s.blocked?' · 受限':''}</span></li>`).join('')}</ul>`}</details>`:'';
+    const url=model.neuropixels?'/standards/neuropixels-scoring':model.intracranial?'/standards/ieeg-scoring':'/standards/eeg-scoring';
+    box.innerHTML=`<header class="score-composition-header"><h4>计分组成</h4><span>${active.length} 项预计计入</span></header><p class="score-composition-intro">调整一项，其余按比例分配；0% 不计入。</p>${rows.length?table(rows):'<p class="small muted">当前选择没有可计分项目。</p>'}${children}${active.length?`<div class="score-composition-bar" aria-hidden="true">${bars}</div><p class="score-formula">综合分 = 各分项得分 × 实际权重后相加</p>`:'<p class="score-formula">本次仅展示检查结果，不计算综合分。</p>'}<footer><span>运行后无有效分数的项目不计入，其余重新分配。</span><a href="${url}" target="_blank" rel="noopener">评分规则</a></footer>`;
+    box.querySelector?.('.scoring-children')?.addEventListener('toggle',event=>{state.scoreChildrenOpen=event.target.open;});
+    for(const selector of ['[data-score-weight]','[data-score-child]']) box.querySelectorAll(selector).forEach(input=>input.addEventListener('change',()=>{
       const value=Number(input.value);
-      if(!input.value.trim() || !Number.isFinite(value) || value<0 || value>100){input.setCustomValidity('计分比重须为 0–100');input.reportValidity();return;}
-      input.setCustomValidity('');
-      const key=input.dataset.scoreWeight,spec=specs.find(s=>s.id===key);
-      state.draftConfig=clone(config);state.draftConfig.scoring={...config.scoring,version:'project-weighted/1.2',weights:{...weights,[key]:value}};
-      if(value>0){state.selected.add(spec.module_id);if(spec.reducer==='np_state')state.selected.add('M03');if(!['core','prep','ieeg_numeric','np_numeric','np_constant','np_state'].includes(spec.reducer)) state.extensions.add(spec.method_id);}
-      invalidatePlan();renderModuleOptions();
+      if(!input.value.trim()||!Number.isFinite(value)||value<0||value>100){input.setCustomValidity('权重须为 0–100%');input.reportValidity();return;}
+      input.setCustomValidity(''); updateScorePercent(input.dataset.scoreChild||input.dataset.scoreWeight,value,Boolean(input.dataset.scoreChild));
     }));
-    box.querySelectorAll('[data-score-child]').forEach(input=>{if(!input.dataset.scoreChild)return;input.addEventListener('change',()=>{
-      const value=Number(input.value);
-      if(!input.value.trim() || !Number.isFinite(value) || value<0 || value>100){input.setCustomValidity('计分比重须为 0–100');input.reportValidity();return;}
-      input.setCustomValidity('');
-      state.draftConfig=clone(config);
-      state.draftConfig.scoring={...config.scoring,version:'project-weighted/1.2',preset:inputModality(state.input)+'-basic-score/0.2',
-        weights:{...weights},group_weights:{ieeg_signal_stability:{...childWeights,[input.dataset.scoreChild]:value}}};
-      invalidatePlan();renderModuleOptions();
-    });});
   }
 
   function renderModuleOptions() {
@@ -1236,7 +1288,7 @@
     if (state.mode !== "draft" || !state.input || state.filePending || unsupportedInput() || !optionalModules().includes(id)) return;
     state.openPipelineModule = state.openPipelineModule === id ? null : id;
     renderPipeline();
-    if (state.openPipelineModule) ensureMethodGuidance();
+    if (state.openPipelineModule || $("scoring-controls")?.isConnected) ensureMethodGuidance();
   }
 
   function renderPipeline() {
@@ -1244,12 +1296,13 @@
     if (state.pipelineContext !== pipelineContext) { state.openPipelineModule = null; state.pipelineContext = pipelineContext; state.methodGuidanceKey = null; state.methodGuidance = null; state.methodGuidanceError = null; state.methodGuidanceLoading = false; }
     const nodes = visualNodes();
     const groups = workflowGroups();
-    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div>${state.openPipelineModule && ids.includes(state.openPipelineModule) ? pipelineMethodPanel(state.openPipelineModule) : ""}</section>`).join("");
+    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div>${state.openPipelineModule && ids.includes(state.openPipelineModule) ? pipelineMethodPanel(state.openPipelineModule) : ""}${ids.includes("M03") && state.input && !state.filePending && state.mode === "draft" && !unsupportedInput() ? '<section id="scoring-settings" class="pipeline-scoring"><div id="scoring-controls"></div></section>' : ""}</section>`).join("");
     if ($("pipeline").innerHTML !== markup) {
       const focused = document.activeElement?.closest?.("#pipeline [id], #pipeline [data-pipeline-expand], #pipeline [data-detail]");
       const attribute = focused?.id ? "id" : focused?.hasAttribute("data-pipeline-expand") ? "data-pipeline-expand" : "data-detail";
       const focusedId = focused?.getAttribute(attribute);
       $("pipeline").innerHTML = markup || '<p class="small muted">正在读取模块目录</p>';
+      renderScoringControls();
       if (focusedId) $("pipeline").querySelector(`[${attribute}="${focusedId}"]`)?.focus({preventScroll:true});
     }
     const historical = state.mode === "job", hasInput = Boolean(state.input) && !state.filePending;
@@ -2102,8 +2155,7 @@
     if (detail) showModule(detail.dataset.parentModule,{methodId:detail.dataset.pipelineMethodDetail});
     if (event.target.closest("[data-guidance-retry]")) ensureMethodGuidance(true);
     if (event.target.closest("[data-open-scoring]")) {
-      $("advanced-settings").open = true; $("scoring-settings").open = true;
-      $("scoring-settings").scrollIntoView({block:"center"});
+      $("scoring-settings")?.scrollIntoView({block:"center"});
     }
   });
   $("pipeline").addEventListener("change",event=>{

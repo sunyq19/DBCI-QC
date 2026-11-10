@@ -249,6 +249,33 @@ body.qc-app, body.qc-document {
 .qc-app .pipeline-method-panel footer { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:12px; }
 .qc-app .pipeline-planned { border-top:1px solid var(--line); padding:8px 0; font-size:12px; }
 .qc-app .pipeline-planned summary { padding:4px 0; }
+.qc-app .pipeline-scoring { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); min-width:0; --score-0:#2859ae; --score-1:#4f88c5; --score-2:#55a8ad; --score-3:#7c83b4; --score-4:#99abc1; }
+.qc-app .score-composition-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.qc-app .score-composition-header h4 { margin:0; font-size:15px; font-weight:600; }
+.qc-app .score-composition-header>span, .qc-app .score-composition-intro { font-size:12px; color:var(--muted); }
+.qc-app .score-composition-intro { margin:7px 0 12px; }
+.qc-app .score-composition-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; margin:0; }
+.qc-app .score-composition-table th { color:var(--muted); font-size:12px; font-weight:500; background:#f5f7fa; }
+.qc-app .score-composition-table :is(th,td) { padding:10px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
+.qc-app .score-composition-table th:nth-child(2) { width:100px; }
+.qc-app .score-composition-table th:last-child { width:78px; text-align:right; }
+.qc-app .score-composition-table strong { display:block; font-weight:500; overflow-wrap:anywhere; }
+.qc-app .score-row-meta, .qc-app .score-row-reason { display:block; margin-top:4px; font-size:11px; color:var(--muted); line-height:1.5; overflow-wrap:anywhere; }
+.qc-app .score-row-reason { color:#8d6428; }
+.qc-app .score-percent-field { display:flex; align-items:center; gap:5px; margin:0; }
+.qc-app .score-percent-field input { width:72px; min-width:0; min-height:32px; padding:4px 6px; font:inherit; font-variant-numeric:tabular-nums; }
+.qc-app .score-percent-field>span { font-size:12px; color:var(--muted); }
+.qc-app .score-composition-table .score-effective { text-align:right; font-variant-numeric:tabular-nums; color:var(--primary); }
+.qc-app .score-unavailable .score-effective { color:var(--muted); }
+.qc-app .score-composition-bar { display:flex; gap:3px; height:6px; margin:16px 0 10px; overflow:hidden; border-radius:3px; }
+.qc-app .score-composition-bar>span { min-width:1px; background:var(--score-color); }
+.qc-app .score-formula { margin:10px 0; font-size:12px; color:var(--ink); }
+.qc-app .pipeline-scoring footer { display:flex; justify-content:space-between; gap:12px; margin-top:10px; font-size:11px; color:var(--muted); }
+.qc-app .pipeline-scoring footer a { flex-shrink:0; }
+.qc-app .pipeline-scoring .scoring-children { margin-top:10px; padding:0; font-size:12px; }
+.qc-app .pipeline-scoring .scoring-children summary { padding:10px 0; }
+.qc-app .pipeline-scoring .scoring-children p { color:var(--muted); margin:0 0 10px; }
+@media(max-width:600px) { .qc-app .score-composition-table th:nth-child(2) { width:82px; } .qc-app .score-composition-table th:last-child { width:66px; } .qc-app .score-percent-field input { width:58px; } }
 @media(max-width:600px) { .qc-app .pipeline-method-panel { padding:12px; } .qc-app .pipeline-method-main { gap:7px; } }
 .qc-app .pipeline-board .pipeline-legend { font-size: var(--text-note); color: var(--muted); }
 .qc-app .studio-controls :is(.check-panel, .input-panel) { padding: 18px 20px; }
