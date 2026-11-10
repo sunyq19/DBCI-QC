@@ -374,6 +374,7 @@
 
   function applyRecommendation() {
     if (!recommendationValid() || state.recommendation.can_apply !== true || state.recommendationApplied || state.planning || state.submitting) return false;
+    state.configurationOrigin = null;
     const recommendation = state.recommendation, config = clone(recommendation.qc_config);
     state.draftConfig = config;
     state.selected = new Set(arr(recommendation.selected_modules).filter(id => optionalModules().includes(id)));
@@ -419,6 +420,7 @@
   }
 
   function resetInputContext(input) {
+    state.configurationOrigin = null;
     state.draftConfig = clone(input.default_config || {});
     const defaults = input.default_config?.context_tags || {};
     const sourceTask = arr(input.data_tags).find(tag => tag.key === "task" && tag.status === "known");
@@ -749,6 +751,7 @@
     state.selected = new Set(defaultSelectedModules()); state.extensions = new Set();
     state.contextTags = {disease:"unknown",age_group:"unknown",task:"unknown"};
     state.scope = "recording"; state.parentJobId = null; state.revisionInput = null;
+    state.configurationOrigin = null;
     $("input-select").value = ""; $("start-seconds").value = ""; $("duration-seconds").value = "";
     $("extension-parameters").value = "{}"; $("selected-file-name").textContent = "";
     $("input-facts").innerHTML = ""; $("channel-config").innerHTML = "";
@@ -1105,6 +1108,9 @@
   }
 
   function renderModuleOptions() {
+    $("module-selection-note").innerHTML = state.configurationOrigin
+      ? `<span>沿用上次方案</span> · <time data-i18n-skip>${escape(date(state.configurationOrigin.created_at))}</time>`
+      : "选择检查模块，可调整方法、参数和计分权重。";
     renderScoringControls();
     const modules = arr(state.catalog.modules);
     $("module-options").innerHTML = optionalModules().map(id => {
@@ -1489,12 +1495,60 @@
     if (id && /^[a-zA-Z0-9_-]{1,120}$/.test(id)) { await selectJob(id); return; }
     const inputId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("input");
     if(inputId&&/^[a-zA-Z0-9_-]{1,160}$/.test(inputId)){
-      try {const record=await api(`/inputs/${encodeURIComponent(inputId)}`);rememberInput(record);await selectInput(inputId,{autoPrepare:supportedModality(inputModality(record))});}
-      catch(error){setError("catalog-error",error.message);}return;
+      await openLibraryInput(inputId);return;
     }
     const intakeId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("intake");
     if(intakeId&&/^[a-f0-9]{32}$/.test(intakeId)){await restoreIntake(intakeId);return;}
     $("draft-recovery").hidden = !savedDraft();
+  }
+
+  async function openLibraryInput(id) {
+    if (state.submitting || state.intakeBusy || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return false;
+    state.navigationRestored = true;
+    ++state.catalogRequest; state.loadingCatalog = false;
+    saveDraft(); clearInputDraft();
+    ++state.intakeRequest; state.intake=null; state.filePending=false;
+    pendingIntakeId(null); $("intake-file").value=""; renderIntake();
+    let request = ++state.selectionRequest;
+    state.loadingRecord = true; setError("catalog-error",null); updateActions();
+    try {
+      const saved = await api(`/inputs/${encodeURIComponent(id)}/configuration`);
+      if (request !== state.selectionRequest) return false;
+      const record = saved.input, modality = inputModality(record);
+      if (supportedModality(modality) && (!state.catalog || state.activeModality !== modality)) {
+        if (!await ensureCatalog(modality,()=>request === state.selectionRequest)) return false;
+      }
+      if (request !== state.selectionRequest) return false;
+      rememberInput(record);
+      if (saved.configuration && saved.configuration.input_id !== record.id) throw new Error("保存的方案与记录不一致，请刷新后重试。");
+      const prepared = saved.configuration
+        ? applyConfiguration(saved.configuration)
+        : selectInput(record.id,{autoPrepare:supportedModality(modality)});
+      request = state.selectionRequest;
+      await prepared;
+      if (request !== state.selectionRequest || state.input?.id !== record.id) return false;
+      state.configurationOrigin = saved.previous_run;
+      renderModuleOptions();
+      $("advanced-settings").open = true;
+      $("workflow-panel").open = true;
+      $("advanced-settings").scrollIntoView({block:"start"});
+      return true;
+    } catch(error) {
+      if (request === state.selectionRequest) setError("catalog-error",error.message);
+      return false;
+    } finally {
+      if (request === state.selectionRequest) {state.loadingRecord=false;updateActions();}
+    }
+  }
+
+  function openLibraryLink(event) {
+    const anchor = event.target.closest(".data-library-label");
+    if (!anchor || event.defaultPrevented || event.button > 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const url = new URL(anchor.getAttribute("href"),"http://localhost");
+    const id = url.searchParams.get("input");
+    if (url.pathname !== "/" || !id || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return;
+    event.preventDefault();
+    return openLibraryInput(id);
   }
   async function cloneJobConfiguration() {
     if (!state.job || state.cloneBusy || state.submitting) return;
@@ -1962,6 +2016,7 @@
     const anchor = event.target.closest(".site-header nav a");
     if (anchor) revealNavigationTarget(anchor.getAttribute("href"));
   });
+  document.addEventListener("click",openLibraryLink);
   window.addEventListener("hashchange",openModuleFromHash);
   window.addEventListener("hashchange",()=>revealNavigationTarget());
   revealNavigationTarget();

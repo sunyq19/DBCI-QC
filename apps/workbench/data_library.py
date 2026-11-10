@@ -4,6 +4,38 @@ from urllib.parse import urlencode
 from library_identity import data_identity, workflow_groups
 
 
+def configuration_source(store, identifier):
+    """Resume the newest run of this data's usable, current confirmations.
+
+    Use saved identities/receipts only: entering configuration must not reread
+    signal files, load a report, or start analysis. Never revive an old revision.
+    """
+    with store.lock:
+        requested = copy.deepcopy(store.inputs[identifier])
+        inputs = copy.deepcopy(list(store.inputs.values()))
+        jobs = copy.deepcopy(list(store.jobs.values()))
+    if (requested.get('availability', {}).get('status') == 'unavailable' or
+            requested.get('retention', {}).get('state') == 'expired'):
+        raise ValueError('数据副本不可用；报告仍可查看，重新检查请再次上传。')
+    latest_revisions = {}
+    for item in inputs:
+        family = item.get('record_family', item['id'])
+        latest_revisions[family] = max(latest_revisions.get(family, 0), item.get('record_revision', 1))
+    identity = data_identity(requested)
+    eligible = {item['id']: item for item in inputs if
+                data_identity(item) == identity and
+                item.get('modality', 'scalp_eeg') == requested.get('modality', 'scalp_eeg') and
+                item.get('dataset_context') == requested.get('dataset_context') and
+                item.get('record_revision', 1) == latest_revisions[item.get('record_family', item['id'])] and
+                item.get('availability', {}).get('status') != 'unavailable' and
+                item.get('retention', {}).get('state') != 'expired'}
+    if identifier not in eligible:
+        raise ValueError('记录信息已更新，请从“我的数据”选择当前记录。')
+    latest = max((job for job in jobs if job['input_id'] in eligible),
+                 key=lambda job: (job['created_at'], job['id']), default=None)
+    return (eligible[latest['input_id']], latest) if latest else (requested, None)
+
+
 def featured_reports(store, packages=None):
     """Selectable datasets, with current evidence coverage rather than QC scores.
 

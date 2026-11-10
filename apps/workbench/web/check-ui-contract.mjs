@@ -30,7 +30,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {renderResultTabs,selectResultTab,${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
@@ -769,8 +769,75 @@ check("Header disclosure navigation only reveals its target and preserves the an
 });
 check("Shared data library record URLs restore a record without submitting a job",async()=>{
   const record={...fixtureCatalog().inputs[0],modality:"unknown"},calls=[];
-  const t=harness(async(url,options)=>{calls.push([url,options?.method]);assert.equal(url,"/api/v1/inputs/input-0");return response(record)},{selected:false,search:"?input=input-0"});
+  const t=harness(async(url,options)=>{calls.push([url,options?.method]);assert.equal(url,"/api/v1/inputs/input-0/configuration");return response({input:record,configuration:null,previous_run:null})},{selected:false,search:"?input=input-0"});
   await t.restoreNavigation();assert.equal(t.state.input.id,"input-0");assert.equal(t.state.job,null);assert.equal(calls.length,1);
+});
+check("selecting data resumes saved modules, parameters, weights and scope as an editable new check",async()=>{
+  const record=fixtureCatalog().inputs[0], config=structuredClone(record.default_config),calls=[];
+  config.scope="window";config.selection.start_seconds=40;config.selection.duration_seconds=60;
+  config.method_config.extensions=["mne_muscle"];config.method_config.extension_parameters={mne_muscle:{threshold:6}};
+  config.scoring={version:"project-weighted/1.2",weights:{integrity:2,hf:3}};
+  const saved={input:record,configuration:{input_id:record.id,qc_config:config,selected_modules:["M01","M02","M04","M06","M08","M09"],parent_job_id:"latest-run"},previous_run:{id:"latest-run",created_at:"2026-11-10T01:20:00Z"}};
+  const frozen=JSON.stringify(saved),t=harness(async(url,options)=>{calls.push([url,options]);return response(saved)});
+  t.state.mode="job";t.state.job={id:"old-report",status:"failed",modules:[]};
+  assert(await t.openLibraryInput(record.id));
+  assert.equal(calls.length,1);assert.equal(calls[0][0],"/api/v1/inputs/input-0/configuration");
+  assert.equal(t.state.mode,"draft");assert.equal(t.state.job,null);assert.equal(t.state.result,null);
+  assert.deepEqual([...t.state.selected],["M04","M06"]);assert.deepEqual([...t.state.extensions],["mne_muscle"]);
+  assert.equal(t.currentConfig().method_config.extension_parameters.mne_muscle.threshold,6);
+  assert.equal(t.currentConfig().scoring.weights.integrity,2);assert.equal(t.currentConfig().selection.start_seconds,40);
+  assert.equal(t.state.scope,"window");assert.equal(t.state.parentJobId,"latest-run");
+  assert.equal(t.state.runName,"");assert(t.get("advanced-settings").open);assert(t.get("workflow-panel").open);
+  assert(t.get("module-selection-note").innerHTML.includes("沿用上次方案"));assert(!t.get("run-button").disabled);
+  t.setModuleSelected("M04",false);t.setExtension("mne_amplitude",true);
+  assert(!t.state.selected.has("M04"));assert(t.state.selected.has("M03"));assert(t.state.extensions.has("mne_amplitude"));
+  assert.equal(t.state.plan,null);assert.equal(JSON.stringify(saved),frozen);
+});
+check("a record without previous runs prepares defaults and opens module selection without analysis",async()=>{
+  const calls=[],record=fixtureCatalog().inputs[1];let t;
+  t=harness(async(url,options)=>{calls.push(url);
+    if(url.endsWith("/configuration"))return response({input:record,configuration:null,previous_run:null});
+    if(url.endsWith("/recommend"))return response(recommendationFixture(t));
+    if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));
+    throw Error(url);
+  });
+  assert(await t.openLibraryInput(record.id));assert(t.validPlan());assert(t.get("advanced-settings").open);
+  assert.equal(t.state.configurationOrigin,null);assert.equal(t.state.parentJobId,null);
+  assert(!calls.some(url=>/jobs|intakes|waveform|result/.test(url)));
+});
+check("late saved configurations cannot overwrite another data choice, a file choice, or a report",async()=>{
+  for(const next of ["data","file","report"]){
+    const wait=deferred(),record=fixtureCatalog().inputs[0],t=harness(()=>wait.promise);
+    const pending=t.openLibraryInput(record.id);
+    if(next==="data")t.selectInput("input-1");
+    if(next==="file"){t.get("intake-file").files=[{name:"new.edf",size:100}];t.chooseLocalFile();}
+    if(next==="report")await t.selectJob("new-report",{id:"new-report",status:"failed",plan:{},modules:[]});
+    wait.resolve(response({input:record,configuration:{input_id:record.id,selected_modules:["M03"],qc_config:record.default_config}}));
+    assert.equal(await pending,false);assert.equal(t.state.configurationOrigin,null);
+    if(next==="data")assert.equal(t.state.input.id,"input-1");
+    if(next==="file")assert(t.state.filePending);
+    if(next==="report")assert.equal(t.state.job.id,"new-report");
+  }
+});
+check("library reuse switches to the record modality before applying its modules",async()=>{
+  const catalog=fourCatalog("seeg"),record=catalog.inputs[0],calls=[];
+  const t=harness(async url=>{calls.push(url);return response(url.includes("catalog")?catalog:{input:record,configuration:{input_id:record.id,input_modality:"seeg",selected_modules:["M03","M05"],qc_config:record.default_config},previous_run:{created_at:"2026-11-10T00:00:00Z"}})});
+  t.state.modalityChoices=catalog.modalities;
+  assert(await t.openLibraryInput(record.id));assert.equal(t.state.activeModality,"seeg");
+  assert.deepEqual([...t.state.selected],["M03","M05"]);assert.equal(calls.length,2);
+});
+check("expired sources and unreadable saved settings never silently run a default scheme",async()=>{
+  const t=harness(async()=>({...response({error:"数据副本不可用"}),ok:false,status:400}));
+  assert.equal(await t.openLibraryInput("input-0"),false);assert.equal(t.state.input,null);
+  assert(t.get("run-button").disabled);assert(!t.get("catalog-error").hidden);assert(!t.state.loadingRecord);
+});
+check("only plain data-title clicks resume configuration; report, dataset and new-tab links stay native",async()=>{
+  const record={...fixtureCatalog().inputs[0],modality:"unknown"},calls=[];
+  const t=harness(async url=>{calls.push(url);return response({input:record,configuration:null})});
+  const event=(href,extra={})=>({button:0,target:{closest:()=>href?{getAttribute:()=>href}:null},preventDefault(){this.prevented=true},...extra});
+  for(const e of [event(null),event("/datasets?package=demo"),event("/?job=old"),event("/?intake=pending"),event("/?input=input-0",{ctrlKey:true}),event("/?input=input-0",{button:1})]){await t.openLibraryLink(e);assert(!e.prevented);}
+  assert.equal(calls.length,0);const e=event("/?input=input-0&lang=zh-CN");await t.openLibraryLink(e);
+  assert(e.prevented);assert.equal(calls.length,1);assert.equal(t.state.input.id,"input-0");
 });
 check("A direct toolkit link opens its disclosure after initial catalog loading",async()=>{
   const t=harness(async url=>response(url.includes("catalog")?fixtureCatalog():{jobs:[]}),{selected:false,hash:"#toolkit-section"});

@@ -11,6 +11,10 @@
   const pairs = `共享	Shared
 共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。	Shared demo: files and reports are visible to all visitors. Upload public or de-identified data only.
 质控台 · 共享演示	QC Workbench · Shared demo
+选择模块	Select modules
+方法与计分设置	Methods and scoring
+沿用上次方案	Using last run
+选择检查模块，可调整方法、参数和计分权重。	Choose checks, methods, parameters and scoring weights.
 连接服务…	Connecting…
 服务已连接	Connected
 服务未连接	Disconnected

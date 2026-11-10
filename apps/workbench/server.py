@@ -244,6 +244,13 @@ class Store:
                 'selected_modules': request['selected_modules'], 'qc_config': request['qc_config'],
                 'scope': request['qc_config'].get('scope', 'window'), 'parent_job_id': identifier}
 
+    def input_configuration(self, identifier):
+        from data_library import configuration_source
+        record, job = configuration_source(self, identifier)
+        return {'input': public_input(record),
+                'configuration': self.configuration(job['id']) if job else None,
+                'previous_run': {key: job.get(key) for key in ('id', 'created_at', 'run_name')} if job else None}
+
     def workspace(self, identifier):
         from review_workspace import ReviewWorkspace
         self.job(identifier)
@@ -783,9 +790,11 @@ class Handler(BaseHTTPRequestHandler):
             with self.store.lock:
                 jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]), key=lambda j: j['created_at'], reverse=True)
             return self.json({'jobs': jobs})
-        match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform))?', path)
+        match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform|configuration))?', path)
         if match:
             identifier, action = match.groups()
+            if action == 'configuration':
+                return self.json(self.store.input_configuration(identifier))
             with self.store.lock:
                 record = copy.deepcopy(self.store.inputs[identifier])
             if action == 'waveform':
