@@ -115,7 +115,7 @@
   }
   $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh()});
   $('data-search').addEventListener('input',()=>{limit=6;render()});
-  for(const name of ['active','archived'])$('library-'+name).addEventListener('click',()=>{archived=name==='archived';category='data';limit=6;$('data-search').value='';$('data-library-message').hidden=true;render()});
+  for(const name of ['active','archived'])$('library-'+name).addEventListener('click',event=>{event?.preventDefault();event?.stopPropagation();$('data-library').open=true;archived=name==='archived';category='data';limit=6;$('data-search').value='';$('data-library-message').hidden=true;render()});
   $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();mutate(button.dataset.libraryAction,{ids:[button.dataset.id]})}});
   $('library-empty-archive').addEventListener('click',()=>mutate('delete',{all_archived:true}));
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});

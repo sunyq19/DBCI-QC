@@ -139,11 +139,10 @@
       <summary><span id="demo-reports-title">示例数据集</span><span id="demo-reports-count" class="tag subtle">—</span></summary><div class="disclosure-content"><p id="demo-reports-caption" class="small muted">公开数据的实际检查报告。</p><div id="demo-report-list"><p class="small muted">正在读取示例目录…</p></div></div>
     </details>
     <details id="data-library" class="panel data-library supporting-panel rail-section landing-secondary" aria-label="我的数据">
-      <summary><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></summary><div class="disclosure-content">
-      <div class="library-toolbar" data-i18n-skip><div class="library-tabs" role="group" aria-label="数据状态"><button id="library-active" type="button" aria-pressed="true">当前</button><button id="library-archived" type="button" aria-pressed="false">归档</button></div><button id="library-empty-archive" type="button" class="text-button library-danger" hidden>清空归档</button></div>
+      <summary><span class="library-heading"><span>我的数据</span><span id="data-library-count" class="tag subtle">—</span></span><span class="library-tabs library-header-tabs" role="group" aria-label="数据状态" data-i18n-skip><button id="library-active" type="button" aria-pressed="true">当前</button><button id="library-archived" type="button" aria-pressed="false">归档</button></span></summary><div class="disclosure-content">
       <div role="group" aria-label="数据目录分类" class="library-tabs" hidden><button id="library-data" type="button" aria-pressed="true">记录与数据集</button><button id="library-validation" type="button" aria-pressed="false">验证样例</button></div>
       <p id="library-category-note" class="small muted" hidden></p>
-      <label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off">
+      <div class="library-search-row"><label class="sr-only" for="data-search">搜索数据名称</label><input id="data-search" type="search" placeholder="搜索数据名称" autocomplete="off"><button id="library-empty-archive" type="button" class="text-button library-danger" hidden data-i18n-skip>清空归档</button></div>
       <p id="data-library-error" class="small field-error" hidden></p><div id="data-library-list"><p class="small muted">正在加载数据…</p></div>
       <p id="data-library-message" class="small muted" role="status" hidden data-i18n-skip></p>
       <button id="data-library-more" type="button" class="text-button" hidden>显示更多</button>
