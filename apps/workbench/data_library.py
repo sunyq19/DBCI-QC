@@ -14,7 +14,7 @@ def configuration_source(store, identifier):
         requested = copy.deepcopy(store.inputs[identifier])
         if hasattr(store, 'library_state'): store.library_state.assert_record_active(requested)
         inputs = copy.deepcopy(list(store.inputs.values()))
-        jobs = copy.deepcopy(list(store.jobs.values()))
+        jobs = copy.deepcopy([j for j in store.jobs.values() if not hasattr(store, 'library_state') or not store.library_state.report_archived(j)])
     if (requested.get('availability', {}).get('status') == 'unavailable' or
             requested.get('retention', {}).get('state') == 'expired'):
         raise ValueError('数据副本不可用；报告仍可查看，重新检查请再次上传。')
@@ -86,21 +86,36 @@ def library(store):
     datasets = store.packages.catalog()
     with store.packages.lock:
         dataset_jobs = copy.deepcopy(list(store.packages.jobs.values()))
+    with store.lock:
+        inputs, jobs = copy.deepcopy(list(store.inputs.values())), copy.deepcopy(list(store.jobs.values()))
+    input_map = {i['id']: i for i in inputs}
     rows = []
     for package in datasets['packages']:
         configured = store.packages.packages.get(package['id'], {})
         if configured.get('library_origin') not in {'user_upload', 'user_registered'}: continue
-        jobs = [j for j in dataset_jobs if j['package_id'] == package['id'] and j['manifest_hash'] == package.get('manifest_hash')]
-        latest = max(jobs, key=lambda j:j['created_at']) if jobs else None
-        reports = sorted((j for j in jobs if j['status']=='completed'),key=lambda j:j['created_at'],reverse=True)
+        attempts = [j for j in dataset_jobs if j['package_id'] == package['id'] and j['manifest_hash'] == package.get('manifest_hash')]
+        latest = max(attempts, key=lambda j:j['created_at']) if attempts else None
+        reports = sorted((j for j in dataset_jobs if j['package_id'] == package['id'] and j['status']=='completed'),key=lambda j:j['created_at'],reverse=True)
         rows.append({'id': 'dataset:'+package['id'], 'kind':'dataset', 'label':package['label'],
                      'available':package['available'], 'records':package.get('records'), 'subjects':package.get('subjects'),
                      'status':latest['status'] if latest else 'not_run', 'updated_at':latest['created_at'] if latest else '',
                      'url':'/datasets?'+urlencode({'package':package['id']}),
-                     'recent_reports':[{'label':j.get('run_name') or '资料检查', 'label_en':j.get('run_name') or 'Dataset check', 'created_at':j['created_at'],
+                     'recent_reports':[{'archive_id':'package-report:'+j['id'], 'label':j.get('run_name') or '资料检查', 'label_en':j.get('run_name') or 'Dataset check', 'created_at':j['created_at'],
                         'url':f"/api/v1/packages/{package['id']}/overview/report?job={j['id']}"} for j in reports]})
-    with store.lock:
-        inputs, jobs = copy.deepcopy(list(store.inputs.values())), copy.deepcopy(list(store.jobs.values()))
+    for row in rows:
+        # A dataset also owns single-record signal reports, not only its
+        # inventory report. Keep both reachable at the report archive level.
+        signal_jobs = [j for j in jobs if (j.get('dataset_context') or {}).get('package_id') == row['id'].split(':',1)[1]]
+        for job in signal_jobs:
+            item = input_map.get(job['input_id'])
+            if not item:
+                continue
+            groups = workflow_groups(store.root, [job], {item['id']:item}, {item['id']})
+            report = groups[0]['latest']
+            report['label'] = item['label'] + ' · ' + report['label']
+            report['label_en'] = item['label'] + ' · ' + report['label_en']
+            row['recent_reports'].append(report)
+        row['recent_reports'].sort(key=lambda r:r['created_at'], reverse=True)
     families = {}
     for item in inputs:
         if item.get('dataset_context') or item.get('library_origin') not in {'user_upload', 'user_registered'}: continue

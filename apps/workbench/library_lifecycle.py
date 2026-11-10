@@ -1,4 +1,4 @@
-"""Archive whole library entries; purge only server-owned descendants after preview."""
+"""Archive individual reports or whole entries; purge only owned descendants."""
 import hashlib
 import json
 from contextlib import ExitStack
@@ -25,6 +25,10 @@ class LibraryLifecycle:
         self.state = json.loads(self.path.read_text()) if self.path.exists() else {
             'version': 1, 'archived': {}, 'deleted': {k: [] for k in ('inputs', 'packages', 'intakes')},
             'pending': [], 'deletions': []}
+        # Older whole-entry archives remain valid; report state is additive.
+        for group in ('jobs', 'package_jobs'):
+            self.state['deleted'].setdefault(group, [])
+        self.state['version'] = 2
         self.apply_deleted()
         self.cleanup()
 
@@ -58,6 +62,16 @@ class LibraryLifecycle:
     def is_archived(self, record):
         return self.record_key(record) in self.state['archived']
 
+    def report_key(self, job, package=False):
+        return ('package-report:' if package else 'report:') + job['id']
+
+    def report_parent(self, job, package=False):
+        return 'dataset:' + job['package_id'] if package else self.record_key(self.store.inputs[job['input_id']])
+
+    def report_archived(self, job, package=False):
+        return (self.report_key(job, package) in self.state['archived'] or
+                self.report_parent(job, package) in self.state['archived'])
+
     def assert_record_active(self, record):
         if self.is_archived(record):
             raise ValueError('数据已归档，请先在“我的数据 → 归档”中恢复。')
@@ -84,22 +98,49 @@ class LibraryLifecycle:
             row['archived'] = bool(archived)
             if archived:
                 row['archived_at'] = archived['archived_at']
+            reports = list(row.get('recent_reports', []))
+            for group in row.get('workflow_groups', []):
+                reports += group['runs']
+            seen = {}
+            for report in reports:
+                identifier = report.get('archive_id') or ('report:' + report['job_id'] if report.get('job_id') else None)
+                if not identifier:
+                    continue
+                report['archive_id'] = identifier
+                report['archived'] = bool(archived or identifier in self.state['archived'])
+                seen[identifier] = report['archived']
+            row['archived_reports'] = sum(seen.values())
+            row['active_reports'] = len(seen) - row['archived_reports']
         return rows
 
     def _rows(self):
         from data_library import library
-        return {row['id']: row for row in library(self.store)['items']}
+        rows = {row['id']: row for row in library(self.store)['items']}
+        parents = {self.key(row): row for row in rows.values()}
+        for package, jobs in ((False, self.store.jobs), (True, self.store.packages.jobs)):
+            for job in jobs.values():
+                if not package and job['input_id'] not in self.store.inputs:
+                    continue
+                parent = self.report_parent(job, package)
+                if parent not in parents:
+                    continue
+                identifier = self.report_key(job, package)
+                rows[identifier] = {'id': identifier, 'kind': 'report', 'parent_key': parent,
+                    'label': job.get('run_name') or parents[parent]['label'] + ' · ' + job.get('created_at', ''),
+                    'archived': self.report_archived(job, package)}
+        return rows
 
     def _select(self, body, *, all_allowed=False):
         if not isinstance(body, dict):
             raise ValueError('请选择数据。')
         rows = self._rows()
         if all_allowed and body.get('all_archived') is True:
-            chosen = [row for row in rows.values() if row.get('archived')]
+            chosen = [row for row in rows.values() if row.get('archived') and
+                      not (row.get('kind') == 'report' and row['parent_key'] in self.state['archived'])]
         else:
             ids = body.get('ids')
             if not isinstance(ids, list) or not ids or any(not isinstance(i, str) or i not in rows for i in ids):
-                raise ValueError('请选择“我的数据”中的记录或数据集。')
+                raise ValueError('请选择“我的数据”中的报告或数据。')
             chosen = [rows[i] for i in dict.fromkeys(ids)]
         return chosen
 
@@ -130,14 +171,15 @@ class LibraryLifecycle:
             if (value.get('input_id') in inputs or 'local-' + path.parent.name in families or
                     (value.get('dataset_context') or {}).get('package_id') in packages):
                 intakes.add(path.parent.name)
-        jobs = {j['id'] for j in self.store.jobs.values() if j['input_id'] in inputs or
+        jobs = {j['id'] for j in self.store.jobs.values() if 'report:' + j['id'] in keys or j['input_id'] in inputs or
                 (j.get('dataset_context') or {}).get('package_id') in packages}
-        package_jobs = {j['id'] for j in self.store.packages.jobs.values() if j['package_id'] in packages}
+        package_jobs = {j['id'] for j in self.store.packages.jobs.values() if 'package-report:' + j['id'] in keys or j['package_id'] in packages}
         batches = {b['id'] for b in self.store.batches.items.values() if b['package_id'] in packages or
-                   any(r.get('job_id') in jobs or r.get('request', {}).get('input_id') in inputs for r in b.get('records', []))}
+                   any(r.get('request', {}).get('input_id') in inputs for r in b.get('records', []))}
         active = [j for j in self.store.jobs.values() if j['id'] in jobs and j['status'] in ACTIVE]
         active += [j for j in self.store.packages.jobs.values() if j['id'] in package_jobs and j['status'] in ACTIVE]
-        active += [b for b in self.store.batches.items.values() if b['id'] in batches and b['status'] in ACTIVE]
+        active += [b for b in self.store.batches.items.values() if b['status'] in ACTIVE and
+                   (b['id'] in batches or any(r.get('job_id') in jobs for r in b.get('records', [])))]
         if active:
             raise ValueError('数据仍有检查在运行，请等待完成或取消后再操作。')
         return {key: sorted(value) for key, value in locals().copy().items()
@@ -152,20 +194,37 @@ class LibraryLifecycle:
             for row in rows:
                 key = self.key(row)
                 if restore:
+                    # Restoring one child must not restore its archived siblings.
+                    parent = row.get('parent_key')
+                    if parent in self.state['archived']:
+                        saved = self.state['archived'].pop(parent)
+                        for sibling in self._rows().values():
+                            if sibling.get('parent_key') == parent:
+                                self.state['archived'].setdefault(sibling['id'], saved.copy())
                     self.state['archived'].pop(key, None)
+                    if row.get('kind') != 'report':
+                        for child in self._rows().values():
+                            if child.get('parent_key') == key:
+                                self.state['archived'].pop(child['id'], None)
                 else:
                     self.state['archived'].setdefault(key, {'archived_at': stamp()})
             self._save()
         return {'status': 'restored' if restore else 'archived', 'count': len(rows),
-                'input_ids': targets['inputs'], 'intake_ids': targets['intakes']}
+                'input_ids': targets['inputs'], 'intake_ids': targets['intakes'], 'job_ids': targets['jobs']}
 
     def _preview(self, body):
         rows = self._select(body, all_allowed=True)
         if not rows or any(not row.get('archived') for row in rows):
             raise ValueError('请先将数据归档，再从归档中删除。')
         targets = self.targets(rows)
+        # Retests load their baseline evidence on demand. Do not break reports
+        # outside the requested deletion scope by deleting their baseline.
+        if any(j.get('baseline_job_id') in targets['package_jobs'] and j['id'] not in targets['package_jobs']
+               for j in self.store.packages.jobs.values()):
+            raise ValueError('该报告仍是其他复验报告的基线。请保留，或将关联复验报告一起归档后统一删除。')
         token = hashlib.sha256(json.dumps({'targets': targets, 'archived': {
-            key: self.state['archived'][key] for key in targets['keys']}}, sort_keys=True).encode()).hexdigest()
+            self.key(row): self.state['archived'].get(self.key(row), self.state['archived'].get(row.get('parent_key')))
+            for row in rows}}, sort_keys=True).encode()).hexdigest()
         return rows, targets, token
 
     def preview(self, body):
@@ -175,7 +234,8 @@ class LibraryLifecycle:
             rows, targets, token = self._preview(body)
             return {'token': token, 'items': len(rows), 'labels': [r['label'] for r in rows],
                     'runs': len(targets['jobs']) + len(targets['package_jobs']),
-                    'records': len(targets['inputs']), 'batches': len(targets['batches'])}
+                    'records': len(targets['inputs']), 'batches': len(targets['batches']),
+                    'reports_only': all(r['kind'] == 'report' for r in rows)}
 
     def _paths(self, targets):
         paths = []
@@ -205,11 +265,11 @@ class LibraryLifecycle:
         for identifier in gone['packages']:
             self.store.packages.packages.pop(identifier, None)
         for job in list(self.store.jobs.values()):
-            if job['input_id'] in gone['inputs'] or (job.get('dataset_context') or {}).get('package_id') in gone['packages']:
+            if job['id'] in gone['jobs'] or job['input_id'] in gone['inputs'] or (job.get('dataset_context') or {}).get('package_id') in gone['packages']:
                 self.store.jobs.pop(job['id'], None)
                 self.store.report_views.pop(job['id'], None)
         for job in list(self.store.packages.jobs.values()):
-            if job['package_id'] in gone['packages']:
+            if job['id'] in gone['package_jobs'] or job['package_id'] in gone['packages']:
                 self.store.packages.jobs.pop(job['id'], None)
         for batch in list(self.store.batches.items.values()):
             if batch['package_id'] in gone['packages'] or any(r.get('request', {}).get('input_id') in gone['inputs'] for r in batch.get('records', [])):
@@ -244,10 +304,14 @@ class LibraryLifecycle:
             if body.get('token') != token:
                 raise ValueError('归档内容已变化，请重新查看删除范围。')
             paths = self._paths(targets)
-            for group in ('inputs', 'packages', 'intakes'):
+            for group in ('inputs', 'packages', 'intakes', 'jobs', 'package_jobs'):
                 self.state['deleted'][group] = sorted(set(self.state['deleted'][group]) | set(targets[group]))
             for key in targets['keys']:
                 self.state['archived'].pop(key, None)
+            for identifier in targets['jobs']:
+                self.state['archived'].pop('report:' + identifier, None)
+            for identifier in targets['package_jobs']:
+                self.state['archived'].pop('package-report:' + identifier, None)
             self.state['pending'] = sorted(set(self.state['pending']) | set(paths))
             receipt = {'id': uuid.uuid4().hex, 'deleted_at': stamp(), 'items': len(rows),
                        'runs': len(targets['jobs']) + len(targets['package_jobs'])}
@@ -256,4 +320,4 @@ class LibraryLifecycle:
             self.apply_deleted()
             pending = self.cleanup()
             return {**receipt, 'status': 'deleted', 'cleanup_pending': pending,
-                    'input_ids': targets['inputs'], 'intake_ids': targets['intakes']}
+                    'input_ids': targets['inputs'], 'intake_ids': targets['intakes'], 'job_ids': targets['jobs']}

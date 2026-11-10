@@ -97,7 +97,8 @@ def build_overview(store, package_id, job_id=None):
         request = json.loads((store.packages.root / job_id / 'request.json').read_text())
         manifest, root = request['expectations'], request['source_root']
     else:
-        eligible = [j for j in jobs if j['package_id'] == package_id and j['manifest_hash'] == fingerprint(current)]
+        eligible = [j for j in jobs if j['package_id'] == package_id and j['manifest_hash'] == fingerprint(current)
+                    and (not hasattr(store, 'library_state') or not store.library_state.report_archived(j, package=True))]
         dataset_job = max(eligible, key=lambda j: j['created_at']) if eligible else None
     if dataset_job and dataset_job['status'] == 'completed':
         dataset_result = json.loads(store.packages.artifact(dataset_job['id'], 'result.json').read_text())
@@ -108,6 +109,8 @@ def build_overview(store, package_id, job_id=None):
         signal_jobs = copy.deepcopy(list(store.jobs.values()))
     selected = {}
     for job in signal_jobs:
+        if not job_id and hasattr(store, 'library_state') and store.library_state.report_archived(job):
+            continue
         context = job.get('dataset_context') or {}
         if context.get('package_id') != package_id or context.get('manifest_hash') != manifest_hash: continue
         rid = context.get('record_id')

@@ -159,3 +159,37 @@ archiveClick();action=archiveRequests.shift();assert.equal(action.url,'/api/v1/d
 action.resolve({ok:false,json:async()=>({error:'数据仍有检查在运行'})});await flush();
 assert.match(archiveElement('data-library-error').textContent,/运行/);assert.match(archiveElement('data-library-list').innerHTML,/保留的数据/);
 console.log('Archive tabs, report access, exact delete preview, confirmation cancellation, server errors and independent active data passed.');
+
+// The smallest archive unit is one saved run, including a workflow's history.
+const aRun={...recent[0],archive_id:'report:'+recent[0].job_id,archived:false,status:'completed'};
+const bRun={...recent[1],archive_id:'report:'+recent[1].job_id,archived:true,status:'completed'};
+const cRun={...aRun,job_id:'c'.repeat(32),archive_id:'report:'+'c'.repeat(32),label:'更早的独立报告',archived:false,url:'/api/v1/jobs/'+'c'.repeat(32)+'/report'};
+const partial={...item('record:partial',{label:'同一份 EEG'}),archived_reports:1,active_reports:2,workflow_groups:[
+ {id:'same-workflow',label:bRun.label,label_en:bRun.label_en,method_family:'basic',latest:bRun,runs:[bRun,aRun,cRun]}
+]};
+const partialRefresh=archiveWindow.QCDataLibrary.refresh();
+archiveRequests.shift().resolve({ok:true,json:async()=>({items:[partial]})});await partialRefresh;
+let partialHtml=archiveElement('data-library-list').innerHTML;
+assert(partialHtml.includes(aRun.url));assert(partialHtml.includes(cRun.url));assert(!partialHtml.includes(bRun.url));
+assert.match(partialHtml,/data-id="report:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/);
+assert.match(partialHtml,/历次运行/);
+assert.equal(archiveElement('data-library-count').textContent,'1');
+archiveElement('library-archived').events.click();
+partialHtml=archiveElement('data-library-list').innerHTML;
+assert(partialHtml.includes(bRun.url));assert(!partialHtml.includes(aRun.url));assert(!partialHtml.includes(cRun.url));
+assert.match(partialHtml,/同一份 EEG/);assert.match(partialHtml,/data-library-action="restore" data-id="report:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"/);
+const clickPartial=(action,id,group=false)=>archiveElement('data-library-list').events.click({preventDefault(){},target:{closest:()=>({dataset:{libraryAction:action,id,...group?{libraryGroup:'true'}:{}}})}});
+// Group restore in a partial archive acts on just that group's archived reports.
+clickPartial('restore',partial.id,true);action=archiveRequests.shift();
+assert.equal(action.url,'/api/v1/data/restore');assert.deepEqual(action.body.ids,[bRun.archive_id]);
+action.resolve({ok:true,json:async()=>({status:'restored',job_ids:[bRun.job_id],input_ids:[]})});await flush();
+action=archiveRequests.shift();action.resolve({ok:true,json:async()=>({items:[partial]})});await flush();
+// Deleting a report previews only its results, not its source data or siblings.
+confirmationAccepted=false;clickPartial('delete',bRun.archive_id);action=archiveRequests.shift();
+assert.deepEqual(action.body.ids,[bRun.archive_id]);
+action.resolve({ok:true,json:async()=>({reports_only:true,items:1,labels:[bRun.label],runs:1,records:0,token:'one-report'})});await flush();
+assert.match(confirmations.at(-1),/输入数据和其他报告保留/);assert.equal(archiveRequests.length,0);
+archiveElement('library-active').events.click();clickPartial('archive',cRun.archive_id);action=archiveRequests.shift();
+assert.deepEqual(action.body.ids,[cRun.archive_id]);
+action.resolve({ok:false,json:async()=>({error:'test only'})});await flush();
+console.log('Individual reports and same-workflow history split across current/archive; group actions and deletion preserve source data.');

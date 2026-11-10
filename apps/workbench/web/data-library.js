@@ -5,12 +5,28 @@
   let cached=false;try{const data=JSON.parse($('example-cache')?.textContent||'null');if(data){if(!cached)examples=data.examples||[];cached=true;}}catch{}
   const en=()=>window.QCI18n?.getLanguage?.()==='en', t=(a,b)=>en()?b:a;
   const status={not_run:['未运行','Not run'],needs_confirmation:['待确认','Confirm information'],running:['运行中','Running'],queued:['排队中','Queued'],completed:['有检查报告','Report available'],failed:['检查失败','Failed'],interrupted:['已中断','Interrupted'],cancelled:['已取消','Cancelled']};
+  const reportId=report=>report.archive_id||(report.job_id?'report:'+report.job_id:null);
+  const rowReports=row=>row.workflow_groups?.length?row.workflow_groups.flatMap(g=>g.runs):row.recent_reports||[];
+  const isArchived=(report,row)=>Boolean(report.archived??row.archived);
+  const archivedReports=row=>rowReports(row).filter(report=>isArchived(report,row));
+  function menuButton(action,id,label,group=false){return `<button type="button" ${action==='delete'?'class="library-danger"':''} data-library-action="${action}" data-id="${esc(id)}" ${group?'data-library-group="true"':''} ${busy?'disabled':''}>${label}</button>`;}
+  function visibleRow(row){
+    const keep=report=>isArchived(report,row)===archived;
+    return {...row,recent_reports:(row.recent_reports||[]).filter(keep),workflow_groups:(row.workflow_groups||[]).flatMap(group=>{
+      const runs=group.runs.filter(keep);if(!runs.length)return [];
+      const sameLatest=reportId(group.latest)===reportId(runs[0]);
+      return [{...group,runs,latest:sameLatest?group.latest:runs[0],...sameLatest?{}:{label:runs[0].label,label_en:runs[0].label_en}}];
+    })};
+  }
   function href(value){if(typeof value!=='string'||!/^\/(?:\?|examples\/[a-f0-9]{16}\/[a-zA-Z0-9_./-]+|datasets\?|api\/v1\/packages\/[a-zA-Z0-9_-]+\/overview\/report(?:\?|$)|api\/v1\/jobs\/[a-f0-9]{32}\/(?:report|visualizations)(?:\?|$))/.test(value))return '#';const url=new URL(value,'http://localhost');url.searchParams.set('lang',en()?'en':'zh-CN');return url.pathname+url.search;}
   function reportRows(reports){
     return `<div class="data-library-reports" aria-label="${t('最近的检查报告','Recent QC reports')}">${reports.map(report=>{
       const stamp=new Date(report.created_at);
       const time=Number.isNaN(stamp.valueOf())?'':stamp.toLocaleString(en()?'en-GB':'zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
-      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(en()?report.label_en||report.label:report.label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span></div>`;
+      const id=reportId(report),label=en()?report.label_en||report.label:report.label;
+      const actions=archived?menuButton('restore',id,t('恢复','Restore'))+menuButton('delete',id,t('彻底删除','Delete permanently')):menuButton('archive',id,t('归档','Archive'));
+      const menu=id&&!['running','queued','cancelling'].includes(report.status)?`<details class="library-entry-menu library-report-menu"><summary aria-label="${esc(t('报告操作：','Report actions: ')+label+' · '+time)}">⋯</summary><div>${actions}</div></details>`:'';
+      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span>${menu}</div>`;
     }).join('')}</div>`;
   }
   function workflowRows(groups){
@@ -51,8 +67,8 @@
   }
   function render(){
     const query=$('data-search').value.trim().toLowerCase();
-    const rows=items.filter(r=>Boolean(r.archived)===archived&&(r.category||'data')===category).filter(r=>[r.label,r.format,r.modality,r.kind==='dataset'?'数据集 dataset':'记录 recording'].join(' ').toLowerCase().includes(query));
-    const archivedCount=items.filter(r=>r.archived).length;
+    const rows=items.filter(r=>(archived?(r.archived||archivedReports(r).length):!r.archived)&&(r.category||'data')===category).filter(r=>[r.label,r.format,r.modality,r.kind==='dataset'?'数据集 dataset':'记录 recording'].join(' ').toLowerCase().includes(query)).map(visibleRow);
+    const archivedCount=items.reduce((n,r)=>n+Math.max(archivedReports(r).length,r.archived?1:0),0);
     $('data-library-count').textContent=String(items.filter(r=>!r.archived&&r.category!=='validation').length);
     $('library-active').textContent=t('当前','Active');$('library-active').setAttribute('aria-pressed',String(!archived));
     $('library-archived').textContent=t(`归档${archivedCount?' · '+archivedCount:''}`,`Archive${archivedCount?' · '+archivedCount:''}`);$('library-archived').setAttribute('aria-pressed',String(archived));
@@ -66,9 +82,10 @@
       const workflows=Array.isArray(r.workflow_groups)?r.workflow_groups:[];
       const target=r.available?r.url:r.latest_run_url||r.url;
       const reportsMarkup=workflows.length?workflowRows(workflows):`${reports.length?reportRows(reports.slice(0,2)):''}${reports.length>2?`<details class="data-library-older"><summary>${t('更早的报告','Earlier reports')} · ${reports.length-2}</summary>${reportRows(reports.slice(2))}</details>`:''}`;
-      const actions=r.archived?`<button type="button" data-library-action="restore" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('恢复','Restore')}</button><button type="button" class="library-danger" data-library-action="delete" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('彻底删除','Delete permanently')}</button>`:`<button type="button" data-library-action="archive" data-id="${esc(r.id)}" ${busy?'disabled':''}>${t('归档','Archive')}</button>`;
-      const label=`<strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`}</small>`;
-      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span>${r.archived?`<div class="data-library-label">${label}</div>`:`<a class="data-library-label" href="${esc(href(target))}">${label}</a>`}<details class="library-entry-menu"><summary aria-label="${esc(t('数据操作：','Data actions: ')+r.label)}">⋯</summary><div>${actions}</div></details>${r.archived&&reportsMarkup?`<details class="library-archived-reports"><summary>${t('检查记录与报告','Runs and reports')}</summary>${reportsMarkup}</details>`:reportsMarkup}</div>`;
+      const actions=archived?menuButton('restore',r.id,t('恢复全部','Restore all'),true)+menuButton('delete',r.id,t('删除本组归档','Delete this archive group'),true):menuButton('archive',r.id,t('归档全部','Archive all'));
+      const noCurrent=!archived&&!reports.length&&!workflows.length&&r.archived_reports>0;
+      const label=`<strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):noCurrent?t('报告均已归档','All reports archived'):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`}</small>`;
+      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span>${archived?`<div class="data-library-label">${label}</div>`:`<a class="data-library-label" href="${esc(href(target))}">${label}</a>`}<details class="library-entry-menu"><summary aria-label="${esc(t('数据操作：','Data actions: ')+r.label)}">⋯</summary><div>${actions}</div></details>${reportsMarkup}</div>`;
     }).join('')||`<p class="small muted">${archived?t('归档为空。','Archive is empty.'):items.some(r=>!r.archived)?t('暂无匹配数据','No matching data'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
@@ -84,7 +101,7 @@
       if(action==='delete'){
         const preview=await post('delete-preview',selection);
         const name=preview.items===1?`“${preview.labels[0]}”`:t(`${preview.items} 项归档数据`,`${preview.items} archived items`);
-        const message=t(`彻底删除${name}？\n将一并删除 ${preview.runs} 次检查的记录、报告和平台保存的文件副本。此操作无法恢复。`,`Permanently delete ${name}?\nThis removes ${preview.runs} runs, their reports and stored upload copies. This cannot be undone.`);
+        const message=preview.reports_only?t(`彻底删除${name}？\n将删除 ${preview.runs} 次检查的报告、图表及结果文件。输入数据和其他报告保留。此操作无法恢复。`,`Permanently delete ${name}?\nThis removes ${preview.runs} reports, charts and result files. Input data and other reports are kept. This cannot be undone.`):t(`彻底删除${name}？\n将一并删除 ${preview.runs} 次检查的记录、报告和平台保存的文件副本。此操作无法恢复。`,`Permanently delete ${name}?\nThis removes ${preview.runs} runs, their reports and stored upload copies. This cannot be undone.`);
         if(!window.confirm(message))return;
         result=await post('delete',{...selection,token:preview.token,confirmed:true});
       }else result=await post(action,selection);
@@ -116,7 +133,7 @@
   $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh()});
   $('data-search').addEventListener('input',()=>{limit=6;render()});
   for(const name of ['active','archived'])$('library-'+name).addEventListener('click',event=>{event?.preventDefault();event?.stopPropagation();$('data-library').open=true;archived=name==='archived';category='data';limit=6;$('data-search').value='';$('data-library-message').hidden=true;render()});
-  $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();mutate(button.dataset.libraryAction,{ids:[button.dataset.id]})}});
+  $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();let ids=[button.dataset.id];if(button.dataset.libraryGroup){const row=items.find(r=>r.id===button.dataset.id);if(!row)return;if(!row.archived)ids=[...new Set(archivedReports(row).map(reportId).filter(Boolean))];}mutate(button.dataset.libraryAction,{ids})}});
   $('library-empty-archive').addEventListener('click',()=>mutate('delete',{all_archived:true}));
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});

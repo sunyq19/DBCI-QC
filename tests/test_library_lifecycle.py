@@ -223,6 +223,13 @@ def test_http_archive_restore_delete_and_catalog_visibility(store):
         assert request('jobs/'+jid)['id']==jid
         request('data/restore',{'ids':[rid]})
         assert len(request('inputs')['inputs'])==1 and len(request('jobs')['jobs'])==1
+        request('data/archive',{'ids':['report:'+jid]})
+        assert len(request('inputs')['inputs'])==1 and not request('jobs')['jobs']
+        row=request('data')['items'][0]
+        assert not row['archived'] and row['archived_reports']==1
+        assert request('jobs/'+jid)['id']==jid
+        request('data/restore',{'ids':['report:'+jid]})
+        assert len(request('jobs')['jobs'])==1
         request('data/archive',{'ids':[rid]})
         preview=request('data/delete-preview',{'all_archived':True})
         request('data/delete',{'all_archived':True,'token':preview['token'],'confirmed':True})
@@ -231,3 +238,120 @@ def test_http_archive_restore_delete_and_catalog_visibility(store):
         assert error.value.code==404
     finally:
         http.shutdown();http.server_close();thread.join()
+
+
+def test_single_report_archive_keeps_sibling_workflows_and_input_active(store):
+    record=upload(store)
+    first,second=job(store,record),job(store,record)
+    store.jobs[first]['created_at']='2026-11-09T01:00:00Z'
+    store.jobs[second]['created_at']='2026-11-10T01:00:00Z'
+    for identifier in (first,second):
+        save_json(store.root/'jobs'/identifier/'job.json',store.jobs[identifier])
+    store.library_state.archive({'ids':['report:'+second]})
+    row=library(store)['items'][0]
+    assert not row['archived'] and row['archived_reports']==1 and row['active_reports']==1
+    runs={r['job_id']:r for g in row['workflow_groups'] for r in g['runs']}
+    assert runs[second]['archived'] and not runs[first]['archived']
+    assert configuration_source(store,record['id'])[1]['id']==first
+    again=restart(store)
+    assert not again.library_state.is_archived(again.inputs[record['id']])
+    assert again.library_state.report_archived(again.jobs[second])
+    assert (again.root/'jobs'/second/'artifacts/report.html').read_text()=='saved report'
+
+
+def test_deleting_one_report_removes_its_artifacts_only_and_survives_restart(store):
+    record=upload(store);first,second=job(store,record),job(store,record)
+    artifacts=store.root/'jobs'/first/'artifacts'
+    for name in ('report.pdf','waveform.png','result.json'):(artifacts/name).write_text('test result')
+    original=Path(record['source_path']).read_bytes()
+    selection={'ids':['report:'+first]}
+    store.library_state.archive(selection)
+    preview=store.library_state.preview(selection)
+    assert preview['reports_only'] and preview['runs']==1 and preview['records']==0
+    result=store.library_state.delete({**selection,'token':preview['token'],'confirmed':True})
+    assert not result['input_ids'] and result['job_ids']==[first]
+    assert not artifacts.parent.exists()
+    assert Path(record['source_path']).read_bytes()==original
+    assert (store.root/'jobs'/second/'artifacts/report.html').read_text()=='saved report'
+    again=restart(store)
+    assert set(again.jobs)=={second} and record['id'] in again.inputs
+    assert not library(again)['items'][0]['archived_reports']
+
+
+def test_restoring_one_report_from_legacy_group_archive_leaves_other_reports_archived(store):
+    record=upload(store);first,second=job(store,record),job(store,record)
+    row=library(store)['items'][0]
+    store.library_state.archive({'ids':[row['id']]})
+    # The legacy parent marker has no individual report markers.
+    assert 'report:'+first not in store.library_state.state['archived']
+    store.library_state.archive({'ids':['report:'+first]},restore=True)
+    assert not store.library_state.is_archived(record)
+    assert not store.library_state.report_archived(store.jobs[first])
+    assert store.library_state.report_archived(store.jobs[second])
+    store.library_state.archive({'ids':[row['id']]},restore=True)
+    assert not store.library_state.state['archived']
+
+
+def test_clear_archive_combines_whole_entries_and_individual_reports(store):
+    first=upload(store);a=job(store,first)
+    second=upload(store);second['expected_sha256']='b'*64
+    b,c=job(store,second),job(store,second)
+    store.library_state.archive({'ids':[row_for(store,first)['id'],'report:'+b]})
+    selection={'all_archived':True};preview=store.library_state.preview(selection)
+    assert preview['items']==2 and preview['runs']==2
+    store.library_state.delete({**selection,'token':preview['token'],'confirmed':True})
+    assert set(store.jobs)=={c} and set(store.inputs)=={second['id']}
+    assert Path(second['source_path']).exists()
+    assert not store.library_state.state['archived']
+
+
+def test_deleting_report_from_finished_batch_preserves_other_reports(store):
+    record=upload(store);first,second=job(store,record),job(store,record)
+    bid=uuid.uuid4().hex
+    store.batches.items[bid]={'id':bid,'package_id':'p','status':'completed','records':[
+        {'job_id':i,'status':'completed','request':{'input_id':record['id']}} for i in (first,second)]}
+    store.batches._save(store.batches.items[bid])
+    store.library_state.archive({'ids':['report:'+first]})
+    delete(store,{'id':'report:'+first})
+    batch=store.batches.get(bid)
+    assert batch['finished']==2 and batch['records'][0]['status']=='deleted'
+    assert 'report_url' not in batch['records'][0]
+    assert batch['records'][1]['report_url'].endswith(second+'/report')
+    assert (store.batches.root/(bid+'.json')).exists()
+
+
+def test_active_sibling_does_not_block_completed_report_unless_same_batch(store):
+    record=upload(store);first=job(store,record);second=job(store,record,'running')
+    store.library_state.archive({'ids':['report:'+first]})
+    store.library_state.archive({'ids':['report:'+first]},restore=True)
+    bid=uuid.uuid4().hex
+    store.batches.items[bid]={'id':bid,'package_id':'p','status':'running',
+        'records':[{'job_id':first},{'job_id':second}]}
+    with pytest.raises(ValueError,match='运行'):
+        store.library_state.archive({'ids':['report:'+first]})
+
+
+def test_dataset_report_archive_is_independent_of_signal_reports_and_baseline(store,tmp_path):
+    source=tmp_path/'dataset';source.mkdir()
+    store.packages.packages['p']={'id':'p','label':'Dataset','root':str(source),
+        'expectations':str(tmp_path/'missing.json'),'library_origin':'user_registered'}
+    record=upload(store);record['dataset_context']={'package_id':'p'};signal=job(store,record)
+    first,second=uuid.uuid4().hex,uuid.uuid4().hex
+    for identifier,baseline in ((first,None),(second,first)):
+        value={'id':identifier,'package_id':'p','status':'completed','created_at':'today',
+            'manifest_hash':'x','baseline_job_id':baseline}
+        folder=store.packages.root/identifier;folder.mkdir();save_json(folder/'job.json',value)
+        (folder/'report.html').write_text('dataset report')
+        store.packages.jobs[identifier]=value
+    store.library_state.archive({'ids':['package-report:'+first]})
+    row=next(r for r in library(store)['items'] if r['id']=='dataset:p')
+    assert row['archived_reports']==1 and row['active_reports']==2 and not row['archived']
+    assert len(row['recent_reports'])==3
+    with pytest.raises(ValueError,match='基线'):
+        delete(store,{'id':'package-report:'+first})
+    store.library_state.archive({'ids':['package-report:'+second]})
+    preview=store.library_state.preview({'all_archived':True})
+    assert preview['reports_only'] and preview['runs']==2
+    store.library_state.delete({'all_archived':True,'token':preview['token'],'confirmed':True})
+    assert not store.packages.jobs and 'p' in store.packages.packages
+    assert signal in store.jobs and Path(record['source_path']).exists()

@@ -700,6 +700,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/v1/packages':
             directory = self.store.packages.catalog()
             directory['packages'] = [p for p in directory['packages'] if p.get('category') == 'example' or self.store.packages.packages.get(p['id'], {}).get('library_origin') in {'user_upload', 'user_registered'}]
+            if hasattr(self.store, 'library_state'):
+                directory['jobs'] = [j for j in directory['jobs'] if not self.store.library_state.report_archived(j, package=True)]
             return self.json(directory)
         package_match = re.fullmatch(r'/api/v1/package-jobs/([a-f0-9]{32})(?:/(result|report|download|expectations))?', path)
         if package_match:
@@ -804,7 +806,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.json(public_intake(self.store.intake_status(match.group(1))))
         if path == '/api/v1/jobs':
             with self.store.lock:
-                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'} and (not hasattr(self.store, 'library_state') or not self.store.library_state.is_archived(self.store.inputs[j['input_id']]))]), key=lambda j: j['created_at'], reverse=True)
+                jobs = sorted(copy.deepcopy([j for j in self.store.jobs.values() if self.store.inputs.get(j['input_id'], {}).get('library_origin') in {'user_upload', 'user_registered'} and (not hasattr(self.store, 'library_state') or not self.store.library_state.report_archived(j))]), key=lambda j: j['created_at'], reverse=True)
             return self.json({'jobs': jobs})
         match = re.fullmatch(r'/api/v1/inputs/([A-Za-z0-9_-]+)(?:/(waveform|configuration))?', path)
         if match:

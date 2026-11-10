@@ -2188,6 +2188,8 @@
       const affected=new Set(change.input_ids||[]);
       if(affected.has(state.input?.id)||affected.has(state.job?.input_id)){
         discardDraft();clearInputDraft();renderPipeline();
+      }else if((change.job_ids||[]).includes(state.job?.id)){
+        state.mode="draft";clearJobView();renderPipeline();updateActions();
       }
       if((change.intake_ids||[]).includes(state.intake?.id)){
         state.intake=null;pendingIntakeId(null);renderIntake();

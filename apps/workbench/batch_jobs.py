@@ -135,11 +135,16 @@ class BatchJobs:
             result = copy.deepcopy(self.items[identifier])
         for row in result['records']:
             if row.get('job_id'):
+                state = getattr(self.store, 'library_state', None)
+                if state and row['job_id'] in state.state['deleted']['jobs']:
+                    row.update(status='deleted', reason='报告已删除。')
+                    row.pop('report_url', None)
+                    continue
                 job = self.store.job(row['job_id'])
                 row['status'] = job['status']
                 if job['status'] == 'completed':
                     row['report_url'] = '/api/v1/jobs/' + job['id'] + '/report'
-        result['finished'] = sum(r['status'] in TERMINAL for r in result['records'])
+        result['finished'] = sum(r['status'] in TERMINAL | {'deleted'} for r in result['records'])
         result['runnable'] = sum(r['status'] != 'unavailable' for r in result['records'])
         return result
 
