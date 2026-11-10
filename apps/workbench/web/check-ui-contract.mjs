@@ -31,9 +31,10 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {setCoreMethod,selectedCoreMethods,isMethodSelected,deriveSelectedModules,scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {setCoreMethod,selectedCoreMethods,isMethodSelected,deriveSelectedModules,scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,closeReviewWorkspace,moveWaveform,zoomWaveform,renderWaveformChannels,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
+  const waveformGeometry={module:{exports:{}}};vm.runInNewContext(fs.readFileSync(path.join(directory,"waveform-explorer.js"),"utf8"),waveformGeometry);context.window.QCWaveformGeometry=waveformGeometry.module.exports;
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
   test.state.catalog=fixtureCatalog();if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
@@ -656,7 +657,7 @@ check("waveform requests are bounded and stale responses cannot replace a newer 
   const first=deferred(),calls=[];const t=harness(async(url)=>{calls.push(url);return calls.length===1?first.promise:response({start_seconds:10,stop_seconds:15,channels:[]})});t.state.workspace={kind:"input",id:"source",total_seconds:300};t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];t.get("waveform-start").value=0;t.get("waveform-duration").value=20;await t.loadWaveform();assert.equal(calls.length,0);t.get("waveform-duration").value=5;const pending=t.loadWaveform();t.get("waveform-start").value=10;await t.loadWaveform();first.resolve(response({start_seconds:0,stop_seconds:5,channels:[]}));await pending;assert.equal(t.state.waveform.start_seconds,10);assert(calls[1].includes("max_points=1600"));assert(calls[1].includes("channel_indices=0"));
 });
 check("waveform highlights only actual interval localization and escapes source channel names",()=>{
-  const t=harness();t.state.waveform={start_seconds:0,stop_seconds:5,channels:[{source_index:82,name:"<channel>",unit:"µV",times_seconds:[0,1,2,3],values:[0,2,-2,0]}]};t.state.candidates=[{id:"candidate",localization:"whole_window",start_seconds:1,stop_seconds:2}];t.state.candidateId="candidate";t.get("waveform-gain").value=1;t.renderWaveform();assert(!t.get("waveform-plot").innerHTML.includes("<rect"));assert(t.get("waveform-plot").innerHTML.includes("#82 &lt;channel&gt;"));t.state.candidates[0].localization="interval";t.renderWaveform();assert(t.get("waveform-plot").innerHTML.includes("<rect"));
+  const t=harness();t.state.waveform={start_seconds:0,stop_seconds:5,channels:[{source_index:82,name:"<channel>",unit:"µV",times_seconds:[0,1,2,3],values:[0,2,-2,0]}]};t.state.candidates=[{id:"candidate",localization:"whole_window",channel_indices:[82],start_seconds:1,stop_seconds:2}];t.state.candidateId="candidate";t.get("waveform-gain").value=1;t.renderWaveform();assert(!t.get("waveform-plot").innerHTML.includes("<rect"));assert(t.get("waveform-plot").innerHTML.includes("#82 &lt;channel&gt;"));t.state.candidates[0].localization="interval";t.renderWaveform();assert(t.get("waveform-plot").innerHTML.includes("<rect"));
 });
 check("candidate evidence links are restricted to same-job artifacts and valid basenames",()=>{
   const t=harness();t.state.workspace={kind:"job",id:"job"};assert(t.evidenceLinks({evidence:{artifact:"w000001--M03_continuity.json"}}).includes("/api/v1/jobs/job/artifacts/w000001--M03_continuity.json"));assert.equal(t.evidenceLinks({evidence:{artifact:"../secret"}}),"");assert.equal(t.evidenceLinks({evidence:{url:"javascript:alert(1)"}}),"");assert.equal(t.evidenceLinks({evidence:{url:"/api/v1/jobs/other/artifacts/a.json"}}),"");
@@ -669,6 +670,56 @@ check("same-unit waveforms retain amplitude ratios and DC offset, with explicit 
 });
 check("candidate pre-context clamps to its actual segment and manual gap starts remain errors",async()=>{
   const calls=[];const t=harness(async(url)=>{calls.push(url);return response({start_seconds:10,stop_seconds:15,channels:[]})});t.state.workspace={kind:"job",id:"job",total_seconds:20,channels:[{index:0,name:"EEG",sampling_rate_hz:100}],segments:[{start_sample:1000,stop_sample:1500,recording_start_seconds:10}]};t.state.candidates=[{id:"a",module_id:"M03",localization:"interval",channel_indices:[0],start_seconds:10.2,stop_seconds:10.4}];t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];t.get("waveform-duration").value=5;await t.selectCandidate("a");assert(calls[0].includes("start_seconds=10&"));t.get("waveform-start").value=9;await t.loadWaveform();assert.equal(calls.length,1);assert(t.get("review-error").textContent.includes("间隙"));t.get("waveform-start").value=14;await t.loadWaveform();assert(calls[1].includes("duration_seconds=1&"));
+});
+check("input preview owns full-width mode and can close without any QC result",async()=>{
+  const t=harness(async()=>response({start_seconds:0,stop_seconds:5,channels:[]}));
+  t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];
+  await t.openReviewWorkspace("input");
+  assert.equal(t.get("review-workspace").dataset.kind,"input");assert.equal(t.get("review-title").textContent,"预览波形");
+  assert(t.get("candidate-sidebar").hidden);assert(t.get("coverage-summary").hidden);assert(!t.get("review-workspace").hidden);
+  t.get("close-review-button").dispatch("click");assert(t.get("review-workspace").hidden);assert.equal(t.state.workspace,null);assert.equal(t.state.result,null);
+});
+check("preview channel selection reloads immediately, clearing all removes stale traces",async()=>{
+  const calls=[],t=harness(async url=>{calls.push(url);return response({start_seconds:0,stop_seconds:5,channels:[]})});
+  t.state.workspace={kind:"input",id:"source",total_seconds:300,channels:[{index:0,name:"A",sampling_rate_hz:500},{index:1,name:"B",sampling_rate_hz:500}]};
+  let selected=[1];t.get("waveform-channels").querySelectorAll=()=>selected.map(i=>({checked:true,dataset:{waveformChannel:String(i)}}));
+  t.get("waveform-start").value=0;t.get("waveform-duration").value=5;
+  t.get("waveform-channels").dispatch("change");await new Promise(r=>setTimeout(r,0));
+  assert.equal(calls.length,1);assert(calls[0].includes("channel_indices=1"));
+  selected=[];t.get("waveform-channels").dispatch("change");assert.equal(calls.length,1);assert.equal(t.state.waveform,null);assert.equal(t.get("waveform-plot").innerHTML,"");
+});
+check("preview navigation scales to the view, stops at segment edges and refines zoom",async()=>{
+  const calls=[],t=harness(async url=>{calls.push(url);const q=new URL(url,'http://test').searchParams,start=+q.get('start_seconds'),span=+q.get('duration_seconds');return response({start_seconds:start,stop_seconds:start+span,channels:[]})});
+  t.state.workspace={kind:"input",id:"source",total_seconds:21600,channels:[{index:0,sampling_rate_hz:100}],segments:[{recording_start_seconds:100,start_sample:0,stop_sample:10000}]};
+  t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];t.get("waveform-start").value=150;t.get("waveform-duration").value=5;
+  await t.moveWaveform(160);assert.equal(+t.get("waveform-position").max-+t.get("waveform-position").min,20);
+  await t.moveWaveform(999);assert.equal(t.get("waveform-start").value,"195");assert(t.get("waveform-next-button").disabled);
+  await t.moveWaveform(-1);assert.equal(t.get("waveform-start").value,"100");assert(t.get("waveform-prev-button").disabled);
+  t.zoomWaveform(.5);await new Promise(r=>setTimeout(r,190));assert.equal(t.get("waveform-duration").value,"2.5");assert.equal(+t.get("waveform-position").max-+t.get("waveform-position").min,10);
+  t.moveWaveform(110,2.5,true);t.closeReviewWorkspace();await new Promise(r=>setTimeout(r,190));assert.equal(calls.length,4,"Closing cancels scheduled reads");
+});
+check("preview drag and wheel move native time with pointer capture and anchored zoom",async()=>{
+  const t=harness(async url=>{const q=new URL(url,'http://test').searchParams,start=+q.get('start_seconds'),span=+q.get('duration_seconds');return response({start_seconds:start,stop_seconds:start+span,channels:[]})});
+  t.state.workspace={kind:"input",id:"source",total_seconds:300};t.state.waveform={};
+  t.get("waveform-channels").querySelectorAll=()=>[{checked:true,dataset:{waveformChannel:"0"}}];t.get("waveform-start").value=50;t.get("waveform-duration").value=10;
+  const plot=t.get("waveform-plot");let captured=null;plot.focus=()=>{};plot.getBoundingClientRect=()=>({left:0,width:1000});plot.setPointerCapture=id=>captured=id;plot.hasPointerCapture=id=>captured===id;plot.releasePointerCapture=()=>captured=null;
+  plot.dispatch("pointerdown",{button:0,pointerId:1,clientX:500});assert.equal(captured,1);
+  plot.dispatch("pointermove",{pointerId:1,clientX:584.5});assert.equal(t.get("waveform-start").value,"49");
+  plot.dispatch("pointerup",{pointerId:1});await new Promise(r=>setTimeout(r,0));assert.equal(captured,null);assert.equal(t.state.waveform.start_seconds,49);
+  let prevented=false;plot.dispatch("wheel",{deltaY:-100,clientX:557.5,preventDefault(){prevented=true}});await new Promise(r=>setTimeout(r,190));
+  assert(prevented);assert.equal(t.get("waveform-duration").value,"8");assert.equal(t.get("waveform-start").value,"50");
+});
+check("preview rendering retains readable lane height at narrow widths and centering is display-only",()=>{
+  const t=harness();t.get("waveform-plot").clientWidth=500;t.get("waveform-gain").value=1;
+  t.state.waveform={start_seconds:0,stop_seconds:1,channels:[{source_index:0,name:"DC",unit:"µV",times_seconds:[0,.5,1],values:[999,1000,1001]}]};
+  const before=JSON.stringify(t.state.waveform);t.get("waveform-center").checked=true;t.renderWaveform();
+  const html=t.get("waveform-plot").innerHTML;assert(html.includes('viewBox="0 0 500 122"'));assert(html.includes('height:122px'));assert(html.includes("±1.00 µV"));assert(html.includes("显示偏移 1.00e+3"));assert.equal(JSON.stringify(t.state.waveform),before);
+  t.get("waveform-center").checked=false;t.renderWaveform();assert(t.get("waveform-center-note").hidden);assert(t.get("waveform-plot").innerHTML.includes("±1.00e+3 µV"));
+});
+check("preview marks a candidate only on its known channel",()=>{
+  const t=harness();t.get("waveform-gain").value=1;t.state.waveform={start_seconds:0,stop_seconds:5,channels:[0,1].map(i=>({source_index:i,name:String(i),unit:"µV",times_seconds:[0,1],values:[0,1]}))};
+  t.state.candidateId="a";t.state.candidates=[{id:"a",localization:"interval",start_seconds:1,stop_seconds:2,channel_indices:[1]}];t.renderWaveform();
+  assert.equal((t.get("waveform-plot").innerHTML.match(/<rect /g)||[]).length,1);assert(t.get("waveform-plot").innerHTML.includes('y="82"'));
 });
 check("cancelled whole-record progress exposes unfinished windows without treating stale running as complete",()=>{
   const t=harness();t.state.job={id:"cancelled",status:"cancelled",recording_progress:{status:"running",coverage:{total_seconds:300,completed_seconds:120,failed_seconds:0,unexecuted_seconds:60,running_seconds:120,gap_seconds:0,execution_percent:40,fully_assessed_seconds:0},windows:[{id:"w1",start_seconds:0,duration_seconds:120,status:"completed"},{id:"w2",start_seconds:120,duration_seconds:120,status:"running"}]}};t.renderRecordingProgress();const html=t.get("recording-progress").innerHTML;assert(html.includes("任务已停止"));assert(html.includes("未完成"));assert(html.includes('aria-valuenow="40"'));assert(!html.includes(">运行中<"));assert(html.includes("所选检查均完成范围"));

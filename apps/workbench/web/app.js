@@ -1699,6 +1699,7 @@
   }
   function resetReviewWorkspace() {
     stashReviewDraft();
+    clearTimeout(state.waveformTimer); state.waveformNav = null; state.waveformDrag = null;
     ++state.workspaceRequest; ++state.waveformRequest; state.workspace = null; state.waveform = null; state.candidates = []; state.candidateId = null; state.review = null; state.reviewWarnings = []; renderReviewEvidenceNotice();
     if($("review-psd"))$("review-psd").hidden=true;
     $("review-workspace").hidden = true; $("candidate-detail").hidden = true; $("waveform-plot").innerHTML = "";
@@ -1740,7 +1741,53 @@
   function selectedWaveformChannels() { return [...$("waveform-channels").querySelectorAll("input[data-waveform-channel]")].filter(input=>input.checked).map(input=>Number(input.dataset.waveformChannel)); }
   function renderWaveformChannels(selected) {
     const chosen = new Set(selected);
-    $("waveform-channels").innerHTML = workspaceChannels().map(channel=>`<label><input type="checkbox" data-waveform-channel="${escape(channel.index)}" ${chosen.has(channel.index) ? "checked" : ""}><span data-i18n-skip>#${escape(channel.index)} ${escape(channel.name)}</span></label>`).join("");
+    const channels=workspaceChannels(),first=channels.find(c=>chosen.has(c.index)),search=$("waveform-channel-search").value.toLowerCase().trim();
+    $("waveform-channel-count").textContent=`${chosen.size} / 16`;
+    $("waveform-channels").innerHTML = channels.map(channel=>{
+      const checked=chosen.has(channel.index),otherRate=first && channel.sampling_rate_hz !== first.sampling_rate_hz;
+      return `<label ${search&&!String(channel.name).toLowerCase().includes(search)?"hidden":""}><input type="checkbox" data-waveform-channel="${escape(channel.index)}" ${checked?"checked":""} ${!checked&&(chosen.size>=16||otherRate)?"disabled":""}><span data-i18n-skip>${escape(channel.name)}</span>${otherRate?'<small>采样率不同</small>':""}</label>`;
+    }).join("");
+  }
+  function waveformBounds(start=Number($("waveform-start").value)||0) {
+    const segments=waveformSegments(selectedWaveformChannels());
+    const segment=segments.find(row=>start>=row.start&&start<row.stop);
+    return segment?{start_seconds:segment.start,stop_seconds:segment.stop}:segments.length?null:
+      {start_seconds:0,stop_seconds:state.workspace?.total_seconds||10};
+  }
+  function syncWaveformNavigation() {
+    const segment=waveformBounds(); if(!segment)return;
+    const view={start:Number($("waveform-start").value)||0,span:Number($("waveform-duration").value)||5};
+    const nav=window.QCWaveformGeometry.navigation(view,segment,state.waveformNav); state.waveformNav=nav;
+    const rail=$("waveform-position");rail.min=nav.min;rail.max=nav.max;rail.step=nav.step;rail.value=view.start;rail.disabled=nav.min===nav.max;
+    rail.setAttribute("aria-valuetext",`${number(view.start,2)}–${number(view.start+view.span,2)} s`);
+    $("waveform-nav-start").textContent=`${number(nav.min,1)} s`;$("waveform-nav-stop").textContent=`${number(nav.max+view.span,1)} s`;
+    $("waveform-prev-button").disabled=view.start<=segment.start_seconds+1e-6;
+    $("waveform-next-button").disabled=view.start+view.span>=segment.stop_seconds-1e-6;
+    $("waveform-zoom-in").disabled=view.span<=0.1;
+    $("waveform-zoom-out").disabled=view.span>=Math.min(10,segment.stop_seconds-segment.start_seconds)-1e-6;
+  }
+  function moveWaveform(start,span=Number($("waveform-duration").value)||5,debounce=false) {
+    const bounds=waveformBounds(); if(!state.workspace||!bounds)return;
+    const view=window.QCWaveformGeometry.viewport(start,Math.min(10,Math.max(.1,span)),bounds);
+    $("waveform-start").value=Number(view.start.toFixed(6));$("waveform-duration").value=Number(view.span.toFixed(6));
+    syncWaveformNavigation();clearTimeout(state.waveformTimer);
+    // A moved view must not leave the old trace under the new time controls.
+    $("waveform-plot").dataset.stale="true";
+    if(debounce){++state.waveformRequest;state.waveformTimer=setTimeout(loadWaveform,160);return;}
+    return loadWaveform();
+  }
+  function zoomWaveform(factor,anchor=.5) {
+    const bounds=waveformBounds();if(!state.workspace||!bounds)return;
+    const view={start:Number($("waveform-start").value)||0,span:Number($("waveform-duration").value)||5};
+    const span=Math.min(10,Math.max(.1,view.span*factor));
+    const next=window.QCWaveformGeometry.zoom(view,span,bounds,anchor);
+    return moveWaveform(next.start,next.span,true);
+  }
+  function closeReviewWorkspace() {
+    const inputPreview=state.workspace?.kind==="input";
+    resetReviewWorkspace();
+    if(inputPreview)$("preview-input-button").focus?.();
+    else {state.resultTab="overview";renderResultTabs();}
   }
   async function openReviewWorkspace(kind = "job") {
     const source = kind === "job" ? state.job : state.input;
@@ -1752,12 +1799,18 @@
     const meta = kind === "job" ? source.plan?.input_metadata || {} : source.metadata || {};
     const selection = kind === "job" ? source.plan?.qc_config?.selection || {} : currentConfig()?.selection || {};
     state.workspace = {kind,id:source.id,label:source.label || source.id,channels:arr(meta.channels),total_seconds:meta.duration_seconds,segments:arr(meta.continuous_segments)};
+    $("review-workspace").dataset.kind=kind;
+    $("review-title").textContent=kind==="input"?"预览波形":"波形与候选复核";
+    $("close-review-button").textContent="收起";
     $("review-workspace").hidden = false; $("review-source").textContent = state.workspace.label;
     $("candidate-sidebar").hidden = kind !== "job"; $("candidate-detail").hidden = true;
     $("candidate-module").innerHTML='<option value="all">全部模块</option>'+moduleOrder().map(id=>`<option value="${id}">${id} · ${escape(moduleLabel(id))}</option>`).join(""); $("candidate-module").value="all";
-    $("coverage-summary").textContent = kind === "job" ? coverageText() : "仅波形预览，尚未执行质控。";
+    $("coverage-summary").hidden=kind==="input";
+    $("coverage-summary").textContent = kind === "job" ? coverageText() : "";
     $("waveform-start").value = selection.start_seconds || 0; $("waveform-duration").value = "5";
-    renderWaveformChannels(arr(selection.eeg_indices).slice(0,8)); setError("review-error",null);
+    $("waveform-channel-search").value="";$("waveform-gain").value="1";$("waveform-center").checked=false;
+    const requested=arr(selection.eeg_indices),available=workspaceChannels(),first=available.find(c=>requested.includes(c.index))||available[0];
+    renderWaveformChannels(available.filter(c=>(!requested.length||requested.includes(c.index))&&c.sampling_rate_hz===first?.sampling_rate_hz).slice(0,8).map(c=>c.index)); setError("review-error",null);
     $("review-workspace").scrollIntoView({block:"start"});
     if (kind === "job") {
       $("candidate-list").innerHTML = '<p class="small muted">正在读取候选与复核记录…</p>';
@@ -1797,6 +1850,7 @@
     await loadWaveform();
   }
   async function loadWaveform() {
+    clearTimeout(state.waveformTimer);
     const workspace = state.workspace; if (!workspace) return;
     const indices = selectedWaveformChannels(), start = Number($("waveform-start").value), duration = Number($("waveform-duration").value);
     if (!indices.length || indices.length > 16 || !Number.isFinite(start) || start < 0 || !Number.isFinite(duration) || duration <= 0 || duration > 10) { setError("review-error","请选择 1–16 道信号、非负起点和不超过 10 秒的显示时长。"); return; }
@@ -1806,41 +1860,51 @@
     if (bounded <= 0) { setError("review-error","显示起点超出记录范围。"); return; }
     const request = ++state.waveformRequest, workspaceRequest = state.workspaceRequest;
     $("waveform-status").textContent = "正在读取波形…"; $("waveform-load-button").disabled = true; setError("review-error",null);
+    $("waveform-plot").setAttribute("aria-busy","true");$("waveform-plot").dataset.stale="true";
     const route = workspace.kind === "job" ? "jobs" : "inputs";
     try {
       const data = await api(`/${route}/${encodeURIComponent(workspace.id)}/waveform?start_seconds=${encodeURIComponent(start)}&duration_seconds=${encodeURIComponent(bounded)}&channel_indices=${indices.join(",")}&max_points=1600`);
       if (request !== state.waveformRequest || workspaceRequest !== state.workspaceRequest) return;
-      state.waveform = data; $("waveform-start").value=data.start_seconds; renderWaveform();
+      state.waveform = data; $("waveform-start").value=data.start_seconds; $("waveform-duration").value=Number((data.stop_seconds-data.start_seconds).toFixed(6));
+      $("waveform-plot").dataset.stale="false"; renderWaveform();syncWaveformNavigation();
     } catch(error) { if (request === state.waveformRequest && workspaceRequest === state.workspaceRequest) { state.waveform = null; $("waveform-plot").innerHTML = ""; setError("review-error",error.message); $("waveform-status").textContent = "波形读取未完成"; if($("review-psd"))$("review-psd").hidden=true; } }
-    finally { if (request === state.waveformRequest) $("waveform-load-button").disabled = false; }
+    finally { if (request === state.waveformRequest) {$("waveform-load-button").disabled = false;$("waveform-plot").setAttribute("aria-busy","false");} }
   }
   function renderWaveform() {
     const data = state.waveform; if (!data) return;
     const channels = arr(data.channels).slice(0,16), start = data.start_seconds, stop = data.stop_seconds;
     if (!numeric(start) || !numeric(stop) || stop <= start) { setError("review-error","波形时间范围无效。"); return; }
-    const width = 1000, left = 135, right = 20, rowHeight = 82, height = Math.max(1,channels.length)*rowHeight+40, gain = Number($("waveform-gain").value) || 1;
+    const width = Math.max(320,$("waveform-plot").clientWidth||1000), left = 135, right = 20, rowHeight = 82, height = Math.max(1,channels.length)*rowHeight+40, gain = Number($("waveform-gain").value) || 1;
+    const centered=$("waveform-center").checked===true,offsets=new Map();
+    $("waveform-center-note").hidden=!centered;
     const x = time => left + (time-start)/(stop-start)*(width-left-right);
     const candidate = candidateById(state.candidateId), canMark = candidate?.localization === "interval" && numeric(candidate.start_seconds) && numeric(candidate.stop_seconds);
     const a = canMark ? Math.max(start,candidate.start_seconds) : 0, b = canMark ? Math.min(stop,candidate.stop_seconds) : 0;
-    const mark = canMark && b>a ? `<rect x="${x(a)}" y="0" width="${x(b)-x(a)}" height="${height-28}" fill="#2563eb" opacity="0.08"/>` : "";
     const scales=new Map();
-    for(const channel of channels){const key=channel.unit || `unknown:${channel.source_index}`,values=arr(channel.values).slice(0,2000).filter(numeric);const magnitude=values.length?Math.max(...values.map(Math.abs)):0;scales.set(key,Math.max(scales.get(key)||0,magnitude));}
+    for(const channel of channels){const key=channel.unit || `unknown:${channel.source_index}`,values=arr(channel.values).slice(0,2000).filter(numeric);
+      // Center the displayed envelope only. It is not a DC estimate for QC.
+      const offset=centered&&values.length?(Math.min(...values)+Math.max(...values))/2:0;offsets.set(channel.source_index,offset);
+      const magnitude=values.length?Math.max(...values.map(v=>Math.abs(v-offset))):0;scales.set(key,Math.max(scales.get(key)||0,magnitude));}
+    const grid=Array.from({length:6},(_,i)=>`<line x1="${x(start+(stop-start)*i/5)}" x2="${x(start+(stop-start)*i/5)}" y1="0" y2="${height-28}" stroke="#edf1f6"/>`).join("");
     const paths = channels.map((channel,index)=>{
       const times = arr(channel.times_seconds).slice(0,2000), values = arr(channel.values).slice(0,2000), finite = values.filter(numeric), baseline = index*rowHeight+rowHeight/2;
       if (!finite.length) return `<text x="8" y="${baseline}">${escape(channel.name || channel.source_index)} · ${escape(window.QCI18n?.translate("无有限采样") || "无有限采样")}</text>`;
       const scale=scales.get(channel.unit || `unknown:${channel.source_index}`)||1,limit=scale/gain;
+      const offset=offsets.get(channel.source_index)||0;
       let drawing = false,clipped=0; const points = [];
-      for (let i=0;i<Math.min(times.length,values.length,2000);i++) { if (!numeric(times[i]) || !numeric(values[i]) || times[i]<start || times[i]>stop) { drawing=false; continue; } if(Math.abs(values[i])>limit)clipped++; const y=baseline-Math.max(-limit,Math.min(limit,values[i]))/scale*28*gain; points.push(`${drawing?"L":"M"}${x(times[i]).toFixed(2)},${y.toFixed(2)}`); drawing=true; }
+      for (let i=0;i<Math.min(times.length,values.length,2000);i++) { if (!numeric(times[i]) || !numeric(values[i]) || times[i]<start || times[i]>stop) { drawing=false; continue; } const value=values[i]-offset;if(Math.abs(value)>limit)clipped++; const y=baseline-Math.max(-limit,Math.min(limit,value))/scale*28*gain; points.push(`${drawing?"L":"M"}${x(times[i]).toFixed(2)},${y.toFixed(2)}`); drawing=true; }
       const clipLabel=clipped?`<text x="${left+8}" y="${index*rowHeight+11}" class="waveform-clipped">${escape(window.QCI18n?.translate("显示裁切") || "显示裁切")} · ${clipped}</text>`:"";
-      return `<line x1="${left}" x2="${width-right}" y1="${baseline}" y2="${baseline}" stroke="#cbd5e1"/><text x="8" y="${baseline-8}" class="waveform-label">#${escape(channel.source_index)} ${escape(channel.name)}</text><text x="8" y="${baseline+10}" class="waveform-unit">±${escape(Number(limit).toPrecision(3))} ${escape(channel.unit || "?")}</text><path data-source-index="${escape(channel.source_index)}" d="${points.join(" ")}" fill="none" stroke="${clipped?"#b45309":"#2563eb"}" stroke-width="1"/>${clipLabel}`;
+      const mark=canMark&&b>a&&arr(candidate.channel_indices).includes(channel.source_index)?`<rect x="${x(a)}" y="${index*rowHeight}" width="${x(b)-x(a)}" height="${rowHeight}" fill="#e8b250" opacity="0.18"/>`:"";
+      const offsetLabel=centered?`<text x="8" y="${baseline+26}" class="waveform-unit">${escape(window.QCI18n?.translate("显示偏移")||"显示偏移")} ${Number(offset).toPrecision(3)}</text>`:"";
+      return `${mark}<line x1="${left}" x2="${width-right}" y1="${baseline}" y2="${baseline}" stroke="#cbd5e1"/><text x="8" y="${baseline-8}" class="waveform-label">#${escape(channel.source_index)} ${escape(channel.name)}</text><text x="8" y="${baseline+10}" class="waveform-unit">±${escape(Number(limit).toPrecision(3))} ${escape(channel.unit || "?")}</text>${offsetLabel}<path data-source-index="${escape(channel.source_index)}" d="${points.join(" ")}" fill="none" stroke="${clipped?"#b45309":"#2563eb"}" stroke-width="1"/>${clipLabel}`;
     }).join("");
     const ticks = Array.from({length:6},(_,i)=>{const t=start+(stop-start)*i/5;return `<text x="${x(t)}" y="${height-5}" text-anchor="middle" class="waveform-unit">${t.toFixed(2)} s</text>`;}).join("");
-    $("waveform-plot").innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${escape(window.QCI18n?.translate("原始信号波形") || "原始信号波形")}">${mark}${paths}${ticks}</svg>`;
-    $("waveform-status").textContent = `${number(start,3)}–${number(stop,3)} s · ${channels.length} 道 · ${data.display_method || "显示方法未提供"} · 同单位共用幅度标尺 · 以零为中心`;
+    $("waveform-plot").innerHTML = `<svg viewBox="0 0 ${width} ${height}" style="height:${height}px" role="img" aria-label="${escape(window.QCI18n?.translate("原始信号波形") || "原始信号波形")}">${grid}${paths}${ticks}</svg>`;
+    $("waveform-status").textContent = `${number(start,2)}–${number(stop,2)} s · ${channels.length} ${window.QCI18n?.translate("道")||"道"}`;
     renderReviewSpectrum(channels);
   }
   function renderReviewSpectrum(channels) {
-    let box=$("review-psd"); if(!box){box=document.createElement("details");box.id="review-psd";box.open=true;$("waveform-plot").after(box);}
+    let box=$("review-psd"); if(!box){box=document.createElement("details");box.id="review-psd";box.open=false;$("waveform-center-note").after(box);}box.hidden=false;
     const curves=channels.filter(c=>Array.isArray(c.psd?.power_uv2_hz)).map(c=>({name:c.name,points:c.psd.frequencies_hz.map((f,i)=>[f,10*Math.log10(c.psd.power_uv2_hz[i])]).filter(([f,p])=>f>0&&Number.isFinite(p))})).filter(c=>c.points.length>1);
     if(!curves.length){box.innerHTML='<summary>同一片段的 PSD</summary><p class="small muted">当前片段无法计算 PSD；未补零。</p>';return;}
     const ys=curves.flatMap(c=>c.points.map(p=>p[1])),ymin=Math.min(...ys),ymax=Math.max(...ys),xmax=Math.max(...curves.map(c=>c.points.at(-1)[0]));
@@ -1851,7 +1915,7 @@
     box.innerHTML=`<summary>同一片段的 PSD</summary><p class="small muted">原生采样计算 · dB re μV²/Hz · 横轴 Hz；用于复核，不改变评分。</p><svg viewBox="0 0 1000 300" role="img" aria-label="当前片段功率谱密度">${ticks}${paths}</svg><p class="small muted">${curves.map(c=>escape(c.name)).join(' · ')}</p>`;
   }
 
-  function shiftWaveform(direction) { if (!state.workspace) return; const duration=Number($("waveform-duration").value)||5; const max=numeric(state.workspace.total_seconds)?Math.max(0,state.workspace.total_seconds-duration):Infinity; $("waveform-start").value=Math.max(0,Math.min(max,(Number($("waveform-start").value)||0)+direction*duration)); return loadWaveform(); }
+  function shiftWaveform(direction) { if (!state.workspace) return; const duration=Number($("waveform-duration").value)||5; return moveWaveform((Number($("waveform-start").value)||0)+direction*duration); }
   async function saveReview() {
     const workspace=state.workspace,candidate=candidateById(state.candidateId); if (!workspace || workspace.kind !== "job" || !candidate || state.reviewBusy || !state.review) return;
     const decision=$("review-decision").value,reviewer=$("review-reviewer").value.trim(),note=$("review-note").value.trim();
@@ -2112,14 +2176,48 @@
   $("result-tabs").addEventListener("keydown",event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;const tabs=[...$("result-tabs").querySelectorAll("[data-result-tab]")],i=tabs.indexOf(event.target);if(i<0)return;event.preventDefault();const next=tabs[(i+(event.key==="ArrowRight"?1:2))%3];next.focus();selectResultTab(next.dataset.resultTab);});
   document.addEventListener("click",event=>{const b=event.target.closest("[data-result-tab]");if(b)selectResultTab(b.dataset.resultTab);});
   $("open-review-button").addEventListener("click",()=>openReviewWorkspace("job"));
-  $("close-review-button").addEventListener("click",()=>selectResultTab("overview"));
+  $("close-review-button").addEventListener("click",closeReviewWorkspace);
   $("candidate-filter").addEventListener("change",()=>{state.candidateLimit=100;renderCandidateList();});
   $("candidate-module").addEventListener("change",()=>{state.candidateLimit=100;renderCandidateList();});
   $("waveform-load-button").addEventListener("click",loadWaveform);
   $("waveform-prev-button").addEventListener("click",()=>shiftWaveform(-1));
   $("waveform-next-button").addEventListener("click",()=>shiftWaveform(1));
   $("waveform-duration").addEventListener("change",loadWaveform);
+  $("waveform-start").addEventListener("change",loadWaveform);
+  for(const id of ["waveform-start","waveform-duration"])$(id).addEventListener("keydown",event=>{if(event.key==="Enter")loadWaveform();});
   $("waveform-gain").addEventListener("change",renderWaveform);
+  $("waveform-center").addEventListener("change",renderWaveform);
+  $("waveform-zoom-in").addEventListener("click",()=>zoomWaveform(.5));
+  $("waveform-zoom-out").addEventListener("click",()=>zoomWaveform(2));
+  $("waveform-position").addEventListener("input",event=>moveWaveform(Number(event.target.value),undefined,true));
+  $("waveform-position").addEventListener("change",loadWaveform);
+  $("waveform-channel-search").addEventListener("input",()=>renderWaveformChannels(selectedWaveformChannels()));
+  $("waveform-channels").addEventListener("change",()=>{const selected=selectedWaveformChannels();renderWaveformChannels(selected);++state.waveformRequest;clearTimeout(state.waveformTimer);if(!selected.length){state.waveform=null;$("waveform-plot").innerHTML="";$("waveform-status").textContent="请选择显示通道";$("waveform-load-button").disabled=false;if($("review-psd"))$("review-psd").hidden=true;return;}loadWaveform();});
+  $("waveform-plot").addEventListener("pointerdown",event=>{
+    if(event.button!==0||!state.waveform)return;
+    const box=$("waveform-plot").getBoundingClientRect();if(event.clientX-box.left<135)return;
+    state.waveformDrag={id:event.pointerId,x:event.clientX,start:Number($("waveform-start").value),span:Number($("waveform-duration").value),width:Math.max(1,box.width-155)};
+    $("waveform-plot").setPointerCapture(event.pointerId);$("waveform-plot").focus();
+  });
+  $("waveform-plot").addEventListener("pointermove",event=>{
+    const drag=state.waveformDrag;if(!drag||drag.id!==event.pointerId||Math.abs(event.clientX-drag.x)<3)return;
+    drag.moved=true;moveWaveform(drag.start-(event.clientX-drag.x)/drag.width*drag.span,drag.span,true);
+  });
+  for(const name of ["pointerup","pointercancel"])$("waveform-plot").addEventListener(name,event=>{
+    const drag=state.waveformDrag;if(!drag||drag.id!==event.pointerId)return;state.waveformDrag=null;
+    if($("waveform-plot").hasPointerCapture?.(event.pointerId))$("waveform-plot").releasePointerCapture(event.pointerId);
+    if(drag.moved)loadWaveform();
+  });
+  $("waveform-plot").addEventListener("wheel",event=>{
+    if(!state.workspace||!state.waveform||event.ctrlKey||event.metaKey)return;
+    event.preventDefault();const box=$("waveform-plot").getBoundingClientRect();
+    zoomWaveform(event.deltaY<0?.8:1.25,Math.max(0,Math.min(1,(event.clientX-box.left-135)/(box.width-155))));
+  },{passive:false});
+  $("waveform-plot").addEventListener("keydown",event=>{
+    if(event.key==="ArrowLeft"||event.key==="ArrowRight"){event.preventDefault();shiftWaveform(event.key==="ArrowLeft"?-1:1);}
+    if(["+","=","-"].includes(event.key)){event.preventDefault();zoomWaveform(event.key==="-"?2:.5);}
+  });
+  if(window.ResizeObserver)new window.ResizeObserver(()=>{if(state.waveform&&!$("review-workspace").hidden)renderWaveform();}).observe($("waveform-plot"));
   $("save-review-button").addEventListener("click",saveReview);
   $("close-dialog-button").addEventListener("click",() => $("module-dialog").close());
   $("module-dialog").addEventListener("close",moduleDialogClosed);

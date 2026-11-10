@@ -488,6 +488,20 @@ NWB、Neuropixels 原生格式暂不支持读取；单独 .eeg 不能上传。	N
 待定	Uncertain
 起点（秒）	Start (seconds)
 显示时长	Display duration
+显示时长（秒）	Window (seconds)
+跳转	Go
+放大时间轴	Zoom in time
+缩小时间轴	Zoom out time
+幅度	Amplitude
+居中显示	Center traces
+显示通道	Display channels
+请选择显示通道	Select channels to display
+采样率不同	Different sampling rate
+显示偏移	Display offset
+波形时间位置	Waveform position
+原始信号波形；左右拖动或用方向键移动，滚轮缩放	Source waveform; drag or use arrow keys to pan, scroll to zoom
+左右拖动查看前后 · 滚轮缩放 · 同单位共用幅度标尺	Drag to pan · Scroll to zoom · Shared amplitude scale for the same unit
+居中仅调整显示基线，偏移量列在通道旁；不改变信号或评分。	Centering changes the display baseline only. Offsets appear beside each channel; signals and scores are unchanged.
 查看波形	View waveform
 显示增益	Display gain
 选择显示通道（最多 16 道）	Display channels (up to 16)

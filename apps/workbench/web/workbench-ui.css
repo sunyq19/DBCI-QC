@@ -650,3 +650,28 @@ html[lang="en"] .comparison-en { display:flex; }
 .qc-app .ieeg-reference-check{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.6;margin:12px 0}
 .qc-app .ieeg-reference-check input{flex:0 0 auto;width:auto;margin-top:4px}
 @media(prefers-reduced-motion:reduce){.qc-app .demo-report,.qc-app .data-library-label{transition:none}}
+/* The input preview has no candidate sidebar: let its waveform use the page. */
+#review-workspace[data-kind="input"] .review-layout { grid-template-columns: minmax(0,1fr); }
+.waveform-panel .waveform-plot { max-height:65vh; overflow:auto; cursor:grab; touch-action:pan-y; scrollbar-gutter:stable; border-radius:6px; }
+.waveform-panel .waveform-plot:active { cursor:grabbing; }
+.waveform-panel .waveform-plot:focus-visible { outline:2px solid var(--qc-accent,#2459bc); outline-offset:2px; }
+.waveform-panel .waveform-plot[data-stale="true"] svg { opacity:.3; }
+.waveform-panel .waveform-plot svg { min-height:0; }
+.waveform-panel .waveform-label { font-size:14px; font-weight:600; }
+.waveform-panel .waveform-unit { font-size:11px; }
+.waveform-navigation { display:flex; align-items:center; gap:12px; margin:8px 0; color:#667891; font-size:12px; }
+.waveform-navigation span { white-space:nowrap; min-width:42px; }
+.waveform-navigation input { flex:1; min-width:0; accent-color:#2459bc; cursor:ew-resize; }
+.waveform-controls .waveform-center { flex-direction:row; align-items:center; align-self:center; padding-top:18px; }
+.waveform-controls .waveform-center input { width:16px; min-height:16px; accent-color:#2459bc; }
+.waveform-span-control { display:flex; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; }
+.waveform-controls .waveform-span-control input { width:60px; border:0; border-radius:0; text-align:center; padding:8px 3px; appearance:textfield; }
+.waveform-span-control input::-webkit-inner-spin-button { appearance:none; }
+.waveform-span-control button { width:32px; border:0; background:#f5f8fc; color:#2459bc; font-size:19px; cursor:pointer; }
+.waveform-span-control button:hover { background:#e8effb; }
+.waveform-span-control button:disabled { opacity:.35; cursor:default; }
+.waveform-channel-details > summary { width:fit-content; }
+.waveform-channel-details > summary span { margin-left:8px; color:#6a7e98; }
+.waveform-channel-details > input { margin-top:12px; width:min(280px,100%); padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; }
+.waveform-channels small { color:#8190a3; font-size:11px; }
+.waveform-hint { margin-top:8px; }

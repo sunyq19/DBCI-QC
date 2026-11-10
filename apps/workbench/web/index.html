@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css">
   <script src="./i18n.js" defer></script>
   <script src="/run-names.js" defer></script>
+  <script src="/waveform-explorer.js" defer></script>
   <script src="./app.js" defer></script>
   <script src="./data-library.js" defer></script>
 </head>
@@ -182,11 +183,21 @@
       <div class="review-layout">
         <aside id="candidate-sidebar" class="candidate-sidebar"><div class="subheading"><h3>待复核候选</h3><span id="candidate-count" class="tag subtle"></span></div><label class="field-label" for="candidate-module">模块</label><select id="candidate-module"><option value="all">全部模块</option></select><label class="field-label" for="candidate-filter">复核状态</label><select id="candidate-filter"><option value="all">全部候选</option><option value="pending">待复核</option><option value="accepted">接受候选</option><option value="rejected">驳回候选</option><option value="uncertain">待定</option></select><div id="candidate-list" class="candidate-list"></div></aside>
         <div class="waveform-panel">
-          <div class="waveform-controls"><label>起点（秒）<input id="waveform-start" type="number" min="0" step="any" value="0"></label><label>显示时长<select id="waveform-duration"><option value="2">2 s</option><option value="5" selected>5 s</option><option value="10">10 s</option></select></label><button id="waveform-load-button" class="button secondary small-button">查看波形</button><button id="waveform-prev-button" class="button ghost small-button" aria-label="上一段">←</button><button id="waveform-next-button" class="button ghost small-button" aria-label="下一段">→</button><label>显示增益<select id="waveform-gain"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label></div>
-          <details class="waveform-channel-details"><summary>选择显示通道（最多 16 道）</summary><div id="waveform-channels" class="waveform-channels"></div></details>
+          <div class="waveform-controls">
+            <label>起点（秒）<input id="waveform-start" type="number" min="0" step="any" value="0"></label>
+            <button id="waveform-prev-button" class="button ghost small-button" aria-label="上一段">‹</button>
+            <label>显示时长（秒）<span class="waveform-span-control"><button id="waveform-zoom-in" type="button" aria-label="放大时间轴">−</button><input id="waveform-duration" type="number" min="0.1" max="10" step="any" value="5"><button id="waveform-zoom-out" type="button" aria-label="缩小时间轴">＋</button></span></label>
+            <button id="waveform-next-button" class="button ghost small-button" aria-label="下一段">›</button>
+            <button id="waveform-load-button" class="button secondary small-button">跳转</button>
+            <label>幅度<select id="waveform-gain"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></label>
+            <label class="waveform-center"><input id="waveform-center" type="checkbox">居中显示</label>
+          </div>
+          <details class="waveform-channel-details"><summary>显示通道 <span id="waveform-channel-count" data-i18n-skip></span></summary><input id="waveform-channel-search" type="search" placeholder="筛选通道" aria-label="筛选通道"><div id="waveform-channels" class="waveform-channels"></div></details>
+          <div class="waveform-navigation"><span id="waveform-nav-start" data-i18n-skip></span><input id="waveform-position" type="range" min="0" max="1" step="any" value="0" aria-label="波形时间位置"><span id="waveform-nav-stop" data-i18n-skip></span></div>
           <p id="waveform-status" class="small muted" role="status"></p>
-          <div id="waveform-plot" class="waveform-plot" aria-label="原始信号波形"></div>
-          <p class="small muted">波形采用有界极值包络显示，不改变分析数据。同单位共用标尺并保留零基线；超范围显示会标记。候选不等于已确认伪迹。</p>
+          <div id="waveform-plot" class="waveform-plot" tabindex="0" aria-label="原始信号波形；左右拖动或用方向键移动，滚轮缩放"></div>
+          <p class="waveform-hint small muted">左右拖动查看前后 · 滚轮缩放 · 同单位共用幅度标尺</p>
+          <p id="waveform-center-note" class="small muted" hidden>居中仅调整显示基线，偏移量列在通道旁；不改变信号或评分。</p>
           <section id="candidate-detail" class="candidate-detail" hidden><div id="candidate-evidence"></div><div class="review-form"><label>复核结论<select id="review-decision"><option value="uncertain">待定</option><option value="accepted">接受候选</option><option value="rejected">驳回候选</option></select></label><label>审核人<input id="review-reviewer" type="text" maxlength="120" autocomplete="off" data-i18n-skip></label><label class="review-note">备注<textarea id="review-note" rows="3" maxlength="2000" data-i18n-skip></textarea></label></div><button id="save-review-button" class="button primary small-button">保存复核</button><p id="review-save-status" class="small muted" role="status"></p></section>
         </div>
       </div>

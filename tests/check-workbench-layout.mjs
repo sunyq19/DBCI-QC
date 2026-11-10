@@ -51,6 +51,8 @@ function collectRules(text, media = []) {
 }
 collectRules(css.replace(/\/\*[\s\S]*?\*\//g,''));
 function simpleMatches(selector,node) {
+  for(const match of selector.matchAll(/\[([\w-]+)="([^"]*)"\]/g))if(node?.attrs[match[1]]!==match[2])return false;
+  selector=selector.replace(/\[[\w-]+="[^"]*"\]/g,'');
   if(!node || /[\[:+~]/.test(selector))return false;
   const tag=/^[a-z][\w-]*/i.exec(selector)?.[0];if(tag&&node.tag!==tag.toLowerCase())return false;
   for(const id of selector.matchAll(/#([\w-]+)/g))if(node.attrs.id!==id[1])return false;
@@ -168,6 +170,16 @@ check('persistent graph does not expose analysis actions before confirmation',()
 });
 check('layout changes preserve the safe module documentation entry',()=>{
   assert.equal(byId('module-details-link').attrs.target,'_blank');assert((byId('module-details-link').attrs.rel||'').split(/\s+/).includes('noopener'));assert(source.includes('window.addEventListener("hashchange",openModuleFromHash)'));
+});
+check('input waveform uses the full row when its candidate sidebar is hidden',()=>{
+  const workspace=byId('review-workspace'),row=nodes.find(n=>hasClass(n,'review-layout'));
+  workspace.attrs['data-kind']='input';
+  for(const width of [1400,1000,420]){
+    assert.equal(style(row,width)['grid-template-columns'].replace(/\s/g,''),'minmax(0,1fr)');
+    assert.equal(style(byId('waveform-plot'),width)['max-height'],'65vh');
+  }
+  workspace.attrs['data-kind']='job';assert.notEqual(style(row,1400)['grid-template-columns'].replace(/\s/g,''),'minmax(0,1fr)');
+  delete workspace.attrs['data-kind'];
 });
 check('unified landing has no modality navigation and toolbox scope remains secondary',()=>{
   assert(!byId('modality-tabs'));assert.equal(layout.children[0],upload);assert(containing(byId('toolkit-modality-filter'),byId('toolkit-section')));assert.equal(byId('toolkit-section').tag,'details');assert(!Object.hasOwn(byId('toolkit-section').attrs,'open'));assert.equal(byId('standards-link').attrs.href,'/standards/overview');
