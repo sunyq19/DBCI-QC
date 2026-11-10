@@ -155,7 +155,14 @@ check('flow grids and nodes can shrink without inherited fixed horizontal widths
   assert.equal(style(flow,420)['grid-template-columns'].replace(/\s/g,''),'repeat(2,minmax(0,1fr))');
 });
 check('persistent graph does not expose analysis actions before confirmation',()=>{
-  for(const id of ['run-button','recommend-button','apply-recommendation-button','plan-button'])assert(!containing(byId(id),pipeline));
+  assert(!containing(byId('run-button'),pipeline));
+  for(const id of ['recommend-button','apply-recommendation-button','plan-button','module-options','extension-options'])assert(!byId(id),'Duplicate workflow controls removed: '+id);
+  assert(containing(byId('advanced-settings'),pipeline),'Parameters stay with right-hand method selection');
+  assert(Object.hasOwn(byId('advanced-settings').attrs,'hidden'));
+  assert(!Object.hasOwn(byId('advanced-settings').attrs,'open'));
+  assert.equal((source.match(/id="pipeline-recommend-button"/g)||[]).length,1);
+  assert(!html.includes('打开实际报告'));
+  assert(!source.includes('打开实际报告'));
   assert(containing(byId('plan-details'),pipeline),'Only plan explanation belongs in the graph rail');
   assert.equal(byId('plan-details').parent.tag,'details','Lengthy plan content remains optional');
 });

@@ -8,7 +8,19 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `共享	Shared
+  const pairs = `运行检查	Run checks
+推荐方案	Recommend checks
+推荐中…	Recommending…
+按需调整，留空使用默认参数。	Adjust as needed. Leave empty to use defaults.
+应用参数	Apply parameters
+正在查看已保存的检查。	Viewing a saved check.
+当前仅支持信息提取。	Only information extraction is available.
+修改已保留	Changes saved
+在右侧选择检查方法	Choose checks on the right
+请补充必要信息	Complete the required information
+请在右侧选择方法，或点击“推荐方案”。	Choose methods on the right, or select Recommend checks.
+参数有误，请展开右侧“方法参数”修正。	Check the parameters in Method parameters on the right.
+共享	Shared
 当前	Active
 归档	Archive
 清空归档	Empty archive
@@ -1172,7 +1184,7 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 开始检查后，可查看进度、结果和报告。右侧保留已有运行记录。	Start a check to view progress, results and the report. Previous runs remain available in history.
 已选模块的执行进度，非质量分数	Execution progress of selected modules, not a quality score
 取消运行	Cancel run
-打开实际报告	Open report
+打开报告	Open report
 刷新状态	Refresh status
 运行记录	Run history
 刷新运行记录	Refresh run history

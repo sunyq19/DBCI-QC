@@ -215,6 +215,12 @@ body.qc-app, body.qc-document {
 .qc-app .workflow-panel > .pipeline { margin-top: 16px; }
 .qc-app .flow-stage h3 { color: var(--ink); font-size: var(--text-control); margin-bottom: 10px; }
 .qc-app .flow-stage h3 > span { color: var(--primary); font-size: var(--text-note); font-weight: 500; }
+.qc-app .flow-stage-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 16px; margin-bottom:10px; min-width:0; }
+.qc-app .flow-stage-heading h3 { margin:0; }
+.qc-app .flow-stage-heading .button { font-size:var(--text-note); min-height:32px; padding:5px 12px; white-space:nowrap; }
+.qc-app .workflow-parameters { margin-top:20px; border-top:1px solid var(--line); padding-top:12px; }
+.qc-app .workflow-parameters > summary { font-size:var(--text-note); color:var(--muted); }
+.qc-app .workflow-parameters > .disclosure-content { padding:12px 0 0; }
 .qc-app .flow-nodes { gap: 8px; }
 .qc-app .flow-connector { height: 24px; color: #a0aab9; font-size: 16px; }
 .qc-app .pipeline-board .pipeline-node { padding: 11px 12px; min-height: 72px; border-radius: var(--radius-control); box-shadow: none; }

@@ -90,9 +90,7 @@
       const safe = typeof overview === "string" && overview === (contextual ? MODALITY_DOC_ROUTES[state.activeModality] : "/standards/overview");
       $(id).hidden = !safe; if (safe) $(id).setAttribute("href",overview);
     }
-    const dependencies = contextual ? arr(state.catalog?.modules).filter(module => module.selectable !== false).flatMap(module => arr(module.dependencies).filter(id => optionalModules().includes(id)).map(id => `${module.id} → ${id}`)) : [];
-    $("module-dependencies").hidden = !dependencies.length;
-    $("module-dependencies").textContent = dependencies.length ? `模块依赖：${dependencies.join(" · ")}` : "";
+
   }
   async function fetchCatalog(modality) {
     if (state.catalogCache[modality]) return state.catalogCache[modality];
@@ -111,7 +109,7 @@
       $("zip-limit-note").textContent = `ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 ${size(catalog.capabilities.intake.max_record_bytes || limit)}。`;
     }
     if (Array.isArray(catalog.modalities)) state.modalityChoices = catalog.modalities;
-    renderModalityNavigation(); renderModuleOptions(); renderToolkit();
+    renderModalityNavigation(); renderScoringControls(); renderToolkit();
   }
   async function ensureCatalog(modality, current = () => true) {
     const catalog = await fetchCatalog(modality);
@@ -191,7 +189,7 @@
       const actual=['ieeg_numeric','np_numeric','np_constant'].includes(spec.reducer)?(inputModality(state.input)==='extracellular'?'neuropixels':inputModality(state.input))+'_continuity':spec.method_id;
       if(actual===id)state.draftConfig.scoring.weights[spec.id]=0;
     }
-    deriveSelectedModules();dropUnselectedScoreWeights();renderModuleOptions();invalidatePlan();
+    deriveSelectedModules();dropUnselectedScoreWeights();renderScoringControls();invalidatePlan();
   }
 
   function currentConfig() {
@@ -334,35 +332,23 @@
 
   function recommendationValid() { return Boolean(state.recommendation && state.recommendationKey === fingerprint()); }
 
-  function recommendationList(title, methods) {
-    return arr(methods).length ? `<details class="recommendation-list recommendation-fold"><summary>${escape(title)} <span class="tag subtle">${methods.length} 项</span></summary>${methods.map(method => `<div><strong>${escape(method.name || method.id || "方法")}</strong><span class="small muted"> ${escape(method.module_id || "")}</span><p>${escape(method.reason || "未提供理由")}</p>${method.module_id ? `<button class="text-button" data-detail="${escape(method.module_id)}">查看方法依据</button>` : ""}</div>`).join("")}</details>` : "";
-  }
-
   function renderRecommendation() {
-    const recommendation = state.recommendation, container = $("recommendation-content");
+    const container = $("recommendation-content");
     if (state.mode === "job") {
-      container.innerHTML = `<p class="recommendation-summary">正在查看已有运行：${escape(state.job?.run_name || state.job?.label || state.job?.id || "读取中")}</p><p class="small muted">下方显示这次运行保存的方案与结果。选择数据后可准备新的检查。</p>`;
+      container.innerHTML = '<p class="small muted">正在查看已保存的检查。</p>';
       return;
     }
     if (unsupportedInput()) {
-      container.innerHTML = '<p class="recommendation-summary">仅信息提取</p><p class="small muted">当前模态仅保存提取信息，不运行其他模态的质控。</p>';
+      container.innerHTML = '<p class="small muted">仅信息提取</p>';
       return;
     }
-    const config = currentConfig(), selection = config?.selection || {}, indices = arr(selection.eeg_indices);
-    const rates = [...new Set(arr(state.input?.metadata?.channels).filter(channel => indices.includes(channel.index)).map(channel => channel.sampling_rate_hz).filter(numeric))];
-    const facts = state.input ? `<p class="small muted">${analysisChannelCount(indices.length)} · ${rates.map(rate => number(rate)).join(" / ") || "未知"} Hz · 原记录 ${number(selection.start_seconds,3)}–${number(selection.start_seconds + selection.duration_seconds,3)} 秒</p>` : "";
-    if (!recommendation || !recommendationValid()) {
-      container.innerHTML = facts + (state.recommending ? '<p class="recommendation-summary">正在准备推荐方案…</p><p class="small muted">核对数据条件后即可开始检查。</p>' : state.manualDraft ? `<p class="recommendation-summary">${state.configurationOrigin ? "沿用上次方案 · 可继续修改" : "手动方案 · 修改已保留"}</p><p class="small muted">${validPlan() ? "方案已就绪。" : "开始检查时会先核对最新配置。"}</p><button class="text-button" data-reset-recommend>恢复默认推荐</button>` : '<p class="small muted">推荐方案尚未就绪。</p><button class="text-button" data-reset-recommend>重新准备推荐方案</button>');
-      return;
+    const label = state.recommending ? "正在准备推荐方案…" : state.configurationOrigin ? "沿用上次方案 · 可继续修改" : state.manualDraft ? "修改已保留" : validPlan() ? "方案已就绪" : "在右侧选择检查方法";
+    container.innerHTML = `<p class="small muted">${escape(label)}</p>`;
+    if (recommendationValid() && state.recommendation?.can_apply === false) {
+      container.innerHTML += `<p class="field-error">${escape(state.recommendation.summary || state.recommendation.reason || "请补充必要信息")}</p>`;
+      const missing = arr(state.recommendation.missing_fields).filter(field => field.blocking);
+      if (missing.length) container.innerHTML += `<ul class="small muted">${missing.map(field => `<li>${escape(field.label)}：${escape(field.reason)}</li>`).join("")}</ul>`;
     }
-    const missing = arr(recommendation.missing_fields), blocking = missing.filter(field => field.blocking), optionalMissing = missing.filter(field => !field.blocking);
-    const missingHtml = fields => fields.map(field => `<div><strong>${escape(field.label || field.key)} ${field.blocking ? "· 需先补充" : "· 可保留未知"}</strong><p>${escape(field.reason || "未提供原因")}</p></div>`).join("");
-    const selectedModules = arr(recommendation.selected_modules).filter(id => optionalModules().includes(id)).map(id => arr(state.catalog?.modules).find(module => module.id === id)?.name || id);
-    const enhanced = arr(recommendation.qc_config?.method_config?.extensions).map(id => allMethods().find(method => method.id === id)?.name || id);
-    const focus = Array.isArray(recommendation.review_focus) ? recommendation.review_focus : recommendation.review_focus ? [recommendation.review_focus] : [];
-    const gates=arr(recommendation.method_applicability).filter(m=>m.selected),ready=gates.filter(m=>["ready","partial"].includes(m.status)).length,blocked=gates.filter(m=>m.status==="blocked").length;
-    const availability=`<div class="method-availability"><strong>${ready} 项可检查</strong>${blocked?`<span>${blocked} 项缺条件</span>`:''}</div>`;
-    container.innerHTML = `${facts}${availability}<p class="recommendation-summary">${recommendation.can_apply ? state.recommendationApplied ? validPlan() ? "推荐方案已就绪" : state.planning || state.recommending ? "正在核对推荐方案" : "方案核对未完成" : "推荐已生成，尚未采用" : "需要补充信息"}</p>${state.recommendationApplied && !validPlan() && !state.planning && !state.recommending ? '<button class="text-button" data-reset-recommend>重新准备推荐方案</button>' : ""}${recommendation.can_apply ? '<p class="small muted">保留原始数据，报告候选与待复核项。</p>' : `<div class="notice warning">${escape(recommendation.reason || recommendation.summary || "请先补充必需字段，或确认输入条件。")}</div>`}${blocking.length ? `<section class="recommendation-list missing-fields"><h3>必须先补充 · ${blocking.length} 项</h3>${missingHtml(blocking)}</section>` : ""}<details class="recommendation-fold"><summary>推荐理由与方法详情</summary>${selectedModules.length || enhanced.length ? `<div class="recommendation-combination">${selectedModules.length ? `<p><span>检查模块</span>${escape(selectedModules.join(" · "))}</p>` : ""}${enhanced.length ? `<p><span>默认增强</span>${escape(enhanced.join(" · "))}</p>` : ""}</div>` : ""}<p>${escape(pretty(recommendation.summary || recommendation.reason || "未提供摘要"))}</p>${focus.length ? `<section class="recommendation-focus"><h3>复核重点</h3><ul>${focus.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></section>` : ""}${recommendationList("建议采用的方法与理由",recommendation.recommended_methods)}${recommendationList("可按需添加的方法",recommendation.optional_methods)}${recommendationList("当前不可用的方法",recommendation.blocked_methods)}${optionalMissing.length ? `<details class="recommendation-list recommendation-fold missing-fields"><summary>可补充字段 <span class="tag subtle">${optionalMissing.length} 项</span></summary>${missingHtml(optionalMissing)}</details>` : ""}${arr(recommendation.cautions).length ? `<details class="recommendation-fold recommendation-cautions"><summary>解释与使用边界 <span class="tag subtle">${recommendation.cautions.length} 项</span></summary><ul>${recommendation.cautions.map(item => `<li>${escape(pretty(item))}</li>`).join("")}</ul></details>` : ""}<details class="result-summary"><summary>推荐配置与原始依据</summary><pre>${escape(pretty(recommendation))}</pre></details></details>`;
   }
 
   // Every draft change advances an epoch, including A → B → A input switches.
@@ -413,7 +399,7 @@
     $("start-seconds").value = config.selection?.start_seconds ?? $("start-seconds").value;
     $("duration-seconds").value = config.selection?.duration_seconds ?? $("duration-seconds").value;
     state.manualDraft = false; state.recommendationApplied = true; state.recommendationKey = fingerprint();
-    renderContextEditors(); renderModuleOptions(); renderChannelConfig(); syncParameterEditor(); invalidatePlan({keepRecommendation:true,manual:false,cancelPending:false});
+    renderContextEditors(); renderScoringControls(); renderChannelConfig(); syncParameterEditor(); invalidatePlan({keepRecommendation:true,manual:false,cancelPending:false});
     return true;
   }
 
@@ -458,8 +444,6 @@
     state.initialContext = {...state.contextTags};
     state.selected = new Set(defaultSelectedModules()); state.extensions = new Set(arr(state.draftConfig.method_config?.extensions));
     state.scope = state.draftConfig.scope === "window" ? "window" : "recording"; state.parentJobId = null;
-    $("extension-selection-note").hidden = true;
-    $("extension-selection-note").textContent = "";
   }
 
   function renderContextEditors() {
@@ -514,16 +498,6 @@
     return {status:"unplanned",reason:plan ? "此计划未保存该方法的适用性，请重新规划核对。" : "请先预览执行计划，由服务端核对当前数据与方法条件。",selected:false};
   }
 
-  function renderExtensions() {
-    const methods = extensionMethods(), container = $("extension-options");
-    container.hidden = !methods.length;
-    if (!methods.length) { container.innerHTML = ""; return; }
-    container.innerHTML = '<h3>可选检查方法</h3><p class="muted">选择方法会同时选中所属模块；实际适用性以执行计划为准。</p>' + methods.map(method => {
-      const applicability = methodApplicability(method,state.mode === "draft" ? activePlan() : null);
-      return `<div class="extension-option"><label class="extension-check" for="extension-${escape(method.id)}"><input id="extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${state.extensions.has(method.id) ? "checked" : ""}><span>${escape(method.name)}</span></label><p>${escape(method.module_id)} · ${escape(method.description)}</p><div class="extension-info">${statusTag(applicability.status)}<button data-detail="${escape(method.module_id)}">条件与来源</button></div></div>`;
-    }).join("");
-  }
-
   function renderIeegGroups() {
     const box = $("ieeg-groups"), fields = $("ieeg-group-fields");
     if (!box || !fields) return;
@@ -565,9 +539,7 @@
     if (checked) { state.extensions.add(id); }
     else { state.extensions.delete(id); if(state.draftConfig?.scoring) for(const spec of scoringOutputs()) if(spec.method_id===id) state.draftConfig.scoring.weights[spec.id]=0; }
     deriveSelectedModules();dropUnselectedScoreWeights();
-    $("extension-selection-note").hidden = false;
-    $("extension-selection-note").textContent = checked ? `已选择 ${method.name}，同时选中 ${method.module_id}。依赖和条件将在规划时核对。` : `已关闭 ${method.name}。`;
-    renderModuleOptions(); invalidatePlan();
+    renderScoringControls(); invalidatePlan();
   }
 
   function setModuleSelected(id, checked) {
@@ -581,11 +553,10 @@
       state.selected.delete(id);
       const removed = extensionMethods().filter(method => method.module_id === id && state.extensions.has(method.id));
       removed.forEach(method => state.extensions.delete(method.id));
-      if (removed.length) { $("extension-selection-note").hidden = false; $("extension-selection-note").textContent = `取消 ${id} 时，已同时关闭其可选扩展：${removed.map(method => method.name).join("、")}。`; }
     }
     const score=state.draftConfig?.scoring;
     if(score && !checked) for(const spec of scoringOutputs()) if(spec.module_id===id) score.weights[spec.id]=0;
-    deriveSelectedModules();dropUnselectedScoreWeights();renderModuleOptions();invalidatePlan();
+    deriveSelectedModules();dropUnselectedScoreWeights();renderScoringControls();invalidatePlan();
   }
 
   function setContext(field, value) {
@@ -619,15 +590,14 @@
     renderRunName();
     renderDatasetContext();
     const invalid = validation(), busy = state.planning || state.submitting || state.recommending || state.intakeBusy || state.loadingCatalog || state.loadingRecord;
-    $("plan-button").disabled = Boolean(invalid || busy || !state.catalog || unsupportedInput());
     $("run-button").disabled = Boolean(invalid || busy || unsupportedInput() || state.filePending || (!validPlan() && !state.manualDraft) || state.mode !== "draft");
-    $("plan-button").innerHTML = state.planning ? '<span class="spinner" aria-hidden="true"></span> 正在核对…' : "核对手动方案";
     $("run-button").innerHTML = state.submitting ? '<span class="spinner" aria-hidden="true"></span> 正在准备检查…' : '<span aria-hidden="true">▶</span> 开始检查';
-    $("recommend-button").disabled = Boolean(invalid || busy || !state.catalog);
-    $("recommend-button").innerHTML = state.recommending ? '<span class="spinner" aria-hidden="true"></span> 正在准备推荐…' : "恢复默认推荐";
-    $("pipeline-recommend-button").disabled = Boolean(invalid || busy || !state.catalog || state.mode !== "draft");
-    $("apply-recommendation-button").disabled = Boolean(busy || unsupportedInput() || !recommendationValid() || state.recommendation?.can_apply !== true || state.recommendationApplied);
-    $("apply-recommendation-button").textContent = state.recommendationApplied ? "已采用推荐" : "采用推荐";
+    const recommendButton = $("pipeline-recommend-button");
+    if (recommendButton) {
+      recommendButton.disabled = Boolean(invalid || busy || !state.catalog || state.mode !== "draft");
+      recommendButton.setAttribute("aria-busy",String(state.recommending));
+      recommendButton.innerHTML = state.recommending ? '<span class="spinner" aria-hidden="true"></span> 推荐中…' : "推荐方案";
+    }
     $("apply-parameters-button").disabled = !state.input || busy;
     $("ieeg-group-fields")?.querySelectorAll("input").forEach(input => { input.disabled = busy; });
     $("input-select").disabled = state.submitting || state.intakeBusy || !visibleInputs().length;
@@ -652,7 +622,7 @@
     renderVisibility();
     renderExtraction();
     renderPipeline();
-    $("action-hint").textContent = invalid || (state.submitting ? "正在核对并提交这份方案，请勿重复操作。" : state.recommending ? "正在根据这份数据准备推荐方案，不会自动运行。" : state.planning ? "正在核对最新方案的适用条件。" : state.mode === "job" ? "正在查看已有运行。选择一份数据可准备新的检查。" : validPlan() ? `${state.manualDraft ? "手动" : "推荐"}方案已就绪，点击开始检查。` : state.manualDraft ? "手动修改已保留。点击开始检查后会先核对最新方案。" : "方案尚未就绪，可点击恢复默认推荐重试。");
+    $("action-hint").textContent = invalid || (state.submitting ? "正在核对并提交这份方案，请勿重复操作。" : state.recommending ? "正在根据这份数据准备推荐方案，不会自动运行。" : state.planning ? "正在核对最新方案的适用条件。" : state.mode === "job" ? "正在查看已有运行。选择一份数据可准备新的检查。" : validPlan() ? `${state.manualDraft ? "手动" : "推荐"}方案已就绪，点击开始检查。` : state.manualDraft ? "手动修改已保留。点击开始检查后会先核对最新方案。" : "请在右侧选择方法，或点击“推荐方案”。");
     if (state.mode === "draft" && unsupportedInput()) $("action-hint").textContent = "当前模态仅保存提取信息，不运行其他模态的质控。";
   }
 
@@ -750,7 +720,7 @@
     $("start-seconds").disabled = false; $("duration-seconds").disabled = false;
     if (numeric(meta.duration_seconds)) $("start-seconds").max = meta.duration_seconds;
     else $("start-seconds").removeAttribute("max");
-    renderChannelConfig(); renderModuleOptions(); syncParameterEditor(); renderExamplePresets();
+    renderChannelConfig(); renderScoringControls(); syncParameterEditor(); renderExamplePresets();
     invalidatePlan({manual:false});
     return autoPrepare && !unsupportedInput() ? makeRecommendation({autoApply:true}) : Promise.resolve(false);
   }
@@ -1168,7 +1138,7 @@
         redistributedWeights(rows,model.childWeights,id,value)};
     } else config.scoring.weights=redistributedWeights(rows,model.weights,id,value);
     state.draftConfig=config;
-    invalidatePlan();renderModuleOptions();return true;
+    invalidatePlan();renderScoringControls();return true;
   }
 
   function renderScoringControls() {
@@ -1200,22 +1170,6 @@
       if(!input.value.trim()||!Number.isFinite(value)||value<0||value>100){input.setCustomValidity('权重须为 0–100%');input.reportValidity();return;}
       input.setCustomValidity(''); updateScorePercent(input.dataset.scoreChild||input.dataset.scoreWeight,value,Boolean(input.dataset.scoreChild));
     }));
-  }
-
-  function renderModuleOptions() {
-    const focusedOption = document.activeElement?.id;
-    $("module-selection-note").innerHTML = state.configurationOrigin
-      ? `<span>沿用上次方案</span> · <time data-i18n-skip>${escape(date(state.configurationOrigin.created_at))}</time>`
-      : "选择检查模块，可调整方法、参数和计分权重。";
-    renderScoringControls();
-    const modules = arr(state.catalog.modules);
-    $("module-options").innerHTML = optionalModules().map(id => {
-      const module = modules.find(item => item.id === id);
-      if (!module) return "";
-      return `<div class="module-option"><button type="button" class="text-button" data-open-methods="${id}"><code>${id}</code> ${escape(module.name)}</button><span class="small muted">${allMethods().filter(m=>m.module_id===id&&isMethodSelected(m)).length} 项已选</span></div>`;
-    }).join("") + `<p class="fixed-modules">固定步骤：${fixedModules().map(id => `<span>${id} ${escape(modules.find(m => m.id === id)?.name || "")}</span>`).join(" · ")}</p>`;
-    $("module-options").querySelectorAll("[data-open-methods]").forEach(button=>button.addEventListener("click",()=>{state.openPipelineModule=button.dataset.openMethods;renderPipeline();ensureMethodGuidance();$("pipeline-method-panel")?.scrollIntoView({block:"center"});}));
-    if (focusedOption?.startsWith("option-")) $(focusedOption)?.focus?.({preventScroll:true});
   }
 
   // Keep the service payload unchanged: unselected is a presentation state,
@@ -1336,7 +1290,7 @@
     if (state.pipelineContext !== pipelineContext) { state.openPipelineModule = null; state.pipelineContext = pipelineContext; state.methodGuidanceKey = null; state.methodGuidance = null; state.methodGuidanceError = null; state.methodGuidanceLoading = false; }
     const nodes = visualNodes();
     const groups = workflowGroups();
-    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div>${state.openPipelineModule && ids.includes(state.openPipelineModule) ? pipelineMethodPanel(state.openPipelineModule) : ""}${ids.includes("M03") && state.input && !state.filePending && state.mode === "draft" && !unsupportedInput() ? '<section id="scoring-settings" class="pipeline-scoring"><div id="scoring-controls"></div></section>' : ""}</section>`).join("");
+    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><div class="flow-stage-heading"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3>${ids.includes("M03") && state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() ? `<button id="pipeline-recommend-button" type="button" class="button secondary small-button" data-reset-recommend ${state.recommending || state.planning || state.submitting ? "disabled" : ""}>推荐方案</button>` : ""}</div><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div>${state.openPipelineModule && ids.includes(state.openPipelineModule) ? pipelineMethodPanel(state.openPipelineModule) : ""}${ids.includes("M03") && state.input && !state.filePending && state.mode === "draft" && !unsupportedInput() ? '<section id="scoring-settings" class="pipeline-scoring"><div id="scoring-controls"></div></section>' : ""}</section>`).join("");
     if ($("pipeline").innerHTML !== markup) {
       const focused = document.activeElement?.closest?.("#pipeline [id], #pipeline [data-pipeline-expand], #pipeline [data-detail]");
       const attribute = focused?.id ? "id" : focused?.hasAttribute("data-pipeline-expand") ? "data-pipeline-expand" : "data-detail";
@@ -1348,7 +1302,7 @@
     const historical = state.mode === "job", hasInput = Boolean(state.input) && !state.filePending;
     const choosing = !historical && hasInput && !unsupportedInput();
     $("pipeline-help").textContent = choosing ? "点击模块，展开选择检查方法" : "点击模块查看说明";
-    $("pipeline-recommend-button").hidden = !choosing;
+    $("advanced-settings").hidden = !choosing;
     $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
     if (historical) {
@@ -1377,7 +1331,7 @@
   }
 
   function renderPlan() {
-    renderDataTags(); renderInputUsage(); renderExtensions(); renderIeegGroups();
+    renderDataTags(); renderInputUsage(); renderIeegGroups();
     const plan = state.mode === "job" ? state.job?.plan : state.plan;
     if (!plan) { $("plan-details").innerHTML = '<p class="muted">点击模块查看输入、输出、依赖与证据。预览计划后会显示实际适用性。</p>'; return; }
     const nodes = planDisplayNodes(plan), counts = ["ready","partial","skipped","unselected"].map(status => ({status,count:nodes.filter(node => node.status === status).length}));
@@ -1411,7 +1365,7 @@
 
   async function startJob() {
     if (unsupportedInput() || validation() || state.filePending || state.intakeBusy || state.submitting || state.recommending || state.planning || state.mode !== "draft" || (!validPlan() && !state.manualDraft)) return;
-    if (state.parameterDirty && !applyParameters()) { setError("plan-error","高级参数有误，请展开高级设置修正。"); $("advanced-settings").open = true; return; }
+    if (state.parameterDirty && !applyParameters()) { setError("plan-error","参数有误，请展开右侧“方法参数”修正。"); $("workflow-panel").open = true; $("advanced-settings").open = true; $("advanced-settings").scrollIntoView({block:"nearest"}); return; }
     const epoch = state.draftEpoch, key = fingerprint();
     state.submitting = true; setError("plan-error",null); updateActions(); renderExamplePresets();
     try {
@@ -1644,7 +1598,7 @@
     const selection = config.qc_config.selection || {};
     $("start-seconds").value = state.scope === "recording" ? 0 : selection.start_seconds ?? 0;
     $("duration-seconds").value = state.scope === "recording" ? Math.min(120,input.metadata?.duration_seconds || 120) : selection.duration_seconds ?? Math.min(120,input.metadata?.duration_seconds || 120);
-    renderContextEditors(); renderChannelConfig(); renderModuleOptions(); syncParameterEditor();
+    renderContextEditors(); renderChannelConfig(); renderScoringControls(); syncParameterEditor();
     if(config.parameter_dirty === true && typeof config.parameter_text === "string"){ $("extension-parameters").value=config.parameter_text;state.parameterDirty=true; }
     invalidatePlan();
     $("draft-recovery").hidden = true;
@@ -1699,7 +1653,7 @@
       await prepared;
       if (request !== state.selectionRequest || state.input?.id !== record.id) return false;
       state.configurationOrigin = saved.previous_run;
-      renderModuleOptions(); renderRecommendation();
+      renderScoringControls(); renderRecommendation();
       $("advanced-settings").open = false;
       $("workflow-panel").open = true;
       $("pipeline-section").scrollIntoView({block:"start"});
@@ -2065,7 +2019,7 @@
     if (!browsing && state.mode === "job" && state.job) {
       const artifacts=arr(state.result?.artifacts).filter(item=>typeof item.name==="string"&&item.name.toLowerCase().includes(id.toLowerCase()));
       const links=artifacts.map(item=>`<a href="${API}/jobs/${encodeURIComponent(state.job.id)}/artifacts/${encodeURIComponent(item.name)}" target="_blank" rel="noopener noreferrer" data-i18n-skip>${escape(item.name)}</a>`).join(" · ");
-      $("module-dialog-content").innerHTML += `<section class="dialog-section run-evidence"><h3>本次运行证据</h3>${state.result ? `<button class="text-button" data-review-module="${id}">查看本次候选</button><a class="text-button" href="${API}/jobs/${encodeURIComponent(state.job.id)}/report" target="_blank" rel="noopener noreferrer">打开实际报告 ↗</a>` : '<p class="small muted">本次结果尚未就绪。</p>'}${links ? `<p>${links}</p>` : ""}</section>`;
+      $("module-dialog-content").innerHTML += `<section class="dialog-section run-evidence"><h3>本次运行证据</h3>${state.result ? `<button class="text-button" data-review-module="${id}">查看本次候选</button><a class="text-button" href="${API}/jobs/${encodeURIComponent(state.job.id)}/report" target="_blank" rel="noopener noreferrer">打开报告 ↗</a>` : '<p class="small muted">本次结果尚未就绪。</p>'}${links ? `<p>${links}</p>` : ""}</section>`;
     }
     if (generic) $("module-dialog-content").innerHTML = `<p>${escape(module.description)}</p><p class="small muted">读取并确认记录后，显示适用的方法与条件。</p>`;
     else {
@@ -2102,7 +2056,7 @@
       $("service-version").textContent = `${catalog.service || "Local EEG QC"} · API ${catalog.api_version || "v1"}`;
       $("service-version").hidden = false; if(catalog.version)$("service-version").textContent=`${catalog.version} · API ${catalog.api_version || "v1"}`;
       renderRegisteredInputs();
-      renderModuleOptions(); renderPipeline(); renderToolkit();
+      renderScoringControls(); renderPipeline(); renderToolkit();
       renderExamplePresets();
       const maySelect = intakeRequest == null || intakeRequest === state.intakeRequest;
       const selectedId = typeof preferredId === "string" && visibleInputs().some(input => input.id === preferredId) ? preferredId : null;
@@ -2122,7 +2076,6 @@
       $("catalog-error").hidden = false; $("catalog-error").innerHTML = `${escape(error.message)} <button id="retry-catalog-button">重新连接</button>`;
       $("retry-catalog-button").addEventListener("click",loadCatalog);
       $("input-select").innerHTML = '<option>数据目录尚未加载</option>';
-      $("module-options").innerHTML = '<p class="small muted">等待本地服务提供模块目录。</p>';
       $("pipeline").innerHTML = '<div class="empty-state"><p>连接本地服务后显示真实模块与计划。</p></div>';
       $("history-list").innerHTML = '<p class="small muted">连接本地服务后读取运行记录。</p>';
       updateActions();
@@ -2134,8 +2087,6 @@
   $("toolkit-modality-filter").addEventListener("change",event=>browseMethods(event.target.value));
   $("toolkit-category").addEventListener("change",renderToolkit);
   $("toolkit-implementation").addEventListener("change",renderToolkit);
-  $("recommend-button").addEventListener("click",prepareRecommendedPlan);
-  $("apply-recommendation-button").addEventListener("click",async () => { if (applyRecommendation()) await makePlan(); });
   $("apply-parameters-button").addEventListener("click",applyParameters);
   $("intake-file").addEventListener("change",chooseLocalFile);
   $("intake-upload-button").addEventListener("click",uploadIntake);
@@ -2146,7 +2097,6 @@
   $("start-seconds").addEventListener("input",() => invalidatePlan());
   $("duration-seconds").addEventListener("input",() => invalidatePlan());
   for (const field of Object.keys(CONTEXT_FIELDS)) $(`context-${field}`).addEventListener("change",event => setContext(field,event.target.value));
-  $("plan-button").addEventListener("click",async () => { if (state.parameterDirty && !applyParameters()) return; await makePlan(); });
   for(const prefix of ["upload","check"])$(prefix+"-run-name").addEventListener("input",event=>{state.runName=event.target.value;renderRunName();saveDraft();});
   $("run-button").addEventListener("click",startJob);
   $("refresh-history-button").addEventListener("click",loadHistory);
@@ -2218,7 +2168,6 @@
     const input=event.target.closest("[data-core-method]");
     if(input&&!input.disabled)setCoreMethod(input.dataset.coreMethod,input.checked);
   });
-  $("pipeline-recommend-button").addEventListener("click",prepareRecommendedPlan);
   window.addEventListener("hashchange",openModuleFromHash);
   window.addEventListener("hashchange",()=>revealNavigationTarget());
   revealNavigationTarget();

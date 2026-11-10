@@ -30,7 +30,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const location = {protocol:"http:",pathname:"/",search,hash}, windowEvents = new Map();
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
-  const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
+  const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
   const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {setCoreMethod,selectedCoreMethods,isMethodSelected,deriveSelectedModules,scoreConfigurationModel,updateScorePercent,redistributedWeights,togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
@@ -104,9 +104,9 @@ check("extension selects parent, invalidates plan, and is removed with parent",(
 check("new available optional methods dynamically render and select their parents",()=>{
   const t=harness();
   for(const [id,parent] of [["mne_bridge","M05"],["mne_lof","M05"],["autoreject_global","M03"]])t.state.catalog.modules.find(module=>module.id===parent).methods.push(rawMethod(id,"optional",{optional_extension:true}));
-  assert.equal(t.extensionMethods().length,5);t.state.selected.clear();t.renderExtensions();
+  assert.equal(t.extensionMethods().length,5);t.state.selected.clear();
   for(const [id,parent] of [["mne_bridge","M05"],["mne_lof","M05"],["autoreject_global","M03"]]){
-    assert(t.get("extension-options").innerHTML.includes(`data-extension="${id}"`));
+    assert(t.pipelineMethodPanel(parent).includes(`data-extension="${id}"`));
     assert(t.methodCardsHtml(t.state.catalog.modules.find(module=>module.id===parent)).includes(`data-extension="${id}"`));
     t.setExtension(id,true);assert(t.state.selected.has(parent));assert(t.currentConfig().method_config.extensions.includes(id));
   }
@@ -358,22 +358,26 @@ check("manual changes invalidate recommendation but retain explicit parameters a
   t.selectInput("input-1");assert.equal(t.currentConfig().method_config.extension_parameters,undefined);assert.equal(t.state.extensions.size,0);
 });
 check("recommendation cannot apply when service says needs input, or response is stale",async()=>{
-  const t=harness();t.state.recommendation=recommendationFixture(t,{can_apply:false,status:"needs_input",reason:"需确认模态",missing_fields:[{key:"modality",label:"模态",reason:"必须明确",blocking:true}]});t.state.recommendationKey=t.fingerprint();const before=t.fingerprint();t.renderRecommendation();t.applyRecommendation();assert.equal(t.fingerprint(),before);assert(t.get("recommendation-content").innerHTML.includes("需先补充"));
+  const t=harness();t.state.recommendation=recommendationFixture(t,{can_apply:false,status:"needs_input",reason:"需确认模态",missing_fields:[{key:"modality",label:"模态",reason:"必须明确",blocking:true}]});t.state.recommendationKey=t.fingerprint();const before=t.fingerprint();t.renderRecommendation();t.applyRecommendation();assert.equal(t.fingerprint(),before);assert(t.get("recommendation-content").innerHTML.includes("必须明确"));
   let resolveFetch;const q=harness(()=>new Promise(resolve=>{resolveFetch=resolve}));const pending=q.makeRecommendation();q.setContext("task","attention");resolveFetch(response(recommendationFixture(q)));await pending;assert.equal(q.state.recommendation,null);assert.equal(q.get("recommendation-error").textContent,"");
 });
 check("needs-input and unsupported recommendations may omit runnable config",async()=>{
   for(const status of ["needs_input","unsupported"]){
     let t;t=harness(async()=>response(recommendationFixture(t,{status,can_apply:false,qc_config:null,plan_id:null,selected_modules:[],summary:"需要补充输入信息",missing_fields:[{key:"modality",label:"模态",reason:"读取后确认模态",blocking:true}]})));
-    const before=t.fingerprint();await t.makeRecommendation();assert.equal(t.state.recommendation.status,status);assert(!t.get("recommendation-error").textContent);assert(t.get("recommendation-content").innerHTML.includes("需要补充输入信息"));assert(t.get("recommendation-content").innerHTML.includes("读取后确认模态"));assert(t.get("apply-recommendation-button").disabled);t.applyRecommendation();assert.equal(t.fingerprint(),before);
+    const before=t.fingerprint();await t.makeRecommendation();assert.equal(t.state.recommendation.status,status);assert(!t.get("recommendation-error").textContent);assert(t.get("recommendation-content").innerHTML.includes("需要补充输入信息"));assert(t.get("recommendation-content").innerHTML.includes("读取后确认模态"));t.applyRecommendation();assert.equal(t.fingerprint(),before);
   }
 });
-check("recommendation overview stays compact while every reason remains in closed details",()=>{
-  const t=harness(),hash="a".repeat(64),policy="fixture-policy-hidden";
-  const recommendation=recommendationFixture(t,{recommendation_id:hash,policy_version:policy,recommended_methods:Array.from({length:16},(_,index)=>({id:`method-${index}`,module_id:"M03",name:`建议方法 ${index}`,reason:`完整建议理由 ${index}`})),optional_methods:[{id:"optional",name:"可选项",reason:"可选理由"}],blocked_methods:[{id:"blocked",name:"阻断项",reason:"不适用理由"}],missing_fields:[{key:"modality",label:"模态",reason:"必须确认模态",blocking:true},{key:"coordinates",label:"坐标",reason:"坐标未核实",blocking:false}],cautions:["一般注意事项完整保留"],review_focus:["先核对波形","再复核候选"]});
-  t.state.recommendation=recommendation;t.state.recommendationKey=t.fingerprint();const before=t.fingerprint();t.renderRecommendation();const markup=t.get("recommendation-content").innerHTML,overview=markup.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g,"");
-  assert(markup.includes('建议采用的方法与理由 <span class="tag subtle">16 项</span>'));assert(markup.includes('可补充字段 <span class="tag subtle">1 项</span>'));assert(!/<details\b[^>]*\bopen(?:\s|=|>)/.test(markup));
-  for(const text of ["完整建议理由 15","可选理由","不适用理由","坐标未核实","一般注意事项完整保留",hash,policy]){assert(markup.includes(text));assert(!overview.includes(text));}
-  assert(overview.includes("必须确认模态"));assert(overview.includes("1 个分析通道"));assert(markup.includes("检查模块"));assert(markup.includes("默认增强"));assert(!overview.includes("检查模块"));assert(!overview.includes("默认增强"));assert(!overview.includes("先核对波形"));assert(markup.includes("<li>先核对波形</li><li>再复核候选</li>"));assert(!overview.includes("&quot;先核对波形&quot;"));assert.equal(t.fingerprint(),before);
+check("left run summary has no duplicate method list or recommendation controls",()=>{
+  const t=harness();
+  t.state.recommendation=recommendationFixture(t,{recommended_methods:[{id:"continuity",name:"完整性",reason:"说明"}]});
+  t.state.recommendationKey=t.fingerprint(); const before=t.fingerprint();t.renderRecommendation();
+  const markup=t.get("recommendation-content").innerHTML;
+  assert(!markup.includes("<button"));assert(!markup.includes("<details"));
+  assert(!markup.includes("默认增强"));assert.equal(t.fingerprint(),before);
+  t.renderPipeline();
+  assert.equal((t.get("pipeline").innerHTML.match(/id="pipeline-recommend-button"/g)||[]).length,1);
+  assert(t.get("pipeline").innerHTML.includes("推荐方案"));
+  assert(!html.includes('id="recommend-button"'));assert(!html.includes('id="apply-recommendation-button"'));assert(!html.includes('id="plan-button"'));
 });
 check("intake confirms explicit roles, retains source indices and refuses mixed clocks",()=>{
   const t=harness();t.state.intake={id:"read1",metadata:{channels:[{index:0,name:"same",sampling_rate_hz:100},{index:1,name:"same",sampling_rate_hz:100},{index:2,name:"EOG",sampling_rate_hz:100},{index:3,name:"EMG",sampling_rate_hz:1}]}};
@@ -399,7 +403,7 @@ function planFixture(request, extra={}) {
 function deferred() { let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no});return {promise,resolve,reject}; }
 check("selecting an input automatically recommends, adopts, and plans, but never creates a job",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/recommend"))return response(recommendationFixture(t));if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));throw new Error(`Unexpected ${url}`)});
-  await t.selectInput("input-1",{autoPrepare:true});assert.equal(calls.map(([url])=>url).join(","),"/api/v1/recommend,/api/v1/plan");assert(t.validPlan());assert(t.state.recommendationApplied);assert(!t.state.manualDraft);assert(!t.get("run-button").disabled);assert.equal(t.state.job,null);assert(t.get("recommendation-content").innerHTML.includes("推荐方案已就绪"));
+  await t.selectInput("input-1",{autoPrepare:true});assert.equal(calls.map(([url])=>url).join(","),"/api/v1/recommend,/api/v1/plan");assert(t.validPlan());assert(t.state.recommendationApplied);assert(!t.state.manualDraft);assert(!t.get("run-button").disabled);assert.equal(t.state.job,null);assert(t.get("recommendation-content").innerHTML.includes("方案已就绪"));
 });
 check("initial catalog leaves a file-first landing and makes only catalog and history requests",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/catalog"))return response(fixtureCatalog());if(url.endsWith("/jobs")&&!options.method)return response({jobs:[{id:"older-running",status:"running"}]});throw new Error(`Unexpected ${url}`)},{selected:false});
@@ -422,7 +426,7 @@ check("late plan success and late failure cannot replace a newly selected input 
 check("manual edits during auto preparation preserve choices and discard late automatic recommendations",async()=>{
   const wait=deferred();let t;t=harness(()=>wait.promise);const pending=t.selectInput("input-0",{autoPrepare:true});const rec=recommendationFixture(t);
   t.setExtension("mne_muscle",true);t.setContext("disease","other");assert(t.state.manualDraft);const key=t.fingerprint();wait.resolve(response(rec));await pending;
-  assert.equal(t.fingerprint(),key);assert(t.state.extensions.has("mne_muscle"));assert.equal(t.state.recommendation,null);assert(!t.state.recommending);assert(!t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("恢复默认推荐"));
+  assert.equal(t.fingerprint(),key);assert(t.state.extensions.has("mne_muscle"));assert.equal(t.state.recommendation,null);assert(!t.state.recommending);assert(!t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("修改已保留"));
 });
 check("failed, blocked, unsupported and malformed auto recommendations never enable default Start",async()=>{
   for(const result of [new Error("offline"),{can_apply:false,status:"needs_input"},{can_apply:false,status:"unsupported"},{can_apply:true,qc_config:null}]){
@@ -430,7 +434,7 @@ check("failed, blocked, unsupported and malformed auto recommendations never ena
   }
 });
 check("a failed automatic plan keeps Start blocked until reset or explicit manual changes",async()=>{
-  let t;t=harness(async(url)=>{if(url.endsWith("/recommend"))return response(recommendationFixture(t));throw new Error("plan unavailable")});await t.selectInput("input-0",{autoPrepare:true});assert(t.get("run-button").disabled);assert(!t.state.manualDraft);assert(t.get("plan-error").textContent.includes("plan unavailable"));assert(t.get("recommendation-content").innerHTML.includes("方案核对未完成"));assert(t.get("recommendation-content").innerHTML.includes("data-reset-recommend"));assert(!t.get("recommendation-content").innerHTML.includes("正在核对推荐方案"));
+  let t;t=harness(async(url)=>{if(url.endsWith("/recommend"))return response(recommendationFixture(t));throw new Error("plan unavailable")});await t.selectInput("input-0",{autoPrepare:true});assert(t.get("run-button").disabled);assert(!t.state.manualDraft);assert(t.get("plan-error").textContent.includes("plan unavailable"));assert(t.get("recommendation-content").innerHTML.includes("在右侧选择检查方法"));assert(t.get("pipeline").innerHTML.includes("data-reset-recommend"));assert(!t.get("recommendation-content").innerHTML.includes("正在核对推荐方案"));
 });
 check("one explicit Start replans a manual draft and submits exactly once",async()=>{
   const calls=[];let t;t=harness(async(url,options={})=>{calls.push([url,options]);if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));if(url.endsWith("/jobs")&&options.method==="POST")return response({id:"new-job",status:"failed",plan:t.state.plan,modules:[]});if(url.endsWith("/jobs"))return response({jobs:[]});throw new Error(`Unexpected ${url}`)});
@@ -442,10 +446,10 @@ check("Start locks input switching and repeat clicks while a manual plan is pend
 });
 check("failed manual planning and unapplied invalid JSON cannot create a job",async()=>{
   const calls=[];const t=harness(async(url)=>{calls.push(url);throw new Error("invalid plan")});t.setContext("task","attention");await t.startJob();assert.deepEqual(calls,["/api/v1/plan"]);
-  t.state.parameterDirty=true;t.get("extension-parameters").value="{";await t.startJob();assert.deepEqual(calls,["/api/v1/plan"]);assert(t.get("parameter-error").textContent.includes("未应用"));assert(t.get("plan-error").textContent.includes("高级参数有误"));assert(t.get("advanced-settings").open);
+  t.state.parameterDirty=true;t.get("extension-parameters").value="{";await t.startJob();assert.deepEqual(calls,["/api/v1/plan"]);assert(t.get("parameter-error").textContent.includes("未应用"));assert(t.get("plan-error").textContent.includes("参数有误"));assert(t.get("advanced-settings").open);
 });
 check("history selection invalidates pending preparation and never adopts current draft into the saved plan",async()=>{
-  const wait=deferred();let t;t=harness(()=>wait.promise);const pending=t.selectInput("input-1",{autoPrepare:true});const rec=recommendationFixture(t);await t.selectJob("history",{id:"history",label:"历史记录",status:"failed",plan:{plan_id:"saved",nodes:[],selected_modules:[]},modules:[]});wait.resolve(response(rec));await pending;assert.equal(t.state.mode,"job");assert.equal(t.state.job.plan.plan_id,"saved");assert.equal(t.state.recommendation,null);assert(t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("已有运行：历史记录"));
+  const wait=deferred();let t;t=harness(()=>wait.promise);const pending=t.selectInput("input-1",{autoPrepare:true});const rec=recommendationFixture(t);await t.selectJob("history",{id:"history",label:"历史记录",status:"failed",plan:{plan_id:"saved",nodes:[],selected_modules:[]},modules:[]});wait.resolve(response(rec));await pending;assert.equal(t.state.mode,"job");assert.equal(t.state.job.plan.plan_id,"saved");assert.equal(t.state.recommendation,null);assert(t.get("run-button").disabled);assert(t.get("recommendation-content").innerHTML.includes("已保存的检查"));
 });
 check("reset recommendation is explicit, replaces method choices, and preserves chosen window",async()=>{
   let t;t=harness(async(url,options)=>url.endsWith("/recommend")?response(recommendationFixture(t)):response(planFixture(JSON.parse(options.body))));t.setExtension("mne_muscle",true);t.get("start-seconds").value="15";t.invalidatePlan();await t.prepareRecommendedPlan();assert(!t.state.manualDraft);assert(t.state.extensions.has("mne_amplitude"));assert(!t.state.extensions.has("mne_muscle"));assert.equal(t.currentConfig().selection.start_seconds,15);assert(t.validPlan());
@@ -509,7 +513,7 @@ check("result tabs switch presentation without launching analysis and reset on a
   t.state.resultJobId="stale";t.renderResultTabs();assert.equal(t.get("result-tabs").hidden,true);assert.equal(t.state.resultTab,"overview");
 });
 check("static field and DOM references stay consistent",()=>{
-  const dynamic=["scoring-controls","scoring-settings","pipeline-method-panel","ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
+  const dynamic=["pipeline-recommend-button","scoring-controls","scoring-settings","pipeline-method-panel","ieeg-reference-confirmed","ieeg-group-status","effective-config","retry-catalog-button","intake-modality","intake-reference","intake-confirmed","intake-label","intake-source-note","intake-confirm-button","intake-modality-note","intake-channel-summary","revision-annotation","revision-verified","revision-highpass","revision-lowpass","revision-notch","review-psd","revision-processing-note","window-page","window-state-details"];
   for(const match of source.matchAll(/\$\("([^"]+)"\)/g))assert(ids.includes(match[1])||dynamic.includes(match[1]),`Missing element ${match[1]}`);
   for(const field of fields)assert(ids.includes(`context-${field}`));
 });
@@ -601,7 +605,7 @@ check("modalities absent from the catalog remain extraction-only after manual ed
     t.state.input.modality=modality;t.state.recommendation={status:"unsupported",can_apply:false};t.updateActions();
     t.setContext("disease","other");assert.equal(t.state.recommendation,null);assert(t.state.manualDraft);
     t.get("start-seconds").value="10";t.invalidatePlan();t.setExtension("mne_amplitude",true);
-    assert(t.get("run-button").disabled);assert(t.get("plan-button").disabled);assert(!t.get("recommend-button").disabled);
+    assert(t.get("run-button").disabled);
     assert.equal(t.get("pipeline-state").textContent,"仅信息提取");assert(t.get("action-hint").textContent.includes("不运行其他模态"));
     assert(t.visualNodes().every(node=>node.status==="unplanned"));assert(t.get("recommendation-content").innerHTML.includes("仅信息提取"));assert(!t.get("recommendation-content").innerHTML.includes("开始检查时会先核对"));assert(!t.get("record-summary").hidden);
     assert.equal(await t.makePlan(),false);await t.startJob();assert.equal(calls.length,0);
@@ -844,7 +848,7 @@ check("selecting data resumes saved modules, parameters, weights and scope as an
   assert.equal(t.currentConfig().scoring.weights.integrity,2);assert.equal(t.currentConfig().selection.start_seconds,40);
   assert.equal(t.state.scope,"window");assert.equal(t.state.parentJobId,"latest-run");
   assert.equal(t.state.runName,"");assert(!t.get("advanced-settings").open);assert(t.get("workflow-panel").open);
-  assert(t.get("module-selection-note").innerHTML.includes("沿用上次方案"));assert(!t.get("run-button").disabled);
+  assert(t.get("recommendation-content").innerHTML.includes("沿用上次方案"));assert(!t.get("run-button").disabled);
   t.setModuleSelected("M04",false);t.setExtension("mne_amplitude",true);
   assert(!t.state.selected.has("M04"));assert(t.state.selected.has("M03"));assert(t.state.extensions.has("mne_amplitude"));
   assert.equal(t.state.plan,null);assert.equal(JSON.stringify(saved),frozen);
