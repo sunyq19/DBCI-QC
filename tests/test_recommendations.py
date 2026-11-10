@@ -35,6 +35,39 @@ def reverse_objects(value):
 
 
 class RecommendationTests(unittest.TestCase):
+    def test_default_guidance_evaluates_unselected_methods_without_selecting_them(self):
+        r = recording()
+        result = recommend(r, reset_methods=True)
+        self.assert_round_trip(r, result)
+        options = {m['id']: m for m in result['method_options']}
+        self.assertEqual(options['gnosis_line_length']['status'], 'ready')
+        self.assertFalse(options['gnosis_line_length']['selected'])
+        self.assertEqual(options['eog_locked']['status'], 'blocked')
+        self.assertNotIn('gnosis_line_length', result['qc_config']['method_config']['extensions'])
+        from ephys_qc.method_registry import evaluate_methods
+        regular = {m['id']: m for m in evaluate_methods(r, result['qc_config'], result['selected_modules'])}
+        self.assertEqual(regular['gnosis_line_length']['status'], 'not_selected')
+
+    def test_restore_default_is_plannable_for_all_voltage_modalities(self):
+        from test_ecog_core import record as ecog_record
+        from test_neuromodal_routes import recording as invasive_record
+        for r in [ecog_record(), invasive_record('seeg'), invasive_record('extracellular')]:
+            with self.subTest(modality=r['modality']):
+                initial = recommend(r)
+                config = copy.deepcopy(initial['qc_config'])
+                before = copy.deepcopy(config)
+                result = recommend(r, config, reset_methods=True)
+                self.assert_round_trip(r, result)
+                self.assertEqual(result['configuration_mode'], 'default')
+                self.assertEqual(config, before)
+                self.assertEqual(result['qc_config']['selection'], config['selection'])
+                self.assertTrue(result['method_options'])
+                self.assertTrue(any(v > 0 for v in result['qc_config']['scoring']['weights'].values()))
+                if r['modality'] in {'ecog', 'seeg'}:
+                    self.assertIn('mne_amplitude', result['qc_config']['method_config']['extensions'])
+                if r['modality'] == 'seeg':
+                    self.assertIn('ieeg_spectrum_fit', result['qc_config']['method_config']['extensions'])
+
     def test_restore_default_drops_gnosis_weights_and_methods_but_keeps_data_selection(self):
         r = recording()
         config = copy.deepcopy(recommend(r)['qc_config'])

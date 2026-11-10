@@ -20,7 +20,7 @@ def recommend_ecog(record, submitted=None):
         result['missing_fields'] = [_missing('metadata.format', '原始文件格式', '须由已接入读取器核验文件格式。', True)]
         return _finish(result, record, submitted)
     try:
-        current = build_plan(record, [], submitted)
+        current = build_plan(record, ['M03','M04','M05'], submitted)
         config = copy.deepcopy(current['qc_config'])
         if record['modality'] in {'ecog', 'seeg'}:
             from .ieeg_baseline import configure

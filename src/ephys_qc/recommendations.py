@@ -123,6 +123,8 @@ def recommend(record, qc_config=None, *, reset_methods=False):
         if modality in {'ecog', 'seeg'}:
             from .ieeg_scoring import default_config
             config['scoring'] = default_config(modality)
+            from .ieeg_baseline import configure
+            config = configure(config, record)
         elif modality == 'extracellular':
             from .neuropixels_scoring import default_config
             config['scoring'] = default_config()
@@ -138,6 +140,12 @@ def recommend(record, qc_config=None, *, reset_methods=False):
                                             **config['scoring']['weights']}
         result = recommend(record, config)
         result['configuration_mode'] = 'default'
+        if result.get('can_apply'):
+            from .method_registry import evaluate_methods
+            # Default recommendation is independent of current selections.
+            # Expose metadata gates even for methods not in that default.
+            result['method_options'] = evaluate_methods(record, result['qc_config'],
+                                                       result['selected_modules'], assess_unselected=True)
         return result
     scope_missing = []
     modality = record.get("modality")

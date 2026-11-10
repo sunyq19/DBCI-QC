@@ -193,7 +193,7 @@ def _hf_applicability(facts, config):
     return 'ready', '采样、时长与EMG配置初步满足；仍需运行核对可用证据。'
 
 
-def evaluate_methods(record, config, selected_modules):
+def evaluate_methods(record, config, selected_modules, *, assess_unselected=False):
     facts = data_facts(record, config)
     from .processing_history import scope
     frequency_scope = scope(record, config, facts['sampling_rate_hz'])
@@ -208,7 +208,7 @@ def evaluate_methods(record, config, selected_modules):
         status, reason, parameters = 'ready', '适用条件初步满足，仍以实际执行与子方法结果为准。', None
         if method['implementation'] == 'planned':
             status, reason, chosen = 'planned', '扩展目录已登记；尚未接入和完成真实数据验收。', False
-        elif not chosen:
+        elif not chosen and not assess_unselected:
             status, reason = 'not_selected', '本次未选择该模块或可选增强方法。'
         elif method['optional_extension']:
             gate = evaluate_extension(id_, facts, extension_params.get(id_))

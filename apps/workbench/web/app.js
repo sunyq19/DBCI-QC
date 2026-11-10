@@ -530,7 +530,7 @@
 
   function setExtension(id, checked) {
     const method = extensionMethods().find(item => item.id === id);
-    if (!method || !state.input || state.submitting || !selectableModule(method.module_id) || unsupportedInput()) return;
+    if (!method || !state.input || state.mode !== "draft" || state.filePending || state.submitting || !selectableModule(method.module_id) || unsupportedInput()) return;
     if (checked) { state.extensions.add(id); state.selected.add(method.module_id); }
     else { state.extensions.delete(id); if(state.draftConfig?.scoring) for(const spec of scoringOutputs()) if(spec.method_id===id) state.draftConfig.scoring.weights[spec.id]=0; }
     $("extension-selection-note").hidden = false;
@@ -650,6 +650,7 @@
     setError("plan-error",null);
     updateWindow(); renderPipeline(); renderPlan(); renderRecommendation(); refreshOpenDialog();
     if (manual) saveDraft();
+    if (state.openPipelineModule) ensureMethodGuidance();
   }
 
   function channelChip(index, role = "") {
@@ -1170,27 +1171,90 @@
     const stateLabel=status==="partial" ? (state.mode==="job"?"已完成部分检查":"部分项目可用") : STATUS[status]||status;
     const editable = state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() && optionalModules().includes(id) && selectableModule(id);
     if (editable) {
-      const selected = state.selected.has(id), busy = state.submitting || state.loadingRecord;
-      const dependency = arr(module?.dependencies).filter(item => optionalModules().includes(item));
-      return `<div class="pipeline-node editable ${escape(css)} ${selected ? "choice-selected" : ""}"><label class="pipeline-choice" for="pipeline-option-${escape(id)}"><span class="node-top"><span class="node-id">${escape(id)}</span><span class="node-selection"><span>${selected ? "已选择" : "未选择"}</span><input type="checkbox" id="pipeline-option-${escape(id)}" data-pipeline-module="${escape(id)}" ${selected ? "checked" : ""} ${busy ? "disabled" : ""} aria-label="选择 ${escape(id)} ${escape(moduleLabel(id))}"></span></span><span class="node-name">${escape(moduleLabel(id))}</span>${availability ? `<span class="node-dependency">${escape(availability)}</span>` : ""}${dependency.length ? `<span class="node-dependency">${escape("依赖 " + dependency.join(" · "))}</span>` : ""}</label><button type="button" class="pipeline-info" data-detail="${escape(id)}" aria-label="查看 ${escape(id)} ${escape(moduleLabel(id))} 说明" title="查看说明">ⓘ</button></div>`;
+      const methods = allMethods().filter(method=>method.module_id===id && method.implementation==="available");
+      const chosen = methods.filter(method=>state.selected.has(id) && (!method.optional_extension || state.extensions.has(method.id))).length;
+      const expanded = state.openPipelineModule === id;
+      return `<button type="button" class="pipeline-node method-group ${chosen ? "choice-selected" : ""} ${expanded ? "expanded" : ""}" data-pipeline-expand="${escape(id)}" aria-expanded="${expanded}" aria-controls="pipeline-method-panel"><span class="node-top"><span class="node-id">${escape(id)}</span><span class="node-state">${chosen} / ${methods.length} 项已选</span></span><span class="node-name">${escape(moduleLabel(id))}</span><span class="node-expand" aria-hidden="true">${expanded ? "−" : "+"}</span></button>`;
     }
     return `<button class="pipeline-node ${escape(css)}" data-detail="${escape(id)}" ${module ? "" : "disabled"} aria-label="${escape(id)} ${escape(node.name || module?.name || moduleLabel(id))}，${escape(stateLabel)}，查看详情" title="${escape(node.reason || "查看模块详情")}"><span class="node-top"><span class="node-id">${escape(id)}</span>${status === "framework" ? "" : `<span class="node-state">${escape(stateLabel)}</span>`}</span><span class="node-name">${escape(moduleLabel(id))}</span>${availability?`<span class="node-dependency">${escape(availability)}</span>`:""}${arr(module?.dependencies).some(dependency => optionalModules().includes(dependency)) ? `<span class="node-dependency">${escape("依赖 " + module.dependencies.filter(dependency => optionalModules().includes(dependency)).join(" · "))}</span>` : ""}</button>`;
   }
 
+  function methodGuidanceKey() {
+    if (state.mode !== "draft" || !state.input || state.filePending || unsupportedInput()) return null;
+    const config = currentConfig();
+    delete config.scoring;
+    config.method_config.extensions = [];
+    return JSON.stringify({input_id:state.input.id,qc_config:config,reset_methods:true});
+  }
+
+  async function ensureMethodGuidance(force = false) {
+    const key = methodGuidanceKey();
+    if (!key || (!force && state.methodGuidanceKey === key)) return;
+    state.methodGuidanceKey = key; state.methodGuidance = null; state.methodGuidanceError = null;
+    state.methodGuidanceLoading = true;
+    renderPipeline();
+    try {
+      const recommendation = await api("/recommend",{method:"POST",body:key});
+      if (state.methodGuidanceKey !== key || methodGuidanceKey() !== key) return;
+      if (recommendation.can_apply !== true) throw new Error(recommendation.summary || "当前配置无法核对方法条件。");
+      // Read-only advice: never adopt this proposal, replace the current plan,
+      // alter last-run choices or submit an analysis job.
+      state.methodGuidance = recommendation;
+    } catch (error) {
+      if (state.methodGuidanceKey === key && methodGuidanceKey() === key) state.methodGuidanceError = error.message;
+    } finally {
+      if (state.methodGuidanceKey === key) { state.methodGuidanceLoading = false; renderPipeline(); }
+    }
+  }
+
+  function pipelineMethodPanel(id) {
+    const methods = allMethods().filter(method=>method.module_id===id);
+    const advice = state.methodGuidanceKey === methodGuidanceKey() ? state.methodGuidance : null;
+    const recommended = new Set(arr(advice?.recommended_methods).map(method=>method.id));
+    const gates = new Map([...arr(advice?.method_options).map(method=>({...method,applicability:method.status})),...arr(advice?.recommended_methods),...arr(advice?.optional_methods),...arr(advice?.blocked_methods)].filter(method=>!["not_selected","skipped"].includes(method.applicability)).map(method=>[method.id,method]));
+    const busy = state.submitting || state.loadingRecord;
+    const render = method => {
+      const gate = gates.get(method.id), current = methodApplicability(method);
+      const status = method.implementation !== "available" ? "planned" : gate?.applicability || (current.selected && !["skipped","not_selected"].includes(current.status) ? current.status : "unplanned");
+      const restricted = ["partial","blocked"].includes(status);
+      const selected = state.selected.has(id) && (!method.optional_extension || state.extensions.has(method.id));
+      const scoreable = Boolean(method.can_output_score || method.scoring?.can_output_score);
+      const sourceReason = gate?.reason || current.reason || "";
+      const reason = sourceReason.includes("expensive_methods=run") ? "整份检查默认跳过该方法；可切换为片段检查后重新核对。" : sourceReason;
+      const locked = busy || method.implementation !== "available" || status === "blocked" && !selected;
+      const toggle = method.optional_extension
+        ? `<input type="checkbox" data-extension="${escape(method.id)}" id="pipeline-method-${escape(method.id)}" ${selected?"checked":""} ${locked?"disabled":""} aria-label="${escape(method.name)}">`
+        : `<span class="method-linked" title="随基础检查启用">${selected?"✓":"—"}</span>`;
+      const label = method.optional_extension ? `<label for="pipeline-method-${escape(method.id)}">${escape(method.name)}</label>` : `<strong>${escape(method.name)}</strong>`;
+      return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span><span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}${!method.optional_extension?'<span class="method-linked-note">随基础检查</span>':""}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
+    };
+    const available = methods.filter(method=>method.implementation==="available"), planned=methods.filter(method=>method.implementation!=="available");
+    return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><label class="pipeline-base-toggle"><input type="checkbox" id="pipeline-option-${escape(id)}" data-pipeline-module="${escape(id)}" ${state.selected.has(id)?"checked":""} ${busy?"disabled":""}><span>启用本模块</span></label><p class="pipeline-method-hint">基础方法随模块运行；扩展方法可逐项选择。</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
+  }
+
+  function togglePipelineModule(id) {
+    if (state.mode !== "draft" || !state.input || state.filePending || unsupportedInput() || !optionalModules().includes(id)) return;
+    state.openPipelineModule = state.openPipelineModule === id ? null : id;
+    renderPipeline();
+    if (state.openPipelineModule) ensureMethodGuidance();
+  }
+
   function renderPipeline() {
+    const pipelineContext = state.mode === "draft" && !state.filePending ? state.input?.id : null;
+    if (state.pipelineContext !== pipelineContext) { state.openPipelineModule = null; state.pipelineContext = pipelineContext; state.methodGuidanceKey = null; state.methodGuidance = null; state.methodGuidanceError = null; state.methodGuidanceLoading = false; }
     const nodes = visualNodes();
     const groups = workflowGroups();
-    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div></section>`).join("");
+    const markup = groups.map(({id:number,label:title,module_ids:ids},index) => `${index ? '<div class="flow-connector" aria-hidden="true">↓</div>' : ""}<section class="flow-stage"><h3><span>${String(index + 1).padStart(2,"0")}</span>${escape(title)}</h3><div class="flow-nodes ${ids.length > 2 ? "flow-checks" : "flow-pair"}">${ids.map(id => nodeHtml(id,nodes)).join("")}</div>${state.openPipelineModule && ids.includes(state.openPipelineModule) ? pipelineMethodPanel(state.openPipelineModule) : ""}</section>`).join("");
     if ($("pipeline").innerHTML !== markup) {
-      const focused = document.activeElement?.closest?.("#pipeline [data-pipeline-module], #pipeline [data-detail]");
-      const attribute = focused?.hasAttribute("data-pipeline-module") ? "data-pipeline-module" : "data-detail";
+      const focused = document.activeElement?.closest?.("#pipeline [id], #pipeline [data-pipeline-expand], #pipeline [data-detail]");
+      const attribute = focused?.id ? "id" : focused?.hasAttribute("data-pipeline-expand") ? "data-pipeline-expand" : "data-detail";
       const focusedId = focused?.getAttribute(attribute);
       $("pipeline").innerHTML = markup || '<p class="small muted">正在读取模块目录</p>';
-      if (moduleOrder().includes(focusedId)) $("pipeline").querySelector(`[${attribute}="${focusedId}"]`)?.focus({preventScroll:true});
+      if (focusedId) $("pipeline").querySelector(`[${attribute}="${focusedId}"]`)?.focus({preventScroll:true});
     }
     const historical = state.mode === "job", hasInput = Boolean(state.input) && !state.filePending;
     const choosing = !historical && hasInput && !unsupportedInput();
-    $("pipeline-help").textContent = choosing ? "点击卡片选择模块 · ⓘ 查看说明" : "点击模块查看说明";
+    $("pipeline-help").textContent = choosing ? "点击模块，展开选择检查方法" : "点击模块查看说明";
     $("pipeline-recommend-button").hidden = !choosing;
     $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
@@ -1543,9 +1607,9 @@
       if (request !== state.selectionRequest || state.input?.id !== record.id) return false;
       state.configurationOrigin = saved.previous_run;
       renderModuleOptions(); renderRecommendation();
-      $("advanced-settings").open = true;
+      $("advanced-settings").open = false;
       $("workflow-panel").open = true;
-      $("advanced-settings").scrollIntoView({block:"start"});
+      $("pipeline-section").scrollIntoView({block:"start"});
       return true;
     } catch(error) {
       if (request === state.selectionRequest) setError("catalog-error",error.message);
@@ -2031,6 +2095,17 @@
     if (anchor) revealNavigationTarget(anchor.getAttribute("href"));
   });
   document.addEventListener("click",openLibraryLink);
+  $("pipeline").addEventListener("click",event=>{
+    const expand = event.target.closest("[data-pipeline-expand]");
+    if (expand) togglePipelineModule(expand.dataset.pipelineExpand);
+    const detail = event.target.closest("[data-pipeline-method-detail]");
+    if (detail) showModule(detail.dataset.parentModule,{methodId:detail.dataset.pipelineMethodDetail});
+    if (event.target.closest("[data-guidance-retry]")) ensureMethodGuidance(true);
+    if (event.target.closest("[data-open-scoring]")) {
+      $("advanced-settings").open = true; $("scoring-settings").open = true;
+      $("scoring-settings").scrollIntoView({block:"center"});
+    }
+  });
   $("pipeline").addEventListener("change",event=>{
     const input=event.target.closest("[data-pipeline-module]");
     if(input)setModuleSelected(input.dataset.pipelineModule,input.checked);

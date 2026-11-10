@@ -13,10 +13,27 @@
 质控台 · 共享演示	QC Workbench · Shared demo
 选择模块	Select modules
 方法与计分设置	Methods and scoring
+方案设置	Workflow settings
+计分与参数	Scoring and parameters
+完整方法列表	Full method list
+整份检查默认跳过该方法；可切换为片段检查后重新核对。	This method is skipped for whole-recording checks. Switch to a time window to reassess its eligibility.
+启用本模块	Enable this module
+基础方法随模块运行；扩展方法可逐项选择。	Base checks run together; extensions can be selected individually.
+随基础检查	With base checks
+随基础检查启用	Enabled with base checks
+收起检查方法	Collapse methods
+条件待核对	Conditions pending
+部分受限	Partially available
+可计分	Score available
+仅测量	Measurements only
+可计分不代表已计入总分。	A score output does not automatically contribute to the total.
+正在核对推荐与适用条件…	Checking recommendations and requirements…
+重新核对	Check again
+模块说明	Module details
 沿用上次方案	Using last run
 沿用上次方案 · 可继续修改	Using last run · editable
 恢复默认推荐	Restore default recommendation
-点击卡片选择模块 · ⓘ 查看说明	Click a card to select · ⓘ for details
+点击模块，展开选择检查方法	Open a module to choose its methods
 查看说明	View details
 选择检查模块，可调整方法、参数和计分权重。	Choose checks, methods, parameters and scoring weights.
 连接服务…	Connecting…
@@ -2123,6 +2140,9 @@ EDF技术头与选道	EDF technical header and channel selection
     [/^整份检查 · 记录 (.+) 秒 · 已计算 (.+) 秒 · 失败 (.+) 秒 · 未执行 (.+) 秒 · 数据间隙 (.+) 秒。计算覆盖不代表质量通过。$/, (_,a,b,c,d,e) => `Whole-recording check · Total ${a} s · Computed ${b} s · Failed ${c} s · Unexecuted ${d} s · Data gaps ${e} s. Execution coverage is not a quality pass.`],
     [/^(M0[1-9]) · 详情 ↗$/, (_, id) => `${id} · Details ↗`],
     [/^(.+) ↗$/, (_, title) => `${dictionary[title] || title} ↗`],
+    [/^(\d+) \/ (\d+) 项已选$/, (_,n,total) => `${n} / ${total} selected`],
+    [/^待接入方法 · (\d+)$/, (_,n) => `Planned methods · ${n}`],
+    [/^(M0[1-9]) 检查方法$/, (_,id) => `${id} methods`],
     [/^查看 (.+) 的依据$/, (_, name) => `View evidence for ${translate(name,"en")}`],
     [/^EDF 第 (\d+) 道缩放范围无效。$/, (_, n) => `Invalid scaling range for EDF source channel ${n}.`],
     [/^([\d,]+) 条记录$/, (_, n) => `${n} records`],

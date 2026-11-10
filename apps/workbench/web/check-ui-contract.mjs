@@ -30,7 +30,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const history = {state:null,replacements:[],replaceState(state,_title,value){this.state=state;this.replacements.push(value);const url=new URL(value,"http://localhost");Object.assign(location,{pathname:url.pathname,search:url.search,hash:url.hash})}};
   const context = {document:{getElementById:get,addEventListener(){}},window:{history,addEventListener(type,handler){if(!windowEvents.has(type))windowEvents.set(type,[]);windowEvents.get(type).push(handler)},matchMedia:()=>({matches:true}),sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}},location,fetch:(url,options)=>url === "/api/v1/inputs" && !serverInputs ? Promise.resolve(response({inputs:context.window.contract.state.catalog.inputs})) : fetchImpl(url,options),AbortController,setTimeout,clearTimeout,URL,console};
   const names = "renderScoringControls,state,currentConfig,body,fingerprint,validPlan,selectInput,setExtension,setModuleSelected,setContext,renderDataTags,renderInputUsage,renderExtensions,extensionMethods,methodCardsHtml,methodPlanHtml,methodApplicability,visualNodes,executionProgress,renderResult,safeSourceUrl,moduleStandardsUrl,moduleFromHash,openModuleFromHash,moduleDialogClosed,showModule,renderPipeline,updateActions,toolkitMethods,renderToolkit,methodDocumentationHtml,makeRecommendation,applyRecommendation,recommendationValid,renderRecommendation,applyParameters,invalidatePlan,intakeRole,intakeConfirmation,renderIntake,renderExtraction,streamSummaryHtml,needsStreamSelection,selectIntakeStream,annotationText,uploadIntake,pendingIntakeId,confirmIntake,prepareRecommendedPlan,makePlan,startJob,selectJob,loadCatalog,renderExamplePresets,chooseLocalFile,clearInputDraft,renderVisibility,restoreIntake,setScope,saveDraft,savedDraft,restoreDraft,discardDraft,applyConfiguration,jobLocation,setJobLocation,restoreNavigation,cloneJobConfiguration,coverageText,resetReviewWorkspace,renderCandidateList,renderWaveform,loadWaveform,saveReview,beginInputRevision,cancelInputRevision,selectCandidate,evidenceLinks,runSummary,refreshJob,clearPoll,listPendingIntakes,openReviewWorkspace,renderRecordingProgress,revisionMetadataChanges,ensureCatalog,browseMethods,hasExecutionContext,applyIntakeModalitySuggestion,inputModality,jobModality,visibleInputs,moduleOrder,defaultSelectedModules,renderModalityNavigation,renderHistory,renderRegisteredInputs,selectRecord,revealNavigationTarget";
-  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
+  const instrumented = source.replace("  loadCatalog();\n})();",`  window.contract = {togglePipelineModule,ensureMethodGuidance,methodGuidanceKey,pipelineMethodPanel,openLibraryInput,openLibraryLink,renderResultTabs,selectResultTab,${names}};\n})();`);
   assert.notEqual(instrumented,source,"Harness replaces startup; no API requests execute");
   vm.runInNewContext(fs.readFileSync(path.join(directory,"run-names.js"),"utf8"),context);
   vm.runInNewContext(instrumented,context);
@@ -117,23 +117,43 @@ check("changing input resets extensions and manual context to source defaults",(
   const t=harness();t.setExtension("mne_amplitude",true);t.setContext("disease","other");t.setContext("age_group","adult");t.selectInput("input-1");
   assert.equal(t.state.extensions.size,0);assert.equal(t.state.contextTags.disease,"unknown");assert.equal(t.state.contextTags.age_group,"unknown");assert.equal(t.state.contextTags.task,"attention");
 });
-check("pipeline cards select modules, synchronize the sidebar and keep details separate",()=>{
-  const t=harness();t.renderPipeline();
-  let markup=t.get("pipeline").innerHTML;
-  assert.equal((markup.match(/data-pipeline-module=/g)||[]).length,5);
-  assert.equal((markup.match(/class="pipeline-info"/g)||[]).length,5);
-  assert(markup.includes('for="pipeline-option-M04"'));assert(!t.get("pipeline-recommend-button").hidden);
-  const change=(id,checked)=>t.get("pipeline").dispatch("change",{target:{closest:()=>({dataset:{pipelineModule:id},checked})}});
-  change("M04",false);assert(!t.state.selected.has("M04"));
-  assert(!/data-module="M04" checked/.test(t.get("module-options").innerHTML));
-  assert(!/data-pipeline-module="M04" checked/.test(t.get("pipeline").innerHTML));
-  assert.equal(t.state.plan,null);assert(t.state.manualDraft);
-  t.setModuleSelected("M04",true);assert(/data-pipeline-module="M04" checked/.test(t.get("pipeline").innerHTML));
-  for(const id of ["M01","M02","M08","M09"]){change(id,false);assert(t.body().selected_modules.includes(id));}
+check("pipeline cards expand child methods with separate recommendation, eligibility and score labels",async()=>{
+  let t;const calls=[];
+  t=harness(async(url,options)=>{calls.push([url,JSON.parse(options.body)]);return response({can_apply:true,
+    recommended_methods:[{id:"basic_check",applicability:"ready"},{id:"mne_amplitude",applicability:"partial",reason:"缺少部分条件"}],
+    optional_methods:[{id:"mne_muscle",applicability:"blocked",reason:"采样带宽不足"}],blocked_methods:[]});});
+  t.state.catalog.modules.find(m=>m.id==="M03").methods[0].can_output_score=true;
+  t.renderPipeline();let markup=t.get("pipeline").innerHTML;
+  assert.equal((markup.match(/data-pipeline-expand=/g)||[]).length,5);
+  assert(!markup.includes('data-pipeline-module='));
+  const before=t.fingerprint(); t.togglePipelineModule("M03");await new Promise(resolve=>setImmediate(resolve));
+  markup=t.get("pipeline").innerHTML;
+  assert.equal(t.fingerprint(),before);assert.equal(calls.length,1);assert.equal(calls[0][1].reset_methods,true);
+  assert(markup.includes('id="pipeline-method-panel"'));assert(markup.includes('id="pipeline-method-mne_amplitude"'));
+  assert(markup.includes('推荐'));assert(markup.includes('部分受限'));assert(markup.includes('缺少部分条件'));
+  assert(markup.includes('可计分'));assert(markup.includes('仅测量'));assert(markup.includes('随基础检查'));
+  t.setExtension("mne_amplitude",true);assert(t.state.extensions.has("mne_amplitude"));assert(t.state.selected.has("M03"));
+  assert(t.get("pipeline").innerHTML.includes('id="pipeline-method-mne_amplitude" checked'));
+  assert.equal(calls.length,1,"selecting methods reuses data-condition advice");
+  t.setExtension("mne_amplitude",false);assert(!t.state.extensions.has("mne_amplitude"));
+  t.togglePipelineModule("M06");await new Promise(resolve=>setImmediate(resolve));markup=t.get("pipeline").innerHTML;
+  assert(markup.includes('采样带宽不足'));assert(/id="pipeline-method-mne_muscle"[^>]*disabled/.test(markup));
+  assert(markup.includes('待接入方法'));assert(!markup.includes('id="pipeline-method-mne_amplitude"'));
+  t.togglePipelineModule("M06");assert(!t.get("pipeline").innerHTML.includes('id="pipeline-method-panel"'));
   t.state.mode="job";t.state.job={id:"frozen",status:"completed",modules:[],plan:{selected_modules:["M04"]}};
-  const before=[...t.state.selected];change("M04",false);assert.deepEqual([...t.state.selected],before);
-  t.renderPipeline();assert(!t.get("pipeline").innerHTML.includes("data-pipeline-module="));assert(t.get("pipeline-recommend-button").hidden);
-  t.state.mode="draft";t.clearInputDraft();assert(!t.get("pipeline").innerHTML.includes("data-pipeline-module="));
+  t.renderPipeline();t.togglePipelineModule("M03");t.setExtension("mne_amplitude",true);
+  assert(!t.state.openPipelineModule);assert(!t.state.extensions.has("mne_amplitude"));
+  assert(!t.get("pipeline").innerHTML.includes('data-pipeline-expand='));
+});
+check("method advice cannot overwrite a changed input, and failure never fabricates eligibility",async()=>{
+  const waiting=deferred();let calls=0;
+  const t=harness(async()=>{calls++;return waiting.promise;});
+  t.togglePipelineModule("M03");assert(t.get("pipeline").innerHTML.includes("正在核对"));
+  await t.selectInput("input-1");waiting.resolve(response({can_apply:true,recommended_methods:[{id:"basic_check",applicability:"ready"}],optional_methods:[],blocked_methods:[]}));await new Promise(resolve=>setImmediate(resolve));
+  assert(!t.state.methodGuidance);assert(!t.state.openPipelineModule);assert.equal(calls,1);
+  const f=harness(async()=>{throw Error("条件服务不可用");});f.togglePipelineModule("M03");await new Promise(resolve=>setImmediate(resolve));
+  assert(f.get("pipeline").innerHTML.includes("条件服务不可用"));assert(f.get("pipeline").innerHTML.includes("条件待核对"));
+  assert(!f.state.methodGuidance);assert(!f.state.plan);
 });
 check("restoring recommendations explicitly resets prior scoring, without creating jobs or changing scope",async()=>{
   let t;const requests=[];
@@ -822,7 +842,7 @@ check("selecting data resumes saved modules, parameters, weights and scope as an
   assert.equal(t.currentConfig().method_config.extension_parameters.mne_muscle.threshold,6);
   assert.equal(t.currentConfig().scoring.weights.integrity,2);assert.equal(t.currentConfig().selection.start_seconds,40);
   assert.equal(t.state.scope,"window");assert.equal(t.state.parentJobId,"latest-run");
-  assert.equal(t.state.runName,"");assert(t.get("advanced-settings").open);assert(t.get("workflow-panel").open);
+  assert.equal(t.state.runName,"");assert(!t.get("advanced-settings").open);assert(t.get("workflow-panel").open);
   assert(t.get("module-selection-note").innerHTML.includes("沿用上次方案"));assert(!t.get("run-button").disabled);
   t.setModuleSelected("M04",false);t.setExtension("mne_amplitude",true);
   assert(!t.state.selected.has("M04"));assert(t.state.selected.has("M03"));assert(t.state.extensions.has("mne_amplitude"));
@@ -836,7 +856,7 @@ check("a record without previous runs prepares defaults and opens module selecti
     if(url.endsWith("/plan"))return response(planFixture(JSON.parse(options.body)));
     throw Error(url);
   });
-  assert(await t.openLibraryInput(record.id));assert(t.validPlan());assert(t.get("advanced-settings").open);
+  assert(await t.openLibraryInput(record.id));assert(t.validPlan());assert(!t.get("advanced-settings").open);
   assert.equal(t.state.configurationOrigin,null);assert.equal(t.state.parentJobId,null);
   assert(!calls.some(url=>/jobs|intakes|waveform|result/.test(url)));
 });
