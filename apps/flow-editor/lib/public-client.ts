@@ -2,7 +2,7 @@ import navigation from '../config/navigation.json';
 import {HANDOFF_TTL,publicQuery,validateHandoff} from './handoff';
 const PENDING='dbci-flow-pending',ACCESS='dbci-flow-editor-ui';
 export function publicFrontend(){return typeof window!=='undefined'&&location.origin===new URL(navigation.flowUrl).origin;}
-export function flowBase(){return publicFrontend()?new URL(navigation.flowUrl).pathname:'/';}
+export function flowBase(){return typeof location!=='undefined'&&/^\/flow(?:\/|$)/.test(location.pathname)?'/flow/':publicFrontend()?new URL(navigation.flowUrl).pathname:'/';}
 export function apiUrl(path:string){return publicFrontend()?new URL(path,navigation.serviceUrl).href:path;}
 export function displaySession(){
  try{const value=JSON.parse(sessionStorage.getItem(ACCESS)||'null');if(value&&Date.now()-value.at<8*60*60*1000)return {signedIn:!!value.signedIn,canEdit:!!value.canEdit,email:null};}catch{}

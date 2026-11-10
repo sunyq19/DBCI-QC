@@ -1,0 +1,9 @@
+import {build} from 'esbuild';
+import {cp,mkdir,rm} from 'node:fs/promises';
+import path from 'node:path';
+import {spawnSync} from 'node:child_process';
+const result=spawnSync(process.execPath,['scripts/build-pages.mjs'],{stdio:'inherit'});if(result.status)process.exit(result.status);
+await rm('dist-self-host',{recursive:true,force:true});await mkdir('dist-self-host');
+await build({entryPoints:['self-host/server.mjs'],outfile:'dist-self-host/server.mjs',platform:'node',format:'esm',target:'node24',bundle:true,alias:{'cloudflare:workers':path.resolve('self-host/env.mjs')},plugins:[{name:'local-catalogue',setup(b){b.onResolve({filter:/catalog-source$/},()=>({path:path.resolve('self-host/catalog.ts')}));}}]});
+await cp('dist-pages','dist-self-host/public',{recursive:true});await cp('drizzle','dist-self-host/drizzle',{recursive:true});
+console.log('Self-host release ready: dist-self-host (Node 24; no npm install required)');

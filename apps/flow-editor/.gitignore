@@ -45,6 +45,7 @@ yarn-error.log*
 .DS_Store
 
 /dist-pages/
+/dist-self-host/
 
 # Also ignore a local symlink to an existing dependency installation.
 /node_modules

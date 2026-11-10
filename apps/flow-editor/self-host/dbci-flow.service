@@ -1,0 +1,20 @@
+[Unit]
+Description=DBCI-QC module collaboration
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/sdb/DBCI-QC/flow/current
+ExecStart=/mnt/sdb/DBCI-QC/bin/node24 server.mjs
+Environment=FLOW_DATA_DIR=/mnt/sdb/DBCI-QC/flow/data
+Environment=FLOW_PASSWORD_FILE=/mnt/sdb/DBCI-QC/flow/config/password.verifier
+Environment=FLOW_BIND=127.0.0.1 FLOW_PORT=18770
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=default.target
