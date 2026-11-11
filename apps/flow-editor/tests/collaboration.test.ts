@@ -39,7 +39,10 @@ test('retired then restored modules keep collaborative material without revertin
 import {env,setIdentity} from './helpers/identity';
 import {POST as postFlow} from '../app/api/flow/route';
 import {POST as postAccess} from '../app/api/access/route';
+import {readCatalog} from '../lib/catalog-source';
 test('API rejects anonymous and cross-origin writes, unlocks by password, and locks sessions',async()=>{
+ // Use this checkout's catalog; a live main-branch sync must not change the test's revision midway.
+ await readCatalog((async()=>Response.json(manifest)) as typeof fetch);
  const db=database();(env as any).DB=db;(env as any).FLOW_EDIT_PASSWORD_VERIFIER=await makePasswordVerifier('api-test');setIdentity('editor@example.test');
  const post=(route:string,data:any,t?:string,origin='https://sunyq19.github.io')=>new Request('https://dbci-qc-flow.leoleoleoleoli.chatgpt.site/api/'+route,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...(t?{'X-Flow-Editor':t}:{})},body:JSON.stringify(data)});
  let response=await postFlow(post('flow',{action:'freeze',canEdit:true,revision:1,label:'forged'}));assert.equal(response.status,401);assert.equal(response.headers.get('Access-Control-Allow-Origin'),'https://sunyq19.github.io');
