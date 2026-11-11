@@ -34,6 +34,7 @@ from record_revisions import RecordRevisions, RevisionConflict
 from standards_page import render_standards, NAVIGATION_SCRIPT, DOCUMENT_PAGES
 from package_jobs import PackageJobs
 from deployment import deployment, check_request, UploadGuard, DemoCapacityError
+from temporary_uploads import enabled as private_uploads, public_record, public_source, TemporaryUploads
 
 SERVICE = 'ephys-qc-modular-workbench'
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
@@ -65,7 +66,7 @@ def insert_report_navigation(report, navigation):
 
 
 def public_input(item):
-    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context', 'library_origin', 'retention') if key in item}
+    result = {key: copy.deepcopy(item[key]) for key in ('id', 'label', 'dataset_id', 'profile_id', 'metadata', 'default_config', 'description', 'provenance', 'data_usage', 'modality', 'modality_source', 'reference_scheme', 'preprocessing', 'annotation_mapping', 'record_family', 'record_revision', 'parent_input_id', 'availability', 'dataset_context', 'library_origin', 'retention', 'public_source') if key in item}
     result.setdefault('record_family', item['id'])
     result.setdefault('record_revision', 1)
     result.setdefault('default_config', {}).setdefault('context_tags', context_defaults(item))
@@ -91,19 +92,24 @@ class Store:
         (self.root / 'jobs').mkdir(parents=True, exist_ok=True)
         self.inputs = {}
         for item in settings['inputs']:
-            item = copy.deepcopy(item)
+            item = public_record(settings, copy.deepcopy(item))
+            if item is None: continue
             self._availability(item, refresh=True)
             self.inputs[item['id']] = item
         self.link_lock = threading.RLock()
         self.intakes = IntakeStore(self.root, limits=self.admission_policy or DEFAULT_INTAKE_LIMITS)
         self.upload_guard = UploadGuard(settings, self.root, self.intakes.limits)
         for item in self.intakes.registered():
+            item = public_record(settings, item)
+            if item is None: continue
             if item['id'] in self.inputs:
                 raise ValueError('本机提交记录ID与预登记输入冲突。')
             self._availability(item)
             self.inputs[item['id']] = item
         self.revisions = RecordRevisions(self.root)
         for item in self.revisions.registered():
+            item = public_record(settings, item)
+            if item is None: continue
             self._availability(item)
             self.inputs[item['id']] = item
         self.jobs, self.processes = {}, {}
@@ -112,6 +118,7 @@ class Store:
         self.queue = queue.Queue()
         for path in sorted((self.root / 'jobs').glob('*/job.json')):
             job = read_json(path)
+            if private_uploads(settings) and job['input_id'] not in self.inputs: continue
             if job['status'] not in TERMINAL:
                 job.update(status='interrupted', message='服务重启；本次运行未完成，可重新提交。', ended_at=now())
                 for node in job['modules']:
@@ -128,6 +135,10 @@ class Store:
         threading.Thread(target=self._retention_loop, daemon=True).start()
 
     def expire_uploads(self):
+        if self.settings.get('temporary_workspace'): return []
+        if private_uploads(self.settings):
+            if hasattr(self, 'library_state'): self.library_state.cleanup()
+            return []
         from upload_retention import expire_uploads, ACTIVE
         with self.lock:
             protected = {j.get('record_family', j['input_id']) for j in self.jobs.values() if j['status'] in ACTIVE}
@@ -214,6 +225,8 @@ class Store:
 
     def intake_status(self, identifier):
         value = self.intakes.get(identifier)
+        if private_uploads(self.settings) and not public_source(self.settings, dict(value, id='local-' + identifier)):
+            raise KeyError(identifier)
         if value.get('status') == 'registered' and value.get('dataset_context'):
             with self.lock:
                 family = self.inputs.get(value['input_id'], {}).get('record_family', value['input_id'])
@@ -225,13 +238,16 @@ class Store:
 
     def confirm_intake(self, identifier, body):
         with self.lock:
+            if private_uploads(self.settings): self.intake_status(identifier)
             if hasattr(self, 'library_state'): self.library_state.assert_intake_active(identifier)
             record = self.intakes.confirm(identifier, body)
+            record = public_record(self.settings, record)
             self.inputs[record['id']] = record
             return {'status': 'registered', 'input': public_input(record)}
 
     def select_intake_stream(self, identifier, body):
         with self.lock:
+            if private_uploads(self.settings): self.intake_status(identifier)
             if hasattr(self, 'library_state'): self.library_state.assert_intake_active(identifier)
             return self.intakes.select_stream(identifier, body)
 
@@ -358,6 +374,7 @@ class Store:
             directory = self.root / 'jobs' / id_
             try:
                 with self.lock:
+                    if id_ not in self.jobs: continue
                     job = self.jobs[id_]
                     if job['status'] != 'queued':
                         continue
@@ -371,6 +388,10 @@ class Store:
                     env = dict(os.environ, MPLBACKEND='Agg', OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1',
                                MKL_NUM_THREADS='1', NUMEXPR_NUM_THREADS='1', PYTHONUNBUFFERED='1',
                                MPLCONFIGDIR=str(self.root / 'matplotlib'))
+                    if self.settings.get('temporary_workspace'):
+                        scratch = directory / 'tmp'
+                        scratch.mkdir(exist_ok=True)
+                        env.update(TMPDIR=str(scratch), TEMP=str(scratch), TMP=str(scratch))
                     p = subprocess.Popen([self.settings['python'], str(ROOT / 'worker.py'), str(directory)],
                                          cwd=REPO, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                          text=True, start_new_session=True)
@@ -594,9 +615,14 @@ class Handler(BaseHTTPRequestHandler):
 
     @property
     def store(self):
-        return self.server.store
+        return getattr(self, '_request_store', None) or self.server.store
+
+    @property
+    def temporary(self):
+        return getattr(self.server, 'temporary', None)
 
     def log_message(self, fmt, *args):
+        if self.temporary: return
         if len(args) > 1 and str(args[1]).startswith('5'):
             super().log_message(fmt, *args)
 
@@ -605,7 +631,15 @@ class Handler(BaseHTTPRequestHandler):
         check_request(settings, self.server.server_port, self.headers)
 
     def send_bytes(self, data, mime='application/json; charset=utf-8', code=200, headers=None):
+        if (getattr(self, 'temporary_token', None) and mime.startswith('text/html')
+                and re.fullmatch(r'/api/v1/jobs/[a-f0-9]{32}/report|/comparisons', urlsplit(self.path).path)):
+            # A served-page control only; downloaded reports remain standalone.
+            if not (headers or {}).get('Content-Disposition', '').startswith('attachment'):
+                notice = '<aside id="temporary-session" class="temporary-session"></aside><script src="/temporary-session.js" defer></script>'
+                data = insert_report_navigation(data.decode('utf-8'), notice).encode('utf-8')
         self.send_response(code)
+        if getattr(self, 'temporary_cookie', None):
+            self.send_header('Set-Cookie', self.temporary_cookie)
         self.send_header('Content-Type', mime)
         self.send_header('Content-Length', str(len(data)))
         self.send_header('Cache-Control', (headers or {}).get('Cache-Control', 'no-store'))
@@ -621,13 +655,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_bytes(json.dumps(value, ensure_ascii=False, allow_nan=False).encode('utf-8'), code=code)
 
     def body(self):
+        if hasattr(self, '_cached_body'): return self._cached_body
         if self.headers.get_content_type() != 'application/json':
             raise ValueError('请提交 JSON 配置。')
         length = int(self.headers.get('Content-Length', '0'))
         if not 0 < length <= 256 * 1024:
             raise ValueError('配置长度无效。')
         self.connection.settimeout(15)
-        return json.loads(self.rfile.read(length))
+        self._cached_body = json.loads(self.rfile.read(length))
+        return self._cached_body
 
     def waveform_query(self):
         query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
@@ -640,10 +676,14 @@ class Handler(BaseHTTPRequestHandler):
                 'max_points': int(query.get('max_points', ['2000'])[0])}
 
     def dispatch(self):
+        self._request_store = None
+        self.temporary_token = self.temporary_cookie = None
+        if hasattr(self, '_cached_body'): del self._cached_body
         try:
             self.check_local()
             path = unquote(urlsplit(self.path).path)
-            (self.get if self.command == 'GET' else self.post)(path)
+            with self.temporary.request(self, path) if self.temporary else nullcontext():
+                (self.get if self.command == 'GET' else self.post)(path)
         except PermissionError as exc:
             self.json({'error': str(exc)}, 403)
         except RevisionConflict as exc:
@@ -661,13 +701,15 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
         except Exception as exc:
-            print(f'Service exception: {type(exc).__name__}: {exc}', file=sys.stderr, flush=True)
+            print('Service request failed' if self.temporary else f'Service exception: {type(exc).__name__}: {exc}', file=sys.stderr, flush=True)
             self.json({'error': '服务处理失败，请联系管理员查看日志。'}, 500)
 
     do_GET = dispatch
     do_POST = dispatch
 
     def get(self, path):
+        if path == '/api/v1/temporary-session':
+            return self.json(self.temporary.status(self) if self.temporary else {'active': False})
         from package_review_api import dispatch as package_review_dispatch
         if package_review_dispatch(self, path): return
         from workflow_api import dispatch as workflow_dispatch
@@ -790,9 +832,12 @@ class Handler(BaseHTTPRequestHandler):
                                                           'max_dataset_bytes': self.store.intakes.limits.max_dataset_bytes,
                                                           'intake_limit_version': self.store.intakes.limits.version,
                                                           'local_only': deployment(self.store.settings)['mode'] == 'local'},
+                                               'data_policy': self.server.store.settings.get('data_policy'),
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
+            if self.temporary:
+                return self.json({'intakes': [public_intake(i) for i in self.temporary.pending(self)]})
             state = getattr(self.store, 'library_state', None)
             return self.json({'intakes': [public_intake(i) for i in self.store.intakes.pending() if i.get('library_origin') in {'user_upload', 'user_registered'} and (not state or (i['id'] not in state.state['deleted']['intakes'] and 'intake:'+i['id'] not in state.state['archived']))]})
         if path == '/api/v1/inputs':
@@ -800,6 +845,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('记录列表统一展示全部已登记输入，不按执行目录过滤。')
             with self.store.lock:
                 records = [public_input(item) for item in self.store.inputs.values() if item.get('library_origin') in {'user_upload', 'user_registered'} and (not hasattr(self.store, 'library_state') or not self.store.library_state.is_archived(item))]
+            if self.temporary: records += [public_input(i) for i in self.temporary.inputs(self)]
             return self.json({'inputs': records})
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})', path)
         if match:
@@ -911,7 +957,7 @@ class Handler(BaseHTTPRequestHandler):
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
         static = {'/': 'index.html', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
-                  '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
+                  '/temporary-session.js': 'temporary-session.js', '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
             target = ROOT / 'web' / static[path]
@@ -923,6 +969,9 @@ class Handler(BaseHTTPRequestHandler):
         raise KeyError(path)
 
     def post(self, path):
+        if path == '/api/v1/temporary-session/finish' and self.temporary:
+            self.body()
+            return self.json(self.temporary.finish(self))
         if path in {'/api/v1/data/archive', '/api/v1/data/restore', '/api/v1/data/delete-preview', '/api/v1/data/delete'}:
             lifecycle = self.store.library_state
             body = self.body()
@@ -948,6 +997,7 @@ class Handler(BaseHTTPRequestHandler):
             guard = getattr(self.store, 'upload_guard', None)
             with guard.accept(filename, length) if guard else nullcontext():
                 intake = self.store.intakes.receive(filename, length, self.rfile)
+                if self.temporary: self.temporary.uploaded(self, intake)
             return self.json(intake, 201)
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/confirm', path)
         if match:
@@ -992,6 +1042,7 @@ def main():
     server = ThreadingHTTPServer(('127.0.0.1', args.port or settings.get('port', 8769)), Handler)
     server.daemon_threads = True
     server.store = Store(settings)
+    if private_uploads(settings): server.temporary = TemporaryUploads(server.store, Store)
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
     print(f'Local: http://127.0.0.1:{server.server_port}/', flush=True)
     try:
@@ -999,6 +1050,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if getattr(server, 'temporary', None): server.temporary.shutdown()
         for id_ in list(server.store.processes):
             server.store.cancel(id_)
         server.server_close()

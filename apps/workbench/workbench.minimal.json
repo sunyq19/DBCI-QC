@@ -3,5 +3,8 @@
   "python": "/absolute/path/to/DBCI-QC/.venv/bin/python",
   "data_dir": "/absolute/path/to/DBCI-QC-data/runtime",
   "inputs": [],
-  "profiles": []
+  "profiles": [],
+  "data_policy": "public-only/1",
+  "public_records": {},
+  "public_packages": {}
 }

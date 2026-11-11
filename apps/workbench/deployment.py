@@ -81,11 +81,19 @@ class UploadGuard:
 
 
 def homepage(template, settings):
+    from temporary_uploads import enabled
+    private = enabled(settings)
+    if private:
+        template = template.replace('<html lang="zh-CN"', '<html lang="zh-CN" data-upload-policy="temporary"', 1)
+        template = template.replace('上传文件保留 7 天，报告长期保留。', '文件与报告仅临时处理。完成后保留 1 小时供查看、下载；最长 6 小时自动清理。')
+        template = template.replace('<div id="upload-run-name-field"', '<aside id="temporary-session" class="temporary-session" hidden></aside><div id="upload-run-name-field"', 1)
+        template = template.replace('</head>', '<script src="/temporary-session.js" defer></script></head>', 1)
     if deployment(settings)['mode'] != 'shared_demo':
         return template
-    template = template.replace('<html lang="zh-CN">', '<html lang="zh-CN" data-deployment="shared_demo">')
-    template = template.replace('<div id="upload-run-name-field"',
-        '<p class="small muted shared-demo-note">共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。</p><div id="upload-run-name-field"', 1)
+    template = template.replace('<html lang="zh-CN"', '<html lang="zh-CN" data-deployment="shared_demo"', 1)
+    if not private:
+        template = template.replace('<div id="upload-run-name-field"',
+            '<p class="small muted shared-demo-note">共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。</p><div id="upload-run-name-field"', 1)
     return (template.replace('质控台 · 本地处理', '质控台 · 共享演示')
             .replace('连接本地服务…', '连接服务…')
             .replace('保持本机服务运行即可', '处理完成后可回来查看报告'))

@@ -30,6 +30,7 @@ def prepare(origin, data_dir, output, user, port, python, reserve=10, *,
         raise ValueError('Install the Python environment first; choose a separate persistent data directory')
     settings = {'port': port, 'python': str(python), 'data_dir': str(data_dir),
                 'inputs': [], 'profiles': [], 'admission_policy': 'cloud-intake/1.3',
+                'data_policy': 'public-only/1', 'public_records': {}, 'public_packages': {},
                 'deployment': {'mode': 'shared_demo', 'public_origin': origin, 'reserve_gib': reserve}}
     deployment(settings)
     public_port = urlsplit(origin).port or (443 if origin.startswith('https:') else 80)

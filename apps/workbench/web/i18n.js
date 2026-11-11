@@ -129,6 +129,7 @@ RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态�
 一份记录选文件，多份记录打包 ZIP	Choose a recording file or a ZIP containing multiple recordings
 点击“读取文件”，下一步确认通道和模态	Click Read file, then confirm channels and modality
 上传文件保留 7 天，报告长期保留。	Uploaded files are kept for 7 days; reports are retained.
+文件与报告仅临时处理。完成后保留 1 小时供查看、下载；最长 6 小时自动清理。	Files and reports are temporary. Download reports within 1 hour of completion. Sessions expire after 6 hours.
 在完整页面查看图表	Open full chart workspace
 受限项自动不计入，剩余有效项重新分配比例。全部为 0 时仅展示分项。	Unavailable checks are excluded automatically; remaining valid checks are renormalized. All-zero weights show components only.
 无有效结果的项目自动不计入；其余有效项目重新归一化。分数只代表所选检查，尚未经过专家校准。	Checks without valid results are excluded and the rest are renormalized. Scores cover selected checks and have not been expert-calibrated.

@@ -22,7 +22,8 @@ def write_config(repo, python, data_dir, port):
     target = repo / '.local' / 'workbench.json'
     target.parent.mkdir(parents=True, exist_ok=True)
     settings = {'port': port, 'python': str(python.absolute()),
-                'data_dir': str(data_dir.resolve()), 'inputs': [], 'profiles': []}
+                'data_dir': str(data_dir.resolve()), 'inputs': [], 'profiles': [],
+                'data_policy': 'public-only/1', 'public_records': {}, 'public_packages': {}}
     # Keep the venv entry point: resolving its symlink would select the base Python.
     try:
         with target.open('x', encoding='utf-8') as stream:

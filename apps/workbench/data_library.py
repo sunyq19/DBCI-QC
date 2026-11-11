@@ -2,6 +2,7 @@
 import copy
 from urllib.parse import urlencode
 from library_identity import data_identity, workflow_groups
+from temporary_uploads import public_intake, enabled
 
 
 def configuration_source(store, identifier):
@@ -15,6 +16,11 @@ def configuration_source(store, identifier):
         if hasattr(store, 'library_state'): store.library_state.assert_record_active(requested)
         inputs = copy.deepcopy(list(store.inputs.values()))
         jobs = copy.deepcopy([j for j in store.jobs.values() if not hasattr(store, 'library_state') or not store.library_state.report_archived(j)])
+    if requested.get('retention', {}).get('state') == 'temporary':
+        workspace = requested['retention']['workspace']
+        inputs = [i for i in inputs if i.get('retention', {}).get('workspace') == workspace]
+        own = {i['id'] for i in inputs}
+        jobs = [j for j in jobs if j['input_id'] in own]
     if (requested.get('availability', {}).get('status') == 'unavailable' or
             requested.get('retention', {}).get('state') == 'expired'):
         raise ValueError('数据副本不可用；报告仍可查看，重新检查请再次上传。')
@@ -97,6 +103,7 @@ def library(store):
         latest = max(attempts, key=lambda j:j['created_at']) if attempts else None
         reports = sorted((j for j in dataset_jobs if j['package_id'] == package['id'] and j['status']=='completed'),key=lambda j:j['created_at'],reverse=True)
         rows.append({'id': 'dataset:'+package['id'], 'kind':'dataset', 'label':package['label'],
+                     'source': configured.get('public_source'),
                      'available':package['available'], 'records':package.get('records'), 'subjects':package.get('subjects'),
                      'status':latest['status'] if latest else 'not_run', 'updated_at':latest['created_at'] if latest else '',
                      'url':'/datasets?'+urlencode({'package':package['id']}),
@@ -157,6 +164,7 @@ def library(store):
                             'url':f"/api/v1/jobs/{job['id']}/report",
                             'visualizations_url':f"/api/v1/jobs/{job['id']}/visualizations"})
         records.append({'id':'record:'+item['id'], 'kind':'record', 'label':item['label'],
+                        'source': item.get('public_source'),
                         'available':item.get('availability',{}).get('status')!='unavailable',
                         'retention':item.get('retention'), 'format':item.get('metadata',{}).get('format'), 'modality':item.get('modality'),
                         'status':latest['status'] if latest else 'not_run',
@@ -167,6 +175,7 @@ def library(store):
                         'url':'/?'+urlencode({'input':item['id']}),
                         'latest_run_url':(f"/api/v1/jobs/{latest['id']}/report" if latest['status'] == 'completed' else '/?'+urlencode({'job':latest['id']})) if latest else None})
     for intake in store.intakes.pending():
+        if not public_intake(store.settings, intake): continue
         if hasattr(store, 'library_state') and intake['id'] in store.library_state.state['deleted']['intakes']: continue
         if intake.get('dataset_context') or intake.get('library_origin') not in {'user_upload', 'user_registered'}: continue
         records.append({'id':'intake:'+intake['id'],'kind':'record','label':intake['filename'],
@@ -182,4 +191,5 @@ def library(store):
     rows = [row for row in rows if row['id'] not in featured]
     if hasattr(store, 'library_state'): store.library_state.decorate(rows)
     return {'schema_version':'data-library/1','items':rows, 'examples':examples,
+            'public_only': enabled(store.settings),
             'counts':{'datasets':sum(row['kind'] == 'dataset' for row in rows), 'records':len(records)}}

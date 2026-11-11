@@ -23,6 +23,7 @@ def fingerprint(value):return hashlib.sha256(json.dumps(value,ensure_ascii=False
 
 class PackageJobs:
     def __init__(self, settings):
+        from temporary_uploads import enabled, source
         self.admission_policy = configured_policy(settings)
         self.examples = {p['package_id']: p for p in settings.get('demo_examples', [])
                          if isinstance(p, dict) and p.get('kind') == 'dataset' and p.get('package_id')}
@@ -30,12 +31,18 @@ class PackageJobs:
         self.root=Path(settings['data_dir'])/'package_jobs';self.root.mkdir(parents=True,exist_ok=True)
         self.packages={};self.jobs={};self.lock=threading.RLock();self.queue=queue.Queue()
         for p in settings.get('packages',[]):
+            if enabled(settings):
+                provenance = source(settings.get('public_packages', {}).get(p.get('id')))
+                if not provenance: continue
+                p = {**p, 'public_source': provenance, 'library_origin': 'user_registered'}
             if not isinstance(p,dict) or not re.fullmatch(r'[a-zA-Z0-9_-]+',p.get('id','')) or p['id'] in self.packages:
                 raise ValueError('Invalid registered dataset package')
             self.packages[p['id']]=copy.deepcopy(p)
         for path in self.root.glob('*/job.json'):
             if not re.fullmatch('[a-f0-9]{32}',path.parent.name):continue
             job=json.loads(path.read_text());self.jobs[job['id']]=job
+            if enabled(settings) and job['package_id'] not in self.packages:
+                self.jobs.pop(job['id']); continue
             if job['status'] in {'queued','running'}:
                 job.update(status='interrupted',message='服务重启，可重新运行。');self._save(job)
         threading.Thread(target=self._loop,daemon=True).start()

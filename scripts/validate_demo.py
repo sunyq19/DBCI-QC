@@ -1,6 +1,6 @@
 """HTTP acceptance of cached examples and uploads in a fresh shared-demo store.
 
-No browser automation, no access to the user's runtime. Reports remain in --output.
+No browser automation, no access to the user's runtime. Downloaded test reports remain in --output; the service clears its temporary copies.
 Use --edf for a public real recording; otherwise use a synthetic engineering file.
 """
 import argparse
@@ -14,7 +14,8 @@ import sys
 import time
 from urllib.error import HTTPError
 from urllib.parse import quote
-from urllib.request import Request, ProxyHandler, build_opener
+from urllib.request import Request, ProxyHandler, HTTPCookieProcessor, build_opener
+from http.cookiejar import CookieJar
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -41,15 +42,15 @@ def main():
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))
             proxy_port = listener.getsockname()[1]
-    origin = f'http://demo.example.org:{proxy_port}' if proxy_port else 'https://demo.example.org'
+    origin = f'http://demo.example.org:{proxy_port}' if proxy_port else 'http://demo.example.org'
     config = {'port': port, 'python': sys.executable, 'data_dir': str(root / 'runtime'),
-              'inputs': [], 'profiles': [], 'admission_policy': 'cloud-intake/1.3',
+              'inputs': [], 'profiles': [], 'data_policy': 'public-only/1', 'admission_policy': 'cloud-intake/1.3',
               'deployment': {'mode': 'shared_demo', 'public_origin': origin, 'reserve_gib': 2}}
     config_path = root / 'workbench.json'
     config_path.write_text(json.dumps(config))
     env = dict(os.environ, PYTHONPATH=str(REPO / 'src'), PYTHONNOUSERSITE='1', MPLBACKEND='Agg',
                OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
-    clients = [build_opener(ProxyHandler({})), build_opener(ProxyHandler({}))]
+    clients = [build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar())) for _ in range(2)]
     base = f'http://127.0.0.1:{proxy_port or port}'
     process = None
     proxy = None
@@ -104,7 +105,7 @@ def main():
         health = start()
         assert call('/api/v1/data')['items'] == []
         home = call('/', raw=True).decode()
-        assert 'data-deployment="shared_demo"' in home and '共享演示区' in home
+        assert 'data-deployment="shared_demo"' in home and 'data-upload-policy="temporary"' in home
         assert home.count('class="demo-report"') == 4
         manifest = json.loads((REPO / 'apps/workbench/example-cache/manifest.json').read_text())
         for name, digest in manifest['files'].items():
@@ -141,7 +142,7 @@ def main():
             if time.monotonic() > deadline:
                 raise TimeoutError('QC exceeded 15 minutes')
             time.sleep(.5)
-            job = call('/api/v1/jobs/' + identifier, client=1)
+            job = call('/api/v1/jobs/' + identifier)
         assert job['status'] == 'completed', job
         result = call('/api/v1/jobs/' + identifier + '/summary')
         score = result['report_view']['score']
@@ -169,18 +170,38 @@ def main():
         wave = call(prefix + '/waveform-window?start_seconds=0&duration_seconds=2&channel_indices=0,1&max_points=400')
         assert len(wave['channels']) == 2
         library = call('/api/v1/data', client=1)
-        assert any(r.get('job_id') == identifier for item in library['items'] for r in item.get('recent_reports', []))
+        assert library['items'] == []
+        assert call('/api/v1/jobs', client=1)['jobs'] == []
+        for endpoint in (prefix, prefix+'/report', prefix+'/report.pdf', prefix+'/waveform-context', '/api/v1/inputs/'+record['id']):
+            try:
+                call(endpoint, raw=True, client=1)
+                raise AssertionError('Other browser accessed a private upload')
+            except HTTPError as error: assert error.code == 403
+        assert call('/api/v1/data')['items'] == []
         checks['upload_recommendation_report_pdf_waveform'] = True
-        checks['two_independent_http_clients_share_library'] = True
+        checks['two_independent_http_clients_are_isolated'] = True
         checks['selected_modules'] = recommendation['selected_modules']
         checks['recording_seconds'] = intake['metadata']['duration_seconds']
         assert hashlib.sha256(source.read_bytes()).hexdigest() == original_hash
-        stop()
-        start()
-        assert call(prefix)['status'] == 'completed'
-        assert call(prefix + '/report', raw=True) == report
-        assert call('/api/v1/data', client=1)['items']
-        checks['restart_preserves_reports_and_shared_data'] = True
+        assert call('/api/v1/temporary-session/finish', {})['status'] in {'cleared','clearing'}
+        deadline = time.monotonic() + 20
+        temporary = root/'runtime/.temporary/runtime'
+        while list((temporary/'jobs').glob('*/job.json')) and time.monotonic() < deadline: time.sleep(.2)
+        assert not list((temporary/'jobs').glob('*'))
+        assert not list((temporary/'intakes').glob('*'))
+        assert not list((root/'runtime/jobs').glob('*'))
+        assert not list((root/'runtime/intakes').glob('*'))
+        checks['finish_removes_payload_reports_logs_and_metadata'] = True
+        # Simulate a crash with a newly uploaded record; startup must purge it.
+        call('/api/v1/intakes', upload=source)
+        process.kill(); process.wait(); start()
+        assert not list((temporary/'intakes').glob('*'))
+        try:
+            call(prefix, raw=True)
+            raise AssertionError('Temporary report survived restart')
+        except HTTPError as error: assert error.code == 404
+        assert call('/api/v1/data', client=1)['items'] == []
+        checks['restart_removes_abandoned_temporary_uploads'] = True
         checks['source_unchanged'] = True
         evidence = {'status': 'passed', 'version': health['version'], 'checks': checks,
                     'job_id': identifier, 'sample_sha256': original_hash,

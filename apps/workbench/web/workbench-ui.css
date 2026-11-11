@@ -675,3 +675,6 @@ html[lang="en"] .comparison-en { display:flex; }
 .waveform-channel-details > input { margin-top:12px; width:min(280px,100%); padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; }
 .waveform-channels small { color:#8190a3; font-size:11px; }
 .waveform-hint { margin-top:8px; }
+
+/* Public provenance sits outside the dataset/report navigation link. */
+.public-example{min-width:0}.public-source{grid-column:1/-1;font-size:12px;line-height:1.6;color:#64748b;margin:4px 0 12px;overflow-wrap:anywhere}.public-source a{color:#526d96;text-decoration:none}.public-source a:hover{text-decoration:underline}.public-example .public-source{padding:0 14px 8px;margin-top:0}.public-source span{font-size:11px}

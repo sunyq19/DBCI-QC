@@ -153,6 +153,7 @@
         catch { throw new Error(response.ok ? "本地服务未返回 JSON。请从工作台服务入口打开页面。" : `本地服务返回 HTTP ${response.status}。`); }
       }
       if (!response.ok) { const error = new Error(data.error || `请求失败（HTTP ${response.status}）`); error.status = response.status; throw error; }
+      if (path.startsWith("/intakes") && requestOptions.method === "POST") window.QCTemporarySession?.refresh();
       setConnection(true);
       return data;
     } catch (error) {
@@ -1572,6 +1573,7 @@
     } catch { return null; }
   }
   function saveDraft() {
+    if (state.input?.retention?.state === "temporary") return;
     if (!state.input || state.mode !== "draft" || state.filePending || state.revisionInput) return;
     try { window.sessionStorage.setItem(draftStorageKey(),JSON.stringify({version:1,modality:inputModality(state.input),input_id:state.input.id,selected_modules:body().selected_modules,qc_config:currentConfig(),parent_job_id:state.parentJobId,run_name:state.runName,run_name_stamp:state.runNameStamp,parameter_dirty:state.parameterDirty,parameter_text:$("extension-parameters").value,updated_at:new Date().toISOString()})); window.sessionStorage.setItem(DRAFT_LAST_KEY,draftStorageKey()); window.sessionStorage.setItem(DRAFT_INDEX_KEY,JSON.stringify(draftKeys())); }
     catch { /* An unavailable session store does not prevent checking data. */ }

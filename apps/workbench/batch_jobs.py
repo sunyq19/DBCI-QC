@@ -42,6 +42,8 @@ class BatchJobs:
         self.items = {}
         for path in self.root.glob('*.json'):
             item = json.loads(path.read_text())
+            from temporary_uploads import enabled
+            if enabled(getattr(store, 'settings', {})) and item['package_id'] not in store.packages.packages: continue
             if item['status'] in {'queued', 'running', 'cancelling'}:
                 item.update(status='interrupted', ended_at=stamp())
                 self._save(item)

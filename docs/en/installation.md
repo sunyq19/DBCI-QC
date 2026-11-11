@@ -1,5 +1,7 @@
 # Installation and configuration
 
+New installations use `public-only/1`: only administrator-verified public data persists. Uploads and reports are temporary; see [storage policy](../data-storage.md). Existing configurations require an explicit, source-audited migration.
+
 [README](../../README.en.md) · [中文](../installation.md)
 
 ## First installation
@@ -79,8 +81,8 @@ These start, inspect and stop the service managed by this launcher. Avoid launch
 
 See the [toolkit API](../toolkit.md) and [workbench API](../../apps/workbench/README.md).
 
-## Upload retention and personal library
+## Public library and temporary uploads
 
-New upload copies expire **7 days** after receipt. While running, the service checks expiry every minute and defers deletion for queued/running jobs. Reports, saved evidence, fingerprints and confirmation records remain. Linked originals, registered dataset folders and legacy files without an ownership receipt are never automatically removed.
+New installations use `data_policy: public-only/1`. Only administrator-verified public datasets and reports persist. Uploaded files and reports are private to the submitting browser and never enter the public library.
 
-My uploads starts empty; development entries, examples and legacy drafts no longer populate it. Their files and reports are preserved. An administrator can explicitly mark a configured `inputs` or `packages` entry with `library_origin: user_registered` to show it as personal data; this does not authorize deleting the linked source. Re-upload expired copies to rerun QC. Cloud user isolation and object-storage lifecycle remain planned.
+Results expire 1 hour after completion; unstarted uploads expire after 30 idle minutes, with a 6-hour maximum session. Users may finish and clear earlier after downloading reports. Restart clears abandoned temporary work. See [storage rules](../data-storage.md) for source registration, backup exclusions and explicit migration of existing configurations. Unapproved legacy data becomes inaccessible; its physical cleanup requires an administrator’s inventory review.

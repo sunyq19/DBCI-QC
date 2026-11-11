@@ -4,7 +4,7 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-Source baseline: **2026-11-11 / 1.0.0rc3.dev41**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The workbench (`/`) and collaboration page (`/flow/`) can share one server and origin, as on the current 012 deployment. The deployment script generates both services and a reverse proxy configuration; the cloud instance has not yet been deployed. Collaboration drafts do not change executable QC rules. Module metadata is generated from QC source; notes, attachments and fixed versions are persisted separately.
+Source baseline: **2026-11-11 / 1.0.0rc3.dev42**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. The shared library contains administrator-verified public datasets only. Uploads and their reports are private, temporary sessions. See the [deployment checklist](docs/deployment/cloud-readiness.md). The workbench (`/`) and collaboration page (`/flow/`) can share one server and origin, as on the current 012 deployment. The deployment script generates both services and a reverse proxy configuration; the cloud instance has not yet been deployed. Collaboration drafts do not change executable QC rules. Module metadata is generated from QC source; notes, attachments and fixed versions are persisted separately.
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
@@ -120,7 +120,7 @@ Datasets share the same data entry. Open a dataset from **Example datasets** or 
 
 Confirmed dataset recordings can be queued as a reviewed sequential batch, cancelled and traced to their reports. EEG results offer overview, candidate review with native-window PSD, and selectable visualizations. Report comparisons group matching configurations; unknown history and excluded frequency bands never become clean scores.
 
-New uploads are retained for **7 days**; reports and saved evidence remain available. Linked originals and legacy development data are excluded from automatic expiry. See [storage and configuration](docs/en/installation.md).
+New installations keep uploaded files and reports only temporarily: 1 hour after completion, 30 minutes idle before a run, and a 6-hour maximum session. Users can finish and clear earlier. These uploads never enter the public library; download reports before cleanup. Older configurations require explicit migration to `public-only/1`; see [storage policy](docs/data-storage.md). See [storage and configuration](docs/en/installation.md).
 
 Configure weights in **Advanced settings → Scoring and weights**. Scalp EEG currently supports integrity, line-interference and high-frequency-burst scores. Components use candidate fractions; the total is a weighted mean. Neuropixels uses numerical validity 30% and deduplicated channel status 70%; unavailable components are excluded. Other measurements remain unscored. See the [scoring specification](docs/en/eeg-scoring.md).
 
