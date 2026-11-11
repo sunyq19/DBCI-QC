@@ -1,37 +1,60 @@
-# 部署共享演示版
+# 部署演示版
 
-版本：`1.0.0rc3.dev40`。使用现有质控台；访客无需账号，所有上传与报告进入共享的“我的数据”。管理员通过服务器维护服务，不另设管理后台。
+更新：2026-11-11。一台 Linux 服务器、一个网址，同时提供质控台和模块协作。012 已按此结构运行；云端尚待部署。
 
-## 准备
+| 访问路径 | 用途 | 后台与持久数据 |
+| --- | --- | --- |
+| `/` | 上传、选模块、运行检查、查看报告 | Python 服务；上传副本、任务、报告 |
+| `/flow/` | 模块批注、方案草稿、附件、固定版本 | Node.js 服务；SQLite 数据库与附件 |
 
-Linux、Python **3.11**（含 venv）、Git、[Caddy 2.10+](https://caddyserver.com/docs/install)。先按 **4 核 CPU、16 GiB 内存、100 GiB 持久磁盘**安排小规模展示；这是部署起点，不是所有 2 GiB 文件的性能保证，无须 GPU。算法任务按现有队列执行。
+查看无需账号；模块协作使用团队密码编辑。所有访客共用“我的数据”，只上传公开或已脱敏材料。管理员通过服务器维护服务，不另建管理后台。
 
-需一个 SSH 管理员、一个网站地址。没有域名可先用 `http://服务器IP`；有域名时使用 `https://域名`，解析到服务器并开放 80/443，Caddy 管理 HTTPS。Python 服务只监听 `127.0.0.1`，不开放 8769 公网端口。
+## 1. 准备
 
-## 安装与启动
+需要 Linux、Python **3.11**（含 venv）、Node.js **24**（含 npm）、Git、[Caddy 2.10+](https://caddyserver.com/docs/install)。小规模展示可从 **4 核 CPU、16 GiB 内存、100 GiB 持久磁盘**起步，无须 GPU；这不是所有 2 GiB 文件的性能保证。
 
-以下使用专用低权限运行用户 `dbciqc`；SSH 管理员负责安装、更新及日志查看。修改示例域名为实际访问地址，不要带末尾 `/`。
+准备 SSH 管理方式和网站地址。有域名使用 `https://域名`，配置解析并开放 80/443；没有域名可先用 `http://服务器IP:端口`。两个后台均只监听本机地址，由 Caddy 统一提供访问。
+
+## 2. 安装
+
+下列命令用于新建专用服务器；已有 `dbciqc` 用户或安装目录时复用，不重复创建。
 
 ```bash
 sudo useradd --system --create-home --home-dir /srv/dbciqc --shell /usr/sbin/nologin dbciqc
-sudo install -d -o dbciqc -g dbciqc /srv/dbciqc/app /srv/dbciqc/runtime
+sudo install -d -o dbciqc -g dbciqc /srv/dbciqc/app /srv/dbciqc/runtime /srv/dbciqc/runtime/flow
 sudo -u dbciqc git clone https://github.com/sunyq19/DBCI-QC.git /srv/dbciqc/app
 cd /srv/dbciqc/app
 sudo -u dbciqc python3.11 scripts/setup_local.py --data-dir /srv/dbciqc/runtime
-sudo -u dbciqc .venv/bin/python scripts/prepare_demo.py \
-  --origin https://qc.example.org --data-dir /srv/dbciqc/runtime
+sudo -u dbciqc npm ci --prefix apps/flow-editor
+cd apps/flow-editor
+sudo -u dbciqc node scripts/build-self-host.mjs
+cd ../..
 ```
 
-配置生成于 `.local/demo/`，不会覆盖本地版配置；再次生成请使用新的 `--output` 目录。示例报告随源码提供，服务器初始“我的数据”为空。
+生成配置，将示例域名替换为实际地址，不带末尾 `/`：
 
 ```bash
-sudo cp .local/demo/dbci-qc.service /etc/systemd/system/
+sudo -u dbciqc .venv/bin/python scripts/prepare_demo.py \
+  --origin https://qc.example.org \
+  --data-dir /srv/dbciqc/runtime --port 18769 \
+  --with-flow --node "$(command -v node)"
+sudo -u dbciqc .venv/bin/python scripts/set_flow_password.py .local/demo/flow-password.verifier
+```
+
+密码在服务器终端隐藏输入；文件只保存校验值，权限为 600，不进入 Git。若迁移 012，沿用已有校验文件和协作数据库，不创建新的空协作库。配置输出 `.local/demo/` 已存在时不会覆盖；重新生成须指定新的 `--output`。
+
+只部署质控台时可省略协作构建、`--with-flow`、`--node` 和密码步骤；此时 `/flow/` 不可用。
+
+## 3. 启动统一入口
+
+```bash
+sudo cp .local/demo/dbci-qc.service .local/demo/dbci-flow.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now dbci-qc
+sudo systemctl enable --now dbci-qc dbci-flow
 sudo caddy validate --config /srv/dbciqc/app/.local/demo/Caddyfile --adapter caddyfile
 ```
 
-新建专用服务器可将生成的 Caddyfile 安装为 `/etc/caddy/Caddyfile`，然后启用 Caddy：
+专用新服务器可安装生成的 Caddyfile：
 
 ```bash
 sudo install -m 644 .local/demo/Caddyfile /etc/caddy/Caddyfile
@@ -39,45 +62,58 @@ sudo systemctl enable --now caddy
 sudo systemctl reload caddy
 ```
 
-已有网站的服务器应把生成的网站段合并进原 Caddy 配置，先核对现有站点，不覆盖原文件。其他反向代理也可使用：保留原始 Host/Origin、上传请求体允许 2 GiB、流式转发、响应等待至少 1 小时。访问地址必须与 `workbench.json` 的 `deployment.public_origin` 一致；服务不会信任访客提交的转发头来放行未知地址。
+已有网站时，将生成的网站段合并进现有配置，不覆盖其他站点。后台端口 18769/18770 不对公网开放。网页互相跳转使用当前网址，不需要修改源码中的服务器 IP。
 
-## 示例与实际上传
+其他反向代理须保留原始 Host、Origin，向协作服务设置可信的 `X-Real-IP`，允许 2 GiB 请求体及至少 1 小时的质控响应等待。质控配置 `deployment.public_origin` 与协作服务 `FLOW_PUBLIC_ORIGIN` 必须为同一个实际访问地址；服务不通过客户端转发头猜测来源。
 
-- 首页直接显示 EEG、ECoG、sEEG、Neuropixels **缓存数据集报告**，查看无需重新计算；快照没有附带原始信号，不作为可重跑记录。
-- EEG 示例同时保存完整检查位置，使用与实际报告相同的筛选、彩色标记和通道对照界面。要展开交互波形，在服务配置 `workbench.json` 的 `example_review_sources` 中登记“原始文件 SHA-256 → 服务端绝对路径”，然后重启服务。所需指纹在缓存清单 `review_snapshots` 中；只登记对应的公开示例文件。读取时会核对内容指纹，不能用相似数据替换。无需搬入原来的运行目录或重新执行算法。
-- 未配置原始示例文件时仍可查看报告、图表和检查位置；波形区明确提示未配置，不显示其他位置的旧图冒充当前波形。
-- 在操作浏览器的电脑上下载一个真实公开 EEG：
+## 4. 示例与上传
+
+首页直接提供 EEG、ECoG、sEEG、Neuropixels 缓存数据集报告，查看不重新运行算法。新安装的“我的数据”初始为空；迁移已有运行目录才会保留既有记录。
+
+EEG 示例已保存完整检查位置，支持筛选、彩色标记和通道对照。交互波形还需配置对应公开原始文件：在 `workbench.json` 的 `example_review_sources` 登记“SHA-256 → 服务端绝对路径”，指纹见缓存清单 `review_snapshots`。读取前核对文件内容。未配置时仍可查看报告、图表和位置列表，波形区会提示缺少源文件；缓存快照不是可重新计算的数据。
+
+在操作浏览器的电脑上下载一份真实公开 EEG，再上传演示：
 
 ```bash
 python3 scripts/demo_sample.py --output ./demo-sample
 ```
 
-将 `demo-sample/S001R03.edf` 上传到网页，确认“头皮 EEG”和 64 个信号通道，其余未知字段可保留未知，使用推荐方案、整份检查。配套 `SOURCE.json` 记录出处、许可、实验说明和校验值。
+上传 `demo-sample/S001R03.edf`，确认头皮 EEG、64 个信号通道，使用推荐方案、整份检查；`SOURCE.json` 保存来源和许可。Gnosis、FieldTrip 等可选环境仍按[方法说明](../toolkit.md)安装，缓存报告不代表新服务器已安装这些方法。
 
-上传副本保留 **7 天**，报告与计算证据保留；运行中的记录延后清理。所有访客可见文件说明及报告，只上传公开或已脱敏材料。缓存示例是展示快照，不能据此推断服务器已安装所有可选上游算法；Gnosis 等可选环境仍按[方法说明](../toolkit.md)单独配置，未安装会明确标示。
+- 单文件及单份记录配套文件合计 **2 GiB**，ZIP 按展开后大小核算。
+- 数据集 **10 GiB / 100 记录 / 5,000 文件**，由管理员预置并登记，见[数据集配置](../dataset-inventory.md)。网页暂不支持整库上传。
+- 上传副本保留 **7 天**，运行中延后清理，报告和检查证据保留。
+- 默认保留 10 GiB 磁盘余量，空间不足拒绝新上传；一次接收一个文件，算法按现有队列执行。
 
-单文件、单份记录及配套文件合计 **2 GiB**；数据集 **10 GiB / 100 记录 / 5,000 文件**。网页先接收单份记录或其配套 ZIP，整库由管理员预置和登记，不能把 10 GiB 数据集当作单记录上传。登记格式见[数据包检查](../dataset-inventory.md)与[数据集示例](../example-datasets.md)。
-
-## 验收与维护
-
-在安装环境运行独立验收，不触及线上数据：
+## 5. 验收
 
 ```bash
 .venv/bin/python scripts/validate_demo.py --output /tmp/dbci-demo-check
-# 有真实文件时增加：--edf /path/to/S001R03.edf
+cd apps/flow-editor
+node --test tests/self-host.test.mjs
 ```
 
-它核验四类缓存及其图表/PDF，实际上传、读取、推荐、计算、网页报告、PDF、波形、两客户端共享记录和重启保留；结果写入输出目录。输出目录须尚不存在。浏览器排版、真实公网链路和大文件耗时须在目标服务器另行验收。
+第一项在隔离目录核验示例、实际上传、推荐、计算、报告、PDF、波形及重启保留；第二项核验协作的本地/HTTPS 代理来源、编辑、附件、固定版本与重启保留。两者不修改线上数据。目标服务器还应实际打开网页，检查两页跳转、示例波形、上传运行和协作保存，并记录耗时与峰值内存。
+
+## 6. 更新和从 012 迁移
 
 ```bash
-sudo systemctl status dbci-qc
+sudo systemctl status dbci-qc dbci-flow
 sudo journalctl -u dbci-qc -n 100
-sudo systemctl restart dbci-qc
-df -h /srv/dbciqc/runtime
+sudo journalctl -u dbci-flow -n 100
 ```
 
-管理员只需管理一个服务。日志不通过演示网页开放；清理仅处理有平台所有权记录且已到期的上传副本，不删除报告。默认保留 10 GiB 磁盘余量，空间不足拒绝新上传；一次接收一个文件，忙时返回稍后重试。网页上传等待上限为 1 小时。
+更新前等待计算结束，暂停两个服务，备份配置、密码校验文件与整个运行目录。更新代码、安装变更依赖、重建协作包，再启动；不覆盖持久数据。质控运行中的任务在重启后记为中断，已完成报告保留。
 
-备份 `.local/demo/workbench.json` 和整个 `/srv/dbciqc/runtime/`；运行目录与源码分开。更新代码前备份并记录当前提交号，等待任务结束后停服务、更新、重新运行安装脚本安装依赖，再启动。不要运行覆盖数据目录的同步或清理命令。服务重启不丢已完成报告；未完成任务标为中断，可重新提交。
+从 012 搬到云端，需迁移：
 
-反向代理配置依据：[Caddy 请求体限额](https://caddyserver.com/docs/caddyfile/directives/request_body)、[反向代理](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)。
+| 012 的内容 | 云端目标 |
+| --- | --- |
+| `/mnt/sdb/DBCI-QC/runtime/` | 新质控持久目录，保留“我的数据”和报告 |
+| `/mnt/sdb/DBCI-QC/flow/data/` | 新质控持久目录下的 `flow/`，保留 SQLite 和全部附件 |
+| `/mnt/sdb/DBCI-QC/flow/config/password.verifier` | 新配置目录的 `flow-password.verifier`，保持私密权限 |
+| 公开样本及现有工作台配置 | 迁移原文件并调整输入路径、示例指纹映射和访问地址 |
+
+停协作服务后复制整个数据目录；在线备份应使用 SQLite backup API 并同时保存附件，不单独复制正在写入的数据库主文件。不要把已有团队数据、密码校验文件或用户上传材料推到 GitHub。
+
+模块目录随代码构建更新；同步保留团队文字、批注、布局、附件及固定版本。**协作草稿不会直接改动质控算法或评分**，确定方案后仍需修改、验证并发布实际代码。

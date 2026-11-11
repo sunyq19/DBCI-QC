@@ -15,7 +15,7 @@ def main():
         raise SystemExit('Use the configured scientific Python and Node; missing: ' + ', '.join(missing or ['node']))
     checks = [
         [sys.executable, "scripts/build_eeg_specification.py", "--check"],
-        [sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-v'],
+        [sys.executable, '-m', 'pytest', 'tests', '-q'],
         ['node', 'apps/workbench/web/check-ui-contract.mjs'],
         ['node', 'tests/check-i18n.mjs'],
         ['node', 'tests/check-standards-navigation.mjs'],

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / 'apps/workbench'))
@@ -18,7 +19,8 @@ def safe_path(value):
     return path
 
 
-def prepare(origin, data_dir, output, user, port, python, reserve=10):
+def prepare(origin, data_dir, output, user, port, python, reserve=10, *,
+            with_flow=False, node=None, flow_bundle=None, flow_port=18770):
     if not re.fullmatch(r'[a-z_][a-z0-9_-]*', user):
         raise ValueError('Use an existing non-root Linux service user')
     if user == 'root' or not 1024 <= port <= 65535:
@@ -30,6 +32,16 @@ def prepare(origin, data_dir, output, user, port, python, reserve=10):
                 'inputs': [], 'profiles': [], 'admission_policy': 'cloud-intake/1.3',
                 'deployment': {'mode': 'shared_demo', 'public_origin': origin, 'reserve_gib': reserve}}
     deployment(settings)
+    public_port = urlsplit(origin).port or (443 if origin.startswith('https:') else 80)
+    if port == public_port:
+        raise ValueError('The QC backend port must differ from the public proxy port')
+    if with_flow:
+        if not node or not 1024 <= flow_port <= 65535 or flow_port in {port, public_port}:
+            raise ValueError('Provide a Node 24 executable and a separate flow backend port')
+        node = safe_path(node)
+        flow_bundle = safe_path(flow_bundle or repo / 'apps/flow-editor/dist-self-host')
+        if not node.is_file() or not (flow_bundle / 'server.mjs').is_file():
+            raise ValueError('Build the collaboration service first; provide the installed Node 24 path')
     output.mkdir(parents=True, exist_ok=False)
     output.chmod(0o700)
     config = output / 'workbench.json'
@@ -62,11 +74,43 @@ Environment=MPLCONFIGDIR={data_dir}/.matplotlib XDG_CACHE_HOME={data_dir}/.cache
 WantedBy=multi-user.target
 '''
     (output / 'dbci-qc.service').write_text(service)
+    flow_proxy = ''
+    if with_flow:
+        (output / 'dbci-flow.service').write_text(f'''[Unit]
+Description=DBCI-QC module collaboration
+After=network.target
+
+[Service]
+Type=simple
+User={user}
+WorkingDirectory={flow_bundle}
+ExecStart={node} {flow_bundle}/server.mjs
+Environment=FLOW_BIND=127.0.0.1 FLOW_PORT={flow_port}
+Environment=FLOW_PUBLIC_ORIGIN={origin}
+Environment=FLOW_DATA_DIR={data_dir}/flow
+Environment=FLOW_PASSWORD_FILE={output}/flow-password.verifier
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={data_dir}/flow
+
+[Install]
+WantedBy=multi-user.target
+''')
+        flow_proxy = f'''    @collaboration path /flow /flow/* /api/flow /api/access /api/attachments
+    reverse_proxy @collaboration 127.0.0.1:{flow_port} {{
+        header_up X-Real-IP {{remote_host}}
+    }}
+'''
     (output / 'Caddyfile').write_text(f'''{origin} {{
     request_body {{
         max_size 2147483648
     }}
-    reverse_proxy 127.0.0.1:{port} {{
+{flow_proxy}    reverse_proxy 127.0.0.1:{port} {{
         transport http {{
             response_header_timeout 1h
         }}
@@ -86,8 +130,13 @@ def main():
     parser.add_argument('--port', type=int, default=8769)
     parser.add_argument('--python', type=Path, default=REPO / '.venv/bin/python')
     parser.add_argument('--reserve-gib', type=float, default=10)
+    parser.add_argument('--with-flow', action='store_true', help='Include module collaboration at /flow/')
+    parser.add_argument('--node', type=Path, help='Absolute path to the installed Node 24 executable')
+    parser.add_argument('--flow-bundle', type=Path, help='Built dist-self-host directory')
+    parser.add_argument('--flow-port', type=int, default=18770)
     args = parser.parse_args()
-    prepare(args.origin, args.data_dir, args.output, args.user, args.port, args.python, args.reserve_gib)
+    prepare(args.origin, args.data_dir, args.output, args.user, args.port, args.python, args.reserve_gib,
+            with_flow=args.with_flow, node=args.node, flow_bundle=args.flow_bundle, flow_port=args.flow_port)
 
 
 if __name__ == '__main__':

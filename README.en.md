@@ -4,15 +4,17 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-Source baseline: **2026-11-08 / 1.0.0rc3.dev40**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The shared flow website documents modules; it does not execute QC on uploaded recordings.
+Source baseline: **2026-11-11 / 1.0.0rc3.dev41**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. All uploaded recordings and reports share one data library. See the [deployment checklist](docs/deployment/cloud-readiness.md). The workbench (`/`) and collaboration page (`/flow/`) can share one server and origin, as on the current 012 deployment. The deployment script generates both services and a reverse proxy configuration; the cloud instance has not yet been deployed. Collaboration drafts do not change executable QC rules. Module metadata is generated from QC source; notes, attachments and fixed versions are persisted separately.
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev40**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
+Development version: **1.0.0rc3.dev41**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
 
 The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
 
-Neuropixels AP outlier screening requires the optional SpikeInterface research dependency. If unavailable, that check remains unassessed while the basic measurements are retained. See [research-runtime setup](docs/optional-methods-runtime.md).
+The full workbench installation includes SpikeInterface and ProbeInterface for Neuropixels AP/LF checks. Toolkit-only installations need the research extras; unavailable methods remain unassessed while basic measurements are retained. See [research-runtime setup](docs/optional-methods-runtime.md).
+
+The quick start below runs the workbench only. To include collaboration, follow the [combined deployment guide](docs/deployment/demo.md), which also requires Node.js 24.
 
 ## Quick start
 

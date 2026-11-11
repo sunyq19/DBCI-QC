@@ -99,6 +99,38 @@ class DeploymentTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 prepare('https://qc.example.org', Path(directory) / 'data', output, 'root', 8769, Path(sys.executable))
 
+    def test_combined_services_share_origin_and_separate_storage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = root / 'bundle'
+            bundle.mkdir()
+            (bundle / 'server.mjs').write_text('// Test bundle')
+            output = root / 'config'
+            prepare('https://qc.example.org', root / 'data', output, 'dbciqc', 18769,
+                    Path(sys.executable), with_flow=True, node=Path(sys.executable), flow_bundle=bundle)
+            flow = (output / 'dbci-flow.service').read_text()
+            self.assertIn('FLOW_PUBLIC_ORIGIN=https://qc.example.org', flow)
+            self.assertIn(f'FLOW_DATA_DIR={root}/data/flow', flow)
+            self.assertIn('FLOW_BIND=127.0.0.1 FLOW_PORT=18770', flow)
+            self.assertFalse((output / 'flow-password.verifier').exists())
+            proxy = (output / 'Caddyfile').read_text()
+            self.assertIn('@collaboration path /flow /flow/* /api/flow /api/access /api/attachments', proxy)
+            self.assertIn('reverse_proxy @collaboration 127.0.0.1:18770', proxy)
+            self.assertIn('reverse_proxy 127.0.0.1:18769', proxy)
+            self.assertNotIn('10.100.21.50', proxy)
+
+    def test_conflicting_ports_rejected_before_writing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'config'
+            with self.assertRaises(ValueError):
+                prepare('http://qc.example.org:8769', Path(directory) / 'data', output,
+                        'dbciqc', 8769, Path(sys.executable))
+            with self.assertRaises(ValueError):
+                prepare('https://qc.example.org', Path(directory) / 'data', output,
+                        'dbciqc', 8769, Path(sys.executable), with_flow=True,
+                        node=Path(sys.executable), flow_port=8769)
+            self.assertFalse(output.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

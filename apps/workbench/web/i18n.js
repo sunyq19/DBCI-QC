@@ -1129,6 +1129,7 @@ EEG 质控工作台	QC Workbench
 检查记录	Checks
 方法工具箱	Method toolkit
 质控标准	QC standards
+模块协作	Module collaboration
 中文来源	Chinese source
 中文原文	Original Chinese text
 连接本地服务…	Connecting to local service…

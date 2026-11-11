@@ -2,9 +2,9 @@
 
 **模块化电生理数据质控工具集，附本地质控台。**
 
-[模块协作页](https://sunyq19.github.io/DBCI-QC/) · [网页源码与部署](apps/flow-editor/README.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
+[模块协作](apps/flow-editor/README.md) · [一站部署](docs/deployment/demo.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
-本次源码基线：**2026-11-08 / 1.0.0rc3.dev41**。本地版可安装运行，[共享演示版部署包](docs/deployment/demo.md)已提供：访客无需账号，共享“我的数据”，仅设一名管理员。部署进度见[准备清单](docs/deployment/cloud-readiness.md)。流程网页用于查看和共同维护模块说明，不承担原始数据质检计算。
+本次源码整理：**2026-11-11 / 1.0.0rc3.dev41**。质控台与模块协作页已在 012 同址运行；[部署脚本](docs/deployment/demo.md)可生成云端所需的两个服务和统一入口配置。查看无需账号，协作编辑使用团队密码；所有访客共用“我的数据”。云服务器尚待部署，进度见[准备清单](docs/deployment/cloud-readiness.md)。
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
@@ -13,6 +13,17 @@
 [Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示数值有效性30%、通道状态70%的可调默认评分及候选。分选后unit、漂移与跨流同步尚未接入。
 
 打开首页即可查看四类公开数据的缓存示例报告，无需先下载原始数据。配置检查时，点击流程图中的 M03–M07 展开子方法，查看推荐、适用条件与计分能力，逐项选择。选中任一子方法即启用所属模块，全部取消即关闭，没有独立总开关。EEG 默认三项等权计分，计分项和百分比权重直接显示在“02 质量检查”下方，随方法选择更新。
+
+## 两个入口，同一部署
+
+| 入口 | 用途 | 源码 |
+| --- | --- | --- |
+| `/` 质控台 | 上传、读取、选择模块、运行检查、查看报告 | `apps/workbench/` |
+| `/flow/` 模块协作 | 模块说明、批注、方案草稿、附件、固定版本 | `apps/flow-editor/` |
+
+一台服务器、一个网址，后台分别运行 Python 质控服务和 Node.js 协作服务。模块目录从质控代码生成，部署时同步；协作页的草稿修改不会直接改变质检算法和评分。团队批注、附件和固定版本单独持久保存。算法核心仍可脱离这两个页面使用。
+
+下面的快速开始只启动质控台；同时启用模块协作请按[一站部署](docs/deployment/demo.md)操作。
 
 ## 快速开始
 
@@ -89,17 +100,29 @@ EEG 报告包含总览、完整性/工频/高频突发三个评分分项、通�
 
 **评分 project-weighted/1.2 是项目试行指标，尚未经专家校准。** 满分表示当前计分项未检出候选，不代表数据全面合格；缺项不补满分。ECoG/sEEG及Neuropixels采用各自的项目评分，不套用EEG判据。详见[评分规则](docs/eeg-scoring.md)与[报告要求](docs/eeg-report.md)。
 
+评分在右侧 **02 质量检查** 下配置，子方法选择与权重放在一起。EEG默认三项；ECoG默认数值有效性与信号稳定性，sEEG另含可测工频；Neuropixels默认数值有效性与去重后的通道状态。总分按有效权重平均，受限项不计入。规则及边界见[评分规范](docs/eeg-scoring.md)。
+
+Neuropixels的参与项目、去重与缺项处理见[评分规则](docs/neuropixels-scoring.md)。
+
+### sEEG与Neuropixels基础检查补充
+
+- sEEG：MNE平线、文件量程、原版MNE多窗工频检查；FieldTrip跳变与分组LOF可选。新方案默认权重为数值有效性30%、稳定性50%、工频20%。
+- Neuropixels AP：几何齐全时默认调用SpikeInterface/IBL coherence+psd，保留dead/noise/out标签；缺少几何时使用既有MAD筛查。
+- Neuropixels LF：来源探针几何齐全时调用neighborhood_r2，不使用AP高通。默认数值有效性30%、通道状态70%；同通道同窗候选取并集，受限项不计分。
+
+均保留原版方法、候选位置、参数与来源。LOF需明确可比参考组，不默认跨脑区判坏；组织外候选默认不扣分。项目权重与阈值尚待专家审核。实际文件回放见[本次验证记录](docs/validation/voltage-expansion-20261109.md)。
+
 ## 方法与扩展
 
-默认安装包含 BrainElecQC、MNE-Python、autoreject、PyNWB 和 PDF 导出依赖。EEG 基础检测使用 BrainElecQC，平台负责统一读取、方法适用判断、模块调度和报告。
+默认安装包含 BrainElecQC、MNE-Python、autoreject、PyNWB、SpikeInterface / ProbeInterface 和 PDF 导出依赖。EEG 基础检测使用 BrainElecQC，平台负责统一读取、方法适用判断、模块调度和报告。
 
-FASTER、SpikeInterface、FieldTrip、ASR、CleanLine、Zapline-plus 等研究扩展需要另外安装或配置，不随默认流程全部运行。Neuropixels AP 推荐的离群筛查需要 SpikeInterface；未安装时该项未评，基础测量仍可运行。详见[扩展方法安装与范围](docs/optional-methods-runtime.md)及[方法来源](docs/toolkit-sources.md)。
+FASTER、FieldTrip、ASR、CleanLine、Zapline-plus 等研究扩展需要另外安装或配置，不随默认流程全部运行。完整工作台安装已包含 Neuropixels AP/LF 检查所需的 SpikeInterface；仅安装核心工具包时需另外启用研究依赖，未安装时该项未评。详见[扩展方法安装与范围](docs/optional-methods-runtime.md)及[方法来源](docs/toolkit-sources.md)。
 
 首页统一上传与已有数据目录。数据集总览可按个体/会话打开记录，无需再次上传；记录分项、检查范围、来源指纹和历史关联保留。整段计算覆盖不代表质量合格，不计算跨个体总分。
 
 ## 文档与开发
 
-- [在线演示版方案 v1.0](docs/design/demo-deployment-v1.md)：本轮部署范围；[原顶层设计](docs/design/platform-v1.md)保留为后续平台建设参考。
+- [在线演示版方案 v1.1](docs/design/demo-deployment-v1.md)：本轮部署范围；[原顶层设计](docs/design/platform-v1.md)保留为后续平台建设参考。
 - [安装、配置与更新](docs/installation.md)
 - [模块接口与独立调用](docs/toolkit.md) · [工作台 API](apps/workbench/README.md)
 - [标准总则](docs/workflow-standards.md) · [EEG 技术规范](docs/qc-standards.md) · [检查词条](docs/eeg-checks.md) · [来源依据](docs/eeg-evidence.md)
@@ -122,15 +145,3 @@ GitHub Actions 按上述安装流程从空白环境执行回归与独立启动�
 [本项目](https://github.com/sunyq19/DBCI-QC) · [雷佳欣 / BrainElecQC](https://github.com/Jlei61/BrainElecQC) · [灵犀云 / GnosisNeuroDynamicSE](https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE)
 
 BrainElecQC 作为固定提交的外部依赖安装，不在本仓库复制分发。原始数据、个人配置和个人运行报告不随代码提供；仓库仅附经检查的公开数据展示快照。本项目尚未指定许可证；第三方软件和数据按各自许可使用，见[第三方说明](THIRD_PARTY_NOTICES.md)。
-
-评分在 **高级设置 → 评分与权重** 中配置。EEG默认三项；ECoG/sEEG默认数值有效性与信号稳定性；Neuropixels默认数值有效性与去重后的通道状态。总分按有效权重平均，受限项不计入。规则及边界见[评分规范](docs/eeg-scoring.md)。
-
-Neuropixels的参与项目、去重与缺项处理见[评分规则](docs/neuropixels-scoring.md)。
-
-### sEEG与Neuropixels基础检查补充
-
-- sEEG：MNE平线、文件量程、原版MNE多窗工频检查；FieldTrip跳变与分组LOF可选。新方案默认权重为数值有效性30%、稳定性50%、工频20%。
-- Neuropixels AP：几何齐全时默认调用SpikeInterface/IBL coherence+psd，保留dead/noise/out标签；缺少几何时使用既有MAD筛查。
-- Neuropixels LF：来源探针几何齐全时调用neighborhood_r2，不使用AP高通。默认数值有效性30%、通道状态70%；同通道同窗候选取并集，受限项不计分。
-
-均保留原版方法、候选位置、参数与来源。LOF需明确可比参考组，不默认跨脑区判坏；组织外候选默认不扣分。项目权重与阈值尚待专家审核。实际文件回放见[本次验证记录](docs/validation/voltage-expansion-20261109.md)。

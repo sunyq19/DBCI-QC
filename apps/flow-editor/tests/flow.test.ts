@@ -188,3 +188,15 @@ test('invalid remote metadata falls back to bundled source without breaking the 
  const value=await readCatalog(async()=>new Response('{"schemaVersion":999}',{status:200}) as any);
  assert.equal(value.id,sourceManifest.id);
 });
+
+// A self-hosted deployment keeps navigation on its own origin.
+test('self-host navigation stays on the same server',async()=>{
+ const {workbenchUrl,apiUrl,flowBase}=await import('../lib/public-client');
+ const previous=globalThis.location;
+ try{
+  Object.defineProperty(globalThis,'location',{value:new URL('https://qc.example.test/flow/?version=fixed'),configurable:true});
+  assert.equal(workbenchUrl(),'/');
+  assert.equal(flowBase(),'/flow/');
+  assert.equal(apiUrl('/api/flow'),'/api/flow');
+ }finally{if(previous)Object.defineProperty(globalThis,'location',{value:previous,configurable:true});else Reflect.deleteProperty(globalThis,'location');}
+});

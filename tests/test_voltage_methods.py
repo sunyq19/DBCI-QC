@@ -1,5 +1,6 @@
 """Original-library parity, routing and missing-evidence boundaries."""
 import unittest
+import importlib.util
 import numpy as np
 from ephys_qc.voltage_methods import run_extension, evaluate_extension
 from ephys_qc.method_scores import extension_outputs
@@ -23,6 +24,7 @@ class VoltageMethodsTests(unittest.TestCase):
         self.assertEqual(evaluate_extension('ieeg_spectrum_fit',{**f,'preprocessing_notch_hz':[50,60]})['status'],'blocked')
         self.assertEqual(evaluate_extension('ieeg_spectrum_fit',{**f,'preprocessing_lowpass_hz':40})['status'],'blocked')
 
+    @unittest.skipUnless(importlib.util.find_spec('spikeinterface'), 'Optional SpikeInterface runtime not installed')
     def test_np_original_coherence_and_lf_parity(self):
         from spikeinterface import NumpyRecording
         from spikeinterface.preprocessing import detect_bad_channels

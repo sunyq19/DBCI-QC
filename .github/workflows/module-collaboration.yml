@@ -1,0 +1,29 @@
+name: Module collaboration self-host
+on:
+  push:
+    branches: [main]
+    paths: ['apps/flow-editor/**', '.github/workflows/module-collaboration.yml']
+  pull_request:
+    paths: ['apps/flow-editor/**', '.github/workflows/module-collaboration.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/flow-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/flow-editor/package-lock.json
+      - run: npm ci
+      - run: node scripts/build-self-host.mjs
+      - run: node --test tests/self-host.test.mjs
+      - run: node scripts/test-flow.mjs
+      - run: node node_modules/typescript/bin/tsc --noEmit

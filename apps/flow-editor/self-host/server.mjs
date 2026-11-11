@@ -6,11 +6,20 @@ import * as access from '../app/api/access/route.ts';
 import * as attachments from '../app/api/attachments/route.ts';
 import {env} from './env.mjs';
 const host=process.env.FLOW_BIND||'127.0.0.1',port=Number(process.env.FLOW_PORT||18770);
+const publicOrigin=process.env.FLOW_PUBLIC_ORIGIN;
+if(publicOrigin){
+ const parsed=new URL(publicOrigin);
+ if(!['http:','https:'].includes(parsed.protocol)||parsed.origin!==publicOrigin)throw new Error('FLOW_PUBLIC_ORIGIN must be an exact http(s) origin without a path');
+}
 const staticRoot=path.resolve('public'),routes={'/api/flow':flow,'/api/access':access,'/api/attachments':attachments};
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.pdf':'application/pdf'};
 const server=http.createServer(async(req,res)=>{
  try{
-  const url=new URL(req.url,'http://'+req.headers.host),route=routes[url.pathname];
+  // The proxy preserves Host. Use configured HTTPS origin, never caller-supplied forwarding headers.
+  if(publicOrigin&&(req.headers.host!==new URL(publicOrigin).host||(req.headers.origin&&req.headers.origin!==publicOrigin))){
+   res.writeHead(403,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'请求来源不受支持'}));
+  }
+  const url=new URL(req.url,publicOrigin||'http://'+req.headers.host),route=routes[url.pathname];
   if(route){
    const handler=route[req.method];if(!handler){res.writeHead(405);return res.end();}
    const chunks=[];let size=0;const limit=url.pathname==='/api/attachments'?10*1024*1024+16384:2000000;

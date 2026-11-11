@@ -2,3 +2,4 @@
 tinycss2==1.4.0
 cssselect2==0.8.0
 html5lib==1.1
+pytest>=8,<9

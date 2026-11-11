@@ -36,7 +36,7 @@ class ComparisonPublicationTests(unittest.TestCase):
     def store(self,root,status='completed'):
         return SimpleNamespace(settings={'demo_comparisons':[self.comparison]},root=root,
             inputs={'public-eeg':{'provenance':{'name':'Public EEG','url':'https://example.org/data','license':'CC0'}}},
-            job=lambda j:{'status':status,'input_id':'public-eeg'},workspace=lambda j:None)
+            job=lambda j:{'status':status,'input_id':'public-eeg','created_at':'2026-11-11T00:00:00Z'},workspace=lambda j:None)
 
     def test_incomplete_run_does_not_replace_published_manifest(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -57,7 +57,8 @@ class ComparisonPublicationTests(unittest.TestCase):
         self.assertNotIn('0.00 / 100',html.replace('90.00 / 100',''))
 
     def test_snapshot_freezes_charts_pdf_and_evidence_without_runtime_links(self):
-        def report(store,jid,language):
+        def report(store,jid,language,*,interactive=True):
+            self.assertFalse(interactive)
             base=f'/api/v1/jobs/{jid}'
             return f'<html><head></head><body><nav class="saved-report-nav"></nav><div data-waveform-base="{base}"></div><iframe data-chart-src="{base}/visualizations?embedded=1"></iframe><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
         def gallery(*args,**kwargs):
