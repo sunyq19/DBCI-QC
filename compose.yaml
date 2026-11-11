@@ -1,0 +1,87 @@
+name: dbci-qc
+services:
+  qc:
+    image: dbci-qc/workbench:1.1.0
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.qc
+    init: true
+    restart: unless-stopped
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8769}
+      RESERVE_GIB: ${RESERVE_GIB:-10}
+    volumes:
+      - qc-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=1073741824,mode=1777
+    mem_limit: 12g
+    cpus: 4
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    healthcheck:
+      test: [CMD, python, /app/deploy/docker/health.py]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  flow:
+    image: dbci-qc/collaboration:1.1.0
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.flow
+    init: true
+    restart: unless-stopped
+    environment:
+      FLOW_BIND: 0.0.0.0
+      FLOW_PORT: 18770
+      FLOW_PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8769}
+      FLOW_DATA_DIR: /data
+    volumes:
+      - flow-data:/data
+      - flow-config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:size=67108864,mode=1777
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 64
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    healthcheck:
+      test: [CMD, node, /app/health.mjs]
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  gateway:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      CADDY_SITE: ${CADDY_SITE:-:80}
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8769}:80'
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:443'
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - gateway-data:/data
+      - gateway-config:/config
+    depends_on:
+      qc: {condition: service_healthy}
+      flow: {condition: service_healthy}
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+volumes:
+  qc-data:
+  flow-data:
+  flow-config:
+  gateway-data:
+  gateway-config:

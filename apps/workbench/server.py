@@ -1031,6 +1031,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=Path, default=REPO / '.local' / 'workbench.json')
     parser.add_argument('--port', type=int)
+    parser.add_argument('--host', default='127.0.0.1', choices=['127.0.0.1', '0.0.0.0'],
+                        help='Use 0.0.0.0 only behind the container/private-network proxy')
     parser.add_argument('--admission-policy', choices=['local', *POLICIES],
                         help='Validate cloud intake limits locally; does not enable cloud hosting or authentication')
     args = parser.parse_args()
@@ -1041,7 +1043,7 @@ def main():
     if not Path(settings['python']).is_file():
         raise SystemExit('请在本机配置中填写已安装 BrainElecQC 的 Python 路径。')
     # Bind first: a duplicate launch must not mark a live process's jobs interrupted.
-    server = ThreadingHTTPServer(('127.0.0.1', args.port or settings.get('port', 8769)), Handler)
+    server = ThreadingHTTPServer((args.host, args.port or settings.get('port', 8769)), Handler)
     server.daemon_threads = True
     server.store = Store(settings)
     if private_uploads(settings): server.temporary = TemporaryUploads(server.store, Store)

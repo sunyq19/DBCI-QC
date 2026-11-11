@@ -1,14 +1,21 @@
 # DBCI-QC
 
-**模块化电生理数据质控工具集，附本地质控台。**
+**模块化电生理数据质控工具集，附网页演示与模块协作。**
 
-[模块协作](apps/flow-editor/README.md) · [一站部署](docs/deployment/demo.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
+[模块协作](apps/flow-editor/README.md) · [源码部署](docs/deployment/demo.md) · [English](README.en.md) · [模块接口](docs/toolkit.md) · [质控标准草案](docs/qc-standards.md) · [更新记录](CHANGELOG.md)
 
-本次源码整理：**2026-11-11 / 1.0.0rc3.dev43**。质控台与模块协作页已在 012 同址运行；[部署脚本](docs/deployment/demo.md)可生成云端所需的两个服务和统一入口配置。查看无需账号，协作编辑使用团队密码；“我的数据”仅保存管理员确认来源的公开数据；用户上传及报告临时处理。云服务器尚待部署，进度见[准备清单](docs/deployment/cloud-readiness.md)。
+**1.1.0 · 网页演示版**。质控台与模块协作使用同一网址，支持源码部署和 Docker 打包部署，两种形式共用模块、评分规则和页面。查看无需账号，协作编辑使用团队密码。公开示例随版本提供；用户上传及报告临时处理。云服务器尚待部署，见[准备清单](docs/deployment/cloud-readiness.md)。
+
+| 部署方式 | 适合场景 | 开始使用 |
+| --- | --- | --- |
+| Docker 部署包 | 云服务器、独立演示机；自动启动质控台与模块协作 | [下载 v1.1.0](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.0) · [部署说明](docs/deployment/package.md) |
+| 源码部署 | 本地开发、修改算法、复用现有 Python 环境 | 下方快速开始 · [同时部署模块协作](docs/deployment/demo.md) |
+
+Docker 包解压后运行 `sh deploy.sh`，访问 `http://localhost:8769/`。首次构建需联网；服务器对外地址在 `.env` 设置。
 
 上传本机文件，确认模态与通道，运行推荐检查，查看报告。算法模块可独立调用，网页用于试用、展示与人工复核。
 
-当前开发版：**1.0.0rc3.dev41**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
+当前版本：**1.1.0**。支持头皮 EEG，以及 ECoG、sEEG、Neuropixels 连续电压的基础描述检查。[ECoG / sEEG 基础方案](docs/ieeg-checks.md)包括完整性、持续平线、文件量程、频谱与触点统计，可选分组离群和原版 FieldTrip 跳变检查。ECoG / sEEG 默认提供可调权重的数值有效性与信号稳定性评分，相关方法合并计一次。EEG 报告提供试行评分、分项结果、候选位置与 PDF 下载。
 
 [Neuropixels 首版规范](docs/neuropixels/qc-standards.md)固定连续电压的9项检查；AP有条件时推荐SpikeInterface通道离群，LF/LFP保留独立描述，报告展示数值有效性30%、通道状态70%的可调默认评分及候选。分选后unit、漂移与跨流同步尚未接入。
 

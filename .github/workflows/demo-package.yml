@@ -1,0 +1,38 @@
+name: Demo deployment bundle
+on:
+  push:
+    branches: [main]
+    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/workbench.txt', '.github/workflows/demo-package.yml']
+  pull_request:
+    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/workbench.txt', '.github/workflows/demo-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: demo-package-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PUBLIC_ORIGIN: http://localhost:8769
+      RESERVE_GIB: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start both applications behind one gateway
+        run: sh deploy.sh
+      - name: Download public EEG and check upload, report, PDF and isolation
+        run: |
+          python3 scripts/demo_sample.py --output /tmp/public-eeg
+          python3 scripts/validate_demo.py --url http://localhost:8769 --edf /tmp/public-eeg/S001R03.edf --output /tmp/demo-acceptance
+      - name: Verify collaboration uses the same address
+        run: |
+          curl --fail http://localhost:8769/flow/ > /tmp/flow.html
+          curl --fail 'http://localhost:8769/api/flow?head=1'
+      - name: Collect service status
+        if: always()
+        run: docker compose ps -a && docker compose logs --tail 100
+      - name: Stop isolated test services
+        if: always()
+        run: docker compose down

@@ -1,0 +1,17 @@
+FROM node:24-bookworm-slim AS builder
+WORKDIR /source
+COPY apps/flow-editor/package.json apps/flow-editor/package-lock.json ./
+RUN npm ci
+COPY apps/flow-editor/ ./
+RUN node scripts/build-self-host.mjs
+
+FROM node:24-bookworm-slim
+WORKDIR /app
+COPY --from=builder /source/dist-self-host/ ./
+COPY deploy/docker/flow_entrypoint.sh deploy/docker/health.mjs ./
+COPY deploy/docker/set_password.mjs ./
+RUN mkdir /data /config && chown node:node /data /config
+USER node
+EXPOSE 18770
+ENTRYPOINT ["sh", "/app/flow_entrypoint.sh"]
+CMD ["node", "/app/server.mjs"]

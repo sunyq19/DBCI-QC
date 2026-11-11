@@ -4,11 +4,18 @@
 
 [中文](README.md) · [Toolkit API](docs/toolkit.md) · [Draft specification](docs/en/qc-standards.md) · [Changes](CHANGELOG.md)
 
-Source baseline: **2026-11-11 / 1.0.0rc3.dev43**. The local workbench is available. The [shared-demo deployment setup](docs/deployment/demo.md) reuses the same interface, with no visitor accounts and one administrator. The shared library contains administrator-verified public datasets only. Uploads and their reports are private, temporary sessions. See the [deployment checklist](docs/deployment/cloud-readiness.md). The workbench (`/`) and collaboration page (`/flow/`) can share one server and origin, as on the current 012 deployment. The deployment script generates both services and a reverse proxy configuration; the cloud instance has not yet been deployed. Collaboration drafts do not change executable QC rules. Module metadata is generated from QC source; notes, attachments and fixed versions are persisted separately.
+**1.1.0 · Web demonstration release.** One repository supports native Python/Node deployment and a Docker Compose deployment bundle. Both use the same QC modules, scoring rules and pages. The workbench is at `/`, collaboration at `/flow/`. Viewing requires no account; editing uses a team password. Public report snapshots are included; uploads and their reports are temporary. This release prepares cloud deployment; a public cloud instance has not yet been deployed.
+
+| Installation | Use case | Instructions |
+| --- | --- | --- |
+| Docker deployment bundle | Cloud server or demonstration machine | [Download v1.1.0](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.0) · [Deployment guide](docs/deployment/package.md) |
+| Source installation | Local development or an existing Python environment | Quick start below · [Combined service setup](docs/deployment/demo.md) |
+
+Extract the bundle and run `sh deploy.sh`. Open `http://localhost:8769/`. Linux, Docker Engine, Compose v2.20+ and internet access for the initial build are required. Set the server's public address in `.env`. Collaboration drafts, attachments and fixed versions are stored separately from executable QC rules.
 
 Upload a local file, confirm its modality and channels, run the recommended checks, and review the report. Modules also run through Python or the CLI without the website.
 
-Development version: **1.0.0rc3.dev41**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
+Current version: **1.1.0**. Current routes cover scalp EEG and basic descriptions of ECoG, sEEG and Neuropixels continuous voltage. EEG reports include trial scores, component results, candidate locations and PDF export. ECoG/sEEG and Neuropixels have adjustable grouped scoring presets.
 
 The [Neuropixels specification](docs/en/neuropixels/qc-standards.md) defines nine continuous-voltage checks. AP conditionally receives original SpikeInterface outlier screening; LF/LFP retains separate descriptive checks. Sorted-unit QC, drift and cross-stream synchronization are not implemented.
 

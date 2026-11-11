@@ -24,8 +24,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--edf', type=Path)
+    parser.add_argument('--url', help='Test a fresh, already running demo at this exact origin; do not restart it')
     parser.add_argument('--caddy', type=Path, help='Also exercise the generated reverse proxy using this local Caddy binary')
     args = parser.parse_args()
+    if args.url and args.caddy:
+        parser.error('--url cannot be combined with --caddy')
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
     source = args.edf.resolve() if args.edf else root / 'synthetic.edf'
@@ -42,7 +45,7 @@ def main():
         with socket.socket() as listener:
             listener.bind(('127.0.0.1', 0))
             proxy_port = listener.getsockname()[1]
-    origin = f'http://demo.example.org:{proxy_port}' if proxy_port else 'http://demo.example.org'
+    origin = args.url or (f'http://demo.example.org:{proxy_port}' if proxy_port else 'http://demo.example.org')
     config = {'port': port, 'python': sys.executable, 'data_dir': str(root / 'runtime'),
               'inputs': [], 'profiles': [], 'data_policy': 'public-only/1', 'admission_policy': 'cloud-intake/1.3',
               'deployment': {'mode': 'shared_demo', 'public_origin': origin, 'reserve_gib': 2}}
@@ -51,7 +54,7 @@ def main():
     env = dict(os.environ, PYTHONPATH=str(REPO / 'src'), PYTHONNOUSERSITE='1', MPLBACKEND='Agg',
                OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1', MKL_NUM_THREADS='1')
     clients = [build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar())) for _ in range(2)]
-    base = f'http://127.0.0.1:{proxy_port or port}'
+    base = args.url or f'http://127.0.0.1:{proxy_port or port}'
     process = None
     proxy = None
     log = (root / 'server.log').open('a')
@@ -62,13 +65,15 @@ def main():
             headers.update({'Content-Type': 'application/octet-stream', 'X-Filename': quote(upload.name)})
         headers.update(extra or {})
         data = upload.read_bytes() if upload else json.dumps(body).encode() if body is not None else None
-        address = f'http://127.0.0.1:{port}' if direct else base
+        address = f'http://127.0.0.1:{port}' if direct and not args.url else base
         with clients[client].open(Request(address + path, data=data, headers=headers), timeout=180) as response:
             data = response.read()
         return data if raw else json.loads(data)
 
     def start():
         nonlocal process
+        if args.url:
+            return call('/api/v1/health')
         process = subprocess.Popen([sys.executable, str(REPO / 'apps/workbench/server.py'),
                                     '--config', str(config_path)], cwd=REPO, env=env, stdout=log, stderr=log)
         deadline = time.monotonic() + 60
@@ -184,6 +189,28 @@ def main():
         checks['recording_seconds'] = intake['metadata']['duration_seconds']
         assert hashlib.sha256(source.read_bytes()).hexdigest() == original_hash
         assert call('/api/v1/temporary-session/finish', {})['status'] in {'cleared','clearing'}
+        if args.url:
+            deadline = time.monotonic() + 20
+            while True:
+                try:
+                    call(prefix, raw=True)
+                except HTTPError as error:
+                    assert error.code in {403, 404}
+                    break
+                if time.monotonic() > deadline:
+                    raise AssertionError('Temporary report still accessible after finish')
+                time.sleep(.2)
+            assert call('/api/v1/jobs')['jobs'] == []
+            assert call('/api/v1/data')['items'] == []
+            checks['finish_revokes_private_report_and_clears_session'] = True
+            checks['source_unchanged'] = True
+            evidence = {'status': 'passed', 'version': health['version'], 'checks': checks,
+                        'job_id': identifier, 'sample_sha256': original_hash,
+                        'real_data': bool(args.edf), 'tested_origin': args.url,
+                        'browser_visual_check': False}
+            (root / 'acceptance.json').write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + '\n')
+            print(json.dumps(evidence, ensure_ascii=False, indent=2))
+            return
         deadline = time.monotonic() + 20
         temporary = root/'runtime/.temporary/runtime'
         while list((temporary/'jobs').glob('*/job.json')) and time.monotonic() < deadline: time.sleep(.2)

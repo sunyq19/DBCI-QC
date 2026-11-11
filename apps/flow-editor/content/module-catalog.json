@@ -1,5 +1,5 @@
 {
-  "catalogVersion": "1.0.0rc3.dev43",
+  "catalogVersion": "1.1.0",
   "roots": [
     {
       "id": "INPUT",

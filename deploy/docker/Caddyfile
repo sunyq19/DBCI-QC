@@ -1,0 +1,17 @@
+{
+    admin off
+}
+{$CADDY_SITE} {
+    request_body {
+        max_size 2147483648
+    }
+    @collaboration path /flow /flow/* /api/flow /api/access /api/attachments
+    reverse_proxy @collaboration flow:18770 {
+        header_up X-Real-IP {remote_host}
+    }
+    reverse_proxy qc:18769 {
+        transport http {
+            response_header_timeout 1h
+        }
+    }
+}
