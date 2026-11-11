@@ -47,5 +47,28 @@ for(const publicOrigin of [undefined,'https://qc.example.test']) test(`self-host
   const form=new FormData();form.set('file',new Blob(['test attachment']), 'example.txt');r=await request('/api/attachments',{method:'POST',headers:{Origin:origin,'X-Flow-Editor':token},body:form});assert.equal(r.status,200);const file=await r.json();assert.equal(await (await request('/api/attachments?id='+file.id)).text(),'test attachment');
   r=await post('/api/flow',{action:'fork',sourceRevision:saved.revision,expectedHead:saved.revision,doc,note:'Branch from saved version'});assert.equal(r.status,200);
   await stop();await start();const persisted=await get('/api/flow?version='+fixed.id);assert.equal(persisted.doc.nodes[0].teamNotes,'Persistent collaboration note');assert.equal(persisted.revision,saved.revision);assert.equal((await get('/api/flow')).revision,saved.revision+1);
+  // Removing a named team version requires fresh password proof on every call.
+  const head=await get('/api/flow');
+  assert.equal(head.versions.find(v=>v.id==='baseline-v1').canDelete,false);
+  const disposable=await (await post('/api/flow',{action:'freeze',revision:head.revision,label:'Disposable version'})).json();
+  const removal={action:'delete_version',id:disposable.id,revision:disposable.revision};
+  assert.equal((await post('/api/flow',removal)).status,400);
+  assert.equal((await post('/api/flow',{...removal,password:'incorrect'})).status,401);
+  assert.equal((await get('/api/access')).canEdit,false); // No token on this read.
+  const deletable=await get('/api/flow?version='+disposable.id);assert.equal(deletable.version.label,'Disposable version');assert.equal(deletable.version.canDelete,true);
+  assert.equal((await post('/api/flow',{action:'delete_version',id:'baseline-v1',revision:1,password})).status,403);
+  const anonymous=await request('/api/flow',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({...removal,password})});
+  assert.equal(anonymous.status,401);
+  assert.equal((await post('/api/flow',{...removal,password},'https://evil.test')).status,403);
+  const removed=await Promise.all([post('/api/flow',{...removal,password}),post('/api/flow',{...removal,password})]);
+  assert.deepEqual(removed.map(r=>r.status).sort(),[200,404]);
+  assert.equal((await request('/api/flow?version='+disposable.id)).status,404);
+  const after=await get('/api/flow');assert.equal(after.hash,head.hash);assert.equal(after.revision,head.revision);
+  assert(!after.versions.some(v=>v.id===disposable.id));assert(after.versions.some(v=>v.id===fixed.id));
+  assert.equal((await get('/api/flow?revision='+disposable.revision)).hash,head.hash);
+  assert.equal((await get('/api/flow?version='+fixed.id)).hash,persisted.hash);
+  await stop();await start();assert.equal((await request('/api/flow?version='+disposable.id)).status,404);
+  assert.equal((await get('/api/flow')).hash,head.hash);
+
  }finally{if(child?.exitCode===null)await stop();rmSync(root,{recursive:true,force:true});}
 });

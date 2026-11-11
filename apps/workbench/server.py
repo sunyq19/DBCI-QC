@@ -973,6 +973,8 @@ class Handler(BaseHTTPRequestHandler):
             self.body()
             return self.json(self.temporary.finish(self))
         if path in {'/api/v1/data/archive', '/api/v1/data/restore', '/api/v1/data/delete-preview', '/api/v1/data/delete'}:
+            if private_uploads(self.store.settings):
+                raise PermissionError('公开数据和报告由管理员维护。您可以使用“结束并清理”删除自己的临时上传。')
             lifecycle = self.store.library_state
             body = self.body()
             if path.endswith('/archive'): result = lifecycle.archive(body)

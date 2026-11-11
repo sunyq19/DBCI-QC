@@ -11,6 +11,12 @@ export const flowVersions = sqliteTable("flow_versions", {
   note: text("note").notNull(), authorId: text("author_id").notNull(), createdAt: text("created_at").notNull(),
 });
 
+export const flowVersionDeletions = sqliteTable("flow_version_deletions", {
+  id:text("id").primaryKey(), label:text("label").notNull(),
+  revision:integer("revision").notNull().references(() => flowRevisions.revision),
+  deletedBy:text("deleted_by").notNull(), deletedAt:text("deleted_at").notNull(),
+});
+
 export const flowAccessLinks = sqliteTable("flow_access_links", {
   id:text("id").primaryKey(), tokenHash:text("token_hash").notNull().unique(),
   label:text("label").notNull(), role:text("role").notNull(),

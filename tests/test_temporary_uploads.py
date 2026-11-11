@@ -122,6 +122,31 @@ def test_failed_upload_leaves_no_payload_or_public_record(service):
     assert call('/api/v1/data')['items'] == []
 
 
+def test_public_archive_delete_denied_while_own_temporary_cleanup_still_works(service):
+    server, call, _ = service
+    public = server.store
+    intake = public.intakes.receive('public.edf', len(recording()), io.BytesIO(recording()))
+    public.settings['public_records'] = {'local-'+intake['id']: {'name':'Public fixture','url':'https://example.org/data','license':'CC0'}}
+    item = public.confirm_intake(intake['id'], confirmation())['input']
+    jobid = 'e'*32
+    folder = public.root/'jobs'/jobid; folder.mkdir()
+    (folder/'report.html').write_text('public report')
+    public.jobs[jobid] = {'id':jobid,'input_id':item['id'],'status':'completed'}
+    for client in (0, 1):
+        for action in ('archive','restore','delete-preview','delete'):
+            with pytest.raises(HTTPError) as exc:
+                call('/api/v1/data/'+action, {'ids':['report:'+jobid], 'all_archived':True,'confirmed':True}, client)
+            assert exc.value.code == 403
+    own, _ = upload(call)
+    call('/api/v1/temporary-session/finish', {}, client=1)
+    assert (server.temporary.store.intakes.root/own['id']).exists()
+    call('/api/v1/temporary-session/finish', {})
+    assert not (server.temporary.store.intakes.root/own['id']).exists()
+    assert (folder/'report.html').read_text() == 'public report'
+    assert public.intakes._directory(intake['id']).exists()
+    assert not public.library_state.state['archived']
+
+
 def test_failed_cleanup_retries_without_losing_ownership(service, monkeypatch):
     server, call, _ = service
     intake, _ = upload(call)

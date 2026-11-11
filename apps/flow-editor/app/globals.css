@@ -121,3 +121,11 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 .sketch-workspace .flow-svg.editable.dragging,.sketch-workspace .flow-svg.editable.dragging *{cursor:grabbing!important}
 
 .build-update{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 22px;background:#edf4ff;color:#345b92;font-size:12px;flex-shrink:0}.build-update button{padding:5px 10px;font-size:12px}
+
+/* Version removal is separate from opening a historical snapshot. */
+.version-history-row{display:flex;align-items:center;gap:8px;min-width:0}
+.version-history-row .history-row{flex:1;min-width:0}
+.danger-icon{color:#9c6470}
+.danger-icon:hover:not(:disabled){color:#b53b45;background:#fff3f3;border-color:#efc9cc}
+button.danger-primary{background:#b33e49;color:#fff;border-color:#b33e49}
+button.danger-primary:hover:not(:disabled){background:#96323c}

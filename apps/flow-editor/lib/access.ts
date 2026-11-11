@@ -20,20 +20,24 @@ export async function editorFor(request:Request,db:D1Database,verifier?:string,n
  if(!row)throw new AppError('编辑已结束，请重新输入密码',401);
  return{id:'session:'+hash.slice(0,20),label:row.label,role:'editor'};
 }
-export async function unlockEditing(request:Request,db:D1Database,verifier:string|undefined,password:unknown,label:unknown,now=Date.now()){
+export async function verifyEditingPassword(request:Request,db:D1Database,verifier:string|undefined,password:unknown,now=Date.now()){
  if(!verifier)throw new AppError('编辑密码暂未配置',503);
  if(typeof password!=='string'||!password||password.length>256)throw new AppError('请输入编辑密码');
- if(label!==undefined&&(typeof label!=='string'||label.length>40||/[\u0000-\u001f]/.test(label)))throw new AppError('署名最多40字');
  const key=await tokenHash('flow-edit:'+ (request.headers.get('cf-connecting-ip')||'unknown'));
  const window=Math.floor(now/900000);
  const attempt=await db.prepare(`INSERT INTO flow_unlock_attempts (client_hash,window_id,attempts) VALUES (?,?,1)
  ON CONFLICT(client_hash) DO UPDATE SET window_id=excluded.window_id,attempts=CASE WHEN window_id=excluded.window_id THEN attempts+1 ELSE 1 END RETURNING attempts`).bind(key,window).first<{attempts:number}>();
  if((attempt?.attempts||0)>12)throw new AppError('尝试次数过多，请15分钟后再试',429);
  if(!await passwordMatches(password,verifier))throw new AppError('密码不正确',401);
+ await db.prepare('UPDATE flow_unlock_attempts SET attempts=0 WHERE client_hash=?').bind(key).run();
+ return {window};
+}
+export async function unlockEditing(request:Request,db:D1Database,verifier:string|undefined,password:unknown,label:unknown,now=Date.now()){
+ if(label!==undefined&&(typeof label!=='string'||label.length>40||/[\u0000-\u001f]/.test(label)))throw new AppError('署名最多40字');
+ const {window}=await verifyEditingPassword(request,db,verifier,password,now);
  const token=newToken(),name=typeof label==='string'&&label.trim()?label.trim():'协作成员';
  await db.batch([
-  db.prepare('INSERT INTO flow_edit_sessions (token_hash,label,expires_at,password_version) VALUES (?,?,?,?)').bind(await tokenHash(token),name,now+SESSION_MS,await tokenHash(verifier)),
-  db.prepare('UPDATE flow_unlock_attempts SET attempts=0 WHERE client_hash=?').bind(key),
+  db.prepare('INSERT INTO flow_edit_sessions (token_hash,label,expires_at,password_version) VALUES (?,?,?,?)').bind(await tokenHash(token),name,now+SESSION_MS,await tokenHash(verifier!)),
   db.prepare('DELETE FROM flow_edit_sessions WHERE expires_at<=?').bind(now),
   db.prepare('DELETE FROM flow_unlock_attempts WHERE window_id<?').bind(window-4),
  ]);

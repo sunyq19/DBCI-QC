@@ -29,6 +29,13 @@
       "when": 1794190464587,
       "tag": "0003_bitter_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794378357993,
+      "tag": "0004_version_deletions",
+      "breakpoints": true
     }
   ]
 }

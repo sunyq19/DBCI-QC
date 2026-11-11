@@ -193,3 +193,16 @@ archiveElement('library-active').events.click();clickPartial('archive',cRun.arch
 assert.deepEqual(action.body.ids,[cRun.archive_id]);
 action.resolve({ok:false,json:async()=>({error:'test only'})});await flush();
 console.log('Individual reports and same-workflow history split across current/archive; group actions and deletion preserve source data.');
+
+// Public data remain readable; visitors get no archive/delete controls.
+const locked=archiveWindow.QCDataLibrary.refresh();
+const lockedSource={name:'Long public dataset title',url:'https://openneuro.org/datasets/ds004100/versions/1.1.3',version:'1.1.3',license:'CC0'};
+archiveRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[{...item('public-eeg'),source:lockedSource,recent_reports:[aRun]}]})});await locked;
+const lockedHtml=archiveElement('data-library-list').innerHTML;
+assert(!lockedHtml.includes('data-library-action='));assert(!lockedHtml.includes('library-entry-menu'));
+assert(lockedHtml.includes(aRun.url));assert(lockedHtml.includes('OpenNeuro · ds004100<span'));
+assert(lockedHtml.includes('<details class="public-source-details">'));assert(lockedHtml.includes('1.1.3 · CC0'));
+assert.equal(archiveElement('library-active').hidden,true);assert.equal(archiveElement('library-archived').hidden,true);
+assert.equal(archiveElement('library-empty-archive').hidden,true);
+clickPartial('archive','record:public-eeg');await flush();assert.equal(archiveRequests.length,0);
+console.log('Public datasets and reports are read-only; compact source links retain complete provenance.');

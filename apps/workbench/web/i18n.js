@@ -25,6 +25,7 @@
 归档	Archive
 清空归档	Empty archive
 数据状态	Data status
+来源详情	Source details
 共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。	Shared demo: files and reports are visible to all visitors. Upload public or de-identified data only.
 质控台 · 共享演示	QC Workbench · Shared demo
 选择模块	Select modules

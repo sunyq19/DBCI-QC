@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
-import { AppError,readFlow,saveFlow,freezeFlow,ensureHierarchy,syncCatalog,discussFlow,forkFlow } from '../../../lib/repository';
+import { AppError,readFlow,saveFlow,freezeFlow,ensureHierarchy,syncCatalog,discussFlow,forkFlow,deleteVersion } from '../../../lib/repository';
 import {readCatalog,catalogStatus} from '../../../lib/catalog-source';
-import {editorFor,allowedOrigin,withCors,preflight} from '../../../lib/access';
+import {editorFor,allowedOrigin,withCors,preflight,verifyEditingPassword} from '../../../lib/access';
 export const OPTIONS=preflight;
 export const dynamic='force-dynamic';
 const response=(value:unknown,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
@@ -35,5 +35,9 @@ export async function POST(request:Request){try{
   if(body.action==='fork')return respond(await forkFlow(db(),body.sourceRevision,body.expectedHead,body.doc,body.note,actor.id,await readCatalog()));
   if(body.action==='freeze')return respond(await freezeFlow(db(),body.revision,body.label,body.note??'',actor.id));
   if(body.action==='discuss')return respond(await discussFlow(db(),body,actor));
+  if(body.action==='delete_version'){
+    await verifyEditingPassword(request,db(),(env as unknown as Record<string,string>).FLOW_EDIT_PASSWORD_VERIFIER,body.password);
+    return respond(await deleteVersion(db(),body.id,body.revision,actor.id));
+  }
   throw new AppError('不支持的操作');
 }catch(e){return withCors(request,failure(e));}}

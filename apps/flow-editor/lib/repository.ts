@@ -8,7 +8,8 @@ export const FREEZE_SQL = `INSERT INTO flow_versions (id,label,revision,note,aut
 export class AppError extends Error { constructor(message:string, public status=400){super(message);} }
 export async function digest(doc:FlowDoc){const data=new TextEncoder().encode(JSON.stringify(doc));return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data)),b=>b.toString(16).padStart(2,'0')).join('');}
 type Revision={revision:number;document:string;hash:string;note:string;created_at:string;based_on_revision:number|null};
-type Version={id:string;label:string;revision:number;note:string;created_at:string};
+type Version={id:string;label:string;revision:number;note:string;created_at:string;canDelete?:boolean};
+const VERSION_FIELDS="id,label,revision,note,created_at,CASE WHEN author_id IN ('system','catalog-sync') THEN 0 ELSE 1 END AS canDelete";
 export async function initialize(db:D1Database){
   if(await db.prepare('SELECT revision FROM flow_revisions LIMIT 1').first())return;
   const at='2026-11-06T00:00:00.000Z',hash=await digest(seed);
@@ -23,11 +24,28 @@ export async function readFlow(db:D1Database,opts:{version?:string|null;revision
   if(opts.head)return{latestRevision:latest!.revision};
   if(opts.history){return{latestRevision:latest!.revision,revisions:(await db.prepare('SELECT revision,hash,note,created_at,based_on_revision FROM flow_revisions ORDER BY revision DESC LIMIT 100').all()).results};}
   let version:Version|null=null,rev=opts.revision||latest!.revision;
-  if(opts.version){version=await db.prepare('SELECT id,label,revision,note,created_at FROM flow_versions WHERE id=?').bind(opts.version).first<Version>();if(!version)throw new AppError('固定版本不存在',404);rev=version.revision;}
+  if(opts.version){version=await db.prepare(`SELECT ${VERSION_FIELDS} FROM flow_versions WHERE id=?`).bind(opts.version).first<Version>();if(!version)throw new AppError('版本不存在或已删除',404);version.canDelete=Boolean(version.canDelete);rev=version.revision;}
   const r=await db.prepare('SELECT revision,document,hash,note,created_at,based_on_revision FROM flow_revisions WHERE revision=?').bind(rev).first<Revision>();
   if(!r)throw new AppError('历史记录不存在',404);
-  const versions=(await db.prepare('SELECT id,label,revision,note,created_at FROM flow_versions ORDER BY created_at DESC,id DESC').all<Version>()).results;
+  const versions=(await db.prepare(`SELECT ${VERSION_FIELDS} FROM flow_versions ORDER BY created_at DESC,id DESC`).all<Version>()).results.map(v=>({...v,canDelete:Boolean(v.canDelete)}));
   return{doc:JSON.parse(r.document),revision:r.revision,hash:r.hash,note:r.note,createdAt:r.created_at,basedOnRevision:r.based_on_revision,version,latestRevision:latest!.revision,versions,view:opts.version?'version':opts.revision?'history':'draft'};
+}
+
+// Delete the named bookmark, never the document revision or another snapshot.
+export async function deleteVersion(db:D1Database,id:unknown,revision:unknown,authorId:string){
+  if(typeof id!=='string'||!Number.isSafeInteger(revision)||Number(revision)<1)throw new AppError('删除目标无效');
+  const version=await db.prepare('SELECT * FROM flow_versions WHERE id=?').bind(id).first<{id:string;label:string;revision:number;author_id:string}>();
+  if(!version)throw new AppError('版本不存在或已删除',404);
+  if(['system','catalog-sync'].includes(version.author_id))throw new AppError('系统基线版本不能删除',403);
+  if(version.revision!==revision)throw new AppError('版本信息已变化，请重新打开后删除',409);
+  const result=await db.batch([
+    db.prepare(`INSERT INTO flow_version_deletions (id,label,revision,deleted_by,deleted_at)
+      SELECT id,label,revision,?,? FROM flow_versions WHERE id=? AND revision=? AND author_id NOT IN ('system','catalog-sync')`)
+      .bind(authorId,new Date().toISOString(),id,revision),
+    db.prepare("DELETE FROM flow_versions WHERE id=? AND revision=? AND author_id NOT IN ('system','catalog-sync') RETURNING id").bind(id,revision),
+  ]);
+  if(!result[1].results?.length)throw new AppError('版本已经删除',404);
+  return {deleted:true,id};
 }
 export async function saveFlow(db:D1Database,base:number,doc:unknown,note:string,authorId:string,allowDiscussion=false){
   if(!Number.isSafeInteger(base)||base<1)throw new AppError('保存基准版本无效');

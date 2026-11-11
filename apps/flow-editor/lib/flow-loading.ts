@@ -1,6 +1,6 @@
 import {validateDoc,type FlowDoc} from './flow';
 
-export type Version={id:string;label:string;revision:number;note:string;created_at:string};
+export type Version={id:string;label:string;revision:number;note:string;created_at:string;canDelete?:boolean};
 export type Snapshot={doc:FlowDoc;revision:number;hash:string;note:string;createdAt:string;version:Version|null;latestRevision:number;versions:Version[];view:'draft'|'version'|'history'|'published'};
 
 // A code-derived publication is never a collaborative revision. In particular,

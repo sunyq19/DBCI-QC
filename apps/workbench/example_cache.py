@@ -35,13 +35,8 @@ def homepage(store, template):
     esc=lambda value:escape(str(value),quote=True)
     cards=[]
     for r in rows:
-        from temporary_uploads import source
-        origin = source(r.get('source'))
-        sources = origin.get('sources', [origin]) if origin else []
-        for s in sources:
-            s['version'] = '' if re.fullmatch('[a-fA-F0-9]{32,64}', s['version']) else re.sub(r'^doi:.*\.v(?=[0-9])', '', s['version'])
-        links = ' · '.join(f'<a href="{esc(s["url"])}" target="_blank" rel="noopener noreferrer">{esc(s["name"])}{(" · " + esc(s["version"])) if s["version"] else ""}</a> <span>{esc(s["license"])}</span>' for s in sources)
-        cards.append(f'<div class="public-example"><a class="demo-report" href="{esc(r["url"])}"><span class="demo-report-copy"><strong>{esc(r["label"])}<small class="example-format">{esc(r["formats"])}</small></strong><span>{esc(r["description"])}</span><small>{r["subjects"]} 个体 · {r["records"]} 份记录 · 报告 {r["reported"]}/{r["records"]}</small></span><span class="demo-report-end">查看报告</span></a><div class="public-source">来源：{links}</div></div>')
+        from source_display import markup
+        cards.append(f'<div class="public-example"><a class="demo-report" href="{esc(r["url"])}"><span class="demo-report-copy"><strong>{esc(r["label"])}<small class="example-format">{esc(r["formats"])}</small></strong><span>{esc(r["description"])}</span><small>{r["subjects"]} 个体 · {r["records"]} 份记录 · 报告 {r["reported"]}/{r["records"]}</small></span><span class="demo-report-end">查看报告</span></a>{markup(r.get("source"))}</div>')
     template=template.replace('<p class="small muted">正在读取示例目录…</p>', ''.join(cards) or '<p class="small muted">尚未发布示例报告。</p>')
     template=template.replace('<span id="demo-reports-count" class="tag subtle">—</span>',f'<span id="demo-reports-count" class="tag subtle">{len(rows)}</span>')
     # Completed personal runs belong to the data library, not a second example
