@@ -1,5 +1,5 @@
 {
-  "catalogVersion": "1.0.0rc3.dev41",
+  "catalogVersion": "1.0.0rc3.dev42",
   "roots": [
     {
       "id": "INPUT",
@@ -867,7 +867,7 @@
     "docs/dataset-checks.md": "14f281f6fbc11eeeb5ec6de992c6c0bffb2cf0db1c1655403fd914e33e2a84b6",
     "src/ephys_qc/processing_history.py": "009da338d9ad9a3ee6978722e3c34661da635bad406debef90bb72815d346963",
     "src/ephys_qc/comparison.py": "ed41dae916faf272e47de6560fbc994a37ee80fd2a19663422189fa83e565c52",
-    "apps/workbench/batch_jobs.py": "d58da16c080217e9281eab0d246c28d6b74d1066d10f447b26ca0d36374b28ce",
+    "apps/workbench/batch_jobs.py": "01edf82abfdda4f498bfcd8e49a3de156054f389f992beda20e9d9f089a2e51c",
     "apps/workbench/review_workspace.py": "d7cae5b617d0922fd663a6210bd47b7787881556ed30255194ef4bff85c599b4",
     "src/ephys_qc/dataset_qc/review.py": "ec5bebed299b93f5eddfb7222a8abea6d776d07f31d6dbe440fbd14c14956d52",
     "src/ephys_qc/dataset_qc/review_report.py": "03d4bd6f1f60486b4763d059fd48bc954033ef5e4b4a30004b638a45b62f6b92",
