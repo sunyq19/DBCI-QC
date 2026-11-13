@@ -182,7 +182,11 @@ def main():
                 call(endpoint, raw=True, client=1)
                 raise AssertionError('Other browser accessed a private upload')
             except HTTPError as error: assert error.code == 403
-        assert call('/api/v1/data')['items'] == []
+        mine = call('/api/v1/data')['items']
+        assert len(mine) == 1 and mine[0]['id'] == 'record:'+record['id'] and mine[0]['temporary']
+        assert mine[0]['retention']['phase'] == 'results'
+        assert mine[0]['workflow_groups'][0]['latest']['job_id'] == identifier
+        checks['own_upload_and_report_visible_with_expiry'] = True
         checks['upload_recommendation_report_pdf_waveform'] = True
         checks['two_independent_http_clients_are_isolated'] = True
         checks['selected_modules'] = recommendation['selected_modules']

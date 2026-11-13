@@ -10,6 +10,7 @@ services:
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8769}
       RESERVE_GIB: ${RESERVE_GIB:-10}
+      QC_ADMIN_AUTH_URL: http://flow:18770/api/access
     volumes:
       - qc-data:/data
     read_only: true

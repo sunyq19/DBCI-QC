@@ -2,6 +2,7 @@
   'use strict';
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let publicOnly=false,items=[],examples=[],limit=6,revision=0,lastLoaded=0,category='data',archived=false,busy=false;
+  let clockOffset=0;
   let cached=false;try{const data=JSON.parse($('example-cache')?.textContent||'null');if(data){if(!cached)examples=data.examples||[];cached=true;}}catch{}
   const en=()=>window.QCI18n?.getLanguage?.()==='en', t=(a,b)=>en()?b:a;
   const status={not_run:['未运行','Not run'],needs_confirmation:['待确认','Confirm information'],running:['运行中','Running'],queued:['排队中','Queued'],completed:['有检查报告','Report available'],failed:['检查失败','Failed'],interrupted:['已中断','Interrupted'],cancelled:['已取消','Cancelled']};
@@ -9,7 +10,21 @@
   const rowReports=row=>row.workflow_groups?.length?row.workflow_groups.flatMap(g=>g.runs):row.recent_reports||[];
   const isArchived=(report,row)=>Boolean(report.archived??row.archived);
   const archivedReports=row=>rowReports(row).filter(report=>isArchived(report,row));
-  function menuButton(action,id,label,group=false){return `<button type="button" ${action==='delete'?'class="library-danger"':''} data-library-action="${action}" data-id="${esc(id)}" ${group?'data-library-group="true"':''} ${busy?'disabled':''}>${label}</button>`;}
+  function menuButton(action,id,label,group=false){return `<button type="button" ${action.startsWith('delete')?'class="library-danger"':''} data-library-action="${action}" data-id="${esc(id)}" ${group?'data-library-group="true"':''} ${busy?'disabled':''}>${label}</button>`;}
+  function countdownText(retention){
+    const remaining=Math.max(0,Math.ceil((Date.parse(retention.expires_at)-Date.now()-clockOffset)/1000));
+    if(!remaining)return t('正在清理','Clearing');
+    if(retention.phase==='running')return t('计算中 · 完成后保留1小时','Running · kept for 1 hour after completion');
+    return remaining<60?t(`${remaining}秒后清理`,`Clears in ${remaining}s`):t(`${Math.ceil(remaining/60)}分钟后清理`,`Clears in ${Math.ceil(remaining/60)} min`);
+  }
+  function countdown(row){
+    if(!row.temporary)return '';
+    const title=t('仅本浏览器可见；本次会话的文件与报告一起清理。未运行保留30分钟，完成后保留1小时，最长6小时。','Visible only in this browser. This session’s files and reports are cleared together: 30 minutes before running, 1 hour after completion, at most 6 hours.');
+    return `<span class="library-expiry" title="${esc(title)}"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2"/><path d="M10 5.5V10l3 2"/></svg><span data-expiry-id="${esc(row.id)}">${esc(countdownText(row.retention))}</span></span>`;
+  }
+  function updateCountdowns(){
+    for(const node of document.querySelectorAll?.('[data-expiry-id]')||[]){const row=items.find(r=>r.id===node.dataset.expiryId);if(row)node.textContent=countdownText(row.retention);}
+  }
   function visibleRow(row){
     const keep=report=>isArchived(report,row)===archived;
     return {...row,recent_reports:(row.recent_reports||[]).filter(keep),workflow_groups:(row.workflow_groups||[]).flatMap(group=>{
@@ -43,7 +58,7 @@
       const time=Number.isNaN(stamp.valueOf())?'':stamp.toLocaleString(en()?'en-GB':'zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
       const id=reportId(report),label=en()?report.label_en||report.label:report.label;
       const actions=archived?menuButton('restore',id,t('恢复','Restore'))+menuButton('delete',id,t('彻底删除','Delete permanently')):menuButton('archive',id,t('归档','Archive'));
-      const menu=!publicOnly&&id&&!['running','queued','cancelling'].includes(report.status)?`<details class="library-entry-menu library-report-menu"><summary aria-label="${esc(t('报告操作：','Report actions: ')+label+' · '+time)}">⋯</summary><div>${actions}</div></details>`:'';
+      const menu=id&&(report.temporary||!publicOnly&&!['running','queued','cancelling'].includes(report.status))?`<details class="library-entry-menu library-report-menu"><summary aria-label="${esc(t('报告操作：','Report actions: ')+label+' · '+time)}">⋯</summary><div>${report.temporary?menuButton('delete-temporary',id,t('删除报告','Delete report')):actions}</div></details>`:'';
       return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span>${menu}</div>`;
     }).join('')}</div>`;
   }
@@ -72,7 +87,7 @@
     $('demo-reports-count').textContent=String(datasets.length);
     $('demo-reports-title').textContent=t('示例数据集','Example datasets');
     $('demo-reports').setAttribute('aria-label',t('示例数据集','Example datasets'));
-    $('demo-reports-caption').textContent=t('四类公开样本，点击查看检查结果。','Four public sample collections. Open their results directly.');
+    $('demo-reports-caption').textContent=t('公开样本，点击查看检查结果。','Public samples. Open their results directly.');
     $('demo-report-list').innerHTML=datasets.map(r=>{
       const available=r.available!==false;
       const reports=r.status==='report_unavailable'?t('报告暂不可用','Reports unavailable'):t(`报告 ${r.reported||0}/${r.records||0}`,`Reports ${r.reported||0}/${r.records||0}`);
@@ -80,10 +95,12 @@
       const label=en()?r.label_en||r.label:r.label;
       const meta=t(`${r.subjects??'—'} 个体 · ${r.records??'—'} 份记录`,`${r.subjects??'—'} subjects · ${r.records??'—'} recordings`);
       const content=`<span class="demo-report-copy"><strong>${esc(label)}${r.formats?`<small class="example-format">${esc(r.formats)}</small>`:''}</strong>${description?`<span>${esc(description)}</span>`:''}<small>${esc(meta)} · ${esc(reports)}</small></span><span class="demo-report-end">${available?t('查看报告','View report'):t('文件不可用','Files unavailable')}</span>`;
-      return `<div class="public-example">${available?`<a class="demo-report" href="${esc(href(en()?r.url_en||r.url:r.url))}" aria-label="${esc(label+' · '+t('查看报告','View report'))}">${content}</a>`:`<div class="demo-report unavailable" aria-disabled="true">${content}</div>`}${sourceMarkup(r.source)}</div>`;
+      const menu=publicOnly&&r.id?`<details class="library-entry-menu example-entry-menu"><summary aria-label="${esc(t('示例操作：','Example actions: ')+label)}">⋯</summary><div>${menuButton('delete-example',r.id,t('删除示例…','Delete example…'))}</div></details>`:'';
+      return `<div class="public-example"><div class="public-example-heading">${available?`<a class="demo-report" href="${esc(href(en()?r.url_en||r.url:r.url))}" aria-label="${esc(label+' · '+t('查看报告','View report'))}">${content}</a>`:`<div class="demo-report unavailable" aria-disabled="true">${content}</div>`}${menu}</div>${sourceMarkup(r.source)}</div>`;
     }).join('');
   }
   function render(){
+    const expanded=[...(document.querySelectorAll?.('#data-library-list details[open]')||[])].map(n=>n.querySelector('summary')?.textContent);
     const query=$('data-search').value.trim().toLowerCase();
     const rows=items.filter(r=>(archived?(r.archived||archivedReports(r).length):!r.archived)&&(r.category||'data')===category).filter(r=>[r.label,r.format,r.modality,r.kind==='dataset'?'数据集 dataset':'记录 recording'].join(' ').toLowerCase().includes(query)).map(visibleRow);
     const archivedCount=items.reduce((n,r)=>n+Math.max(archivedReports(r).length,r.archived?1:0),0);
@@ -105,10 +122,41 @@
       const actions=archived?menuButton('restore',r.id,t('恢复全部','Restore all'),true)+menuButton('delete',r.id,t('删除本组归档','Delete this archive group'),true):menuButton('archive',r.id,t('归档全部','Archive all'));
       const noCurrent=!archived&&!reports.length&&!workflows.length&&r.archived_reports>0;
       const label=`<strong data-i18n-skip>${esc(r.label)}</strong><small>${r.kind==='dataset'?`${r.subjects??'—'} ${t('个体','subjects')} · ${r.records??'—'} ${t('记录','recordings')}`:workflows.length?t(`${workflows.length} 套方案 · ${workflows.reduce((n,g)=>n+g.runs.length,0)} 次运行`,`${workflows.length} workflows · ${workflows.reduce((n,g)=>n+g.runs.length,0)} runs`):noCurrent?t('报告均已归档','All reports archived'):esc(status[r.status]?.[en()?1:0]||r.status)}${r.retention?.state==='expired'?` · ${t('副本已到期，报告保留','Upload expired; reports retained')}`:r.available?'':` · ${t('来源不可用','Source unavailable')}`}</small>`;
-      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span>${archived?`<div class="data-library-label">${label}</div>`:`<a class="data-library-label" href="${esc(href(target))}">${label}</a>`}${publicOnly?'':`<details class="library-entry-menu"><summary aria-label="${esc(t('数据操作：','Data actions: ')+r.label)}">⋯</summary><div>${actions}</div></details>`}${sourceMarkup(r.source)}${reportsMarkup}</div>`;
-    }).join('')||`<p class="small muted">${archived?t('归档为空。','Archive is empty.'):items.some(r=>!r.archived)?t('暂无匹配数据','No matching data'):publicOnly?t('暂无已登记的公开数据。上传仅用于本次检查。','No registered public data. Uploads are temporary.'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
+      return `<div class="data-library-item ${r.available?'':'unavailable'}"><span class="data-kind">${r.kind==='dataset'?t('数据集','Dataset'):esc(r.format||t('记录','Recording'))}</span>${archived?`<div class="data-library-label">${label}</div>`:`<a class="data-library-label" href="${esc(href(target))}">${label}</a>`}${publicOnly&&!r.temporary?'':`<details class="library-entry-menu"><summary aria-label="${esc(t('数据操作：','Data actions: ')+r.label)}">⋯</summary><div>${r.temporary?menuButton('delete-temporary',r.id,t('删除数据和报告','Delete data and reports')):actions}</div></details>`}${countdown(r)}${sourceMarkup(r.source)}${reportsMarkup}</div>`;
+    }).join('')||`<p class="small muted">${archived?t('归档为空。','Archive is empty.'):items.some(r=>!r.archived)?t('暂无匹配数据','No matching data'):publicOnly?t('尚未上传数据。上传后仅本浏览器可见。','No uploads yet. Your uploads are visible only in this browser.'):t('尚未上传数据。上传副本保留 7 天，报告保留。','No uploads yet. Uploaded copies are kept for 7 days; reports are retained.')}</p>`;
     $('data-library-more').hidden=rows.length<=limit;$('data-library-more').textContent=t(`显示更多（${rows.length-limit}）`,`Show more (${rows.length-limit})`);
     $('data-search').placeholder=t('搜索数据名称','Search data');renderExamples();
+    for(const node of document.querySelectorAll?.('#data-library-list details')||[])if(expanded.includes(node.querySelector('summary')?.textContent))node.open=true;
+  }
+  async function removeTemporary(id){
+    if(busy)return;
+    const report=id.startsWith('report:');
+    if(!window.confirm(report?t('删除这次检查的报告？其他报告和上传文件保留；正在运行的检查将取消。','Delete this report? Other reports and the upload are kept. An active run will be cancelled.'):t('删除这份临时数据和它的全部报告？正在运行的检查将取消。','Delete this upload and all its reports? Active runs will be cancelled.')))return;
+    busy=true;
+    try{
+      const response=await fetch('/api/v1/data/delete-temporary',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,confirmed:true})});
+      const data=await response.json();if(!response.ok)throw Error(data.error||t('删除失败','Deletion failed'));
+      await refresh();window.QCTemporarySession?.refresh();
+      window.dispatchEvent?.(new CustomEvent('qc:librarychange',{detail:data}));
+      $('data-library-message').textContent=data.cleanup_pending?t('正在停止检查并清理。','Stopping the run and clearing files.'):t('已删除。','Deleted.');$('data-library-message').hidden=false;
+    }catch(error){$('data-library-error').textContent=error.message;$('data-library-error').hidden=false;}finally{busy=false;}
+  }
+  function removeExample(id){
+    const row=examples.find(r=>r.id===id);if(!row)return;
+    const dialog=document.createElement('dialog');dialog.className='example-delete-dialog';
+    dialog.innerHTML=`<form><h2>${t('删除公开示例','Delete public example')}</h2><p>${esc(en()?row.label_en||row.label:row.label)}</p><p class="muted">${t('删除后，所有访客将无法打开此示例及其报告。','This example and its reports will no longer be accessible to visitors.')}</p><label for="example-delete-password">${t('模块协作编辑密码','Module collaboration editing password')}</label><input id="example-delete-password" type="password" autocomplete="off" required maxlength="256"><p class="example-delete-error" role="alert" hidden></p><div class="example-delete-actions"><button type="button" data-dismiss>${t('取消','Cancel')}</button><button type="submit" class="danger">${t('确认删除','Delete example')}</button></div></form>`;
+    document.body.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.querySelector('[data-dismiss]').onclick=()=>dialog.close();
+    dialog.querySelector('form').onsubmit=async event=>{
+      event.preventDefault();const button=dialog.querySelector('[type=submit]'),field=dialog.querySelector('input'),error=dialog.querySelector('[role=alert]');
+      button.disabled=true;error.hidden=true;
+      const password=field.value;field.value='';
+      try{
+        const response=await fetch('/api/v1/examples/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,password,confirmed:true})});
+        const data=await response.json();if(!response.ok)throw Error(data.error||t('删除失败','Deletion failed'));
+        dialog.close();await refresh();
+      }catch(e){error.textContent=e.message;error.hidden=false;field.focus();}finally{button.disabled=false;}
+    };
+    dialog.showModal();dialog.querySelector('input').focus();
   }
   async function mutate(action,selection){
     if(publicOnly)return;
@@ -139,7 +187,8 @@
       const response=await fetch('/api/v1/data',{cache:'no-store'});
       if(!response.ok)throw Error('directory');
       const data=await response.json();if(request!==revision)return;
-      publicOnly=Boolean(data.public_only);items=data.items;if(!cached)examples=data.examples||[];
+      publicOnly=Boolean(data.public_only);items=data.items;if(!cached||data.examples_authoritative)examples=data.examples||[];
+      const timing=items.find(r=>r.temporary)?.retention;if(timing)clockOffset=Date.parse(timing.server_now)-Date.now();
       if(!lastLoaded&&items.length)$('data-library').open=true;
       lastLoaded=Date.now();render();$('data-library-error').hidden=true;
     }catch{
@@ -151,14 +200,16 @@
       }
     }
   }
-  $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh()});
+  $('demo-report-list').addEventListener('click',event=>{if(event.target.closest('[data-examples-retry]'))refresh();const button=event.target.closest('[data-library-action="delete-example"]');if(button){event.preventDefault();removeExample(button.dataset.id);}});
   $('data-search').addEventListener('input',()=>{limit=6;render()});
   for(const name of ['active','archived'])$('library-'+name).addEventListener('click',event=>{event?.preventDefault();event?.stopPropagation();$('data-library').open=true;archived=name==='archived';category='data';limit=6;$('data-search').value='';$('data-library-message').hidden=true;render()});
-  $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();let ids=[button.dataset.id];if(button.dataset.libraryGroup){const row=items.find(r=>r.id===button.dataset.id);if(!row)return;if(!row.archived)ids=[...new Set(archivedReports(row).map(reportId).filter(Boolean))];}mutate(button.dataset.libraryAction,{ids})}});
+  $('data-library-list').addEventListener('click',event=>{const button=event.target.closest('[data-library-action]');if(button){event.preventDefault();if(button.dataset.libraryAction==='delete-temporary'){removeTemporary(button.dataset.id);return;}let ids=[button.dataset.id];if(button.dataset.libraryGroup){const row=items.find(r=>r.id===button.dataset.id);if(!row)return;if(!row.archived)ids=[...new Set(archivedReports(row).map(reportId).filter(Boolean))];}mutate(button.dataset.libraryAction,{ids})}});
   $('library-empty-archive').addEventListener('click',()=>mutate('delete',{all_archived:true}));
   for(const name of ['data','validation'])$('library-'+name).addEventListener('click',()=>{category=name;limit=6;render()});
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
+  window.addEventListener('qc:temporary',refresh);
+  window.setInterval?.(()=>{updateCountdowns();if(items.some(r=>r.temporary)&&Date.now()-lastLoaded>30000&&!busy&&!document.querySelector?.('.library-entry-menu[open], .example-delete-dialog'))refresh();},1000);
   try{$('demo-reports').open=window.localStorage.getItem('qc.examples.open')!=='false'}catch{}
   $('demo-reports').addEventListener('toggle',()=>{try{window.localStorage.setItem('qc.examples.open',String($('demo-reports').open))}catch{}});
   window.QCDataLibrary={refresh};renderExamples();refresh();

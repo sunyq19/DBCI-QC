@@ -678,6 +678,23 @@ html[lang="en"] .comparison-en { display:flex; }
 
 /* Public provenance: short links, full version and license on demand. */
 .public-example{min-width:0}
+.qc-app .public-example-heading{display:flex;align-items:flex-start;gap:4px;min-width:0}
+.qc-app .public-example-heading>.demo-report{flex:1;min-width:0}
+.qc-app .example-entry-menu{flex:0 0 28px;margin-top:10px}
+.qc-app .library-expiry{grid-column:2/-1;display:flex;align-items:center;gap:5px;font-size:12px;line-height:1.5;color:#64748b;margin-top:2px;font-variant-numeric:tabular-nums}
+.qc-app .library-expiry svg{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.example-delete-dialog{box-sizing:border-box;width:min(420px,calc(100vw - 32px));padding:26px;border:1px solid #dbe3ef;border-radius:10px;color:#20334b;background:#fff;box-shadow:0 16px 70px #142b4830;font:14px/1.6 system-ui,sans-serif}
+.example-delete-dialog::backdrop{background:#12284466}
+.example-delete-dialog h2{font-size:18px;margin:0 0 14px;font-weight:600}
+.example-delete-dialog p{margin:0 0 14px}
+.example-delete-dialog label{display:block;margin:20px 0 6px;font-weight:500}
+.example-delete-dialog input{box-sizing:border-box;width:100%;padding:9px 11px;border:1px solid #c8d4e2;border-radius:5px;font:inherit}
+.example-delete-dialog input:focus{outline:2px solid #bfd1fa;border-color:#2563eb}
+.example-delete-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.example-delete-actions button{padding:8px 16px;border:1px solid #ccd6e3;border-radius:5px;background:white;color:#334155;cursor:pointer;font:inherit}
+.example-delete-actions .danger{background:#ad3434;border-color:#ad3434;color:white}
+.example-delete-actions button:disabled{opacity:.5;cursor:wait}
+.example-delete-dialog .example-delete-error{color:#a63838;margin-top:8px;font-size:13px}
 .qc-app .public-source{grid-column:2/-1;position:relative;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-width:0;margin:2px 0 6px;font-size:12px;line-height:1.6;color:#64748b}
 .qc-app .public-example .public-source{padding:0 14px 6px;margin:0}
 .qc-app .public-source-label{color:#8190a3;flex:none}

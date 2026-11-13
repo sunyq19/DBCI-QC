@@ -35,6 +35,10 @@ for(const publicOrigin of [undefined,'https://qc.example.test']) test(`self-host
  const post=async(p,body,source=origin)=>request(p,{method:'POST',headers:{Origin:source,'Content-Type':'application/json',...(token?{'X-Flow-Editor':token}:{})},body:JSON.stringify(body)});
  try{
   await start();
+  assert.equal((await post('/api/access',{action:'verify',password:'incorrect'})).status,401);
+  assert.equal((await post('/api/access',{action:'verify',password},'https://evil.test')).status,403);
+  const verified=await post('/api/access',{action:'verify',password});assert.equal(verified.status,200);
+  assert.deepEqual(await verified.json(),{verified:true});assert.equal((await get('/api/access')).canEdit,false);
   if(publicOrigin)assert.equal((await fetch(base+'/api/flow',{headers:{'X-Forwarded-Host':'qc.example.test','X-Forwarded-Proto':'https'}})).status,403);
   assert.equal((await request('/flow/')).status,200);const current=await get('/api/flow');
   assert.equal((await post('/api/flow',{action:'freeze',revision:current.revision,label:'Denied'})).status,401);

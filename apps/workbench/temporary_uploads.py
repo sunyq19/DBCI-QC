@@ -4,6 +4,7 @@ Enabled by data_policy=public-only/1. Files are temporary disk work products,
 not zero-copy/browser-only processing. A random HttpOnly cookie scopes reads.
 """
 import copy
+from datetime import datetime, timezone
 import fcntl
 from contextlib import contextmanager
 from http.cookies import SimpleCookie
@@ -13,6 +14,7 @@ import secrets
 import shutil
 import threading
 import time
+from types import SimpleNamespace
 from urllib.parse import urlsplit, parse_qs
 
 POLICY = 'public-only/1'
@@ -143,9 +145,14 @@ class TemporaryUploads:
         family = item.get('record_family', item.get('id', ''))
         return self.owners.get(family.removeprefix('local-'))
 
+    def _intake_id(self, identifier):
+        item = self.store.inputs.get(identifier, {})
+        return item.get('record_family', item.get('id', '')).removeprefix('local-')
+
     @contextmanager
     def request(self, handler, path):
         token = None
+        self.sweep()
         with self.lock:
             body = None
             target = None
@@ -169,12 +176,22 @@ class TemporaryUploads:
                     token = self._session(handler)
                     if target != token:
                         raise PermissionError('这份临时检查仅在上传它的浏览器中可查看。')
+                    session = self.sessions[token]
+                    if match:
+                        kind, identifier = match.groups()
+                        intake_id = identifier if kind == 'intakes' else self._intake_id(
+                            self.store.jobs.get(identifier, {}).get('input_id') if kind == 'jobs' else identifier)
+                        if (intake_id in session.get('deleting_intakes', set()) or
+                                (kind == 'jobs' and identifier in session.get('deleting_jobs', set()))):
+                            raise PermissionError('这份临时数据正在清理。')
+                    elif body and self._intake_id(body.get('input_id')) in session.get('deleting_intakes', set()):
+                        raise PermissionError('这份临时数据正在清理。')
             if token:
                 session = self.sessions[token]
                 if session['created'] + MAX_SECONDS <= self.clock():
                     raise PermissionError('临时检查已到期，请重新上传。')
                 session['requests'] += 1
-                session['touched'] = self.clock()
+                if handler.command == 'POST': session['touched'] = self.clock()
                 handler.temporary_token = token
                 handler._request_store = self._worker()
         try:
@@ -216,10 +233,130 @@ class TemporaryUploads:
             return [i for i in self.store.intakes.pending() if self.owners.get(i['id']) == token]
 
     def status(self, handler):
+        self.sweep()
         with self.lock:
             token = self._session(handler)
             return {'policy': POLICY, 'active': bool(token), 'result_minutes': 60,
-                    'idle_minutes': 30, 'maximum_hours': 6}
+                    'idle_minutes': 30, 'maximum_hours': 6,
+                    'retention': self._timing(token) if token else None}
+
+    def _timing(self, token):
+        """The list, notice and sweeper share one server-owned deadline."""
+        session = self.sessions[token]
+        with self.store.lock:
+            jobs = [j for j in self.store.jobs.values() if self._owner('jobs', j['id']) == token]
+            busy = any(j['status'] in ACTIVE or j['id'] in self.store.processes for j in jobs)
+        if busy:
+            session.pop('completed_at', None)
+        elif jobs:
+            session.setdefault('completed_at', self.clock())
+        hard = session['created'] + MAX_SECONDS
+        has_results = 'completed_at' in session
+        deadline = hard if busy else min(hard, session.get('completed_at', session['touched']) +
+                                         (RESULT_SECONDS if has_results else IDLE_SECONDS))
+        stamp = lambda value: datetime.fromtimestamp(value, timezone.utc).isoformat()
+        return {'state': 'temporary', 'phase': 'running' if busy else 'results' if has_results else 'idle',
+                'expires_at': stamp(deadline), 'server_now': stamp(self.clock()),
+                'result_minutes': 60, 'idle_minutes': 30, 'maximum_hours': 6}
+
+    def library(self, handler):
+        """Build the directory only from this browser's records, before deduplication."""
+        self.sweep()
+        with self.lock:
+            token = self._session(handler)
+            if not token or self.store is None:
+                return []
+            session = self.sessions[token]
+            with self.store.lock:
+                inputs = {k: copy.deepcopy(v) for k, v in self.store.inputs.items()
+                          if self._owner('inputs', k) == token and
+                          self._intake_id(k) not in session.get('deleting_intakes', set())}
+                jobs = {k: copy.deepcopy(v) for k, v in self.store.jobs.items()
+                        if v['input_id'] in inputs and k not in session.get('deleting_jobs', set())}
+                pending = [i for i in self.store.intakes.pending() if self.owners.get(i['id']) == token
+                           and i['id'] not in session.get('deleting_intakes', set())]
+                scope = SimpleNamespace(**{k: v for k, v in vars(self.store).items() if k != 'library_state'})
+                scope.inputs, scope.jobs = inputs, jobs
+                scope.intakes = SimpleNamespace(pending=lambda: pending)
+                from data_library import library
+                rows = library(scope)['items']
+            timing = self._timing(token)
+            for row in rows:
+                row.update(temporary=True, retention=timing, source=None)
+                for report in row.get('recent_reports', []): report['temporary'] = True
+                for group in row.get('workflow_groups', []):
+                    group['latest']['temporary'] = True
+                    for report in group['runs']: report['temporary'] = True
+            return rows
+
+    def delete(self, handler, body):
+        """Delete one owned row or report; no public or cross-browser target is accepted."""
+        if not isinstance(body, dict) or body.get('confirmed') is not True:
+            raise ValueError('请确认删除。')
+        identifier = body.get('id', '')
+        if not isinstance(identifier, str): raise ValueError('无效的数据标识。')
+        self.sweep()
+        with self.lock:
+            token = self._session(handler)
+            if not token or self.store is None: raise PermissionError('只能删除本浏览器的临时上传。')
+            session = self.sessions[token]
+            if identifier.startswith('report:'):
+                jid = identifier.removeprefix('report:')
+                if self._owner('jobs', jid) != token: raise PermissionError('只能删除本浏览器的临时报告。')
+                session.setdefault('deleting_jobs', set()).add(jid)
+            else:
+                row = next((r for r in self.library(handler) if r['id'] == identifier), None)
+                if not row: raise PermissionError('只能删除本浏览器的临时上传。')
+                if identifier.startswith('intake:'):
+                    intake_ids = {identifier.removeprefix('intake:')}
+                else:
+                    from library_identity import data_identity
+                    selected = self.store.inputs[identifier.removeprefix('record:')]
+                    intake_ids = {self._intake_id(k) for k, v in self.store.inputs.items()
+                                  if self._owner('inputs', k) == token and data_identity(v) == data_identity(selected)}
+                session.setdefault('deleting_intakes', set()).update(intake_ids)
+            intake_ids = set(session.get('deleting_intakes', set()))
+            input_ids = [k for k in self.store.inputs if self._owner('inputs', k) == token and self._intake_id(k) in intake_ids]
+            job_ids = [k for k, v in self.store.jobs.items() if self._owner('jobs', k) == token and
+                       (k in session.get('deleting_jobs', set()) or v['input_id'] in input_ids)]
+        self.sweep()
+        with self.lock:
+            pending = token in self.sessions and bool(session.get('deleting_intakes') or session.get('deleting_jobs'))
+        return {'status': 'clearing' if pending else 'cleared', 'cleanup_pending': pending, 'id': identifier,
+                'input_ids': input_ids, 'job_ids': job_ids, 'intake_ids': sorted(intake_ids)}
+
+    def _delete_selected(self, token, session):
+        intake_ids = session.get('deleting_intakes', set())
+        job_ids = session.get('deleting_jobs', set())
+        if not intake_ids and not job_ids: return
+        with self.store.lock:
+            jobs = [j for j in self.store.jobs.values() if self._owner('jobs', j['id']) == token and
+                    (j['id'] in job_ids or self._intake_id(j['input_id']) in intake_ids)]
+            active = [j for j in jobs if j['status'] in ACTIVE]
+            for job in active: self.store.cancel(job['id'])
+            if active or any(j['id'] in self.store.processes for j in jobs): return
+            self._remove(jobs, intake_ids)
+            session['intakes'].difference_update(intake_ids)
+            session.pop('deleting_intakes', None)
+            session.pop('deleting_jobs', None)
+
+    def _remove(self, jobs, intake_ids):
+        """Only owned runtime paths; keep ownership until every deletion succeeds."""
+        for job in jobs:
+            directory = self.store.root / 'jobs' / job['id']
+            if directory.exists(): shutil.rmtree(directory)
+            self.store.jobs.pop(job['id'], None)
+            self.store.report_views.pop(job['id'], None)
+        for record in list(self.store.inputs.values()):
+            if self._intake_id(record['id']) not in intake_ids: continue
+            if record['id'].startswith('revision-'):
+                directory = self.store.revisions.root / record['id']
+                if directory.exists(): shutil.rmtree(directory)
+            self.store.inputs.pop(record['id'], None)
+        for identifier in list(intake_ids):
+            directory = self.store.intakes._directory(identifier)
+            if directory.exists(): shutil.rmtree(directory)
+            self.owners.pop(identifier, None)
 
     def finish(self, handler):
         with self.lock:
@@ -238,16 +375,17 @@ class TemporaryUploads:
             for token, session in list(self.sessions.items()):
                 if session['requests']:
                     continue
+                self._delete_selected(token, session)
+                if not session['intakes']:
+                    self.sessions.pop(token)
+                    continue
                 with self.store.lock:
                     jobs = [j for j in self.store.jobs.values() if self._owner('jobs', j['id']) == token]
                     active = [j for j in jobs if j['status'] in ACTIVE]
                     # Presentation generation may follow completion; do not delete its workspace mid-write.
                     busy = any(j['id'] in self.store.processes for j in jobs)
-                if active or busy:
-                    session.pop('completed_at', None)
-                elif jobs:
-                    session.setdefault('completed_at', now)
-                deadline = session.get('completed_at', session['touched']) + (RESULT_SECONDS if jobs else IDLE_SECONDS)
+                timing = self._timing(token)
+                deadline = datetime.fromisoformat(timing['expires_at']).timestamp()
                 hard_expired = session['created'] + MAX_SECONDS <= now
                 due = session.get('closing') or hard_expired or (not active and not busy and deadline <= now)
                 if not due:
@@ -258,23 +396,7 @@ class TemporaryUploads:
                 if active or busy:
                     continue
                 with self.store.lock:
-                    records = [i for i in self.store.inputs.values() if self._owner('inputs', i['id']) == token]
-                    for job in jobs:
-                        directory = self.store.root / 'jobs' / job['id']
-                        if directory.exists():
-                            shutil.rmtree(directory)
-                        self.store.jobs.pop(job['id'], None)
-                        self.store.report_views.pop(job['id'], None)
-                    for record in records:
-                        if record['id'].startswith('revision-'):
-                            directory = self.store.revisions.root / record['id']
-                            if directory.exists(): shutil.rmtree(directory)
-                        self.store.inputs.pop(record['id'], None)
-                    for identifier in session['intakes']:
-                        directory = self.store.intakes._directory(identifier)
-                        if directory.exists():
-                            shutil.rmtree(directory)
-                        self.owners.pop(identifier, None)
+                    self._remove(jobs, session['intakes'])
                     self.sessions.pop(token)
 
     def _loop(self):

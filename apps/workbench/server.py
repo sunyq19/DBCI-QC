@@ -722,6 +722,10 @@ class Handler(BaseHTTPRequestHandler):
             state = getattr(self.store, 'library_state', None)
             with state.locked() if state else nullcontext():
                 result = library(self.store)
+            if self.temporary:
+                result['items'] = self.temporary.library(self) + result['items']
+                result['counts']['records'] = sum(r['kind'] == 'record' for r in result['items'])
+            result['examples_authoritative'] = True
             return self.json(result)
         overview_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/overview(?:/(report))?', path)
         if overview_match:
@@ -972,6 +976,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/v1/temporary-session/finish' and self.temporary:
             self.body()
             return self.json(self.temporary.finish(self))
+        if path == '/api/v1/data/delete-temporary' and self.temporary:
+            return self.json(self.temporary.delete(self, self.body()))
+        if path == '/api/v1/examples/delete':
+            from public_catalog import delete_example
+            return self.json(delete_example(self.store, self.body()))
         if path in {'/api/v1/data/archive', '/api/v1/data/restore', '/api/v1/data/delete-preview', '/api/v1/data/delete'}:
             if private_uploads(self.store.settings):
                 raise PermissionError('公开数据和报告由管理员维护。您可以使用“结束并清理”删除自己的临时上传。')

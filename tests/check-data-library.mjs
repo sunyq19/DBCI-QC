@@ -206,3 +206,25 @@ assert.equal(archiveElement('library-active').hidden,true);assert.equal(archiveE
 assert.equal(archiveElement('library-empty-archive').hidden,true);
 clickPartial('archive','record:public-eeg');await flush();assert.equal(archiveRequests.length,0);
 console.log('Public datasets and reports are read-only; compact source links retain complete provenance.');
+
+// Temporary entries live alongside public data, but only owned entries get password-free deletion.
+const tempNodes=new Map(),tempRequests=[],tempEvents={};let tick;
+const tempElement=id=>{if(!tempNodes.has(id))tempNodes.set(id,{value:'',events:{},dataset:{},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return tempNodes.get(id)};
+tempElement('example-cache').textContent=JSON.stringify(frozen);
+const tempWindow={QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){tempEvents[k]=v},setInterval(fn){tick=fn},confirm:()=>true};
+vm.runInNewContext(source,{URL,window:tempWindow,document:{getElementById:tempElement},fetch:(url,options)=>new Promise(resolve=>tempRequests.push({url,body:options?.body?JSON.parse(options.body):null,resolve}))});
+const now=Date.now(),own=item('record:mine',{label:'临时测试 EDF',temporary:true,retention:{phase:'idle',expires_at:new Date(now+1800000).toISOString(),server_now:new Date(now).toISOString()},recent_reports:[{...aRun,temporary:true}]});
+tempRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[own,item('record:public')],examples:frozen.examples,examples_authoritative:true})});await flush();
+let temporaryHtml=tempElement('data-library-list').innerHTML;
+assert.match(temporaryHtml,/library-expiry/);assert.match(temporaryHtml,/30分钟后清理/);assert.match(temporaryHtml,/仅本浏览器可见/);
+assert.match(temporaryHtml,/data-library-action="delete-temporary" data-id="record:mine"/);
+assert.match(temporaryHtml,/data-library-action="delete-temporary" data-id="report:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/);
+assert(!temporaryHtml.includes('data-id="record:public"'));assert(!temporaryHtml.includes('data-library-action="archive"'));
+tempElement('data-library-list').events.click({preventDefault(){},target:{closest:()=>({dataset:{libraryAction:'delete-temporary',id:'report:'+aRun.job_id}})}});
+let deletion=tempRequests.shift();assert.equal(deletion.url,'/api/v1/data/delete-temporary');assert.equal(deletion.body.confirmed,true);assert(!('password' in deletion.body));
+deletion.resolve({ok:true,json:async()=>({status:'cleared'})});await flush();
+// An authoritative empty example catalog must remove previously cached cards.
+tempRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[],examples:[],examples_authoritative:true})});await flush();
+assert.equal(tempElement('demo-reports').hidden,true);
+assert.match(tempElement('data-library-message').textContent,/已删除/);
+console.log('Temporary data: server countdown, owned report deletion without password, protected public rows and withdrawn cached examples passed.');

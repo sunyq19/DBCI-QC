@@ -11,8 +11,8 @@
     box.replaceChildren();
     const text = document.createElement('span');
     text.textContent = active
-      ? t('本次上传仅当前浏览器可见。完成后 1 小时清理，请及时下载报告。', 'This upload is private to this browser. Download the report within 1 hour of completion.')
-      : t('上传仅作临时检查，不加入“我的数据”。', 'Uploads are temporary and are not added to My Data.');
+      ? t('临时上传已加入“我的数据”，仅本浏览器可见。到期前请下载报告。', 'Temporary uploads appear in My Data, only in this browser. Download reports before expiry.')
+      : t('上传后将在“我的数据”显示，仅本浏览器可见，到期自动清理。', 'Uploads appear in My Data, only in this browser, and are cleared automatically on expiry.');
     box.append(text);
     if (!active) return;
     const button = document.createElement('button');

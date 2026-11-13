@@ -47,8 +47,13 @@ def test_upload_private_even_if_bytes_match_other_browser(service):
     first, a = upload(call)
     second, b = upload(call, 1)
     assert a['retention']['state'] == 'temporary'
-    assert call('/api/v1/data')['items'] == []
-    assert call('/api/v1/data', client=1)['items'] == []
+    mine = call('/api/v1/data')['items']
+    other = call('/api/v1/data', client=1)['items']
+    assert [row['id'] for row in mine] == ['record:'+a['id']]
+    assert [row['id'] for row in other] == ['record:'+b['id']]
+    assert mine[0]['temporary'] and mine[0]['retention']['expires_at']
+    assert first['id'] not in json.dumps(other)
+    assert second['id'] not in json.dumps(mine)
     assert [i['id'] for i in call('/api/v1/inputs')['inputs']] == [a['id']]
     assert [i['id'] for i in call('/api/v1/inputs', client=1)['inputs']] == [b['id']]
     assert call('/api/v1/inputs/'+a['id']+'/configuration')['input']['id'] == a['id']
@@ -110,7 +115,7 @@ def test_hard_expiry_cancels_queued_work_before_cleanup(service):
     assert private.jobs[jobid]['status'] == 'cancelled'
     assert directory.exists()
     with pytest.raises(HTTPError) as exc: call('/api/v1/inputs/'+record['id'])
-    assert exc.value.code == 403
+    assert exc.value.code in {403, 404}  # Expired work may already have been physically removed.
     server.temporary.sweep()
     assert not directory.exists() and not private.inputs
 
@@ -185,3 +190,76 @@ def test_existing_unknown_records_and_jobs_are_not_published(tmp_path):
     approved = Store({**settings,'data_policy':POLICY,'public_records':{item['id']:declared}})
     assert approved.inputs[item['id']]['public_source'] == {**declared,'version':''}
     assert 'c'*32 in approved.jobs
+
+
+def add_job(service, record, digit, status='completed'):
+    private = service[0].temporary.store
+    jobid = digit*32
+    folder = private.root/'jobs'/jobid/'artifacts'; folder.mkdir(parents=True)
+    (folder/'report.html').write_text('private report')
+    private.jobs[jobid] = {'id':jobid,'input_id':record['id'],'status':status,'modules':[],
+                           'created_at':'2026-11-13T01:00:00Z'}
+    return jobid
+
+
+def test_pending_confirmed_and_reports_visible_only_to_owner(service):
+    server, call, _ = service
+    pending = call('/api/v1/intakes', recording(), upload=True)
+    assert [r['id'] for r in call('/api/v1/data')['items']] == ['intake:'+pending['id']]
+    assert call('/api/v1/data', client=1)['items'] == []
+    record = call('/api/v1/intakes/'+pending['id']+'/confirm', confirmation())['input']
+    job = add_job(service, record, '1')
+    rows = call('/api/v1/data')['items']
+    assert len(rows) == 1 and rows[0]['id'] == 'record:'+record['id']
+    assert rows[0]['recent_reports'][0]['job_id'] == job
+    assert rows[0]['workflow_groups'][0]['latest']['temporary']
+    assert call('/api/v1/data', client=1)['items'] == []
+
+
+def test_own_report_delete_keeps_upload_other_report_and_deadline(service):
+    server, call, clock = service
+    intake, record = upload(call)
+    first, second = add_job(service, record, '1'), add_job(service, record, '2')
+    deadline = call('/api/v1/temporary-session')['retention']['expires_at']
+    clock[0] += 500
+    call('/api/v1/data/delete-temporary', {'id':'report:'+first, 'confirmed':True})
+    private = server.temporary.store
+    assert first not in private.jobs and second in private.jobs
+    assert record['id'] in private.inputs and private.intakes._directory(intake['id']).exists()
+    assert not (private.root/'jobs'/first).exists()
+    assert call('/api/v1/temporary-session')['retention']['expires_at'] == deadline
+    call('/api/v1/data/delete-temporary', {'id':'report:'+second, 'confirmed':True})
+    assert call('/api/v1/temporary-session')['retention']['expires_at'] == deadline
+
+
+def test_delete_owned_data_cancels_active_runs_without_deleting_same_bytes_for_other_browser(service):
+    server, call, _ = service
+    intake, a = upload(call); other, b = upload(call, 1)
+    job = add_job(service, a, '1', 'queued')
+    with pytest.raises(HTTPError) as e:
+        call('/api/v1/data/delete-temporary', {'id':'record:'+a['id'],'confirmed':True}, client=1)
+    assert e.value.code == 403
+    with pytest.raises(HTTPError) as e:
+        call('/api/v1/data/delete-temporary', {'id':'report:'+job,'confirmed':True}, client=1)
+    assert e.value.code == 403
+    result = call('/api/v1/data/delete-temporary', {'id':'record:'+a['id'],'confirmed':True})
+    assert result['cleanup_pending']
+    server.temporary.sweep()
+    assert not server.temporary.store.intakes._directory(intake['id']).exists()
+    assert server.temporary.store.intakes._directory(other['id']).exists()
+    assert b['id'] in server.temporary.store.inputs
+    assert call('/api/v1/data')['items'] == []
+
+
+def test_idle_countdown_does_not_restart_on_poll_or_read(service):
+    server, call, clock = service
+    _, record = upload(call)
+    first = call('/api/v1/data')['items'][0]['retention']
+    clock[0] += 300
+    call('/api/v1/inputs/'+record['id'])
+    current = call('/api/v1/data')['items'][0]['retention']
+    assert current['expires_at'] == first['expires_at']
+    assert current['server_now'] != first['server_now']
+    clock[0] += IDLE_SECONDS
+    assert call('/api/v1/data')['items'] == []
+    assert not call('/api/v1/temporary-session')['active']

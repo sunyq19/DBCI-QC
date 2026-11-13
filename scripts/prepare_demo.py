@@ -37,6 +37,7 @@ def prepare(origin, data_dir, output, user, port, python, reserve=10, *,
     if port == public_port:
         raise ValueError('The QC backend port must differ from the public proxy port')
     if with_flow:
+        settings['admin_auth_url'] = f'http://127.0.0.1:{flow_port}/api/access'
         if not node or not 1024 <= flow_port <= 65535 or flow_port in {port, public_port}:
             raise ValueError('Provide a Node 24 executable and a separate flow backend port')
         node = safe_path(node)

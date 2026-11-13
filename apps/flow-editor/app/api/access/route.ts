@@ -1,6 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {AppError} from '../../../lib/repository';
-import {editorFor,allowedOrigin,json,preflight,accessFailure,unlockEditing,lockEditing} from '../../../lib/access';
+import {editorFor,allowedOrigin,json,preflight,accessFailure,unlockEditing,lockEditing,verifyEditingPassword} from '../../../lib/access';
 export const dynamic='force-dynamic';
 export const OPTIONS=preflight;
 const db=()=>{if(!env.DB)throw new AppError('存储服务暂时不可用',503);return env.DB;};
@@ -11,6 +11,7 @@ export async function POST(request:Request){try{
  if(!request.headers.get('content-type')?.startsWith('application/json'))throw new AppError('请求格式不正确');
  const raw=await request.text();if(raw.length>2000)throw new AppError('请求过长');const body=JSON.parse(raw);
  if(body.action==='unlock')return json(request,await unlockEditing(request,db(),verifier(),body.password,body.label));
+ if(body.action==='verify'){await verifyEditingPassword(request,db(),verifier(),body.password);return json(request,{verified:true});}
  if(body.action==='lock')return json(request,await lockEditing(request,db()));
  throw new AppError('不支持的操作');
 }catch(e){return accessFailure(request,e);}}
