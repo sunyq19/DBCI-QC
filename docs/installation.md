@@ -37,12 +37,12 @@ python3.11 scripts/setup_local.py --port 8770 --data-dir /path/to/DBCI-QC-data
 
 ## 更新已有安装
 
-等待当前任务结束，按 `Ctrl+C` 停止服务，然后在仓库目录运行：
+等待当前任务结束，用 `python3 scripts/run_local.py --stop` 停止后台服务（前台启动则按 `Ctrl+C`），然后在仓库目录运行：
 
 ```bash
 git pull --ff-only
 python3.11 scripts/setup_local.py
-.venv/bin/python apps/workbench/server.py --config .local/workbench.json
+python3 scripts/run_local.py
 ```
 
 刷新网页。安装脚本保留配置、数据和历史结果；如有本地代码修改导致 Git 拒绝更新，先保存并整理自己的修改，不要强制重置。
@@ -62,15 +62,23 @@ python3.11 scripts/setup_local.py
 
 `requirements/workbench.txt` 固定主要依赖和 BrainElecQC 提交，不是所有间接依赖的完整锁文件。研究扩展单独安装，见[扩展方法](optional-methods-runtime.md)。Windows、macOS 暂不作为已验证环境。
 
-## 后台启动（Linux，可选）
+## 固定环境启动（Linux）
 
 ```bash
-.venv/bin/python scripts/run_local.py --open
-.venv/bin/python scripts/run_local.py --status
-.venv/bin/python scripts/run_local.py --stop
+python3 scripts/run_local.py --open
+python3 scripts/run_local.py --status
+python3 scripts/run_local.py --stop
 ```
 
 这三个命令分别用于启动、查看状态、停止本启动器管理的服务。不要和前台启动方式同时占用一个端口。后台日志保存在配置的 `data_dir/server.log`。
+
+启动器固定使用仓库 `.venv/bin/python`，无需先激活 Conda；不会因终端换环境而改用系统 Python。启动前同时检查网页服务和计算进程的 Python 3.11、主要依赖版本及实际导入。缺依赖时拒绝启动，错误写入上述日志。也可单独检查：
+
+```bash
+.venv/bin/python src/ephys_qc/runtime_environment.py --config .local/workbench.json
+```
+
+配置中的 `python` 必须保留 `.venv/bin/python` 路径，不要将符号链接转换为底层系统 Python。移动整个仓库后须重新创建环境并调整配置路径，不能直接复制其他机器的 `.venv`。本机启动器不安装开机自启；重启电脑后运行启动命令即可。需要自动恢复的服务器按[一站部署](deployment/demo.md)使用 systemd 或 Docker。
 
 ## 模块独立调用
 

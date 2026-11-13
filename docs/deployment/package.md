@@ -86,6 +86,14 @@ sh deploy.sh          # 启动或重新构建
 
 如需在同一机器运行多个独立演示，设置不同的 `COMPOSE_PROJECT_NAME`、对外端口和 `PUBLIC_ORIGIN`；其持久卷也会分别建立。
 
+构建时执行依赖一致性检查与实际导入测试，服务启动时再次检查 Python 和基础依赖；失败的服务不会被网关判为就绪。升级须重新构建镜像，不能只在旧容器里替换代码。独立检查运行环境：
+
+```bash
+docker compose exec qc python /app/src/ephys_qc/runtime_environment.py --config /data/workbench.json
+```
+
+GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传、检查、报告、PDF 和协作入口。灵犀云的独立 Python 3.12、Octave/FieldTrip 等扩展仍需额外配置，不会被基础依赖检查误报为已安装。
+
 ## 5. 包含范围
 
 - 单记录及配套文件合计最多 **2 GiB**；已登记数据集总量最多 **10 GiB**。网页整库上传尚未提供。

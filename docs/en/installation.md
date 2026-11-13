@@ -37,12 +37,12 @@ Changing `data_dir` does not move old data. See the [minimal configuration](../.
 
 ## Update
 
-Let active jobs finish and stop the server with `Ctrl+C`. From the repository:
+Let active jobs finish and stop with `python3 scripts/run_local.py --stop` (or `Ctrl+C` for a foreground server). From the repository:
 
 ```bash
 git pull --ff-only
 python3.11 scripts/setup_local.py
-.venv/bin/python apps/workbench/server.py --config .local/workbench.json
+python3 scripts/run_local.py
 ```
 
 Refresh the browser. Setup preserves configuration and data. If Git refuses to update because of local edits, save and reconcile them rather than forcing a reset.
@@ -62,15 +62,23 @@ If an older configuration uses another Python, setup prints a notice. Point its 
 
 `requirements/workbench.txt` pins top-level dependencies and a BrainElecQC commit; it is not a full transitive lock. [Research extensions](../optional-methods-runtime.md) require separate setup. Windows and macOS are not verified environments.
 
-## Background launcher (Linux, optional)
+## Fixed-environment launcher (Linux)
 
 ```bash
-.venv/bin/python scripts/run_local.py --open
-.venv/bin/python scripts/run_local.py --status
-.venv/bin/python scripts/run_local.py --stop
+python3 scripts/run_local.py --open
+python3 scripts/run_local.py --status
+python3 scripts/run_local.py --stop
 ```
 
 These start, inspect and stop the service managed by this launcher. Avoid launching a foreground server on the same port. Logs are at `data_dir/server.log`.
+
+The launcher always selects the repository `.venv/bin/python`, regardless of the active Conda environment. Startup checks Python 3.11, pinned baseline versions and actual imports in both the web service and the configured worker. Missing dependencies prevent startup with an actionable log message. Check without starting:
+
+```bash
+.venv/bin/python src/ephys_qc/runtime_environment.py --config .local/workbench.json
+```
+
+Preserve the venv interpreter path; resolving its symlink selects the base interpreter instead. Recreate the environment after moving the repository; do not copy another machine's `.venv`. The local launcher does not install a boot service. Run it after reboot, or use the server's systemd/Docker deployment for automatic recovery.
 
 ## Headless toolkit
 

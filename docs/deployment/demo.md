@@ -90,12 +90,13 @@ python3 scripts/demo_sample.py --output ./demo-sample
 ## 5. 验收
 
 ```bash
+.venv/bin/python src/ephys_qc/runtime_environment.py --config .local/demo/workbench.json
 .venv/bin/python scripts/validate_demo.py --output /tmp/dbci-demo-check
 cd apps/flow-editor
 node --test tests/self-host.test.mjs
 ```
 
-第一项在隔离目录核验示例、实际上传、推荐、计算、报告、PDF、波形及跨浏览器隔离、结束清理、异常重启清理；第二项核验协作的本地/HTTPS 代理来源、编辑、附件、固定版本与重启保留。两者不修改线上数据。目标服务器还应实际打开网页，检查两页跳转、示例波形、上传运行和协作保存，并记录耗时与峰值内存。
+先核验网页与计算进程的环境；随后在隔离目录核验示例、实际上传、推荐、计算、报告、PDF、波形及跨浏览器隔离、结束清理、异常重启清理；协作测试核验本地/HTTPS 代理来源、编辑、附件、固定版本与重启保留。上述检查不修改线上数据。目标服务器还应实际打开网页，检查两页跳转、示例波形、上传运行和协作保存，并记录耗时与峰值内存。
 
 ## 6. 更新和从 012 迁移
 

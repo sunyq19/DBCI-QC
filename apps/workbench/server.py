@@ -1056,6 +1056,12 @@ def main():
         settings['admission_policy'] = args.admission_policy
     if not Path(settings['python']).is_file():
         raise SystemExit('请在本机配置中填写已安装 BrainElecQC 的 Python 路径。')
+    from ephys_qc.runtime_environment import validate_runtime
+    try:
+        environments = validate_runtime(settings['python'])
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
+    print('Runtime OK: ' + ', '.join(item['python'] for item in environments), flush=True)
     # Bind first: a duplicate launch must not mark a live process's jobs interrupted.
     server = ThreadingHTTPServer((args.host, args.port or settings.get('port', 8769)), Handler)
     server.daemon_threads = True

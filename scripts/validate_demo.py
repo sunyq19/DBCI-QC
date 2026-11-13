@@ -184,6 +184,12 @@ def main():
             except HTTPError as error: assert error.code == 403
         mine = call('/api/v1/data')['items']
         assert len(mine) == 1 and mine[0]['id'] == 'record:'+record['id'] and mine[0]['temporary']
+        # Detector completion precedes background chart preparation. The
+        # retention clock intentionally starts after both have finished.
+        deadline = time.monotonic() + 120
+        while mine[0]['retention']['phase'] == 'running' and time.monotonic() < deadline:
+            time.sleep(.5)
+            mine = call('/api/v1/data')['items']
         assert mine[0]['retention']['phase'] == 'results'
         assert mine[0]['workflow_groups'][0]['latest']['job_id'] == identifier
         checks['own_upload_and_report_visible_with_expiry'] = True

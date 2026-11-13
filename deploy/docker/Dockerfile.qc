@@ -11,6 +11,8 @@ COPY requirements/workbench.txt /tmp/workbench.txt
 RUN pip install --no-cache-dir -r /tmp/workbench.txt && pip check
 COPY . /app
 RUN pip install --no-cache-dir --no-deps . && \
+    pip check && \
+    python /app/src/ephys_qc/runtime_environment.py && \
     useradd --uid 10001 --create-home dbciqc && \
     mkdir -p /data && chown -R 10001:10001 /data && \
     pip freeze > /app/deploy/docker/installed-requirements.txt

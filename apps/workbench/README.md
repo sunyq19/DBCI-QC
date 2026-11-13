@@ -6,7 +6,7 @@
 
 新安装按[仓库快速开始](../../README.md#快速开始)执行 `python3.11 scripts/setup_local.py`，自动安装依赖并生成 `.local/workbench.json`。默认运行目录为 `.local/runtime/`，也可[指定仓库外目录](../../docs/installation.md)。已有配置不会覆盖。最小配置不预登记数据，可直接提交本机文件；`.local/` 由 Git 忽略，克隆仓库不会包含已有配置、样例文件或运行结果。
 
-配置完成后，在仓库目录运行 `python3 scripts/run_local.py`。加 `--open` 可以在系统浏览器中打开；`--status` 检查服务，`--stop` 停止本启动器记录的服务进程。停止功能使用 Linux 进程信息；其他系统尚未完成同等验收。
+配置完成后，在仓库目录运行 `python3 scripts/run_local.py`。启动器固定使用项目 `.venv`，并在接受上传前检查网页和计算进程的依赖。加 `--open` 可以在系统浏览器中打开；`--status` 检查服务，`--stop` 停止本启动器记录的服务进程。停止功能使用 Linux 进程信息；其他系统尚未完成同等验收。
 
 [workbench.example.json](workbench.example.json) 是可选的完整登记模板，包含5个数据集、11份记录的选道、默认窗口和来源指纹；使用前须另行准备数据并替换全部路径占位。执行环境须单独安装 BrainElecQC、MNE、autoreject 及所需依赖；[环境版本快照](../../profiles/tested-environment.json) 记录已测版本，不是完整依赖锁。第三方代码和数据的许可边界见[第三方声明](../../THIRD_PARTY_NOTICES.md)。
 

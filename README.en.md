@@ -40,7 +40,7 @@ Setup creates `.venv`, installs scientific and PDF dependencies, and generates `
 ### 2. Start
 
 ```bash
-.venv/bin/python apps/workbench/server.py --config .local/workbench.json
+python3 scripts/run_local.py
 ```
 
 ### 3. Open
@@ -51,7 +51,7 @@ Visit **[http://127.0.0.1:8769/](http://127.0.0.1:8769/)**.
 Upload → Confirm metadata → Review recommendation → Run → View report / Download PDF
 ```
 
-Keep the terminal open; stop with `Ctrl+C`. Subsequent launches only need step 2. Upload copies, jobs and reports default to `.local/runtime/`, excluded from Git. Original files remain unchanged. The server binds to localhost only.
+The launcher always uses the repository `.venv` and runs in the background. After a reboot, repeat step 2. Stop with `python3 scripts/run_local.py --stop`. Upload copies, jobs and reports default to `.local/runtime/`, excluded from Git. Original files remain unchanged. The server binds to localhost only.
 
 For custom directories, ports and upgrades, see the [installation guide](docs/en/installation.md).
 

@@ -45,6 +45,7 @@ def setup(repo, data_dir, port):
         raise RuntimeError('.venv exists but is not a virtual environment; it was not changed.')
     env = dict(os.environ)
     env.pop('PYTHONPATH', None)
+    env.pop('PYTHONHOME', None)
     env['PYTHONNOUSERSITE'] = '1'
     if not python.is_file():
         subprocess.run([sys.executable, '-m', 'venv', str(venv)], check=True, env=env)
@@ -54,8 +55,7 @@ def setup(repo, data_dir, port):
     subprocess.run([str(python), '-m', 'pip', 'install', '-e', str(repo) + '[reports]',
                     '-r', str(repo / 'requirements/workbench.txt')], check=True, env=env)
     subprocess.run([str(python), '-m', 'pip', 'check'], check=True, env=env)
-    subprocess.run([str(python), '-c',
-                    'import ephys_qc, brainelecqc, mne, autoreject, pymatreader, h5io, pynwb, h5py, reportlab'],
+    subprocess.run([str(python), str(repo / 'src/ephys_qc/runtime_environment.py')],
                    check=True, env=env)
     target, created = write_config(repo, python, data_dir, port)
     print('\nSetup complete. ' + ('Created: ' if created else 'Preserved existing config: ') + str(target))
@@ -64,8 +64,7 @@ def setup(repo, data_dir, port):
         print('Existing config uses another Python. Set its python field to ' + str(python) +
               ' to use the environment installed above; data paths and history were preserved.')
     print('Start from the repository directory:')
-    executable = '.venv/Scripts/python.exe' if os.name == 'nt' else '.venv/bin/python'
-    print(f'  {executable} apps/workbench/server.py --config .local/workbench.json')
+    print('  python scripts/run_local.py' if os.name == 'nt' else '  python3 scripts/run_local.py')
     print(f'Open: http://127.0.0.1:{settings.get("port", 8769)}/')
     return target
 

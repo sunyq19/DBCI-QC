@@ -2,9 +2,9 @@ name: Demo deployment bundle
 on:
   push:
     branches: [main]
-    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/workbench.txt', '.github/workflows/demo-package.yml']
+    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/**', 'pyproject.toml', 'src/**', 'apps/workbench/**', 'apps/flow-editor/**', 'scripts/**', '.github/workflows/demo-package.yml']
   pull_request:
-    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/workbench.txt', '.github/workflows/demo-package.yml']
+    paths: ['compose.yaml', 'deploy.sh', 'deploy/**', 'requirements/**', 'pyproject.toml', 'src/**', 'apps/workbench/**', 'apps/flow-editor/**', 'scripts/**', '.github/workflows/demo-package.yml']
   workflow_dispatch:
 permissions:
   contents: read

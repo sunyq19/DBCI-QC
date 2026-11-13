@@ -61,6 +61,7 @@ ExecStart={python} {repo}/apps/workbench/server.py --config {config}
 Environment=PYTHONNOUSERSITE=1 MPLBACKEND=Agg OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONPATH=
+UnsetEnvironment=PYTHONHOME PYTHONPATH
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30

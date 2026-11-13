@@ -11,6 +11,16 @@ import urllib.request
 
 REPO = Path(__file__).resolve().parents[1]
 SERVICE = 'ephys-qc-modular-workbench'
+sys.path.insert(0, str(REPO / 'src'))
+from ephys_qc.runtime_environment import isolated_environment
+
+
+def server_command(repo, config_path):
+    # Preserve the venv entry point even when the launcher uses system Python.
+    python = repo / '.venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+    if not python.is_file() or not (repo / '.venv/pyvenv.cfg').is_file():
+        raise RuntimeError('请先安装项目环境：python3.11 scripts/setup_local.py')
+    return [str(python.absolute()), str(repo / 'apps/workbench/server.py'), '--config', str(config_path)]
 
 
 def health(url):
@@ -22,7 +32,7 @@ def health(url):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='启动本机 EEG 模块化质控工作台')
+    parser = argparse.ArgumentParser(description='使用项目环境启动质控台')
     parser.add_argument('--config', type=Path, default=REPO / '.local/workbench.json')
     parser.add_argument('--stop', action='store_true')
     parser.add_argument('--status', action='store_true')
@@ -48,21 +58,36 @@ def main():
         if str(REPO / 'apps/workbench/server.py').encode() not in command or str(config_path).encode() not in command:
             raise SystemExit('进程不属于本工作台，未执行停止。')
         os.kill(pid, signal.SIGTERM)
-        print('已请求停止本工作台。')
-        return
+        for _ in range(120):
+            process = Path(f'/proc/{pid}/stat')
+            try:
+                stopped = process.read_text().rsplit(')', 1)[1].split()[0] == 'Z'
+            except FileNotFoundError:
+                stopped = True
+            if stopped:
+                pidfile.unlink(missing_ok=True)
+                print('工作台已停止。')
+                return
+            time.sleep(.25)
+        raise SystemExit('服务正在清理任务，请稍后检查状态。未强行终止。')
     ready = health(url)
     if args.status:
         print(('运行中：' if ready else '未运行：') + url)
         return
     if not ready:
+        try:
+            command = server_command(REPO, config_path)
+        except RuntimeError as exc:
+            raise SystemExit(str(exc)) from exc
         with (runtime / 'server.log').open('a', encoding='utf-8') as log:
-            p = subprocess.Popen([settings['python'], str(REPO / 'apps/workbench/server.py'), '--config', str(config_path)],
-                                 cwd=REPO, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            p = subprocess.Popen(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT,
+                                 start_new_session=True, env=isolated_environment())
         pidfile.write_text(str(p.pid))
-        for _ in range(60):
+        for _ in range(480):
             if health(url):
                 break
             if p.poll() is not None:
+                pidfile.unlink(missing_ok=True)
                 raise SystemExit('启动失败，请查看 ' + str(runtime / 'server.log'))
             time.sleep(0.25)
         else:
