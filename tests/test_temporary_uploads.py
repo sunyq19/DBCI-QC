@@ -263,3 +263,23 @@ def test_idle_countdown_does_not_restart_on_poll_or_read(service):
     clock[0] += IDLE_SECONDS
     assert call('/api/v1/data')['items'] == []
     assert not call('/api/v1/temporary-session')['active']
+
+
+def test_my_data_starts_empty_with_preloaded_public_catalog(service):
+    server, call, _ = service
+    public = server.store
+    intake = public.intakes.receive('public.edf', len(recording()), io.BytesIO(recording()))
+    public.settings['public_records'] = {'local-'+intake['id']:
+        {'name':'Public fixture', 'url':'https://example.org/data', 'license':'CC0'}}
+    registered = public.confirm_intake(intake['id'], confirmation())['input']
+    for client in (0, 1):
+        directory = call('/api/v1/data', client=client)
+        assert directory['items'] == []
+        assert directory['counts'] == {'records':0, 'datasets':0}
+        assert len(directory['examples']) == 4
+    _, own = upload(call)
+    assert [r['id'] for r in call('/api/v1/data')['items']] == ['record:'+own['id']]
+    assert call('/api/v1/data', client=1)['items'] == []
+    # The public source remains available for cached examples and direct report access.
+    assert registered['id'] in public.inputs
+    assert public.intakes._directory(intake['id']).exists()

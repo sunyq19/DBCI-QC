@@ -718,13 +718,18 @@ class Handler(BaseHTTPRequestHandler):
         if dispatch_visualizations(self, path):
             return
         if path == '/api/v1/data':
-            from data_library import library
-            state = getattr(self.store, 'library_state', None)
-            with state.locked() if state else nullcontext():
-                result = library(self.store)
             if self.temporary:
-                result['items'] = self.temporary.library(self) + result['items']
-                result['counts']['records'] = sum(r['kind'] == 'record' for r in result['items'])
+                from example_cache import manifest
+                rows = self.temporary.library(self)
+                result = {'schema_version': 'data-library/1', 'public_only': True,
+                          'items': rows, 'examples': manifest(self.store)['examples'],
+                          'counts': {'records': sum(r['kind'] == 'record' for r in rows),
+                                     'datasets': sum(r['kind'] == 'dataset' for r in rows)}}
+            else:
+                from data_library import library
+                state = getattr(self.store, 'library_state', None)
+                with state.locked() if state else nullcontext():
+                    result = library(self.store)
             result['examples_authoritative'] = True
             return self.json(result)
         overview_match = re.fullmatch(r'/api/v1/packages/([a-zA-Z0-9_-]+)/overview(?:/(report))?', path)
