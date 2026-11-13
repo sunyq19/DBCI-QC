@@ -86,7 +86,7 @@ def homepage(template, settings):
     if private:
         template = template.replace('<html lang="zh-CN"', '<html lang="zh-CN" data-upload-policy="temporary"', 1)
         template = template.replace('上传文件保留 7 天，报告长期保留。', '文件与报告仅临时处理。完成后保留 1 小时供查看、下载；最长 6 小时自动清理。')
-        template = template.replace('<div id="upload-run-name-field"', '<aside id="temporary-session" class="temporary-session" hidden></aside><div id="upload-run-name-field"', 1)
+        template = template.replace('<p id="data-library-error"', '<aside id="temporary-session" class="temporary-session" hidden data-i18n-skip></aside><p id="data-library-error"', 1)
         template = template.replace('</head>', '<script src="/temporary-session.js" defer></script></head>', 1)
     if deployment(settings)['mode'] != 'shared_demo':
         return template

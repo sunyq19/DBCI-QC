@@ -631,12 +631,6 @@ class Handler(BaseHTTPRequestHandler):
         check_request(settings, self.server.server_port, self.headers)
 
     def send_bytes(self, data, mime='application/json; charset=utf-8', code=200, headers=None):
-        if (getattr(self, 'temporary_token', None) and mime.startswith('text/html')
-                and re.fullmatch(r'/api/v1/jobs/[a-f0-9]{32}/report|/comparisons', urlsplit(self.path).path)):
-            # A served-page control only; downloaded reports remain standalone.
-            if not (headers or {}).get('Content-Disposition', '').startswith('attachment'):
-                notice = '<aside id="temporary-session" class="temporary-session"></aside><script src="/temporary-session.js" defer></script>'
-                data = insert_report_navigation(data.decode('utf-8'), notice).encode('utf-8')
         self.send_response(code)
         if getattr(self, 'temporary_cookie', None):
             self.send_header('Set-Cookie', self.temporary_cookie)

@@ -2,23 +2,24 @@
   'use strict';
   const box = document.getElementById('temporary-session');
   if (!box) return;
+  // Also relocate markup served by an older process, without restarting it
+  // and discarding an in-progress temporary upload or report.
+  const anchor = document.getElementById('data-library-error');
+  if (!anchor) {box.remove(); return;}
+  anchor.before(box);
   const en = () => document.documentElement.lang.startsWith('en') || new URLSearchParams(location.search).get('lang') === 'en';
   const t = (zh, english) => en() ? english : zh;
   let active = false, finishing = false;
   function render() {
-    box.hidden = false;
-    box.style.cssText = 'margin:12px 0;padding:12px 16px;border-left:3px solid #2563eb;background:#f3f7fc;font:14px/1.6 system-ui;color:#334155';
+    box.hidden = !active;
     box.replaceChildren();
-    const text = document.createElement('span');
-    text.textContent = active
-      ? t('临时上传已加入“我的数据”，仅本浏览器可见。到期前请下载报告。', 'Temporary uploads appear in My Data, only in this browser. Download reports before expiry.')
-      : t('上传后将在“我的数据”显示，仅本浏览器可见，到期自动清理。', 'Uploads appear in My Data, only in this browser, and are cleared automatically on expiry.');
-    box.append(text);
     if (!active) return;
+    const text = document.createElement('span');
+    text.textContent = t('仅本浏览器可见，请在到期前下载报告。', 'Only visible in this browser. Download reports before expiry.');
+    box.append(text);
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'text-button';
-    button.style.cssText = 'margin-left:12px;color:#1d4ed8;cursor:pointer';
-    button.textContent = t('结束并清理', 'Finish and clear'); button.disabled = finishing;
+    button.textContent = t('清理本次上传', 'Clear session'); button.disabled = finishing;
     button.addEventListener('click', async () => {
       if (!confirm(t('清理当前浏览器本次会话的全部上传、报告和运行记录？请先下载需要保留的报告。', 'Clear all uploads, reports and run records in this browser session? Download any reports you need first.'))) return;
       finishing = true; render();
@@ -39,8 +40,7 @@
       const response = await fetch('/api/v1/temporary-session', {cache:'no-store'});
       if (!response.ok) return;
       const data = await response.json();
-      if (!data.policy) {box.hidden = true; return;}
-      active = data.active; render();
+      active = Boolean(data.policy && data.active); render();
     } catch { /* The workbench connection status handles service outages. */ }
   }
   window.addEventListener('qc:temporary', refresh);
