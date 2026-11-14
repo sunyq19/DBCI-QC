@@ -94,23 +94,13 @@ def methods(modality='scalp_eeg'):
         spec = dict(extension)
         spec.update(optional_extension=True, implementation='available', category='optional')
         rows.append(spec)
-    rows.extend([
-        _method('pyprep_ransac', 'PyPREP空间预测 / RANSAC', 'M05', 'optional', '比较实际信号与其他电极空间预测的一致性。',
-                ['已核实电极坐标', '足够多的可用EEG通道', '可比较参考与采集条件'], ['空间坏道候选'],
-                source={'name': 'PyPREP', 'url': 'https://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html', 'license': 'MIT'}, implementation='planned',
-                limitations=['尚未接入；安装了库不代表平台已具备该功能。', '不凭通道名称自动补坐标；需真实数据验收。']),
-        _method('autoreject_epochs', 'local AutoReject试次质量估计', 'M03', 'optional', '在分段数据中估计局部通道阈值和试次建议；与已接入的全局阈值方法不同。',
-                ['足够的试次/窗口', '明确分段规则', 'local AutoReject拟合需已核实电极坐标'], ['坏试次与通道建议'],
-                source={'name': 'autoreject', 'url': 'https://autoreject.github.io/stable/index.html', 'license': 'BSD-3-Clause'}, implementation='planned',
-                limitations=['尚未接入；有任务事件不等于已有足够且可比的试次。', '后续接入只提取评估结果，不默认删除或插值。']),
-        _method('ica_iclabel', 'ICA成分 / ICLabel', 'M06', 'optional', '对独立成分分类，辅助人工判断来源。',
-                ['足够数据和可用EEG通道', '已核对的坐标、秩、参考与滤波处理', '满足模型训练条件的ICA分解'], ['成分类别与概率'],
-                source={'name': 'MNE-ICALabel', 'url': 'https://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html', 'license': 'BSD-3-Clause'}, implementation='planned',
-                limitations=['尚未接入；平均参考、1–100Hz和extended-infomax等训练条件需要单独核对。', '分类概率不是质量分，不自动移除成分。']),
-    ])
     from .method_descriptions import enrich_method
     from .research_methods import research_methods
     candidates = [_classification(row, modality) for row in research_methods(modality)]
+    from .format_validation import nwb_spec
+    candidates += [_classification(nwb_spec(), modality)]
+    from .advanced_methods import extension_specs as advanced_specs
+    candidates += [_classification(row, modality) for row in advanced_specs() if modality in row['research_modalities']]
     from .ieeg_methods import extension_specs as ieeg_specs
     candidates += [_classification(row, modality) for row in ieeg_specs() if modality in row['research_modalities']]
     from .voltage_methods import extension_specs as voltage_specs

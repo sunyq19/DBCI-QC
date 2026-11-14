@@ -65,6 +65,7 @@
   }
   function optionalModules() { return moduleOrder().filter(id => !fixedModules().includes(id)); }
   function selectableModule(id) { const module = arr(state.catalog?.modules).find(item => item.id === id); return Boolean(module) && module.selectable !== false; }
+  function editableMethodModule(id) { return optionalModules().includes(id) || id === "M01"; }
   function defaultSelectedModules() {
     const defaults = state.catalog?.workflow?.default_selected_modules;
     return (Array.isArray(defaults) ? defaults : optionalModules()).filter(id => optionalModules().includes(id) && selectableModule(id));
@@ -169,6 +170,7 @@
     return available.filter(m=>Array.isArray(configured)?configured.includes(m.id):state.selected.has(m.module_id)).map(m=>m.id);
   }
   function isMethodSelected(method) {
+    if (method.module_id === "M01" && !method.optional_extension) return true;
     return method.optional_extension ? state.extensions.has(method.id) : selectedCoreMethods().includes(method.id);
   }
   function deriveSelectedModules() {
@@ -535,7 +537,7 @@
 
   function setExtension(id, checked) {
     const method = extensionMethods().find(item => item.id === id);
-    if (!method || !state.input || state.mode !== "draft" || state.filePending || state.submitting || !selectableModule(method.module_id) || unsupportedInput()) return;
+    if (!method || !state.input || state.mode !== "draft" || state.filePending || state.submitting || (method.module_id !== "M01" && !selectableModule(method.module_id)) || unsupportedInput()) return;
     state.draftConfig=currentConfig();
     if (checked) { state.extensions.add(id); }
     else { state.extensions.delete(id); if(state.draftConfig?.scoring) for(const spec of scoringOutputs()) if(spec.method_id===id) state.draftConfig.scoring.weights[spec.id]=0; }
@@ -1246,7 +1248,7 @@
     const can=methodRows.filter(m=>["ready","partial"].includes(m.status)).length, missing=methodRows.filter(m=>m.status==="blocked").length;
     const availability=methodRows.length ? `${can} 项可检查${missing?` · ${missing} 项缺条件`:''}` : '';
     const stateLabel=status==="partial" ? (state.mode==="job"?"已完成部分检查":"部分项目可用") : STATUS[status]||status;
-    const editable = state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() && optionalModules().includes(id) && selectableModule(id);
+    const editable = state.mode === "draft" && state.input && !state.filePending && !unsupportedInput() && editableMethodModule(id) && (id === "M01" || selectableModule(id));
     if (editable) {
       const methods = allMethods().filter(method=>method.module_id===id && method.implementation==="available");
       const chosen = methods.filter(method=>isMethodSelected(method)).length;
@@ -1295,21 +1297,22 @@
       const gate = gates.get(method.id), current = methodApplicability(method);
       const status = method.implementation !== "available" ? "planned" : gate?.applicability || (current.selected && !["skipped","not_selected"].includes(current.status) ? current.status : "unplanned");
       const restricted = ["partial","blocked"].includes(status);
-      const selected = isMethodSelected(method);
+      const selected = (id === "M01" && !method.optional_extension) || isMethodSelected(method);
       const scoreable = Boolean(method.can_output_score || method.scoring?.can_output_score);
       const sourceReason = gate?.reason || current.reason || "";
       const reason = sourceReason.includes("expensive_methods=run") ? "整份检查默认跳过该方法；可切换为片段检查后重新核对。" : sourceReason;
-      const locked = busy || method.implementation !== "available" || status === "blocked" && !selected;
+      const fixedChild = id === "M01" && !method.optional_extension;
+      const locked = fixedChild || busy || method.implementation !== "available" || status === "blocked" && !selected;
       const toggle = `<input type="checkbox" ${method.optional_extension?'data-extension':'data-core-method'}="${escape(method.id)}" id="pipeline-method-${escape(method.id)}" ${selected?'checked':''} ${locked?'disabled':''} aria-label="${escape(method.name)}">`;
       const label = `<label for="pipeline-method-${escape(method.id)}">${escape(method.name)}</label>`;
       return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span><span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
     };
     const available = methods.filter(method=>method.implementation==="available"), planned=methods.filter(method=>method.implementation!=="available");
-    return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><p class="pipeline-method-hint">选择检查项后自动启用本模块。</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
+    return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><p class="pipeline-method-hint">${id === "M01" ? "文件读取为固定步骤，可增加格式校验。" : "选择检查项后自动启用本模块。"}</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
   }
 
   function togglePipelineModule(id) {
-    if (state.mode !== "draft" || !state.input || state.filePending || unsupportedInput() || !optionalModules().includes(id)) return;
+    if (state.mode !== "draft" || !state.input || state.filePending || unsupportedInput() || !editableMethodModule(id)) return;
     state.openPipelineModule = state.openPipelineModule === id ? null : id;
     renderPipeline();
     if (state.openPipelineModule || $("scoring-controls")?.isConnected) ensureMethodGuidance();

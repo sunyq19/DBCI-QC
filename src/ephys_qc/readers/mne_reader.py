@@ -186,8 +186,13 @@ class MNEReader(SourceGuard):
             # written source unit; this is not an inferred subject attribute.
             if kind == 'BrainVision' and original not in {'', 'V', 'mV', 'uV', 'µV', 'μV', 'nV'}:
                 voltage, unit = False, {'uS': 'S', 'µS': 'S'}.get(original, original or 'unknown')
+            loc = [float(v) for v in info['loc'][:3]]
+            position = loc if typ == 'eeg' and all(math.isfinite(v) for v in loc) and .01 < sum(v*v for v in loc)**.5 < .3 else None
             self.channels.append({'channel_id': f'{self.record_id}:ch:{i}', 'source_index': i,
                                   'raw_name': name, 'reader_name': self.raw.ch_names[i],
+                                  'electrode_position_m': position,
+                                  'electrode_coordinate_frame': 'head' if position and int(info['coord_frame']) == 4 else 'unknown',
+                                  'electrode_coordinate_source': 'file_embedded_mne' if position else None,
                                   'channel_type': typ,
                                   'channel_type_source': ('file_declared' if kind == 'FIF' else
                                                           'reader_default' if kind == 'BrainVision' else 'reader_inferred'),
@@ -252,11 +257,13 @@ class MNEReader(SourceGuard):
         self.assert_unchanged()
         types = sorted({ch['channel_type'] for ch in self.channels})
         result = {'format': self.kind, 'duration_seconds': self.n_times / self.fs,
+                'coordinate_metadata_version': 1,
                 'channels': [{'index': ch['source_index'], 'raw_index': ch['source_index'], 'name': ch['raw_name'],
                               'unit': ch['unit'], 'source_unit': ch['physical_unit'],
                               'unit_source': ch['unit_source'],
                               'channel_type': ch['channel_type'], 'channel_type_source': ch['channel_type_source'],
-                              'sampling_rate_hz': self.fs} for ch in self.channels],
+                              'sampling_rate_hz': self.fs,
+                              **{k: ch.get(k) for k in ('electrode_position_m','electrode_coordinate_frame','electrode_coordinate_source')}} for ch in self.channels],
                 'raw_signal_count': len(self.channels), 'annotation_signal_count': 0,
                 'size_bytes': sum(f['size_bytes'] for f in self.source_files),
                 'reader_id': self.description['reader_id'], 'reader_version': self.description['reader_version'],

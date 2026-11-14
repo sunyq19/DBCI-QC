@@ -189,6 +189,8 @@ def _execute_window(request, job_dir, emit, *, source_context=None, cancel_reque
                      window_seconds=state['recording']['duration_seconds'], verified_voltage=True)
         from .ieeg_baseline import encoding_ranges
         facts['encoding_ranges'] = encoding_ranges(state['channels'])
+        facts['electrode_positions_m'] = [c.get('electrode_position_m') for c in state['channels']]
+        facts['electrode_coordinate_frame'] = 'head' if all(c.get('electrode_coordinate_frame')=='head' for c in state['channels']) else 'unknown'
         facts['probe_positions_um'] = [c.get('probe_position_um') for c in state['channels']]
         facts['probe_shanks'] = [(c.get('probe_grid') or {}).get('shank') for c in state['channels']]
         channel_mapping = _extension_channel_mapping(state['channels'])

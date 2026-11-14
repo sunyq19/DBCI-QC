@@ -501,7 +501,8 @@ def execute_recording(request, job_dir, emit, *, window_runner=None, cancel_requ
     view = build_report_view(result, artifacts, result['label'])
     if view is not None:
         result['report_view'] = view
-        (artifacts / 'report.html').write_text(render_report_view(view), encoding='utf-8')
+        from .advanced_report import append_to
+        (artifacts / 'report.html').write_text(append_to(render_report_view(view),root), encoding='utf-8')
     else:
         render_recording_report(result, artifacts / 'report.html')
         if result.get('project_score'):

@@ -76,6 +76,9 @@ def data_facts(record, config=None):
     for key in ('verified_electrode_coordinates', 'verified_epochs'):
         if key in record and type(record[key]) is not bool:
             raise ValueError(key + '需为明确的布尔值。')
+    from .advanced_methods import valid_positions
+    positions = [c.get('electrode_position_m') for c in selected]
+    coordinate_ok = valid_positions(positions,len(selected)) and all(c.get('electrode_coordinate_frame')=='head' and c.get('electrode_coordinate_source') for c in selected)
     return {'modality': record.get('modality', 'scalp_eeg'), 'scope': config.get('scope', 'window'),
             'format': metadata.get('format'),
             'comparison_group_labels': ([groups.get(f"{record['id']}:ch:{i}") for i in indices] if isinstance(groups,dict) else groups),
@@ -92,7 +95,10 @@ def data_facts(record, config=None):
             'has_task_events': annotation.get('format') == 'bids_events_tsv',
             'has_clinical_events': annotation.get('format') == 'clinical_events_tsv',
             'reference_scheme': reference_scheme,
-            'has_coordinates': bool(record.get('verified_electrode_coordinates')),
+            'has_coordinates': coordinate_ok,
+            'coordinates_declared_verified': bool(record.get('verified_electrode_coordinates')),
+            'electrode_positions_m': positions if coordinate_ok else [],
+            'electrode_coordinate_frame': 'head' if coordinate_ok else 'unknown',
             'has_epochs': bool(record.get('verified_epochs')),
             'preprocessing_highpass_hz': preprocessing.get('highpass_hz') if preprocessing.get('verified') is True else None,
             'preprocessing_lowpass_hz': preprocessing.get('lowpass_hz') if preprocessing.get('verified') is True else None,

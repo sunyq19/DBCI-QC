@@ -25,11 +25,11 @@ def run(context: ModuleContext) -> dict:
                       "missing_capabilities": (["ECoG伪迹分类", "触点空间关系核验", "临床质量准确性验证", "一般重复数据块"]
                                                if context.record.get('modality') == 'ecog' else
                                                ['sEEG伪迹分类', '杆内邻接和双极关系核验', '病理与伪迹独立标签'] if context.record.get('modality') == 'seeg' else
-                                               ['spike sorting与单元质量', '探针漂移', '跨流同步和采样相位补偿', '自动坏通道判定'] if context.record.get('modality') == 'extracellular' else
-                                               ["空间坏道预测", "local AutoReject", "ICA/ICLabel", "一般重复数据块"]),
+                                               ['spike sorting与单元质量', 'AP峰定位漂移', '跨流同步和采样相位补偿', '跨数据集阈值验证'] if context.record.get('modality') == 'extracellular' else
+                                               ["独立真值准确性验证", "专家审核阈值", "一般重复数据块"]),
                       "execution_status_is_not_quality": True}
     if any(m["status"] in {"partial", "failed"} for m in result["modules"] if m["id"] != "M08"):
-        row.update(status="partial", reason="部分方法未评或执行失败；保留已完成分项与未评原因")
+        row.update(status="partial", reason="部分检查含格式、适用性或执行提示；详见检查明细")
     save("M08_assessment.json", row["summary"])
 
     return row

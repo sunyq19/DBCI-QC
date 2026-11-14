@@ -3,7 +3,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 
 def dispatch(handler, path):
-    config = handler.server.store.settings.get('collaboration', {})
+    if path not in {'/flow', '/flow/'}:
+        return False
+    config = getattr(handler.server.store, 'settings', {}).get('collaboration', {})
     if path not in {'/flow', '/flow/'} or not config.get('enabled') or not config.get('url'):
         return False
     # Administrator configuration, never a destination supplied by the visitor.

@@ -111,11 +111,13 @@
 - [ ] 用有人工标注的数据验证误报、漏报和信号保留，不能只看能否跑通。
 - [ ] 明确各模态、任务和疾病下的适用条件；分清行标要求、上游默认值和项目自定阈值。
 - [ ] 确定分项、总分及可比条件；目前总分尚未校准。
-- [ ] 优先补接 [PyPREP RANSAC](https://pyprep.readthedocs.io/en/stable/auto_examples/run_ransac.html)：EEG 空间预测坏道；需核实电极坐标和通道覆盖，输出候选与预测相关性。已有目录占位，尚未接入执行。
-- [ ] 补接 [MNE-ICLabel](https://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html)：EEG ICA 成分分类；核对参考、频带、ICA 算法及数据长度，展示成分类别概率、地形图和时间序列。先提供复核，不默认删除成分或折算总分。已有目录占位。
-- [ ] 补接 [local AutoReject](https://autoreject.github.io/stable/auto_examples/plot_auto_repair.html)：在现有全局阈值之外，输出“试次 × 通道”候选矩阵；需要明确试次或分析窗、足够样本及电极坐标。已有目录占位。
-- [ ] 新增 [NWB Inspector](https://nwb.org/tools/core/nwbinspector/) 和 [BIDS Validator](https://bids-validator.readthedocs.io/en/latest/) 原版适配：分别核验 NWB 结构/最佳实践和 BIDS 数据集规范；挂在文件/数据集检查层，报告错误与建议，不作为信号噪声分。
-- [ ] 新增 [SpikeInterface / DREDge](https://spikeinterface.readthedocs.io/en/latest/how_to/handle_drift.html) 漂移评估：Neuropixels 使用有探针几何的较长记录，输出时间—深度图及位移曲线；先只估计、不校正、不默认扣分。与需要 sorting 输入的单元质量指标分开。
+- [x] 接入 PyPREP RANSAC（M05）和 local AutoReject（M03）；输出通道候选、通道×固定片段标签及可选分数，默认不计分。
+- [x] 接入 MNE-ICLabel（M06）；输出 ICA 类别概率，不默认删除成分或换算分数。
+- [x] 接入 NWB Inspector（M01）及离线 BIDS Validator（D01）；分别输出文件和数据集规范问题，不混入信号质量分。
+- [x] 接入 SpikeInterface / DREDge LF（M05）；输出 Neuropixels LF 每分析块、每杆的相对位移，不校正、不计分。
+- [x] 固定六项方法的[适用条件与接口](docs/design/public-methods-v1.md)，用公开 EEG、Neuropixels、NWB 和 BIDS 数据实际运行；见[验收记录](docs/validation/public-methods-20261114.md)。
+- [ ] 补充 ICLabel 成分地形图/时间序列、DREDge 位移曲线和 PDF 测量明细；目前已保存完整测量，报告展示表格。
+- [ ] 扩展 AutoReject 任务试次输入；评估 AP 峰定位漂移及跨块运动估计，避免将各块零点直接拼接。
 - [ ] 补查颅内电极关系、Neuropixels LF/IBL 坏道方法、单元质量与跨流同步的需求和数据。
 - [ ] 做完整浏览器走查及独立安装验收；交接前核对接口、依赖与许可。
 

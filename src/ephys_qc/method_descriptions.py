@@ -326,47 +326,7 @@ _DOCUMENTATION = {
         "直接调用autoreject全局阈值估计；本平台建立临时连续分段并映射候选，不清洗数据。",
         version_note="2026-10-29核对本地autoreject 0.5.1与MNE 1.13.2；参数与实际完整分段数写入运行结果。"),
 
-    "pyprep_ransac": _doc(
-        "计划增加空间预测一致性检查，补充现有PREP非空间指标。",
-        "PyPREP从其他电极的随机子集按空间信息预测各通道，再比较预测信号与实测信号相关性；未来适配需冻结坐标、参考、随机种子和有效通道规则。",
-        "空间不可预测性是候选线索，不直接证明伪迹；它不能被现有非空间相关指标替代，也不等同于完整PREP清洗。",
-        "未来仅在坐标已经核实、通道足够且参考可比较、空间覆盖适合时评估。",
-        "当前尚不可运行；不能靠通道名补坐标，不宜直接套到少通道PSG、临床双极导联或未经验证的颅内布局。",
-        "计划调用pyprep.NoisyChannels.find_bad_by_ransac；尚无平台执行调用",
-        [_ref("PyPREP：NoisyChannels及find_bad_by_ransac",
-              "https://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html"), _PREP_PAPER,
-         _local("src/ephys_qc/method_registry.py", "本平台计划方法登记")],
-        "仅登记未来直接调用PyPREP的方案；不能与已执行的BrainElecQC再实现混同。",
-        validation_status=_PLANNED,
-        version_note="本地安装PyPREP 0.5.0但该方法未接入；2026-10-29在线stable文档为0.10.0，后续须按实际安装版本重核API。"),
 
-    "autoreject_epochs": _doc(
-        "计划对足够且可比较的试次或窗口，估计局部通道阈值与试次复核建议。",
-        "local AutoReject通过交叉验证联合选择逐通道峰峰值阈值、坏通道共识和插值数量；未来拟合后提取reject log，不默认应用清洗。",
-        "local方法与现有单个全局阈值不同。坏试次/坏通道建议仍需独立真值评估，存在事件标签不代表已有可用且足够的试次。",
-        "未来有明确分段规则、足够数据、已核实电极位置及可比较采集条件时；拟合本身也依赖有效位置。",
-        "当前尚不可运行；不能把坐标要求只归于最终插值，也不能在缺少位置或少量窗口上宣称完成local AutoReject。",
-        "计划调用autoreject.AutoReject.fit及get_reject_log；尚无平台执行调用",
-        [_ref("autoreject：AutoReject",
-              "https://autoreject.github.io/stable/generated/autoreject.AutoReject.html"), _AUTOREJECT_PAPER,
-         _local("src/ephys_qc/method_registry.py", "本平台计划方法登记")],
-        "仅登记未来直接调用local AutoReject的方案；拟合内部可能用插值评估，平台不默认执行transform。",
-        validation_status=_PLANNED,
-        version_note="本地autoreject 0.5.1已供全局阈值使用；local AutoReject未接入，依赖已安装不代表功能可运行。"),
-
-    "ica_iclabel": _doc(
-        "计划借助ICA成分类别提示，帮助人工区分脑、眼、肌肉等可能来源。",
-        "ICLabel用ICA成分头皮图、功率谱和自相关预测七类成分概率；必须先有适当且可复现的ICA分解。",
-        "分类概率是模型对成分来源的判断，不是整段EEG质量分，也不能直接变成删除规则。训练条件外的概率可靠性需重新验证。",
-        "未来核实坐标、秩、参考和处理史，且有足够数据满足平均参考、1–100Hz、extended-infomax等模型适用条件时。",
-        "当前尚不可运行；不借用头皮EEG论文准确率到颅内、少通道PSG或低采样率数据，不凭通道名猜空间位置，也不自动移除成分。",
-        "计划调用mne_icalabel.iclabel.iclabel_label_components；尚无平台执行调用",
-        [_ref("MNE-ICALabel：ICLabel特征与训练条件",
-              "https://mne.tools/mne-icalabel/stable/generated/api/mne_icalabel.iclabel.iclabel_label_components.html"),
-         _local("src/ephys_qc/method_registry.py", "本平台计划方法登记")],
-        "仅登记未来通过MNE-ICALabel调用ICLabel的方案；现有ECG/EOG锁时与高频方法不依赖ICA。",
-        validation_status=_PLANNED,
-        version_note="2026-10-29本地未安装mne-icalabel，平台未接入ICA/ICLabel；将来接入需记录包及模型版本。"),
 }
 
 
@@ -376,6 +336,12 @@ def method_documentation(identifier):
     A new executable/planned catalogue entry must receive an explicit source
     review rather than inheriting generic documentation that implies support.
     """
+    from .advanced_methods import IDS, extension_specs as advanced_specs
+    if identifier in IDS:
+        return next(s['documentation'] for s in advanced_specs() if s['id']==identifier)
+    if identifier=='nwb_inspector':
+        from .format_validation import nwb_documentation
+        return nwb_documentation()
     if identifier in _DOCUMENTATION:
         return deepcopy(_DOCUMENTATION[identifier])
     from .gnosis_catalog import IDS, extension_specs

@@ -24,7 +24,8 @@ class MethodDomainTests(unittest.TestCase):
         expected = {mid: (d['id'], d['label']) for d in tool_domains() for mid in d['module_ids']}
         rows = methods()
         self.assertTrue(any(row['optional_extension'] for row in rows))
-        self.assertTrue(any(row['implementation'] == 'planned' for row in rows))
+        for identifier in ('pyprep_ransac', 'autoreject_epochs', 'ica_iclabel'):
+            self.assertNotEqual(next(row for row in rows if row['id'] == identifier)['implementation'], 'planned')
         for row in rows:
             with self.subTest(id=row['id']):
                 self.assertEqual((row['domain'], row['domain_label']), expected[row['module_id']])

@@ -23,6 +23,8 @@ BrainElecQC 源码和安装包未随本仓库分发。对上述提交及已安�
 
 这些依赖由用户另行安装，本仓库不附其源码或发行包。再分发包含依赖的环境、容器或安装包时，应另行核对所含全部组件的许可、版权和声明保留要求；主项目许可证不能覆盖第三方内容。
 
+2026-11-14 公开方法扩展同时调用 PyPREP 0.10.0（MIT）、MNE-ICALabel 0.10.0（BSD-3-Clause）、NWB Inspector 0.7.2（BSD-3-Clause）、bids-validator-deno 3.0.2（MIT）及 Deno 2.9.8（MIT）。ICLabel使用ONNX Runtime 1.32.0（MIT）；SpikeInterface内置DREDge LF使用CPU PyTorch 2.9.1（BSD-3-Clause）。方法、来源及适用边界见[公开方法接口](docs/design/public-methods-v1.md)。这些依赖通过固定版本要求安装，不将第三方发行包加入源码仓库；模型和随包组件的声明继续以上游发行包为准。
+
 ## 数据与读取样例
 
 2026-11-08 起，仓库额外附带经过本机路径清理的公开数据报告快照，仅包含 HTML、图像、PDF 和展示资源，不附完整原始信号。四类来源、版本和范围见[示例数据集](docs/example-datasets.md)及快照目录的 `manifest.json`；固定快照保留实际执行版本，不作为新的检测准确性验证。

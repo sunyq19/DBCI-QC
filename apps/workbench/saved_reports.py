@@ -80,6 +80,9 @@ def served_report(store, identifier, language='zh-CN', *, interactive=True):
             report=re.sub(r'<details id="locations".*?(?=<details id="charts")', lambda _:replacement, report, count=1, flags=re.S)
         report=report.replace('</head>', '<link rel="stylesheet" href="/waveform-explorer.css"><script src="/waveform-explorer.js" defer></script></head>',1)
 
+    from ephys_qc.advanced_report import append_to
+    report = append_to(report, store.root / 'jobs' / identifier)
+
     # Every relative resource is still checked against the artifact manifest by
     # its endpoint. This rewrite grants no access to new files or host paths.
     def resource(match):

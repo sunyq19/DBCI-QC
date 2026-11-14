@@ -136,7 +136,7 @@ class TagAndMethodContractTests(unittest.TestCase):
 
     def test_unsupported_or_forged_tags_and_planned_methods_are_rejected(self):
         cases = [{'context_tags': {'has_eog': True}}, {'context_tags': {'disease': 'invented'}},
-                 {'method_config': {'extensions': ['pyprep_ransac']}},
+                 {'method_config': {'extensions': ['unknown_method']}},
                  {'method_config': {'comparison_groups': [{}] * 8}},
                  {'method_config': {'extension_parameters': {'mne_muscle': {'threshold_z': float('nan')}}}}]
         for config in cases:

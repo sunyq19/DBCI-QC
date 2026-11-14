@@ -31,6 +31,8 @@ BASE_ARTIFACTS = {
     'M06_muscle.json': ('M06', 'high_frequency_burst'),
 }
 EXTENSION_ARTIFACTS = {
+    'M05_pyprep_ransac.json': ('M05','pyprep_ransac'),
+    'M03_autoreject_epochs.json': ('M03','autoreject_epochs'),
     'M03_mne_amplitude.json': ('M03', 'mne_amplitude'),
     'M03_autoreject_global.json': ('M03', 'autoreject_global'),
     'M05_mne_bridge.json': ('M05', 'mne_bridge'),

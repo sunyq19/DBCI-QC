@@ -106,6 +106,11 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
                 if identifier=='ieeg_mne_lof':
                     scores=payload.get('channel_scores',[])
                     if len(scores)!=len(names) or {r['channel_name'] for r in scores}!=set(names) or not all(number(r.get('negative_outlier_factor')) for r in scores):raise ValueError('分组LOF证据不完整')
+                if identifier=='pyprep_ransac':
+                    if payload.get('unassessed_channel_names'):raise ValueError('部分通道未参与空间预测；保留测量，本项不计入综合分。')
+                    rows=payload.get('measurements',[])
+                    if len(rows)!=len(names) or {r.get('channel_name') for r in rows}!=set(names) or any(not number(r.get('bad_window_fraction')) or not 0<=r['bad_window_fraction']<=1 or not r.get('correlations') or not all(number(v) for v in r['correlations']) for r in rows):raise ValueError('RANSAC逐道证据不完整')
+                    scope['unassessed_channel_names']=payload.get('unassessed_channel_names',[])
                 bad,total=len(affected),len(names)
                 reason='涉及候选的通道数 / 受检通道数；整份按分析块时长加权，不代表实际污染时长。'
                 if kind=='pairs':reason='桥接对涉及的通道去重计数；不按通道对数量重复扣分。'
@@ -140,6 +145,14 @@ def extension_outputs(identifier,payload,modality='scalp_eeg',artifact=None):
                 if any(not math.isclose(amounts[n],ratios[n]*duration,abs_tol=1e-5) for n in names):raise ValueError('时间占比与候选区间不一致')
                 bad,total=sum(amounts.values()),len(names)*measured
                 reason='逐通道合并重叠区间后累加；分母为全部受检通道的实际分析时长。'
+            elif kind=='channel_epochs':
+                seg=payload.get('segmentation',{});n=seg.get('n_epochs');labels=payload.get('labels',[])
+                if type(n) is not int or n<=0 or len(labels)!=n or any(len(r)!=len(names) or any(v not in (0,1,2) for v in r) for r in labels):raise ValueError('通道片段标签不完整')
+                expected={(i,names[j]) for i,row in enumerate(labels) for j,v in enumerate(row) if v>0}
+                if {(c.get('epoch_index'),c.get('channel_name')) for c in candidates}!=expected:raise ValueError('标签与候选不一致')
+                bad,total=len(expected),n*len(names)
+                scope['unused_tail_samples']=seg.get('tail_samples_not_used')
+                reason='超阈值通道片段 / 完整受检通道片段；标签1和2各计一次，不计未使用尾段。'
             elif kind=='epochs':
                 seg=payload.get('segmentation',{});ranges=seg.get('ranges',[]);n=seg.get('n_epochs')
                 indices={c.get('epoch_index') for c in candidates}

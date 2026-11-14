@@ -109,3 +109,15 @@ python3 scripts/run_local.py --stop
 报告完成后 1 小时清理，未运行的上传闲置 30 分钟清理，会话最长 6 小时。可提前点击“结束并清理”，请先下载报告。服务重启清理遗留临时工作区。公开数据来源登记、旧配置迁移及备份要求见[数据保存规则](data-storage.md)。
 
 旧配置不会自动迁移；启用新规则前核对原有来源。未登记的旧资料停止对外访问，历史文件须由管理员核对后清理。
+
+### 公开方法扩展
+
+工作台依赖已包含 PyPREP、local AutoReject、MNE-ICALabel、NWB Inspector 和 BIDS Validator。ICLabel使用CPU ONNX推理；BIDS校验使用安装包内置规则，检查时不联网。
+
+标准依赖同时包含DREDge LF的CPU后端。已有环境单独补装时运行：
+
+```bash
+.venv/bin/python -m pip install -r requirements/drift-cpu.txt
+```
+
+自定义精简环境未安装时，只有该可选项显示缺少依赖，不影响其他检查。方法位置、输入条件和计分边界见[公开方法扩展接口](design/public-methods-v1.md)。

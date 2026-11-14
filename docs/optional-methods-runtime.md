@@ -4,6 +4,8 @@
 
 本文件规定六项研究扩展的调用范围、前置条件、证据和运行环境。默认推荐流程保持不变；扩展须明确选择。参数是软件默认值或项目研究配置，尚不是行业统一质量阈值。
 
+2026-11-14新增的PyPREP RANSAC、local AutoReject、MNE-ICLabel、DREDge LF、NWB Inspector和BIDS Validator，见[模块与接口约定](design/public-methods-v1.md)和[实际数据验收](validation/public-methods-20261114.md)。两项新增候选方法可选计分，其余保留测量或规范问题；原默认方案不变。
+
 ## 1. 执行范围
 
 | 方法 | 模块与模态 | 本版实际调用 | 输出与边界 |

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "catalog-8669ad95be472b831090aa4d46455a322d3df5d028ac12c29b32cb85f19829d1",
-  "sequence": 22,
+  "id": "catalog-78aaf584e44242503a8f898642207e918de23ca685ae0a8afcc6ec82a265ea53",
+  "sequence": 23,
   "sourceVersion": "1.1.2",
-  "sourceCommit": "d396e4a68a72c42b6be6b5516d11b18380a176e0",
+  "sourceCommit": "local",
   "doc": {
     "schemaVersion": 1,
     "title": "数据质控流程",
@@ -725,6 +725,71 @@
                 "version": "method-score/1"
               }
             ]
+          },
+          {
+            "id": "f_nwb_inspector",
+            "title": "NWB Inspector 文件校验",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg",
+              "ecog",
+              "seeg",
+              "np"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "核验 NWB 文件结构及元数据，区分规范错误与最佳实践建议。",
+            "inputs": "本次登记的本地 NWB 文件",
+            "outputs": "结构校验错误\n元数据建议\n校验器和规则版本",
+            "conditions": "NWB 2 文件；NWB Inspector 运行依赖\n本次已登记的NWB 2文件。",
+            "methods": "NWB Inspector\n官方NWB Inspector只读遍历NWB文件，包含PyNWB结构验证，记录问题级别、对象位置和检查名称。\nnwbinspector.inspect_nwbfile(skip_validate=False)",
+            "evidence": "https://nwb.org/tools/core/nwbinspector/\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "仅校验文件规范，不代表波形良好；不转换质量分。\n在受检文件上只读运行，不上传文件。",
+            "entryType": "method",
+            "scoring": [
+              {
+                "scope": "eeg",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "文件/目录规范校验不换算信号质量分。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
+              },
+              {
+                "scope": "ecog",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "文件/目录规范校验不换算信号质量分。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
+              },
+              {
+                "scope": "seeg",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "文件/目录规范校验不换算信号质量分。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
+              },
+              {
+                "scope": "np",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "文件/目录规范校验不换算信号质量分。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
+              }
+            ]
           }
         ]
       },
@@ -1220,33 +1285,35 @@
           },
           {
             "id": "f_autoreject_epochs",
-            "title": "local AutoReject试次质量估计",
+            "title": "local AutoReject 分段与通道",
             "summary": "手动选择",
             "kind": "conditional",
-            "status": "planned",
+            "status": "ready",
             "scope": [
               "eeg"
             ],
             "x": 20,
             "y": 20,
-            "description": "在分段数据中估计局部通道阈值和试次建议；与已接入的全局阈值方法不同。",
-            "inputs": "足够的试次/窗口\n明确分段规则\nlocal AutoReject拟合需已核实电极坐标",
-            "outputs": "坏试次与通道建议",
-            "conditions": "足够的试次/窗口\n明确分段规则\nlocal AutoReject拟合需已核实电极坐标\n未来有明确分段规则、足够数据、已核实电极位置及可比较采集条件时；拟合本身也依赖有效位置。",
-            "methods": "autoreject\nlocal AutoReject通过交叉验证联合选择逐通道峰峰值阈值、坏通道共识和插值数量；未来拟合后提取reject log，不默认应用清洗。\n计划调用autoreject.AutoReject.fit及get_reject_log；尚无平台执行调用",
-            "evidence": "https://autoreject.github.io/stable/index.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
-            "notes": "尚未接入；有任务事件不等于已有足够且可比的试次。\n后续接入只提取评估结果，不默认删除或插值。",
+            "description": "交叉验证学习各通道峰峰值阈值，给出哪些通道在哪个片段超阈值。",
+            "inputs": "头皮 EEG；至少8道、20个完整分段\n文件内有效头坐标",
+            "outputs": "逐道峰峰值阈值\n片段×通道标签\n整段剔除建议\n可选通道片段占比分数",
+            "conditions": "头皮 EEG；至少8道、20个完整分段\n文件内有效头坐标\n头皮 EEG；至少8道、20个完整分段；文件内有效头坐标",
+            "methods": "autoreject\n连续数据按固定2秒分段，不冒充任务试次；仅fit/get_reject_log，不执行修复、插值或删除。\nautoreject.AutoReject.fit / get_reject_log",
+            "evidence": "https://autoreject.github.io/stable/auto_examples/plot_auto_repair.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "连续数据按固定2秒分段，不冒充任务试次；仅fit/get_reject_log，不执行修复、插值或删除。\n默认关闭。阈值与运行范围为方法/项目配置，尚非专家审核的合格标准。",
             "entryType": "method",
             "scoring": [
               {
                 "scope": "eeg",
-                "role": "unavailable",
-                "canOutputScore": false,
-                "outputs": [],
-                "weight": "不分配总分权重",
-                "rule": "当前没有执行及评分输出；不能以计划功能参与计分。",
+                "role": "optional",
+                "canOutputScore": true,
+                "outputs": [
+                  "AutoReject 通道分段 · autoreject_epochs"
+                ],
+                "weight": "默认0%；启用方法并设为正权重后参与",
+                "rule": "100 ×（1 − 本方法候选量 / 有效受检量）。分母按方法分别为采样点、通道、时长或窗口。跨方法候选可能重叠；可选方法不应不加区分地全部叠加。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
                 "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-                "version": "尚未接入"
+                "version": "project-weighted/1.2"
               }
             ]
           },
@@ -2166,38 +2233,6 @@
             ]
           },
           {
-            "id": "f_pyprep_ransac",
-            "title": "PyPREP空间预测 / RANSAC",
-            "summary": "手动选择",
-            "kind": "conditional",
-            "status": "planned",
-            "scope": [
-              "eeg"
-            ],
-            "x": 20,
-            "y": 20,
-            "description": "比较实际信号与其他电极空间预测的一致性。",
-            "inputs": "已核实电极坐标\n足够多的可用EEG通道\n可比较参考与采集条件",
-            "outputs": "空间坏道候选",
-            "conditions": "已核实电极坐标\n足够多的可用EEG通道\n可比较参考与采集条件\n未来仅在坐标已经核实、通道足够且参考可比较、空间覆盖适合时评估。",
-            "methods": "PyPREP\nPyPREP从其他电极的随机子集按空间信息预测各通道，再比较预测信号与实测信号相关性；未来适配需冻结坐标、参考、随机种子和有效通道规则。\n计划调用pyprep.NoisyChannels.find_bad_by_ransac；尚无平台执行调用",
-            "evidence": "https://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
-            "notes": "尚未接入；安装了库不代表平台已具备该功能。\n不凭通道名称自动补坐标；需真实数据验收。",
-            "entryType": "method",
-            "scoring": [
-              {
-                "scope": "eeg",
-                "role": "unavailable",
-                "canOutputScore": false,
-                "outputs": [],
-                "weight": "不分配总分权重",
-                "rule": "当前没有执行及评分输出；不能以计划功能参与计分。",
-                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-                "version": "尚未接入"
-              }
-            ]
-          },
-          {
             "id": "f_faster_channels",
             "title": "FASTER 统计坏道",
             "summary": "手动选择",
@@ -2223,6 +2258,40 @@
                 "canOutputScore": true,
                 "outputs": [
                   "FASTER 通道候选 · faster_channels"
+                ],
+                "weight": "默认0%；启用方法并设为正权重后参与",
+                "rule": "100 ×（1 − 本方法候选量 / 有效受检量）。分母按方法分别为采样点、通道、时长或窗口。跨方法候选可能重叠；可选方法不应不加区分地全部叠加。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "project-weighted/1.2"
+              }
+            ]
+          },
+          {
+            "id": "f_pyprep_ransac",
+            "title": "PyPREP 空间预测 / RANSAC",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "比较实测波形与其他电极的空间预测，寻找难以预测的通道。",
+            "inputs": "头皮 EEG；至少16道、30秒\n文件内有效头坐标；已确认共同参考或连接耳参考",
+            "outputs": "通道候选\n逐道预测相关及异常窗口占比\n可选通道占比分数",
+            "conditions": "头皮 EEG；至少16道、30秒\n文件内有效头坐标；已确认共同参考或连接耳参考\n头皮 EEG；至少16道、30秒；文件内有效头坐标；已确认共同参考或连接耳参考",
+            "methods": "PyPREP\n先按原版排查偏差、相关及掉线再进行空间预测；已排除的通道不计为预测通过。\npyprep.NoisyChannels.find_bad_by_ransac",
+            "evidence": "https://pyprep.readthedocs.io/en/stable/generated/pyprep.NoisyChannels.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "先按原版排查偏差、相关及掉线再进行空间预测；已排除的通道不计为预测通过。\n默认关闭。阈值与运行范围为方法/项目配置，尚非专家审核的合格标准。",
+            "entryType": "method",
+            "scoring": [
+              {
+                "scope": "eeg",
+                "role": "optional",
+                "canOutputScore": true,
+                "outputs": [
+                  "RANSAC 空间通道候选 · pyprep_ransac"
                 ],
                 "weight": "默认0%；启用方法并设为正权重后参与",
                 "rule": "100 ×（1 − 本方法候选量 / 有效受检量）。分母按方法分别为采样点、通道、时长或窗口。跨方法候选可能重叠；可选方法不应不加区分地全部叠加。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
@@ -2452,6 +2521,38 @@
                 "rule": "AP已确认且分组、时长及频带满足条件且几何方法不可用时默认使用原版MAD/std离群；不用于LF/LFP。与整窗恒值按同一来源通道、同一分析窗取并集，不重复计数。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
                 "limited": "任一分析窗受限时，该方法不进入整份并集；已检出候选仍保留。恒值完整有效时可独立支撑通道状态。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
                 "version": "neuropixels-score/0.2"
+              }
+            ]
+          },
+          {
+            "id": "f_dredge_lfp",
+            "title": "DREDge LF 探针漂移",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "np"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "估计 LF/LFP 沿探针深度的相对位移，辅助查看记录稳定性。",
+            "inputs": "Neuropixels LF/LFP；至少16道、10秒、采样率高于250 Hz\n来源探针位置和shank，每杆至少16道及8个深度",
+            "outputs": "每杆相对位移曲线（µm）\n位移范围\n处理参数和参考区块",
+            "conditions": "Neuropixels LF/LFP；至少16道、10秒、采样率高于250 Hz\n来源探针位置和shank，每杆至少16道及8个深度\nNeuropixels LF/LFP；至少16道、10秒、采样率高于250 Hz；来源探针位置和shank，每杆至少16道及8个深度",
+            "methods": "SpikeInterface / DREDge\n每个分析块独立估计刚性位移；块间零点不能拼成绝对位移。仅测量，不做漂移校正或自动扣分；AP流程不适用。\nspikeinterface.sortingcomponents.motion.estimate_motion(method=dredge_lfp)",
+            "evidence": "https://spikeinterface.readthedocs.io/en/latest/how_to/drift_with_lfp.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "每个分析块独立估计刚性位移；块间零点不能拼成绝对位移。仅测量，不做漂移校正或自动扣分；AP流程不适用。\n默认关闭。阈值与运行范围为方法/项目配置，尚非专家审核的合格标准。",
+            "entryType": "method",
+            "scoring": [
+              {
+                "scope": "np",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "输出位移（µm）；尚无经验证的通用扣分阈值。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
               }
             ]
           },
@@ -2813,38 +2914,6 @@
             ]
           },
           {
-            "id": "f_ica_iclabel",
-            "title": "ICA成分 / ICLabel",
-            "summary": "手动选择",
-            "kind": "conditional",
-            "status": "planned",
-            "scope": [
-              "eeg"
-            ],
-            "x": 20,
-            "y": 20,
-            "description": "对独立成分分类，辅助人工判断来源。",
-            "inputs": "足够数据和可用EEG通道\n已核对的坐标、秩、参考与滤波处理\n满足模型训练条件的ICA分解",
-            "outputs": "成分类别与概率",
-            "conditions": "足够数据和可用EEG通道\n已核对的坐标、秩、参考与滤波处理\n满足模型训练条件的ICA分解\n未来核实坐标、秩、参考和处理史，且有足够数据满足平均参考、1–100Hz、extended-infomax等模型适用条件时。",
-            "methods": "MNE-ICALabel\nICLabel用ICA成分头皮图、功率谱和自相关预测七类成分概率；必须先有适当且可复现的ICA分解。\n计划调用mne_icalabel.iclabel.iclabel_label_components；尚无平台执行调用",
-            "evidence": "https://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
-            "notes": "尚未接入；平均参考、1–100Hz和extended-infomax等训练条件需要单独核对。\n分类概率不是质量分，不自动移除成分。",
-            "entryType": "method",
-            "scoring": [
-              {
-                "scope": "eeg",
-                "role": "unavailable",
-                "canOutputScore": false,
-                "outputs": [],
-                "weight": "不分配总分权重",
-                "rule": "当前没有执行及评分输出；不能以计划功能参与计分。",
-                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
-                "version": "尚未接入"
-              }
-            ]
-          },
-          {
             "id": "f_asr_bursts",
             "title": "ASR 重建影响评估",
             "summary": "手动选择",
@@ -2933,6 +3002,38 @@
                 "rule": "稳定性由有效子项按权重平均，默认同等计入；权重可调，受限项不计入。子项不再独立计入综合分。\n接口公式：100 * (1 - candidate_amount / assessed_amount)",
                 "limited": "无效原始证据排除；有其他有效依据时继续计算稳定性。全部依据无效时稳定性权重为0。缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
                 "version": "ieeg-score/0.2"
+              }
+            ]
+          },
+          {
+            "id": "f_ica_iclabel",
+            "title": "ICA 成分类别 / ICLabel",
+            "summary": "手动选择",
+            "kind": "conditional",
+            "status": "ready",
+            "scope": [
+              "eeg"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "在分析副本上分解 ICA，给出脑、眼动、肌电、心电等成分类别及概率。",
+            "inputs": "头皮 EEG；至少8道、60秒；采样率高于200 Hz\n文件内有效头坐标；非双极/混合参考",
+            "outputs": "七类成分概率\n分解秩与成分数\n分析副本处理记录",
+            "conditions": "头皮 EEG；至少8道、60秒；采样率高于200 Hz\n文件内有效头坐标；非双极/混合参考\n头皮 EEG；至少8道、60秒；采样率高于200 Hz；文件内有效头坐标；非双极/混合参考",
+            "methods": "MNE-ICALabel\n副本平均参考、1–100Hz滤波、extended-infomax；最多20成分。概率不是质量分，不自动移除成分；未知处理史须复核适用性。\nmne.preprocessing.ICA.fit / mne_icalabel.iclabel.iclabel_label_components",
+            "evidence": "https://mne.tools/mne-icalabel/stable/generated/examples/00_iclabel.html\nhttps://github.com/sunyq19/DBCI-QC/blob/main/src/ephys_qc/method_registry.py",
+            "notes": "副本平均参考、1–100Hz滤波、extended-infomax；最多20成分。概率不是质量分，不自动移除成分；未知处理史须复核适用性。\n默认关闭。阈值与运行范围为方法/项目配置，尚非专家审核的合格标准。",
+            "entryType": "method",
+            "scoring": [
+              {
+                "scope": "eeg",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "成分类别概率不是质量分，保留七类概率供复核。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
               }
             ]
           },
@@ -3927,6 +4028,38 @@
             "methods": "dataset-consistency/0.1",
             "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
             "notes": "缺件、指纹差异列冲突；读取器不支持列未评；不完整 BrainVision 采样帧列冲突",
+            "entryType": "check",
+            "scoring": [
+              {
+                "scope": "dataset",
+                "role": "measurement",
+                "canOutputScore": false,
+                "outputs": [],
+                "weight": "不分配总分权重",
+                "rule": "本项提供测量、资料检查、流程支持或图表；不作为独立信号质量分项。",
+                "limited": "缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。",
+                "version": "method-score/1"
+              }
+            ]
+          },
+          {
+            "id": "d_D01_2",
+            "title": "BIDS 结构规范",
+            "summary": "资料核对",
+            "kind": "dataset",
+            "status": "ready",
+            "scope": [
+              "dataset"
+            ],
+            "x": 20,
+            "y": 20,
+            "description": "根目录声明BIDSVersion时，运行官方BIDS Validator离线内置规则；检查目录与配套表，保留问题位置和校验器/规则版本。",
+            "inputs": "已确认的数据包、应有清单及对应配套表",
+            "outputs": "检查状态、受影响记录、测量值及位置",
+            "conditions": "根目录声明BIDSVersion时，运行官方BIDS Validator离线内置规则；检查目录与配套表，保留问题位置和校验器/规则版本。",
+            "methods": "dataset-consistency/0.1",
+            "evidence": "https://github.com/sunyq19/DBCI-QC/blob/main/docs/dataset-checks.md",
+            "notes": "不给普通目录强加BIDS要求；不折算信号分数；下载子集缺件须如实保留。",
             "entryType": "check",
             "scoring": [
               {

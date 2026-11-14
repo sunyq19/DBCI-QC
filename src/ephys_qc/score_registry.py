@@ -5,6 +5,8 @@ CONTRACT = 'method-score/1'
 SCALP = ['scalp_eeg']
 # id, method, module, label, native denominator, output reducer, modality scope
 _ROWS = [
+ ('pyprep_ransac','pyprep_ransac','M05','RANSAC 空间通道候选','channels','channels',SCALP),
+ ('autoreject_epochs','autoreject_epochs','M03','AutoReject 通道分段','channel_epochs','channel_epochs',SCALP),
  ('ieeg_spectrum_fit','ieeg_spectrum_fit','M04','多窗工频候选','channel_windows','spectrum_windows',['seeg','ecog']),
  ('ieeg_mne_lof','ieeg_mne_lof','M05','分组触点 LOF','channels','channels',['seeg','ecog']),
  ('spikeinterface_coherence_psd','spikeinterface_coherence_psd','M05','IBL 失活与噪声通道','channels','channels',['extracellular']),
@@ -61,6 +63,9 @@ def describe(method, modality):
             '未实现，不能计分。' if method.get('implementation')!='available' else
             '处理变化量不等于输入质量。' if method['id'] in {'asr_bursts','cleanline','zapline_plus'} else
             '参考范围的人群适用性未确认，不将范围外直接判为质量差。' if method['id']=='gnosis_reference_ranges' else
+            '成分类别概率不是质量分，保留七类概率供复核。' if method['id']=='ica_iclabel' else
+            '输出位移（µm）；尚无经验证的通用扣分阈值。' if method['id']=='dredge_lfp' else
+            '文件/目录规范校验不换算信号质量分。' if method['id'] in {'nwb_inspector','bids_validator'} else
             '没有独立质量判定及有效分母，保留测量或流程输出。')
     return {**method,'can_output_score':bool(out),'scoring':dict(can_output_score=bool(out),
             outputs=out,contract_version=CONTRACT,reason=reason)}

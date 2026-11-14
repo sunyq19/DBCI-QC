@@ -163,7 +163,11 @@ class Store:
         try:
             if item.get('retention', {}).get('state') == 'expired':
                 raise ValueError('上传副本已到期；报告保留，重新检查请再次上传。')
-            if refresh:
+            metadata = item.get('metadata', {})
+            # Upgrade cached reader facts once; historical job snapshots stay unchanged.
+            refresh_coordinates = (metadata.get('reader_id', '').startswith('mne_')
+                                   and metadata.get('coordinate_metadata_version') != 1)
+            if refresh or refresh_coordinates:
                 item['metadata'] = inspect_recording(item['source_path'], **reader_kwargs(item.get('metadata', {})))
             paths = [item['source_path']] + [f['path'] for f in item.get('expected_source_files', [])]
             if not all(Path(p).is_file() for p in paths):

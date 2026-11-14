@@ -88,3 +88,5 @@ D01–D03 完成后，对资料不符、待核对及未评项记录人工意见�
 - [BIDS 事件定义](https://bids-specification.readthedocs.io/en/stable/modality-agnostic-files/events.html)：onset/duration 语义；允许事件重叠与记录前事件。
 
 已用固定公开子集 ds003555 v1.0.1（2 人、12 记录）和 ds003029 v1.0.7（3 人、7 记录）验证执行。真实结果可能有冲突；这不证明所有规则已被专家认可，也不覆盖全部电生理格式。
+
+| D01 | BIDS 结构规范 | 根目录声明BIDSVersion时，运行官方BIDS Validator离线内置规则；检查目录与配套表，保留问题位置和校验器/规则版本。 | 不给普通目录强加BIDS要求；不折算信号分数；下载子集缺件须如实保留。 |

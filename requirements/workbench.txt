@@ -14,3 +14,12 @@ ijson==3.6.0
 # Original Neuropixels AP/LF detection and source probe geometry.
 spikeinterface==0.104.2
 probeinterface==0.4.2
+# Optional methods available in the workbench; selected explicitly at runtime.
+pyprep==0.10.0
+mne-icalabel==0.10.0
+onnxruntime==1.32.0
+nwbinspector==0.7.2
+bids-validator-deno==3.0.2
+deno==2.9.8
+
+-r drift-cpu.txt

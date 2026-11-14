@@ -19,7 +19,7 @@ EXPECTED_IDS = {
     "hf_burst", "sleep_timeline", "task_timeline", "clinical_timeline", "aggregate",
     "report", "mne_amplitude", "mne_muscle", "mne_bridge", "mne_lof",
     "autoreject_global", "pyprep_ransac", "autoreject_epochs", "ica_iclabel",
-    "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue",
+    "nwb_inspector", "faster_channels", "asr_bursts", "cleanline", "zapline_plus", "fieldtrip_zvalue",
     "gnosis_line_length", "gnosis_artifact", "gnosis_low_band", "gnosis_high_band",
     "gnosis_band_power", "gnosis_band_amplitude", "gnosis_psd_deviation", "gnosis_reference_ranges",
 }
@@ -96,14 +96,15 @@ class MethodDocumentationTests(unittest.TestCase):
         self.assertIn("主流程不调用pyprep.NoisyChannels", doc["upstream_call"])
         self.assertIn("compare_with_pyprep", doc["implementation_origin"])
         self.assertIn("不一致", doc["validation_status"])
-        planned = method_documentation("pyprep_ransac")
-        self.assertIn("尚无平台执行调用", planned["upstream_call"])
+        ransac = method_documentation("pyprep_ransac")
+        self.assertIn("pyprep.NoisyChannels.find_bad_by_ransac", ransac["upstream_call"])
 
-    def test_planned_methods_remain_unvalidated_not_executable(self):
-        for identifier in ("pyprep_ransac", "autoreject_epochs", "ica_iclabel"):
+    def test_new_adapters_distinguish_execution_from_accuracy_validation(self):
+        for identifier in ("pyprep_ransac", "autoreject_epochs", "ica_iclabel", "dredge_lfp"):
             doc = method_documentation(identifier)
-            self.assertIn("尚未接入", doc["validation_status"])
-            self.assertIn("尚无平台执行调用", doc["upstream_call"])
+            self.assertIn("工程执行已验证", doc["validation_status"])
+            self.assertIn("准确性尚未独立验证", doc["validation_status"])
+            self.assertNotIn("尚无平台执行调用", doc["upstream_call"])
 
     def test_distinct_methods_preserve_scientific_interpretation_limits(self):
         self.assertIn("没有直接调用annotate_muscle_zscore", method_documentation("hf_burst")["implementation_origin"])

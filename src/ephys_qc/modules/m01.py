@@ -71,4 +71,20 @@ def run(context: ModuleContext) -> dict:
     if state["description"]["warnings"] or header["status"] != "pass":
         row.update(status="partial", reason="可读取，但存在需要复核的格式、时间或结构警告")
 
+    if 'nwb_inspector' in context.config.get('method_config',{}).get('extensions',[]):
+        from ..format_validation import evaluate_nwb, inspect_nwb
+        gate=evaluate_nwb({'format':state['description']['format']})
+        if gate['status']=='blocked':
+            validation={**gate,'calculated':False,'candidates':[]}
+        elif source_context is not None and 'nwb_inspector' in source_context:
+            validation=source_context['nwb_inspector']
+        else:
+            validation=inspect_nwb(source)
+            if source_context is not None:source_context['nwb_inspector']=validation
+        filename='M01_nwb_inspector.json'
+        save(filename,validation)
+        entry=dict(id='nwb_inspector',name='NWB Inspector 文件校验',module_id='M01',status=validation['status'],
+            reason=validation.get('reason',''),parameters={},artifact=filename,can_output_score=False)
+        result['extensions'].append(entry)
+        row['summary'].setdefault('extensions',[]).append(entry)
     return row

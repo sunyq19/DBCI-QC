@@ -13,11 +13,12 @@ import re
 
 from .inventory import inspect_package, _relative, _safe_file, _validate
 
-RULE_VERSION = 'dataset-consistency/0.1.1'
+RULE_VERSION = 'dataset-consistency/0.2.0'
 MISSING = {'', 'n/a', 'na', 'unknown', 'none'}
 UNITS = {'v': 'V', 'mv': 'mV', 'uv': 'uV', 'µv': 'uV', 'μv': 'uV', 'nv': 'nV',
          'volts': 'V', 'millivolts': 'mV', 'microvolts': 'uV', 'nanovolts': 'nV'}
 CHECK_NAMES = {
+    'bids_validator': ('BIDS 结构规范', 'BIDS structure validation'),
     'files': ('应到文件', 'Expected files'), 'read': ('记录结构', 'Recording structure'),
     'binding': ('受试者与会话对应', 'Subject/session binding'), 'participants': ('受试者表对应', 'Participant index'),
     'sessions': ('会话表对应', 'Session index'), 'scans': ('记录表对应', 'Scan index'),
@@ -338,6 +339,18 @@ def evaluate_dataset(root, manifest, *, progress=None):
         status = 'pass' if row['status']=='readable' else 'conflict' if row.get('reason')=='incomplete_sample_frame' else 'unassessed'
         checks.add('D01','read',status,by_path[row['path']], '结构可读取；电压标定及配套表另行核对。' if status=='pass' else
                    '二进制末尾不是完整采样帧，未丢弃尾部数据。' if status=='conflict' else '当前读取器无法完成结构检查。', records=[by_path[row['path']]],files=[row['path']])
+    from ..format_validation import inspect_bids
+    bids=inspect_bids(root)
+    if bids['status']!='not_applicable':
+        issues=bids.get('issues',{})
+        items=issues.get('issues',[]) if isinstance(issues,dict) else issues
+        if bids['status']=='completed':
+            errors=sum(i.get('severity')=='error' for i in items);warnings=sum(i.get('severity')=='warning' for i in items)
+            checks.add('D01','bids_validator','review' if errors or warnings else 'pass','BIDS',f'BIDS Validator：{errors}项错误，{warnings}项建议；按内置规则检查，不折算信号分数。')
+            for i,item in enumerate(items[:200]):
+                checks.add('D01','bids_validator','review',str(item.get('location','BIDS')),str(item.get('code',''))+(' · '+str(item['subCode']) if item.get('subCode') else ''),files=[str(item.get('location','')).lstrip('/')])
+        else:
+            checks.add('D01','bids_validator','unassessed','BIDS',bids['reason'])
     notify('D01','completed'); notify('D02','running')
     cache = {}; facts = [_record(root,r,metadata.get(r['path']),files,cache,checks) for r in config['records']]
     within = defaultdict(list)
@@ -389,6 +402,7 @@ def evaluate_dataset(root, manifest, *, progress=None):
             'expected_files':inventory['summary']['expected_files'],'present_files':inventory['summary']['present_files'],
             'status_counts':dict(counts),'groups':len(groups)},'status':'needs_attention' if any(counts[s] for s in ('conflict','review','unassessed')) else 'checked',
             'modules':[{'id':mid,'can_output_score':False,'scoring_role':'evidence','status':'completed','counts':dict(Counter(c['status'] for c in checks.rows if c['module']==mid))} for mid in ('D01','D02','D03')],
-            'limits':['真实身份核验未执行','信号质量评分未执行','不是完整 BIDS 合规校验','本地报告，未执行脱敏审查']}
+            'limits':['真实身份核验未执行','信号质量评分未执行','BIDS规范检查结果单列，不代表临床合格','本地报告，未执行脱敏审查']}
+    result['format_validation'] = {'bids':bids}
     notify('D03','completed')
     return result

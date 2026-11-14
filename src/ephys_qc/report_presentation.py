@@ -153,7 +153,7 @@ def compact_report(report, view, *, focus_url=None, visualization_url=None, wave
     if visualization_url:
         charts=inline_charts(visualization_url)
     scoring=re.sub(r'<h2>.*?</h2>','',section('scoring'),count=1,flags=re.S)
-    detail_body=f'<div class="report-details-body"><div class="report-detail-group"><h3>结果明细</h3><details><summary>完整候选列表</summary>{original_review}</details>{extra}</div><div class="report-detail-group"><h3>检查依据</h3><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{scoring}</details><div id="report-archive-slot"></div></div></div>'
+    detail_body=f'<div class="report-details-body"><div class="report-detail-group"><h3>结果明细</h3><details><summary>完整候选列表</summary>{original_review}</details>{extra}</div><div id="method-evidence-slot"></div><div class="report-detail-group"><h3>检查依据</h3><details><summary>执行项目与说明</summary>{section("checks").replace("<h2>方法与检查明细</h2>","")}</details><details id="scoring"><summary>评分组成与计算方法</summary><p>{esc(version_label)}</p>{scoring}</details><div id="report-archive-slot"></div></div></div>'
     details=report_section('checks','报告详情',detail_body,extra_class='report-details-section')
     aside='<aside><strong>质控报告</strong><nav><a href="#overview">报告概览</a><a href="#score-table">检查结果</a><a href="#review">问题定位</a>'+('<a href="#charts">图表分析</a>' if charts else '')+'<a href="#checks">报告详情</a><a href="/standards/eeg-report">质控标准</a></nav></aside>'
     results=report_section('score-table','检查结果',checks,opened=True)
