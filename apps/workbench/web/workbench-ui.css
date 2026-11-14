@@ -211,10 +211,10 @@ body.qc-app, body.qc-document {
 .qc-app .library-search-row { display:flex; align-items:center; gap:12px; }
 .qc-app .library-search-row input { min-width:0; flex:1; }
 .qc-app .library-search-row button { flex:none; white-space:nowrap; font-size:var(--text-note); }
-.qc-app .temporary-session { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:var(--text-note); line-height:1.6; }
+.qc-app .temporary-session { display:grid; grid-template-columns:minmax(0,1fr); justify-items:start; gap:4px; margin:0 0 12px; padding:0 0 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:var(--text-note); line-height:1.6; }
 .qc-app .temporary-session[hidden] { display:none; }
-.qc-app .temporary-session > span { flex:1 1 180px; min-width:0; }
-.qc-app .temporary-session .text-button { flex:none; padding:2px 0; font:inherit; white-space:nowrap; color:var(--primary-dark); }
+.qc-app .temporary-session > span { min-width:0; text-align:left; }
+.qc-app .temporary-session .text-button { margin:0; padding:0; font:inherit; text-align:left; white-space:nowrap; color:var(--primary-dark); }
 .qc-app .temporary-session .text-button:disabled { opacity:.5; cursor:wait; }
 @media(max-width:400px) {
   .qc-app .studio-controls .rail-section > summary { gap:6px; }
