@@ -46,7 +46,8 @@ def main():
                             raise RuntimeError('Isolated service did not start:\n' + log.read())
                         time.sleep(.2)
                 manifest = json.loads((ROOT / 'apps/workbench/example-cache/manifest.json').read_text())
-                assert len(manifest['examples']) == 4, 'Four cached modality examples are required'
+                example_count = len(manifest['examples'])
+                assert example_count == 8, 'Eight cached dataset examples are required'
                 paths = ['/', '/standards'] + [row['url'] for row in manifest['examples']]
                 pdfs = [name for name in manifest['files'] if name.endswith('.pdf')]
                 assert pdfs, 'Cached PDF report is missing'
@@ -56,14 +57,14 @@ def main():
                         body = response.read()
                     assert body, f'Empty response: {path}'
                     if path == '/':
-                        assert body.count(b'class="demo-report"') == 4
+                        assert body.count(b'class="demo-report"') == example_count
                     if path.endswith('.pdf'):
                         assert body.startswith(b'%PDF-')
                 subprocess.run([sys.executable, str(ROOT / 'examples/headless_qc.py'),
                                 '--output', str(root / 'synthetic')], cwd=ROOT, env=env,
                                check=True, timeout=120)
                 print(json.dumps({'status': 'passed', 'health': health,
-                                  'http_pages_checked': len(paths), 'example_datasets': 4,
+                                  'http_pages_checked': len(paths), 'example_datasets': example_count,
                                   'synthetic_check': 'M03', 'runtime': 'isolated temporary directory',
                                   'visual_verification': False}, ensure_ascii=False))
             finally:

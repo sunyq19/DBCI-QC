@@ -36,7 +36,8 @@ class ComparisonPublicationTests(unittest.TestCase):
     def store(self,root,status='completed'):
         return SimpleNamespace(settings={'demo_comparisons':[self.comparison]},root=root,
             inputs={'public-eeg':{'provenance':{'name':'Public EEG','url':'https://example.org/data','license':'CC0'}}},
-            job=lambda j:{'status':status,'input_id':'public-eeg','created_at':'2026-11-11T00:00:00Z'},workspace=lambda j:None)
+            job=lambda j:{'status':status,'input_id':'public-eeg','created_at':'2026-11-11T00:00:00Z',
+                          'plan': {'input_modality': {'value': getattr(self, 'interactive_mode', None)}}},workspace=lambda j:None)
 
     def test_incomplete_run_does_not_replace_published_manifest(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -58,7 +59,7 @@ class ComparisonPublicationTests(unittest.TestCase):
 
     def test_snapshot_freezes_charts_pdf_and_evidence_without_runtime_links(self):
         def report(store,jid,language,*,interactive=True):
-            self.assertFalse(interactive)
+            self.assertEqual(interactive, bool(getattr(self, 'interactive_mode', None)))
             base=f'/api/v1/jobs/{jid}'
             return f'<html><head></head><body><nav class="saved-report-nav"></nav><div data-waveform-base="{base}"></div><iframe data-chart-src="{base}/visualizations?embedded=1"></iframe><a href="{base}/visualizations">Charts</a><a href="{base}/report.pdf">PDF</a><img src="{base}/report-evidence.png"></body></html>'
         def gallery(*args,**kwargs):
@@ -72,6 +73,7 @@ class ComparisonPublicationTests(unittest.TestCase):
                  patch('saved_reports.served_report',side_effect=report), \
                  patch('saved_reports.frozen_view',side_effect=lambda *a:copy.deepcopy(self.view)) as frozen, \
                  patch('project_score_cache.load',return_value=None), \
+                 patch('example_review.snapshot',return_value={'findings':{'findings':[], 'default_method_ids':[]}, 'source':{'source_sha256':'a'*64}}), \
                  patch('ephys_qc.report_export.evidence_figure',return_value=(b'PNG',[])), \
                  patch('ephys_qc.report_export.pdf_bytes',return_value=b'%PDF-fixture'), \
                  patch('ephys_qc.visualizations.render.render_gallery',side_effect=gallery):
@@ -86,6 +88,11 @@ class ComparisonPublicationTests(unittest.TestCase):
             self.assertEqual(html.count('class="demo-report"'),1)
             self.assertNotIn('example-comparison-link',html)
             for jid in self.ids:
+                if getattr(self, 'interactive_mode', None):
+                    self.assertIn(jid, data['review_snapshots'])
+                    self.assertTrue((release/f'review/{jid}.json').is_file())
+                    self.assertIn('/api/v1/examples/'+data['release']+'/records/'+jid,
+                                  (release/f'records/{jid}.zh-CN.html').read_text())
                 self.assertEqual((release/f'records/{jid}.pdf').read_bytes(),b'%PDF-fixture')
                 self.assertIn(data['comparisons'][0]['url'],(release/f'records/{jid}.zh-CN.html').read_text())
                 self.assertEqual((release/f'records/{jid}.evidence.png').read_bytes(),b'PNG')
@@ -96,10 +103,18 @@ class ComparisonPublicationTests(unittest.TestCase):
             for path in release.rglob('*.html'):
                 text=path.read_text()
                 self.assertNotIn('/api/v1/jobs/',text)
-                self.assertNotIn('data-waveform-base',text)
+                if not getattr(self, 'interactive_mode', None):
+                    self.assertNotIn('data-waveform-base',text)
                 self.assertNotIn('/examples/RELEASE/',text)
             self.assertTrue((release/'assets/visualizations.js').is_file())
-            self.assertFalse(list(release.rglob('*.json')))
+            if not getattr(self, 'interactive_mode', None):
+                self.assertFalse(list(release.rglob('*.json')))
+
+    def test_intracranial_and_neuropixels_keep_frozen_waveform_routes(self):
+        for mode in ('ecog', 'seeg', 'extracellular'):
+            with self.subTest(mode=mode):
+                self.interactive_mode = mode
+                self.test_snapshot_freezes_charts_pdf_and_evidence_without_runtime_links()
 
 
 if __name__=='__main__':unittest.main()

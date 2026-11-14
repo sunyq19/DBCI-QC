@@ -31,6 +31,19 @@ class Structure(HTMLParser):
 
 
 class ScorePresentationTests(unittest.TestCase):
+    def test_legacy_eeg_keeps_saved_share_without_inventing_missing_evidence(self):
+        legacy = dict(id='line_noise', name='工频干扰', value=25., numerator=1,
+                      denominator=4, aggregation='pooled_unflagged_fraction',
+                      weight=1, normalized_weight=1/3)
+        before = copy.deepcopy(legacy)
+        html = score_tree([legacy])
+        self.assertIn('<td>33.3%</td>', html)
+        self.assertNotIn('本次未计入', html)
+        self.assertEqual(legacy, before)
+        for changed in [dict(status='blocked'), dict(denominator=0), dict(value=26.),
+                        dict(aggregation='unknown')]:
+            self.assertIn('本次未计入', score_tree([{**legacy, **changed}]))
+
     def test_minimum_names_cause_and_weighted_impact_without_mutating_saved_result(self):
         children=[row('mne_amplitude_channels'),row('mne_amplitude_time',.31,378),
                   row('fieldtrip_zvalue',9.88,378),row('ieeg_range_plateau')]

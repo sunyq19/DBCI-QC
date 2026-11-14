@@ -30,17 +30,18 @@ class ExampleCacheTests(unittest.TestCase):
             html=asset(store,f'/examples/{data["release"]}/records/{jid}.zh-CN.html').read_text()
             self.assertIn(f'{score["value"]:.2f}',html)
             self.assertNotIn('data-location-inspector',html)
-            example=next(e for e in data['examples'] if e['modality']==mode)
+            example=next(e for e in data['examples'] if e['modality']==mode and
+                         f'/records/{jid}.' in asset(store,e['url']).read_text())
             overview=asset(store,example['url']).read_text()
             self.assertIn(f'本方案评分 {score["value"]:.2f} / 100',overview)
             self.assertNotIn('当前提供技术描述',overview)
-        self.assertEqual(counts,{'seeg':2,'extracellular':3})
+        self.assertEqual(counts,{'seeg':2,'extracellular':5})
 
     def test_shipped_snapshot_hashes_and_links_are_self_contained(self):
         store=SimpleNamespace(settings={})
         data=manifest(store)
-        self.assertEqual(len(data['examples']),4)
-        self.assertEqual(sum(r['reported'] for r in data['examples']),13)
+        self.assertEqual(len(data['examples']),8)
+        self.assertEqual(sum(r['reported'] for r in data['examples']),21)
         self.assertFalse(data['raw_data_included'])
         for name,digest in data['files'].items():
             path=asset(store,'/examples/'+data['release']+'/'+name)
@@ -64,9 +65,9 @@ class ExampleCacheTests(unittest.TestCase):
                         self.assertTrue(re.search(r'id=["\']'+re.escape(unquote(url[1:]))+r'["\']',text),url)
         self.assertEqual({r['modality'] for r in data['examples']},{'scalp_eeg','ecog','seeg','extracellular'})
 
-    def test_eeg_examples_freeze_current_location_viewer_and_all_saved_candidates(self):
+    def test_all_modalities_freeze_current_location_viewer_and_all_saved_candidates(self):
         store=SimpleNamespace(settings={});data=manifest(store)
-        expected={jid for jid,r in data['report_scores'].items() if r['modality']=='scalp_eeg'}
+        expected=set(data['report_scores'])
         self.assertEqual(set(data['review_snapshots']),expected)
         for jid in expected:
             saved=json.loads(asset(store,f'/examples/{data["release"]}/review/{jid}.json').read_text())
@@ -85,7 +86,8 @@ class ExampleCacheTests(unittest.TestCase):
         template=(REPO/'apps/workbench/web/index.html').read_text()
         with patch('data_library.featured_reports',side_effect=AssertionError('no runtime scan')):
             html=homepage(store,template)
-        self.assertEqual(html.count('class="demo-report"'),4)
+        self.assertEqual(html.count('class="demo-report"'),8)
+        self.assertIn('<span id="demo-reports-count" class="tag subtle rail-count">8</span>',html)
         self.assertIn('id="example-cache" type="application/json"',html)
         self.assertNotIn('正在读取示例目录',html)
         self.assertNotIn('href="#demo-reports" hidden',html)
@@ -113,6 +115,6 @@ class ExampleCacheTests(unittest.TestCase):
         result=handler.get(row['url'])
         self.assertIn('text/html',result[1]);self.assertIn('immutable',result[2]['Cache-Control'])
         handler.path='/';data,mime,headers=handler.get('/')
-        self.assertEqual(data.count(b'class="demo-report"'),4)
+        self.assertEqual(data.count(b'class="demo-report"'),8)
 
 if __name__=='__main__':unittest.main()

@@ -147,6 +147,21 @@ class NWBReaderTests(unittest.TestCase):
         self.assertEqual(len(selected.describe()['streams']), 1)
         self.assertEqual(metadata['source_files'], selected_metadata['source_files'])
 
+    def test_legacy_series_without_object_id_uses_verified_data_owner(self):
+        import h5py
+        import numpy as np
+        values = nwb_fixture(self.path, multiple=True)
+        with h5py.File(self.path, 'r+') as handle:
+            del handle['/acquisition/voltage'].attrs['object_id']
+            del handle['/processing/ecephys/LFP/same_name_lfp'].attrs['object_id']
+        digest = hashlib.sha256(self.path.read_bytes()).hexdigest()
+        metadata = inspect_recording(self.path)
+        self.assertEqual({s['stream_id'] for s in metadata['available_streams']},
+                         {'/acquisition/voltage', '/processing/ecephys/LFP/same_name_lfp'})
+        reader = self.reader(stream_id='/acquisition/voltage')
+        np.testing.assert_allclose(self.read(reader), (values * .001 * [.5, 2.] + .125).T)
+        self.assertEqual(hashlib.sha256(self.path.read_bytes()).hexdigest(), digest)
+
     def test_regular_timestamps_are_all_verified_in_chunks(self):
         import numpy as np
         nwb_fixture(self.path, timestamps=123. + np.arange(12) / 4.)

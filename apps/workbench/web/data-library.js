@@ -3,12 +3,17 @@
   const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let publicOnly=false,items=[],examples=[],limit=6,revision=0,lastLoaded=0,category='data',archived=false,busy=false;
   let clockOffset=0;
+  // In public demos, archive is personal organization, never a shared deletion.
+  const archiveKey='qc.library.archived-reports.v1';
+  const validReportId=id=>typeof id==='string'&&/^report:[a-f0-9]{32}$/.test(id);
+  function readBrowserArchive(){try{const ids=JSON.parse(window.localStorage.getItem(archiveKey)||'[]');return new Set(Array.isArray(ids)?ids.filter(validReportId):[]);}catch{return new Set();}}
+  let browserArchive=readBrowserArchive();
   let cached=false;try{const data=JSON.parse($('example-cache')?.textContent||'null');if(data){if(!cached)examples=data.examples||[];cached=true;}}catch{}
   const en=()=>window.QCI18n?.getLanguage?.()==='en', t=(a,b)=>en()?b:a;
   const status={not_run:['未运行','Not run'],needs_confirmation:['待确认','Confirm information'],running:['运行中','Running'],queued:['排队中','Queued'],completed:['有检查报告','Report available'],failed:['检查失败','Failed'],interrupted:['已中断','Interrupted'],cancelled:['已取消','Cancelled']};
   const reportId=report=>report.archive_id||(report.job_id?'report:'+report.job_id:null);
   const rowReports=row=>row.workflow_groups?.length?row.workflow_groups.flatMap(g=>g.runs):row.recent_reports||[];
-  const isArchived=(report,row)=>Boolean(report.archived??row.archived);
+  const isArchived=(report,row)=>publicOnly?browserArchive.has(reportId(report)):Boolean(report.archived??row.archived);
   const archivedReports=row=>rowReports(row).filter(report=>isArchived(report,row));
   function menuButton(action,id,label,group=false){return `<button type="button" ${action.startsWith('delete')?'class="library-danger"':''} data-library-action="${action}" data-id="${esc(id)}" ${group?'data-library-group="true"':''} ${busy?'disabled':''}>${label}</button>`;}
   function countdownText(retention){
@@ -20,14 +25,20 @@
   function countdown(row){
     if(!row.temporary)return '';
     const title=t('仅本浏览器可见；本次会话的文件与报告一起清理。未运行保留30分钟，完成后保留1小时，最长6小时。','Visible only in this browser. This session’s files and reports are cleared together: 30 minutes before running, 1 hour after completion, at most 6 hours.');
-    return `<span class="library-expiry" title="${esc(title)}"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.2"/><path d="M10 5.5V10l3 2"/></svg><span data-expiry-id="${esc(row.id)}">${esc(countdownText(row.retention))}</span></span>`;
+    return `<span class="library-expiry" title="${esc(title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="expiry-track" cx="12" cy="12" r="9"/><circle class="expiry-progress" cx="12" cy="12" r="9" pathLength="100" stroke-dasharray="${remainingPercent(row.retention)} 100" data-expiry-ring="${esc(row.id)}"/></svg><span data-expiry-id="${esc(row.id)}">${esc(countdownText(row.retention))}</span></span>`;
+  }
+  function remainingPercent(retention){
+    const period=retention.phase==='results'?(retention.result_minutes||60)*60:retention.phase==='running'?(retention.maximum_hours||6)*3600:(retention.idle_minutes||30)*60;
+    const seconds=(Date.parse(retention.expires_at)-Date.now()-clockOffset)/1000;
+    return Number.isFinite(seconds)?Math.max(0,Math.min(100,100*seconds/period)).toFixed(2):0;
   }
   function updateCountdowns(){
     for(const node of document.querySelectorAll?.('[data-expiry-id]')||[]){const row=items.find(r=>r.id===node.dataset.expiryId);if(row)node.textContent=countdownText(row.retention);}
+    for(const node of document.querySelectorAll?.('[data-expiry-ring]')||[]){const row=items.find(r=>r.id===node.dataset.expiryRing);if(row)node.setAttribute('stroke-dasharray',`${remainingPercent(row.retention)} 100`);}
   }
   function visibleRow(row){
     const keep=report=>isArchived(report,row)===archived;
-    return {...row,recent_reports:(row.recent_reports||[]).filter(keep),workflow_groups:(row.workflow_groups||[]).flatMap(group=>{
+    return {...row,archived_reports:archivedReports(row).length,recent_reports:(row.recent_reports||[]).filter(keep),workflow_groups:(row.workflow_groups||[]).flatMap(group=>{
       const runs=group.runs.filter(keep);if(!runs.length)return [];
       const sameLatest=reportId(group.latest)===reportId(runs[0]);
       return [{...group,runs,latest:sameLatest?group.latest:runs[0],...sameLatest?{}:{label:runs[0].label,label_en:runs[0].label_en}}];
@@ -57,9 +68,14 @@
       const stamp=new Date(report.created_at);
       const time=Number.isNaN(stamp.valueOf())?'':stamp.toLocaleString(en()?'en-GB':'zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
       const id=reportId(report),label=en()?report.label_en||report.label:report.label;
-      const actions=archived?menuButton('restore',id,t('恢复','Restore'))+menuButton('delete',id,t('彻底删除','Delete permanently')):menuButton('archive',id,t('归档','Archive'));
-      const menu=id&&(report.temporary||!publicOnly&&!['running','queued','cancelling'].includes(report.status))?`<details class="library-entry-menu library-report-menu"><summary aria-label="${esc(t('报告操作：','Report actions: ')+label+' · '+time)}">⋯</summary><div>${report.temporary?menuButton('delete-temporary',id,t('删除报告','Delete report')):actions}</div></details>`:'';
-      return `<div class="library-report-row"><span class="library-report-name"><strong data-i18n-skip>${esc(label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time></span><span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span>${menu}</div>`;
+      const running=['running','queued','cancelling'].includes(report.status);
+      const archiveAction=running?'':menuButton(archived?'restore':'archive',id,archived?t('恢复','Restore'):t('归档','Archive'));
+      const deleteAction=report.temporary?menuButton('delete-temporary',id,t('删除报告','Delete report')):archived&&!publicOnly?menuButton('delete',id,t('彻底删除','Delete permanently')):'';
+      const menu=id&&(archiveAction||deleteAction)?`<details class="library-entry-menu library-report-menu"><summary aria-label="${esc(t('报告操作：','Report actions: ')+label+' · '+time)}">⋯</summary><div>${archiveAction}${deleteAction}</div></details>`:'';
+      const name=`<strong data-i18n-skip>${esc(label)}</strong><time datetime="${esc(report.created_at)}">${esc(time)}</time>`;
+      const configuration=/^[a-f0-9]{32}$/.test(report.job_id||'')?href('/?configure='+report.job_id):null;
+      const title=configuration?`<a class="library-report-name library-config-link" href="${esc(configuration)}" title="${t('配置此方案','Configure this workflow')}">${name}</a>`:`<span class="library-report-name">${name}</span>`;
+      return `<div class="library-report-row">${title}<span class="library-report-links"><a href="${esc(href(report.url))}">${report.report_available===false?t('查看运行','View run'):t('查看报告','View report')}</a></span>${menu}</div>`;
     }).join('')}</div>`;
   }
   function workflowRows(groups){
@@ -68,7 +84,7 @@
       const scope=group.scope==='recording'?t('整份检查','Full recording'):t('片段检查','Selected interval');
       const duration=Number.isFinite(group.duration_seconds)?` · ${Number(group.duration_seconds.toFixed(2))}${t(' 秒',' s')}`:'';
       const meta=[scope+duration,group.channels?t(`${group.channels} 通道`,`${group.channels} channels`):'',group.requirements_unmet?t('方案条件未满足','Workflow requirements unmet'):group.scored_items?t(`已选 ${group.scored_items} 项计分`,`${group.scored_items} scoring checks selected`):''].filter(Boolean).join(' · ');
-      return `<section class="library-workflow">${reportRows([{...latest,label:group.label,label_en:group.label_en}])}<p class="library-workflow-meta">${esc(meta)}${group.current_confirmation===false?' · '+t('此前确认配置','Previous confirmation'):''}${latest.status!=='completed'?' · '+esc(status[latest.status]?.[en()?1:0]||latest.status):''}</p>${runs.length>1?`<details class="library-workflow-history"><summary>${t('历次运行','Previous runs')} · ${runs.length-1}</summary>${reportRows(runs.slice(1))}</details>`:''}</section>`;
+      return `<section class="library-workflow"><div class="library-workflow-card">${reportRows([{...latest,label:group.label,label_en:group.label_en}])}<p class="library-workflow-meta">${esc(meta)}${group.current_confirmation===false?' · '+t('此前确认配置','Previous confirmation'):''}${latest.status!=='completed'?' · '+esc(status[latest.status]?.[en()?1:0]||latest.status):''}</p></div>${runs.length>1?`<details class="library-workflow-history"><summary>${t('历次运行','Previous runs')} · ${runs.length-1}</summary>${reportRows(runs.slice(1))}</details>`:''}</section>`;
     };
     // Keep the newest distinct routes visible; repeated configurations cannot
     // push the other comparison route out of the compact data card.
@@ -95,8 +111,7 @@
       const label=en()?r.label_en||r.label:r.label;
       const meta=t(`${r.subjects??'—'} 个体 · ${r.records??'—'} 份记录`,`${r.subjects??'—'} subjects · ${r.records??'—'} recordings`);
       const content=`<span class="demo-report-copy"><strong>${esc(label)}${r.formats?`<small class="example-format">${esc(r.formats)}</small>`:''}</strong>${description?`<span>${esc(description)}</span>`:''}<small>${esc(meta)} · ${esc(reports)}</small></span><span class="demo-report-end">${available?t('查看报告','View report'):t('文件不可用','Files unavailable')}</span>`;
-      const menu=publicOnly&&r.id?`<details class="library-entry-menu example-entry-menu"><summary aria-label="${esc(t('示例操作：','Example actions: ')+label)}">⋯</summary><div>${menuButton('delete-example',r.id,t('删除示例…','Delete example…'))}</div></details>`:'';
-      return `<div class="public-example"><div class="public-example-heading">${available?`<a class="demo-report" href="${esc(href(en()?r.url_en||r.url:r.url))}" aria-label="${esc(label+' · '+t('查看报告','View report'))}">${content}</a>`:`<div class="demo-report unavailable" aria-disabled="true">${content}</div>`}${menu}</div>${sourceMarkup(r.source)}</div>`;
+      return `<div class="public-example"><div class="public-example-heading">${available?`<a class="demo-report" href="${esc(href(en()?r.url_en||r.url:r.url))}" aria-label="${esc(label+' · '+t('查看报告','View report'))}">${content}</a>`:`<div class="demo-report unavailable" aria-disabled="true">${content}</div>`}</div>${sourceMarkup(r.source)}</div>`;
     }).join('');
   }
   function render(){
@@ -106,8 +121,10 @@
     const archivedCount=items.reduce((n,r)=>n+Math.max(archivedReports(r).length,r.archived?1:0),0);
     $('data-library-count').textContent=String(items.filter(r=>!r.archived&&r.category!=='validation').length);
     $('library-active').textContent=t('当前','Active');$('library-active').setAttribute('aria-pressed',String(!archived));
-    $('library-active').hidden=publicOnly&&!archivedCount;
-    $('library-archived').hidden=publicOnly&&!archivedCount;
+    $('library-active').hidden=false;
+    if($('library-status-tabs'))$('library-status-tabs').dataset.active=archived?'archived':'current';
+    $('library-archived').hidden=false;
+    $('library-archived').title=publicOnly?t('仅整理本浏览器的报告；临时上传仍按原期限清理。','Organizes reports in this browser only. Temporary uploads still expire on schedule.'):'';
     $('library-archived').textContent=t(`归档${archivedCount?' · '+archivedCount:''}`,`Archive${archivedCount?' · '+archivedCount:''}`);$('library-archived').setAttribute('aria-pressed',String(archived));
     $('library-empty-archive').hidden=publicOnly||!archived||!archivedCount;$('library-empty-archive').disabled=busy;$('library-empty-archive').textContent=t('清空归档','Empty archive');
     $('library-data').setAttribute('aria-pressed',String(category==='data'));
@@ -159,7 +176,17 @@
     dialog.showModal();dialog.querySelector('input').focus();
   }
   async function mutate(action,selection){
-    if(publicOnly)return;
+    if(publicOnly){
+      if(!['archive','restore'].includes(action))return;
+      const eligible=new Set(items.flatMap(row=>rowReports(row)).filter(report=>!['running','queued','cancelling'].includes(report.status)).map(reportId).filter(validReportId));
+      const ids=(selection.ids||[]).filter(id=>eligible.has(id));if(!ids.length)return;
+      const next=new Set(browserArchive);for(const id of ids)action==='archive'?next.add(id):next.delete(id);
+      try{window.localStorage.setItem(archiveKey,JSON.stringify([...next]));}
+      catch{$('data-library-error').textContent=t('浏览器无法保存归档，请允许网站存储后重试。','Browser storage is unavailable. Allow site storage and retry.');$('data-library-error').hidden=false;return;}
+      browserArchive=next;render();$('data-library-error').hidden=true;
+      $('data-library-message').textContent=action==='archive'?t('已归档，可在“归档”中恢复。','Archived. Restore it from Archive.'):t('已恢复。','Restored.');
+      $('data-library-message').hidden=false;return;
+    }
     if(busy)return;busy=true;render();$('data-library-error').hidden=true;$('data-library-message').hidden=true;
     const post=async(name,body)=>{
       const response=await fetch('/api/v1/data/'+name,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -187,9 +214,8 @@
       const response=await fetch('/api/v1/data',{cache:'no-store'});
       if(!response.ok)throw Error('directory');
       const data=await response.json();if(request!==revision)return;
-      publicOnly=Boolean(data.public_only);items=data.items;if(!cached||data.examples_authoritative)examples=data.examples||[];
+      publicOnly=Boolean(data.public_only);items=publicOnly?data.items.map(row=>({...row,archived:false})):data.items;if(!cached||data.examples_authoritative)examples=data.examples||[];
       const timing=items.find(r=>r.temporary)?.retention;if(timing)clockOffset=Date.parse(timing.server_now)-Date.now();
-      if(!lastLoaded&&items.length)$('data-library').open=true;
       lastLoaded=Date.now();render();$('data-library-error').hidden=true;
     }catch{
       if(request===revision){
@@ -209,6 +235,7 @@
   $('data-library-more').addEventListener('click',()=>{limit+=12;render()});
   window.addEventListener('qc:languagechange',render);window.addEventListener('focus',()=>{if(Date.now()-lastLoaded>30000)refresh()});
   window.addEventListener('qc:temporary',refresh);
+  window.addEventListener('storage',event=>{if(publicOnly&&(event.key===archiveKey||event.key===null)){browserArchive=readBrowserArchive();render();}});
   window.setInterval?.(()=>{updateCountdowns();if(items.some(r=>r.temporary)&&Date.now()-lastLoaded>30000&&!busy&&!document.querySelector?.('.library-entry-menu[open], .example-delete-dialog'))refresh();},1000);
   try{$('demo-reports').open=window.localStorage.getItem('qc.examples.open')!=='false'}catch{}
   $('demo-reports').addEventListener('toggle',()=>{try{window.localStorage.setItem('qc.examples.open',String($('demo-reports').open))}catch{}});

@@ -108,9 +108,9 @@ def publish(config,destination):
             comparison_jobs[jid]={**variant,'comparison_id':comparison['id'],'window':comparison['window'],'limit':comparison.get('limit',64)}
             jobids.add(jid)
     if any(r['reported']!=r['records'] for r in examples):raise ValueError('Publish only after every example has a saved report')
-    # Freeze EEG finding indexes alongside their reports. The server may attach
+    # Freeze finding indexes alongside their reports. The server may attach
     # an explicitly configured, fingerprint-verified source for exploration.
-    interactive_jobs={jid for jid in jobids if store.job(jid).get('plan',{}).get('input_modality',{}).get('value')=='scalp_eeg'}
+    interactive_jobs={jid for jid in jobids if store.job(jid).get('plan',{}).get('input_modality',{}).get('value') in {'scalp_eeg','ecog','seeg','extracellular'}}
     destination.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='examples-',dir=destination.parent) as temp:
         out=pathlib.Path(temp);done=set();replacement='/examples/RELEASE/';views={};figures={}
@@ -121,6 +121,8 @@ def publish(config,destination):
         for jid in sorted(interactive_jobs):
             review=review_snapshot(store.workspace(jid))
             encoded=json.dumps(review,ensure_ascii=False,allow_nan=False,separators=(',',':'))
+            if len(encoded.encode()) > 32 * 1024**2:
+                raise ValueError('Example review snapshot exceeds the serving limit: '+jid)
             if re.search(r'/(?:home|media|tmp|mnt)/',encoded):
                 raise ValueError('Machine paths must not be published in example review metadata')
             put(f'review/{jid}.json',encoded)
@@ -235,7 +237,7 @@ def publish(config,destination):
             html=re.sub(r'<img\b[^>]*\bsrc=[\"\']#snapshot-info[\"\'][^>]*>','',html,flags=re.I)
             html=re.sub(r'<a\b[^>]*\bhref=[\"\']#snapshot-info[\"\'][^>]*>(.*?)</a>',lambda m:'<span class="snapshot-unavailable" title="'+('Not included in this example' if language=='en' else '此示例未附带该文件')+'">'+m[1]+'</span>',html,flags=re.S|re.I)
             html=re.sub(r'/(?:home|media|tmp)/[^\s<>"\'&]+','[本地来源路径]',html)
-            note=('Reports, figures and saved EEG finding locations are included. Interactive waveforms require the corresponding example source configured on the server.' if language=='en' else '示例保存报告、图像及 EEG 检查位置。交互波形按需读取服务端配置的对应示例文件。')
+            note=('Reports, figures and saved finding locations are included. Interactive waveforms require the corresponding example source configured on the server.' if language=='en' else '示例保存报告、图像及检查位置。交互波形按需读取服务端配置的对应示例文件。')
             return html.replace('</body>',f'<details id="snapshot-info" style="max-width:1100px;margin:16px auto;padding:0 16px;color:#607087;font-size:12px"><summary>'+('About this example' if language=='en' else '示例文件说明')+f'</summary><p>{note}</p></details></body>')
         for language in ['zh-CN','en']:
             for pid,o in overviews.items():
@@ -252,9 +254,8 @@ def publish(config,destination):
                 html=html.replace('</main>', '<details class="disclosure"><summary>'+('Sources and licenses' if language=='en' else '来源与许可')+'</summary><ul>'+''.join(links)+'</ul></details></main>')
                 put(f'datasets/{pid}.{language}.html',clean(html,f'/api/v1/packages/{pid}/overview/report',language))
             for jid in sorted(jobids):
-                # EEG keeps its current explorer backed by a frozen index.
-                # Other modalities retain saved candidate tables for now.
-                html=clean(served_report(store,jid,language,interactive=False),f'/api/v1/jobs/{jid}/report',language)
+                # Each modality uses the same read-only frozen finding index.
+                html=clean(served_report(store,jid,language,interactive=jid in interactive_jobs),f'/api/v1/jobs/{jid}/report',language)
                 if jid in comparison_jobs:
                     url=replacement+f'comparisons/{comparison_jobs[jid]["comparison_id"]}.{language}.html'
                     label='← EEG workflow comparison' if language=='en' else '← 返回 EEG 方案对照'

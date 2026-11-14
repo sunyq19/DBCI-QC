@@ -343,7 +343,7 @@
       container.innerHTML = '<p class="small muted">仅信息提取</p>';
       return;
     }
-    const label = state.recommending ? "正在准备推荐方案…" : state.configurationOrigin ? "沿用上次方案 · 可继续修改" : state.manualDraft ? "修改已保留" : validPlan() ? "方案已就绪" : "在右侧选择检查方法";
+    const label = state.recommending ? "正在准备推荐方案…" : state.configurationOrigin?.selected ? "已载入所选方案 · 可继续修改" : state.configurationOrigin ? "沿用上次方案 · 可继续修改" : state.manualDraft ? "修改已保留" : validPlan() ? "方案已就绪" : "在右侧选择检查方法";
     container.innerHTML = `<p class="small muted">${escape(label)}</p>`;
     if (recommendationValid() && state.recommendation?.can_apply === false) {
       container.innerHTML += `<p class="field-error">${escape(state.recommendation.summary || state.recommendation.reason || "请补充必要信息")}</p>`;
@@ -705,7 +705,7 @@
     if (!fromIntake) { ++state.intakeRequest; state.intake = null; pendingIntakeId(null); $("intake-file").value = ""; renderIntake(); }
     if(!fromIntake)resetRunName();
     state.filePending = false; state.input = next;
-    state.revisionInput = null; setJobLocation(null);
+    state.revisionInput = null; state.libraryConfirmation = false; setJobLocation(null);
     $("input-select").value = state.input.id; clearJobView();
     const input = state.input, meta = input.metadata || {}, selection = input.default_config?.selection || {};
     resetInputContext(input); renderContextEditors();
@@ -724,6 +724,17 @@
     renderChannelConfig(); renderScoringControls(); syncParameterEditor(); renderExamplePresets();
     invalidatePlan({manual:false});
     return autoPrepare && !unsupportedInput() ? makeRecommendation({autoApply:true}) : Promise.resolve(false);
+  }
+
+  function openConfirmedMethodSelection() {
+    // Data confirmation and choosing a QC workflow are separate actions.
+    state.selected=new Set();state.extensions=new Set();state.openPipelineModule=null;
+    state.draftConfig.method_config={...(state.draftConfig.method_config || {}),core_methods:[],extensions:[]};
+    state.configurationOrigin=null;
+    syncParameterEditor();invalidatePlan({manual:false});
+    $("advanced-settings").open=false;$("workflow-panel").open=true;
+    renderScoringControls();renderRecommendation();
+    $("pipeline-section").scrollIntoView({block:"start"});
   }
 
   function renderExamplePresets() {
@@ -759,7 +770,7 @@
     state.recommendation = null; state.recommendationKey = null; state.recommendationApplied = false; state.recommendationStale = false;
     state.selected = new Set(defaultSelectedModules()); state.extensions = new Set();
     state.contextTags = {disease:"unknown",age_group:"unknown",task:"unknown"};
-    state.scope = "recording"; state.parentJobId = null; state.revisionInput = null;
+    state.scope = "recording"; state.parentJobId = null; state.revisionInput = null; state.libraryConfirmation = false;
     state.configurationOrigin = null;
     $("input-select").value = ""; $("start-seconds").value = ""; $("duration-seconds").value = "";
     $("extension-parameters").value = "{}"; $("selected-file-name").textContent = "";
@@ -897,7 +908,7 @@
     const modalityEvidence = suggestions.modality_evidence || {};
     const proposedModality = modalityEvidence.status === "file_declared" && Object.hasOwn(MODALITY_LABELS,suggestions.modality) ? suggestions.modality : "unknown";
     const fields = Object.entries(CONTEXT_FIELDS).map(([field,label])=>`<label class="metadata-field"><span>${label}</span><select id="intake-context-${field}">${selectOptions(arr(state.catalog?.context_tag_options?.[field]).map(option=>[option.value,option.label]),suggestions.context_tags?.[field] || "unknown")}</select></label>`).join("");
-    container.innerHTML = `<div class="confirmation-heading"><h3>补充信息</h3><span class="small muted">背景可留未知</span></div><div class="metadata-fields"><label class="metadata-field"><span>分析模态 <b>*</b></span><select id="intake-modality">${selectOptions(Object.entries(MODALITY_LABELS),proposedModality)}</select></label></div><details class="intake-context intake-background"><summary>背景（可选）</summary><div class="metadata-fields">${fields}</div><p class="small muted context-note">疾病标签用于背景与复核，不自动改变质量阈值。</p></details>${modalityEvidence.reason ? `<details class="intake-modality-evidence"><summary>${modalityEvidence.status === "file_declared" ? "模态建议来自文件声明，待核对" : modalityEvidence.status === "mixed" ? "含混合通道，请选择分析组" : "模态待确认"}</summary><p class="small muted">${escape(modalityEvidence.reason)}</p></details>` : ""}<details class="intake-context" ${correction ? "open" : ""}><summary id="intake-channel-summary">核对通道 · 建议 ${count} 道分析信号</summary><p class="small muted">以下角色为待确认建议。分析与辅助信号须共享采样率。</p>${correction ? '<div class="notice warning">请核对通道角色与原生采样率。</div>' : ""}<div class="intake-channel-table"><table><thead><tr><th>原始信号</th><th>技术字段</th><th>建议角色</th></tr></thead><tbody>${channels.map(channel=>`<tr><td data-i18n-skip><strong>#${escape(channel.index)} ${escape(channel.name)}</strong></td><td data-i18n-skip>${number(channel.sampling_rate_hz)} Hz<br>${escape(channel.unit || "?")}</td><td><select data-intake-channel="${escape(channel.index)}" aria-label="确认通道角色">${selectOptions(isDigitalChannel(channel) ? [["unused","同步 / 数字通道（不分析）"]] : roles,intakeRole(channel.index,suggestions))}</select></td></tr>`).join("")}</tbody></table></div></details><details class="intake-context"><summary>参考与来源（可选）</summary><label class="field-label" for="intake-reference">参考构型</label><select id="intake-reference">${selectOptions(references,suggestions.reference_scheme || "unknown")}</select><label class="field-label" for="intake-label">记录名称</label><input id="intake-label" type="text" value="${escape(intake.filename || "")}" maxlength="160"><label class="field-label" for="intake-source-note">来源与背景补充</label><textarea id="intake-source-note" rows="3" maxlength="2000" placeholder="已知实验或来源，可留空"></textarea></details>${processingFields()}<label class="intake-consent"><input id="intake-confirmed" type="checkbox"><span>已核对分析模态和通道角色。</span></label><p id="intake-modality-note" class="small muted"></p><button id="intake-confirm-button" class="button primary">确认并推荐</button><details class="result-summary"><summary>读取详情</summary><p class="small muted">确认不会启动检查。</p>${arr(intake.warnings).length?`<ul>${intake.warnings.map(item=>`<li>${escape(pretty(item))}</li>`).join("")}</ul>`:""}<pre data-i18n-skip>${escape(pretty(intake))}</pre></details>`;
+    container.innerHTML = `<div class="confirmation-heading"><h3>补充信息</h3><span class="small muted">背景可留未知</span></div><div class="metadata-fields"><label class="metadata-field"><span>分析模态 <b>*</b></span><select id="intake-modality">${selectOptions(Object.entries(MODALITY_LABELS),proposedModality)}</select></label></div><details class="intake-context intake-background"><summary>背景（可选）</summary><div class="metadata-fields">${fields}</div><p class="small muted context-note">疾病标签用于背景与复核，不自动改变质量阈值。</p></details>${modalityEvidence.reason ? `<details class="intake-modality-evidence"><summary>${modalityEvidence.status === "file_declared" ? "模态建议来自文件声明，待核对" : modalityEvidence.status === "mixed" ? "含混合通道，请选择分析组" : "模态待确认"}</summary><p class="small muted">${escape(modalityEvidence.reason)}</p></details>` : ""}<details class="intake-context" ${correction ? "open" : ""}><summary id="intake-channel-summary">核对通道 · 建议 ${count} 道分析信号</summary><p class="small muted">以下角色为待确认建议。分析与辅助信号须共享采样率。</p>${correction ? '<div class="notice warning">请核对通道角色与原生采样率。</div>' : ""}<div class="intake-channel-table"><table><thead><tr><th>原始信号</th><th>技术字段</th><th>建议角色</th></tr></thead><tbody>${channels.map(channel=>`<tr><td data-i18n-skip><strong>#${escape(channel.index)} ${escape(channel.name)}</strong></td><td data-i18n-skip>${number(channel.sampling_rate_hz)} Hz<br>${escape(channel.unit || "?")}</td><td><select data-intake-channel="${escape(channel.index)}" aria-label="确认通道角色">${selectOptions(isDigitalChannel(channel) ? [["unused","同步 / 数字通道（不分析）"]] : roles,intakeRole(channel.index,suggestions))}</select></td></tr>`).join("")}</tbody></table></div></details><details class="intake-context"><summary>参考与来源（可选）</summary><label class="field-label" for="intake-reference">参考构型</label><select id="intake-reference">${selectOptions(references,suggestions.reference_scheme || "unknown")}</select><label class="field-label" for="intake-label">记录名称</label><input id="intake-label" type="text" value="${escape(intake.filename || "")}" maxlength="160"><label class="field-label" for="intake-source-note">来源与背景补充</label><textarea id="intake-source-note" rows="3" maxlength="2000" placeholder="已知实验或来源，可留空"></textarea></details>${processingFields()}<label class="intake-consent"><input id="intake-confirmed" type="checkbox"><span>已核对分析模态和通道角色。</span></label><p id="intake-modality-note" class="small muted"></p><button id="intake-confirm-button" class="button primary">确认</button><details class="result-summary"><summary>读取详情</summary><p class="small muted">确认不会启动检查。</p>${arr(intake.warnings).length?`<ul>${intake.warnings.map(item=>`<li>${escape(pretty(item))}</li>`).join("")}</ul>`:""}<pre data-i18n-skip>${escape(pretty(intake))}</pre></details>`;
     renderRevisionFields(); if (!state.revisionInput) applyIntakeModalitySuggestion(proposedModality); renderExtraction();
   }
 
@@ -915,7 +926,7 @@
     $("intake-confirmed").checked=false;
     const supported = supportedModality(modality);
     $("intake-modality-note").textContent = modality === "extracellular" && supported ? "当前接入受支持的 SpikeGLX AP/LF 与具有明确设备证据的 NWB 连续电压；不评估已分选单元。" : modality === "unknown" || supported ? "" : "可保存提取信息；当前模态暂无质控配置。";
-    $("intake-confirm-button").textContent = supported ? "确认并推荐" : "确认信息";
+    $("intake-confirm-button").textContent = "确认";
   }
 
   function intakeConfirmation(roles, fields) {
@@ -941,14 +952,16 @@
     return {modality:fields.modality,reference_scheme:fields.reference_scheme,eeg_indices:eeg,reference_indices:auxiliary,context_tags:fields.context_tags,label:fields.label,source_note:fields.source_note,confirmed:true,...(state.intake.metadata?.format === "NWB" && !state.revisionInput ? {selected_stream_id:state.intake.metadata.selected_stream_id} : {})};
   }
 
-  function beginInputRevision() {
+  function beginInputRevision({fromLibrary = false} = {}) {
     const input = state.input; if (!input || state.submitting || state.intakeBusy || state.mode !== "draft") return;
-    cancelDraftRequests(); state.revisionInput=input; state.filePending=true;
+    cancelDraftRequests(); state.revisionInput=input; state.libraryConfirmation=fromLibrary; state.filePending=true;
     state.intake={id:input.id,status:"revision",filename:input.label || input.id,metadata:input.metadata,suggestions:{...(input.default_config?.selection || {}),reference_scheme:input.reference_scheme || "unknown",context_tags:state.contextTags}};
     renderIntake(); updateActions(); $("pipeline-section").scrollIntoView({block:"start"});
   }
   function cancelInputRevision() {
-    if (!state.revisionInput || state.intakeBusy) return; state.revisionInput=null; state.intake=null; state.filePending=false; renderIntake(); updateActions();
+    if (!state.revisionInput || state.intakeBusy) return;
+    if(state.libraryConfirmation){state.intake=null;state.filePending=false;clearInputDraft();renderIntake();return;}
+    state.revisionInput=null; state.intake=null; state.filePending=false; renderIntake(); updateActions();
   }
   function renderRevisionFields() {
     const input=state.revisionInput; if (!input) return;
@@ -959,7 +972,8 @@
     // Replacing markup above rebuilds the form; restore the explicit source values.
     $("intake-modality").value=input.modality || "unknown";
     $("intake-source-note").value=input.description || "";
-    $("intake-confirm-button").textContent="保存新版本并推荐";
+    $("intake-confirm-button").textContent="确认";
+    if(state.libraryConfirmation)$("cancel-revision-button").textContent="取消";
   }
 
   function revisionMetadataChanges(input, fields) {
@@ -1030,12 +1044,27 @@
         let loaded;
         const record = await api(`/inputs/${encodeURIComponent(intake.input_id)}`);
         if (request !== state.intakeRequest) return;
-        rememberInput(record); await selectInput(record.id,{autoPrepare:supportedModality(inputModality(record)),fromIntake:true}); loaded = state.input?.id === record.id;
+        rememberInput(record); await selectInput(record.id,{autoPrepare:false,fromIntake:true}); loaded = state.input?.id === record.id;
+        if(loaded && request === state.intakeRequest)openConfirmedMethodSelection();
         if (request === state.intakeRequest) $("intake-status").textContent = loaded ? "已恢复文件" : "文件已登记，请重新连接";
       } else { renderIntake(); $("intake-status").textContent = "已恢复读取结果，请确认信息"; }
     }
     catch(error) { if (request === state.intakeRequest) setError("intake-error",error.message); }
     finally { if (request === state.intakeRequest) { state.intakeBusy = false; updateActions(); } }
+  }
+
+  function unchangedInputConfirmation(input, request) {
+    const selection=input.default_config?.selection || {};
+    const indices=value=>arr(value).slice().sort((a,b)=>a-b).join(",");
+    const roles=value=>JSON.stringify(Object.entries(value || {}).sort(([a],[b])=>a.localeCompare(b)));
+    return request.modality === inputModality(input)
+      && request.reference_scheme === (input.reference_scheme || "unknown")
+      && request.label === String(input.label || input.id).trim()
+      && request.source_note === String(input.description || "").trim()
+      && indices(request.eeg_indices) === indices(selection.eeg_indices)
+      && roles(request.reference_indices) === roles(selection.reference_indices)
+      && Object.keys(CONTEXT_FIELDS).every(key=>(request.context_tags?.[key] || "unknown") === (state.contextTags[key] || "unknown"))
+      && !Object.hasOwn(request,"preprocessing") && !Object.hasOwn(request,"annotation_mapping");
   }
 
   async function confirmIntake() {
@@ -1054,15 +1083,15 @@
     const intakeRequest = state.intakeRequest, intakeId = state.intake.id;
     state.intakeBusy = true; $("intake-confirm-button").disabled = true; setError("intake-error",null); $("intake-status").textContent = "正在准备…"; updateActions();
     try {
-      const response = await api(state.revisionInput ? `/inputs/${encodeURIComponent(state.revisionInput.id)}/revisions` : `/intakes/${encodeURIComponent(intakeId)}/confirm`,{method:"POST",body:JSON.stringify(request)});
+      const reuse=state.libraryConfirmation && state.revisionInput && unchangedInputConfirmation(state.revisionInput,request);
+      const response = reuse ? {status:"registered",input:state.revisionInput} : await api(state.revisionInput ? `/inputs/${encodeURIComponent(state.revisionInput.id)}/revisions` : `/intakes/${encodeURIComponent(intakeId)}/confirm`,{method:"POST",body:JSON.stringify(request)});
       if (intakeRequest !== state.intakeRequest) return;
       if (response.status !== "registered" || !response.input?.id) throw new Error("服务未确认登记成功，请恢复读取状态后核对。");
       state.intake = {...state.intake,status:"registered"}; pendingIntakeId(null); renderIntake(); window.QCDataLibrary?.refresh();
-      const modality = inputModality(response.input);
       let loaded;
-      rememberInput(response.input); await selectInput(response.input.id,{autoPrepare:supportedModality(modality),fromIntake:true}); loaded = state.input?.id === response.input.id;
-      if (intakeRequest === state.intakeRequest) $("intake-status").textContent = loaded ? validPlan() ? "方案已就绪" : unsupportedInput() ? "信息已保存；当前模态暂无质控配置" : "方案未完成，请重试" : "文件已登记，请重新连接";
-      if (loaded && intakeRequest === state.intakeRequest && validPlan()) { $("analysis-workspace").scrollIntoView({block:"start"}); $("run-button").focus?.({preventScroll:true}); }
+      rememberInput(response.input); await selectInput(response.input.id,{autoPrepare:false,fromIntake:true}); loaded = state.input?.id === response.input.id;
+      if(loaded && intakeRequest === state.intakeRequest)openConfirmedMethodSelection();
+      if (intakeRequest === state.intakeRequest) $("intake-status").textContent = loaded ? unsupportedInput() ? "信息已保存；当前模态暂无质控配置" : "信息已确认，请选择检查方法" : "文件已登记，请重新连接";
     } catch(error) { if (intakeRequest === state.intakeRequest) { setError("intake-error",error.message); if ($("intake-confirm-button")) $("intake-confirm-button").disabled = false; } }
     finally { if (intakeRequest === state.intakeRequest) { state.intakeBusy = false; updateActions(); } }
   }
@@ -1612,6 +1641,7 @@
     url.searchParams.delete("modality");
     url.searchParams.delete("intake");
     url.searchParams.delete("input");
+    url.searchParams.delete("configure");
     if (id) url.searchParams.set("job",id); else url.searchParams.delete("job");
     return `${url.pathname}${url.search}${location.hash || ""}`;
   }
@@ -1620,6 +1650,10 @@
     if (state.navigationRestored) return; state.navigationRestored = true;
     const id = new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("job");
     if (id && /^[a-zA-Z0-9_-]{1,120}$/.test(id)) { await selectJob(id); return; }
+    const configurationId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("configure");
+    if(configurationId&&/^[a-f0-9]{32}$/.test(configurationId)){
+      await openLibraryInput(null,{jobId:configurationId});return;
+    }
     const inputId=new URL(`${location.pathname}${location.search}`,"http://localhost").searchParams.get("input");
     if(inputId&&/^[a-zA-Z0-9_-]{1,160}$/.test(inputId)){
       await openLibraryInput(inputId);return;
@@ -1629,8 +1663,8 @@
     $("draft-recovery").hidden = !savedDraft();
   }
 
-  async function openLibraryInput(id) {
-    if (state.submitting || state.intakeBusy || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return false;
+  async function openLibraryInput(id, {jobId = null} = {}) {
+    if (state.submitting || state.intakeBusy || !(jobId ? /^[a-f0-9]{32}$/.test(jobId) : typeof id === "string" && /^[a-zA-Z0-9_-]{1,160}$/.test(id))) return false;
     state.navigationRestored = true;
     ++state.catalogRequest; state.loadingCatalog = false;
     saveDraft(); clearInputDraft();
@@ -1639,22 +1673,46 @@
     let request = ++state.selectionRequest;
     state.loadingRecord = true; setError("catalog-error",null); updateActions();
     try {
-      const saved = await api(`/inputs/${encodeURIComponent(id)}/configuration`);
+      let saved;
+      if(jobId){
+        const configuration=await api(`/jobs/${encodeURIComponent(jobId)}/configuration`);
+        if(request !== state.selectionRequest)return false;
+        if(typeof configuration.input_id !== "string" || !/^[a-zA-Z0-9_-]{1,160}$/.test(configuration.input_id))throw new Error("保存的方案缺少对应记录，无法恢复。");
+        const input=await api(`/inputs/${encodeURIComponent(configuration.input_id)}`);
+        saved={input,configuration:{...configuration,parent_job_id:jobId},previous_run:{id:jobId,selected:true}};
+      }else saved={input:await api(`/inputs/${encodeURIComponent(id)}`)};
       if (request !== state.selectionRequest) return false;
       const record = saved.input, modality = inputModality(record);
+      if(record.retention?.state === "expired" || record.availability?.status === "unavailable")throw new Error("数据副本不可用；报告仍可查看，重新检查请再次上传。");
       if (supportedModality(modality) && (!state.catalog || state.activeModality !== modality)) {
         if (!await ensureCatalog(modality,()=>request === state.selectionRequest)) return false;
       }
       if (request !== state.selectionRequest) return false;
       rememberInput(record);
       if (saved.configuration && saved.configuration.input_id !== record.id) throw new Error("保存的方案与记录不一致，请刷新后重试。");
-      const prepared = saved.configuration
-        ? applyConfiguration(saved.configuration)
-        : selectInput(record.id,{autoPrepare:supportedModality(modality)});
+      if(!jobId){
+        const pending=selectInput(record.id,{autoPrepare:false}); request=state.selectionRequest;
+        await pending;
+        if(request !== state.selectionRequest || state.input?.id !== record.id)return false;
+        beginInputRevision({fromLibrary:true});
+        const url=new URL(`${location.pathname}${location.search}`,"http://localhost");
+        for(const key of ["job","configure","intake","modality"])url.searchParams.delete(key);
+        url.searchParams.set("input",record.id);
+        window.history.replaceState(window.history.state,"",`${url.pathname}${url.search}`);
+        $("workflow-panel").open=true;
+        return true;
+      }
+      const prepared = applyConfiguration(saved.configuration);
       request = state.selectionRequest;
       await prepared;
       if (request !== state.selectionRequest || state.input?.id !== record.id) return false;
       state.configurationOrigin = saved.previous_run;
+      if(jobId){
+        const url=new URL(`${location.pathname}${location.search}`,"http://localhost");
+        for(const key of ["job","input","intake","modality"])url.searchParams.delete(key);
+        url.searchParams.set("configure",jobId);
+        window.history.replaceState(window.history.state,"",`${url.pathname}${url.search}${location.hash || ""}`);
+      }
       renderScoringControls(); renderRecommendation();
       $("advanced-settings").open = false;
       $("workflow-panel").open = true;
@@ -1669,9 +1727,14 @@
   }
 
   function openLibraryLink(event) {
-    const anchor = event.target.closest(".data-library-label");
+    const anchor = event.target.closest("a.data-library-label, a.library-config-link");
     if (!anchor || event.defaultPrevented || event.button > 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const url = new URL(anchor.getAttribute("href"),"http://localhost");
+    if(url.origin !== "http://localhost" || url.pathname !== "/")return;
+    const configurationId=url.searchParams.get("configure");
+    if(configurationId&&/^[a-f0-9]{32}$/.test(configurationId)){
+      event.preventDefault();return openLibraryInput(null,{jobId:configurationId});
+    }
     const id = url.searchParams.get("input");
     if (url.pathname !== "/" || !id || !/^[a-zA-Z0-9_-]{1,160}$/.test(id)) return;
     event.preventDefault();
@@ -2038,7 +2101,7 @@
   function methodDocumentationHtml(method) {
     const documentation = method.documentation;
     if (!documentation || typeof documentation !== "object") return '<p class="small muted">当前目录尚未补充详细方法说明。</p>';
-    const sections = [["purpose","解决什么问题"],["how_it_works","方法如何工作"],["interpretation","怎样解释结果"],["when_to_use","适合使用时"],["when_not_to_use","不适合使用时"],["validation_status","当前验证证据"]];
+    const sections = [["how_it_works","计算原理"],["interpretation","结果说明"],["when_not_to_use","不适用情况"],["validation_status","验证情况"]];
     const explanation = sections.filter(([key]) => documentation[key] != null).map(([key,title]) => `<div><h5>${title}</h5>${Array.isArray(documentation[key]) ? methodList(documentation[key]) : `<p>${escape(pretty(documentation[key]))}</p>`}</div>`).join("");
     const references = arr(documentation.references).map(reference => {
       const url = safeSourceUrl(reference.url), title = reference.title || reference.url || "来源未命名";
@@ -2059,7 +2122,21 @@
       const switchable = !browsing && method.optional_extension && method.implementation === "available";
       const historicalSelected = arr(plan?.qc_config?.method_config?.extensions).includes(method.id) || Boolean(applicability.selected);
       const selected = historical ? historicalSelected : state.extensions.has(method.id);
-      return `<article class="method-card"><div class="method-card-head"><div><h4>${escape(method.name)}</h4><div class="method-tags"><span class="tag method-domain">${escape(classification.domain_label)}</span><span class="tag method-activation ${escape(classification.activation)}">${escape(classification.activation_label)}</span><span class="tag subtle">${method.implementation === "available" ? "已接入" : "尚未接入"}</span></div></div>${!browsing && plan ? statusTag(applicability.status) : ""}</div><p>${escape(method.description || "目录未提供方法说明。")}</p><details class="method-more"${methodId ? " open" : ""}><summary>原理、条件与来源</summary><div class="method-scope"><h5>${planned ? "计划适用模态" : "适用模态"}</h5><p>${escape(modalities.length ? modalities.join(" · ") : planned ? "目录未声明计划适用模态。" : "目录未声明适用模态。")}</p>${method.scope_note ? `<p>${escape(method.scope_note)}</p>` : ""}</div>${methodDocumentationHtml(method)}<p class="small muted">${method.can_output_score?"可输出分数 · "+arr(method.scoring?.outputs).map(s=>escape(s.name)).join("、"):"不输出分数 · "+escape(method.scoring?.reason||"仅输出测量与流程结果")}</p><div class="method-io"><div><h5>输入</h5>${methodList(method.inputs)}</div><div><h5>输出</h5>${methodList(method.outputs)}</div></div><div class="method-requirements"><h5>适用条件</h5>${methodList(method.requirements)}</div><div class="method-availability ${escape(applicability.status)}">${escape(applicability.reason || "计划未提供适用性原因。")}</div><div class="method-source"><span>开源 / 方法来源</span>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(source.name || url)} ↗</a>` : `<span>${escape(source.name || "目录未提供")}</span>`}${source.license ? `<span class="source-license">${escape(pretty(source.license))}</span>` : '<span>许可未提供</span>'}</div>${arr(method.limitations).length ? `<details><summary>方法限制（${method.limitations.length} 项）</summary>${methodList(method.limitations)}</details>` : ""}${applicability.parameters != null || method.defaults != null ? `<details><summary>${applicability.parameters != null ? "本次计划参数" : "方法默认参数（尚待规划）"}</summary><pre>${escape(pretty(applicability.parameters ?? method.defaults))}</pre></details>` : ""}</details>${switchable ? `<div class="method-toggle"><label class="extension-check" for="dialog-extension-${escape(method.id)}"><input id="dialog-extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${selected ? "checked" : ""} ${historical ? "disabled" : ""}><span>${historical ? "此运行的扩展选择" : "启用这项可选扩展"}</span></label><p>${historical ? "历史选择只读；要修改，请在左侧配置新分析。" : `启用后同时选中 ${escape(module.id)}；开始时核对适用条件。`}</p></div>` : ""}</article>`;
+      const scoringLabel = method.can_output_score ? "可计分" : "不计分";
+      return `<article class="method-card">
+        <div class="method-card-head"><div><h4>${escape(method.name)}</h4><div class="method-tags"><span class="tag subtle">${planned ? "计划适用模态：" : "适用模态："}${escape(modalities.join(" · ") || (planned ? "目录未声明计划适用模态。" : "目录未声明适用模态。"))}</span><span class="tag subtle">${planned ? "尚未接入" : "已接入"}</span><span class="tag subtle">${scoringLabel}</span></div></div>${!browsing && plan ? statusTag(applicability.status) : ""}</div>
+        <p class="method-purpose">${escape(method.description || "暂无简要说明。")}</p>
+        <div class="method-quick-output"><h5>输出结果</h5>${methodList(method.outputs)}</div>
+        <p class="small muted">${method.can_output_score ? "选择计分并设置权重后，参与综合分。" : "提供检查结果，不参与综合分。"}</p>
+        ${!browsing && plan ? `<p class="method-availability ${escape(applicability.status)}">${escape(applicability.reason || "请核对当前数据条件。")}</p>` : '<p class="small muted">读入数据后检查是否适用。</p>'}
+        <details class="method-requirements"><summary>适用条件</summary>${methodList(method.requirements?.length ? method.requirements : method.inputs)}</details>
+        <details class="method-more"><summary>原理与来源</summary><p class="small muted">${escape(classification.activation_label)}</p>${method.scope_note ? `<p class="small muted">${escape(method.scope_note)}</p>` : ""}${methodDocumentationHtml(method)}
+          <div class="method-source"><span>方法来源</span>${url ? `<a href="${escape(url)}" target="_blank" rel="noopener noreferrer">${escape(source.name || url)} ↗</a>` : `<span>${escape(source.name || "目录未提供")}</span>`}${source.license ? `<span class="source-license">${escape(pretty(source.license))}</span>` : ""}</div>
+          ${arr(method.limitations).length ? `<details><summary>使用限制</summary>${methodList(method.limitations)}</details>` : ""}
+          ${applicability.parameters != null || method.defaults != null ? `<details><summary>${applicability.parameters != null ? "本次参数" : "默认参数"}</summary><pre>${escape(pretty(applicability.parameters ?? method.defaults))}</pre></details>` : ""}
+        </details>
+        ${switchable ? `<div class="method-toggle"><label class="extension-check" for="dialog-extension-${escape(method.id)}"><input id="dialog-extension-${escape(method.id)}" type="checkbox" data-extension="${escape(method.id)}" ${selected ? "checked" : ""} ${historical ? "disabled" : ""}><span>${historical ? "本次已选" : "选择此方法"}</span></label>${historical ? '<p>历史选择只读；可复制配置后调整。</p>' : ""}</div>` : ""}
+      </article>`;
     }).join("")}</section>`;
   }
 

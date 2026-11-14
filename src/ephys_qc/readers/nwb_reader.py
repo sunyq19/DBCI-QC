@@ -93,6 +93,29 @@ def _unit_scale(unit):
     return scales[key]
 
 
+def _series_path(obj, paths, handle):
+    """Resolve legacy NWB series without trusting PyNWB's generated object UUID.
+
+    Early NWB 2 files may omit object_id. Only accept the actual data's owning
+    ElectricalSeries in the same, already inspected HDF5 handle. A conflicting
+    stored identifier or a linked dataset owned by another group is not guessed.
+    """
+    import h5py
+    path = paths.get(str(obj.object_id))
+    if path is not None:
+        return path
+    data = getattr(obj, 'data', None)
+    if isinstance(data, h5py.Dataset) and data.file.id == handle.id:
+        group = data.parent
+        if ('object_id' not in group.attrs
+                and _text(group.attrs.get('neurodata_type', '')) == 'ElectricalSeries'
+                and posixpath.basename(group.name) == obj.name
+                and data.name == group.name + '/data'
+                and group['data'].id == data.id):
+            return group.name
+    raise ValueError('NWB ElectricalSeries 缺少可追溯的 HDF5 对象路径。')
+
+
 def _clock(group, count):
     """Validate every explicit timestamp in bounded blocks, not a sampled prefix."""
     import numpy as np
@@ -194,9 +217,7 @@ class NWBReader(SourceGuard):
                        and not isinstance(obj, SpikeEventSeries)]
             self.nwb_info['electrical_series_count'] = len(objects)
             for obj in sorted(objects, key=lambda item: paths.get(str(item.object_id), '')):
-                source_path = paths.get(str(obj.object_id))
-                if source_path is None:
-                    raise ValueError('NWB ElectricalSeries 缺少可追溯的 HDF5 对象路径。')
+                source_path = _series_path(obj, paths, self.handle)
                 parent_kind = type(obj.parent).__name__
                 summary = {'stream_id': source_path, 'name': obj.name, 'container_type': parent_kind,
                            'object_type': type(obj).__name__, 'channel_count': None, 'sample_count': None,

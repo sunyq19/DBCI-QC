@@ -1,4 +1,4 @@
-# 1.1.0 打包部署
+# 1.1.1 打包部署
 
 一个仓库，两种安装形式：本页通过 Docker 自动安装并启动；[源码部署](demo.md)使用已有 Python/Node 环境。算法、报告和协作功能共用代码。
 
@@ -7,12 +7,12 @@
 - Linux x86_64 服务器，Docker Engine 与 Compose v2.20 或更新版本。
 - 建议至少 4 核、16 GiB 内存、100 GiB 可用磁盘。实际计算量取决于记录大小与方法；默认每次运行一项质检任务。
 - 首次构建需要联网下载 Python、Node、Caddy 和算法依赖；无需在宿主机安装 Python、Node 或 Git。
-- 下载 [v1.1.0 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.0)中的 `DBCI-QC-1.1.0-deploy.tar.gz` 与 `SHA256SUMS`。
+- 下载 [v1.1.1 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.1)中的 `DBCI-QC-1.1.1-deploy.tar.gz` 与 `SHA256SUMS`。
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -xzf DBCI-QC-1.1.0-deploy.tar.gz
-cd DBCI-QC-1.1.0
+tar -xzf DBCI-QC-1.1.1-deploy.tar.gz
+cd DBCI-QC-1.1.1
 sh deploy.sh
 ```
 
@@ -84,6 +84,23 @@ sh deploy.sh          # 启动或重新构建
 
 管理员登记公开数据时，可在 `qc-data` 卷内放置 `/data/public-catalog.json`，只填写 `inputs`、`profiles`、`packages`、`public_records`、`public_packages`、`example_review_sources`。路径使用容器内路径；通过 `compose.override.yaml` 将公开源文件只读挂载到质控容器。重启后读取目录，上传隔离规则不可由此文件关闭。
 
+### 示例报告与交互波形
+
+GitHub 提供报告、图像和检查位置；不包含原始脑电文件。仅更新代码可以看到报告，但拖动波形、对照通道还需要以下配置：
+
+1. 将公开示例源文件放到服务器单独目录，例如 `/srv/dbci-qc/public-sources`。保留配套文件和原文件名：BrainVision 的 `.vhdr/.eeg/.vmrk`、EEGLAB 的 `.set/.fdt`、SpikeGLX 的 `.bin/.meta` 必须一起复制。
+2. 在 `compose.override.yaml` 中，将该目录只读挂载到 `qc` 服务的 `/data/public-sources`。
+3. 在 `/data/public-catalog.json` 的 `example_review_sources` 中登记文件指纹与**容器内**主文件绝对路径的对应关系。指纹取当前 `apps/workbench/example-cache/manifest.json` 的 `review_snapshots`；不要使用本地电脑或 012 的路径。只需演示波形时，无须把这些文件加入“我的数据”。
+4. 重建镜像并启动后执行：
+
+```bash
+docker compose exec qc python scripts/check_example_sources.py --config /data/workbench.json --checksums
+```
+
+检查应无缺件或内容不符，再实际打开示例，拖动波形、切换通道并下载 PDF。该检查只校验文件，不重新运行算法。
+
+更新示例时，`manifest.json` 和对应的版本目录必须成套部署；不要把旧版数据集总览与新版单份报告混用。历史评分原件保留，新发布页面的总分、权重明细与 PDF 应一致。“我的数据”不配置 `demo_library_reports`，新浏览器初始为空；用户临时上传和报告不得打包、备份或推送至 GitHub。
+
 如需在同一机器运行多个独立演示，设置不同的 `COMPOSE_PROJECT_NAME`、对外端口和 `PUBLIC_ORIGIN`；其持久卷也会分别建立。
 
 构建时执行依赖一致性检查与实际导入测试，服务启动时再次检查 Python 和基础依赖；失败的服务不会被网关判为就绪。升级须重新构建镜像，不能只在旧容器里替换代码。独立检查运行环境：
@@ -109,7 +126,7 @@ GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传�
 开发者从固定提交生成同一版本的文件集合：
 
 ```bash
-python3 scripts/build_deploy_bundle.py --ref v1.1.0 --output /path/to/releases
+python3 scripts/build_deploy_bundle.py --ref v1.1.1 --output /path/to/releases
 ```
 
 包内 `RELEASE.json` 记录版本和 Git 提交，外部 `SHA256SUMS` 校验下载文件。源码目录中的个人配置、运行库和未提交文件不会混入包内。

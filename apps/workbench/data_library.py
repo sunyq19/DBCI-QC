@@ -1,8 +1,43 @@
 """One data directory for uploaded/registered records and declared datasets."""
 import copy
+from types import SimpleNamespace
 from urllib.parse import urlencode
 from library_identity import data_identity, workflow_groups
 from temporary_uploads import public_intake, enabled
+
+
+def demo_library(store):
+    """Opt-in public report selection alongside private uploads, empty by default.
+
+    Scope records and runs before grouping so restoring a few demonstrations
+    cannot expose the rest of the development history or merge private uploads.
+    This is a directory of existing reports, never a trigger to run QC.
+    """
+    selected = store.settings.get('demo_library_reports', [])
+    if not isinstance(selected, list) or not selected:
+        return []
+    from temporary_uploads import public_source
+    inputs, jobs = {}, {}
+    with store.lock:
+        for identifier in selected:
+            if not isinstance(identifier, str): continue
+            job = store.jobs.get(identifier)
+            if not job or job.get('status') != 'completed': continue
+            item = store.inputs.get(job['input_id'])
+            if not item or item.get('dataset_context') or item.get('retention', {}).get('state') == 'temporary': continue
+            source = public_source(store.settings, item)
+            if not source or not (store.root/'jobs'/identifier/'artifacts/report.html').is_file(): continue
+            item = copy.deepcopy(item)
+            item.update(public_source=source, library_origin='user_registered')
+            inputs[item['id']] = item
+            jobs[identifier] = copy.deepcopy(job)
+    if not jobs: return []
+    scope = SimpleNamespace(**vars(store))
+    scope.inputs, scope.jobs = inputs, jobs
+    scope.intakes = SimpleNamespace(pending=lambda: [])
+    scope.packages = SimpleNamespace(catalog=lambda: {'packages': []}, jobs={},
+                                     packages={}, lock=store.lock)
+    return library(scope)['items']
 
 
 def configuration_source(store, identifier):

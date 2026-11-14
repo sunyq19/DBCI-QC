@@ -127,6 +127,34 @@ def test_failed_upload_leaves_no_payload_or_public_record(service):
     assert call('/api/v1/data')['items'] == []
 
 
+def test_opt_in_public_demo_reports_do_not_restore_history_or_merge_uploads(service):
+    server, call, _ = service
+    public = server.store
+    intake = public.intakes.receive('public.edf', len(recording()), io.BytesIO(recording()))
+    identifier = 'local-'+intake['id']
+    public.settings['public_records'] = {identifier: {'name':'Public fixture', 'url':'https://example.org/data', 'license':'CC0'}}
+    public.confirm_intake(intake['id'], confirmation())
+    for jid in ['a'*32, 'b'*32, 'c'*32]:
+        folder=public.root/'jobs'/jid/'artifacts'; folder.mkdir(parents=True)
+        (folder/'report.html').write_text('Saved public report')
+        public.jobs[jid]={'id':jid, 'input_id':identifier, 'status':'completed', 'created_at':'2026-11-13'}
+    assert call('/api/v1/data')['items'] == []
+    public.settings['demo_library_reports'] = ['a'*32, 'b'*32, 'unknown']
+    rows=call('/api/v1/data')['items']
+    assert len(rows)==1 and rows[0]['id']=='record:'+identifier
+    assert {r['job_id'] for r in rows[0]['recent_reports']} == {'a'*32, 'b'*32}
+    assert rows[0]['source']['license']=='CC0' and not rows[0].get('temporary')
+    # Identical bytes in an upload still belong exclusively to that browser.
+    _, private=upload(call)
+    mine=call('/api/v1/data')['items']; other=call('/api/v1/data',client=1)['items']
+    assert {r['id'] for r in mine} == {'record:'+identifier, 'record:'+private['id']}
+    assert [r['id'] for r in other] == ['record:'+identifier]
+    call('/api/v1/temporary-session/finish', {})
+    assert len(call('/api/v1/data')['items'])==1
+    public.settings['public_records'] = {}
+    assert call('/api/v1/data')['items'] == []
+
+
 def test_public_archive_delete_denied_while_own_temporary_cleanup_still_works(service):
     server, call, _ = service
     public = server.store
@@ -276,7 +304,7 @@ def test_my_data_starts_empty_with_preloaded_public_catalog(service):
         directory = call('/api/v1/data', client=client)
         assert directory['items'] == []
         assert directory['counts'] == {'records':0, 'datasets':0}
-        assert len(directory['examples']) == 4
+        assert len(directory['examples']) == 8
     _, own = upload(call)
     assert [r['id'] for r in call('/api/v1/data')['items']] == ['record:'+own['id']]
     assert call('/api/v1/data', client=1)['items'] == []

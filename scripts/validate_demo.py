@@ -111,8 +111,9 @@ def main():
         assert call('/api/v1/data')['items'] == []
         home = call('/', raw=True).decode()
         assert 'data-deployment="shared_demo"' in home and 'data-upload-policy="temporary"' in home
-        assert home.count('class="demo-report"') == 4
         manifest = json.loads((REPO / 'apps/workbench/example-cache/manifest.json').read_text())
+        assert len(manifest['examples']) == 8
+        assert home.count('class="demo-report"') == len(manifest['examples'])
         for name, digest in manifest['files'].items():
             payload = call('/examples/' + manifest['release'] + '/' + name, raw=True)
             assert hashlib.sha256(payload).hexdigest() == digest, name

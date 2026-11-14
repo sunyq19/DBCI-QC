@@ -129,7 +129,18 @@ def build_overview(store, package_id, job_id=None):
             item = json.loads((store.root / 'jobs' / job['id'] / 'request.json').read_text())['input']
             signal['source_status'] = source_match(item, root, dataset_result)
             if job['status'] == 'completed': signal['display'] = recording_display(store, job, item)
-            if job['status'] == 'completed': signal['result'] = store.dataset_result(job['id'])
+            if job['status'] == 'completed':
+                signal['result'] = copy.deepcopy(store.dataset_result(job['id']))
+                # Reports may explicitly publish revised scoring over immutable
+                # detector evidence. Show that same validated publication here,
+                # while retaining the original execution coverage and status.
+                from project_score_cache import load
+                published = load(store, job['id'])
+                if published and (published.get('report_view') or {}).get('score'):
+                    score = published['report_view']['score']
+                    signal['result']['score_summary'] = {
+                        key: copy.deepcopy(score[key]) for key in ('value', 'version', 'preset', 'components')
+                        if key in score}
         except (OSError, ValueError, KeyError, TypeError):
             signal['result_error'] = True
         signals[rid] = signal

@@ -20,6 +20,17 @@ def points(value):
     return f'{value:.2f}' if number(value) else '—'
 
 
+def saved_score_valid(row):
+    """Legacy pooled scores predate status; verify their saved arithmetic only."""
+    if row.get('status') is not None:
+        return row['status'] == 'computed' and number(row.get('value'))
+    good, total, value = row.get('numerator'), row.get('denominator'), row.get('value')
+    return (row.get('aggregation') == 'pooled_unflagged_fraction'
+            and all(number(x) for x in (good, total, value))
+            and total > 0 and 0 <= good <= total
+            and math.isclose(value, 100 * good / total, rel_tol=1e-9, abs_tol=1e-9))
+
+
 def measurement(row, english=False):
     """Describe the saved numerator and denominator with their original unit."""
     t = lambda zh, en: en if english else zh
@@ -100,7 +111,7 @@ def breakdown(row, *, english=False, total_available=True, measurement_text=None
         impact = t('尚无有效分项得分。', 'No valid component score.')
     body = ''
     for child in children:
-        valid = child.get('status') == 'computed' and number(child.get('value'))
+        valid = saved_score_valid(child)
         used = valid and (child['id'] in active if grouped else not row.get('automatically_excluded') and number(weight) and weight > 0)
         limiting = minimum and used and number(value) and value < 100 and math.isclose(child['value'], value, abs_tol=1e-9, rel_tol=0)
         if not used:

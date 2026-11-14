@@ -94,7 +94,8 @@ assert.equal((grouped.match(/class="data-library-item/g)||[]).length,1);
 assert.equal((grouped.match(/class="library-report-row/g)||[]).length,2);
 assert.match(grouped,/推荐方案/);assert.match(grouped,/灵犀云方案/);
 assert(!grouped.includes('Recommended workflow'));assert(!grouped.includes('/examples/'));
-for(const row of recent){assert(grouped.includes(row.url+'?lang=zh-CN'));assert(!grouped.includes(row.visualizations_url));}
+for(const row of recent){assert(grouped.includes(row.url+'?lang=zh-CN'));assert(!grouped.includes(row.visualizations_url));assert(grouped.includes(`href="/?configure=${row.job_id}&amp;lang=zh-CN"`));}
+assert.equal((grouped.match(/class="library-report-name library-config-link"/g)||[]).length,2);
 assert(!grouped.includes('data-library-actions'));
 assert(!grouped.includes('打开数据'));
 assert.match(grouped,/href="\/\?input=eeg&amp;lang=zh-CN"/);
@@ -126,10 +127,12 @@ assert.match(hierarchyHtml,/查看运行/);
 assert(!hierarchyHtml.includes('workflow:'));
 console.log('Workflow grouping keeps alternative routes visible and previous runs expandable.');
 
-// Archive is a persistent server action, never a browser-only filter or deletion.
+// Non-public installations retain the existing persistent server archive.
 const archiveNodes=new Map(),archiveEvents={},archiveRequests=[];let confirmationAccepted=false,confirmations=[];
+const browserValues=new Map();
+const localStorage={getItem:key=>browserValues.get(key)||null,setItem:(key,value)=>browserValues.set(key,value)};
 const archiveElement=id=>{if(!archiveNodes.has(id))archiveNodes.set(id,{value:'',events:{},dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v},addEventListener(k,v){this.events[k]=v}});return archiveNodes.get(id)};
-const archiveWindow={QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){archiveEvents[k]=v},confirm(message){confirmations.push(message);return confirmationAccepted}};
+const archiveWindow={localStorage,QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){archiveEvents[k]=v},confirm(message){confirmations.push(message);return confirmationAccepted}};
 vm.runInNewContext(source,{URL,setTimeout:()=>1,clearTimeout(){},window:archiveWindow,document:{getElementById:archiveElement},fetch:(url,options)=>new Promise(resolve=>archiveRequests.push({url,body:options?.body?JSON.parse(options.body):null,resolve}))});
 const archiveFixture=[item('record:a',{label:'保留的数据'}),item('record:b',{label:'归档的数据',archived:true,recent_reports:[{label:'已存报告',url:'/api/v1/jobs/'+ 'b'.repeat(32)+'/report'}]})];
 archiveRequests.shift().resolve({ok:true,json:async()=>({items:archiveFixture})});await flush();
@@ -171,6 +174,7 @@ const partialRefresh=archiveWindow.QCDataLibrary.refresh();
 archiveRequests.shift().resolve({ok:true,json:async()=>({items:[partial]})});await partialRefresh;
 let partialHtml=archiveElement('data-library-list').innerHTML;
 assert(partialHtml.includes(aRun.url));assert(partialHtml.includes(cRun.url));assert(!partialHtml.includes(bRun.url));
+assert(partialHtml.includes(`/?configure=${cRun.job_id}&amp;lang=zh-CN`));
 assert.match(partialHtml,/data-id="report:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/);
 assert.match(partialHtml,/历次运行/);
 assert.equal(archiveElement('data-library-count').textContent,'1');
@@ -194,24 +198,63 @@ assert.deepEqual(action.body.ids,[cRun.archive_id]);
 action.resolve({ok:false,json:async()=>({error:'test only'})});await flush();
 console.log('Individual reports and same-workflow history split across current/archive; group actions and deletion preserve source data.');
 
-// Public data remain readable; visitors get no archive/delete controls.
+// Public reports can be organized in this browser, without shared mutations.
 const locked=archiveWindow.QCDataLibrary.refresh();
 const lockedSource={name:'Long public dataset title',url:'https://openneuro.org/datasets/ds004100/versions/1.1.3',version:'1.1.3',license:'CC0'};
-archiveRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[{...item('public-eeg'),source:lockedSource,recent_reports:[aRun]}]})});await locked;
+const publicFixture={...item('public-eeg'),source:lockedSource,workflow_groups:[{id:'public-route',label:'基础方案',method_family:'basic',latest:aRun,runs:[aRun,cRun]}]};
+archiveRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[publicFixture],examples:[{...frozen.examples[0],id:'public-example'}]})});await locked;
 const lockedHtml=archiveElement('data-library-list').innerHTML;
-assert(!lockedHtml.includes('data-library-action='));assert(!lockedHtml.includes('library-entry-menu'));
+assert.match(lockedHtml,/data-library-action="archive" data-id="report:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/);
+assert(!lockedHtml.includes('data-library-action="delete"'));assert(!lockedHtml.includes('data-library-action="delete-temporary"'));
 assert(lockedHtml.includes(aRun.url));assert(lockedHtml.includes('OpenNeuro · ds004100<span'));
 assert(lockedHtml.includes('<details class="public-source-details">'));assert(lockedHtml.includes('1.1.3 · CC0'));
-assert.equal(archiveElement('library-active').hidden,true);assert.equal(archiveElement('library-archived').hidden,true);
+assert.equal(archiveElement('library-active').hidden,false);assert.equal(archiveElement('library-archived').hidden,false);
 assert.equal(archiveElement('library-empty-archive').hidden,true);
+assert(!archiveElement('demo-report-list').innerHTML.includes('delete-example'));
+assert(!archiveElement('demo-report-list').innerHTML.includes('example-entry-menu'));
 clickPartial('archive','record:public-eeg');await flush();assert.equal(archiveRequests.length,0);
-console.log('Public datasets and reports are read-only; compact source links retain complete provenance.');
+clickPartial('archive',aRun.archive_id);await flush();assert.equal(archiveRequests.length,0);
+assert(!archiveElement('data-library-list').innerHTML.includes(aRun.url));
+assert(archiveElement('data-library-list').innerHTML.includes(cRun.url));
+assert.equal(archiveElement('data-library-count').textContent,'1');
+assert.match(archiveElement('library-archived').textContent,/归档 · 1/);
+assert.deepEqual(JSON.parse(browserValues.get('qc.library.archived-reports.v1')),[aRun.archive_id]);
+archiveElement('library-archived').events.click();
+assert(archiveElement('data-library-list').innerHTML.includes(aRun.url));
+assert(!archiveElement('data-library-list').innerHTML.includes(cRun.url));
+assert.match(archiveElement('data-library-list').innerHTML,/data-library-action="restore"/);
+assert(!archiveElement('data-library-list').innerHTML.includes('data-library-action="delete"'));
+clickPartial('delete',aRun.archive_id);await flush();assert.equal(archiveRequests.length,0);
+const archiveReload=archiveWindow.QCDataLibrary.refresh();
+archiveRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[publicFixture]})});await archiveReload;
+assert(archiveElement('data-library-list').innerHTML.includes(aRun.url));
+clickPartial('restore',aRun.archive_id);await flush();assert.equal(archiveRequests.length,0);
+assert.match(archiveElement('data-library-list').innerHTML,/归档为空/);
+archiveElement('library-active').events.click();
+assert(archiveElement('data-library-list').innerHTML.includes(aRun.url));
+// A local-storage change from another tab updates the same browser's archive.
+localStorage.setItem('qc.library.archived-reports.v1',JSON.stringify([aRun.archive_id,cRun.archive_id]));
+archiveEvents.storage({key:'qc.library.archived-reports.v1'});
+assert.match(archiveElement('data-library-list').innerHTML,/报告均已归档/);
+assert.equal(archiveElement('library-archived').hidden,false);
+// A new page instance restores the archive from IDs, not retained data copies.
+const reopenedNodes=new Map(),reopenedRequests=[];
+const reopenedElement=id=>{if(!reopenedNodes.has(id))reopenedNodes.set(id,{value:'',events:{},dataset:{},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return reopenedNodes.get(id)};
+const reopenedWindow={localStorage,QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(){}};
+vm.runInNewContext(source,{URL,window:reopenedWindow,document:{getElementById:reopenedElement},fetch:()=>new Promise(resolve=>reopenedRequests.push(resolve))});
+reopenedRequests.shift()({ok:true,json:async()=>({public_only:true,items:[publicFixture]})});await flush();
+assert.match(reopenedElement('data-library-list').innerHTML,/报告均已归档/);
+reopenedElement('library-archived').events.click();
+assert(reopenedElement('data-library-list').innerHTML.includes(aRun.url));
+assert(reopenedElement('data-library-list').innerHTML.includes(cRun.url));
+console.log('Public report archive and restore persist by browser; shared deletion stays protected; example menus stay hidden.');
 
 // Temporary entries live alongside public data, but only owned entries get password-free deletion.
 const tempNodes=new Map(),tempRequests=[],tempEvents={};let tick;
 const tempElement=id=>{if(!tempNodes.has(id))tempNodes.set(id,{value:'',events:{},dataset:{},setAttribute(){},addEventListener(k,v){this.events[k]=v}});return tempNodes.get(id)};
 tempElement('example-cache').textContent=JSON.stringify(frozen);
-const tempWindow={QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){tempEvents[k]=v},setInterval(fn){tick=fn},confirm:()=>true};
+const tempValues=new Map(),tempStorage={getItem:key=>tempValues.get(key)||null,setItem:(key,value)=>tempValues.set(key,value)};
+const tempWindow={localStorage:tempStorage,QCI18n:{getLanguage:()=> 'zh-CN'},addEventListener(k,v){tempEvents[k]=v},setInterval(fn){tick=fn},confirm:()=>true};
 vm.runInNewContext(source,{URL,window:tempWindow,document:{getElementById:tempElement},fetch:(url,options)=>new Promise(resolve=>tempRequests.push({url,body:options?.body?JSON.parse(options.body):null,resolve}))});
 const now=Date.now(),own=item('record:mine',{label:'临时测试 EDF',temporary:true,retention:{phase:'idle',expires_at:new Date(now+1800000).toISOString(),server_now:new Date(now).toISOString()},recent_reports:[{...aRun,temporary:true}]});
 tempRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[own,item('record:public')],examples:frozen.examples,examples_authoritative:true})});await flush();
@@ -219,7 +262,13 @@ let temporaryHtml=tempElement('data-library-list').innerHTML;
 assert.match(temporaryHtml,/library-expiry/);assert.match(temporaryHtml,/30分钟后清理/);assert.match(temporaryHtml,/仅本浏览器可见/);
 assert.match(temporaryHtml,/data-library-action="delete-temporary" data-id="record:mine"/);
 assert.match(temporaryHtml,/data-library-action="delete-temporary" data-id="report:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"/);
-assert(!temporaryHtml.includes('data-id="record:public"'));assert(!temporaryHtml.includes('data-library-action="archive"'));
+assert(!temporaryHtml.includes('data-id="record:public"'));assert(temporaryHtml.includes('data-library-action="archive"'));
+tempElement('data-library-list').events.click({preventDefault(){},target:{closest:()=>({dataset:{libraryAction:'archive',id:aRun.archive_id}})}});
+assert.equal(tempRequests.length,0);
+tempElement('library-archived').events.click();
+assert.match(tempElement('data-library-list').innerHTML,/30分钟后清理/);
+assert.match(tempElement('data-library-list').innerHTML,/data-library-action="delete-temporary"/);
+assert.match(tempElement('data-library-list').innerHTML,/data-library-action="restore"/);
 tempElement('data-library-list').events.click({preventDefault(){},target:{closest:()=>({dataset:{libraryAction:'delete-temporary',id:'report:'+aRun.job_id}})}});
 let deletion=tempRequests.shift();assert.equal(deletion.url,'/api/v1/data/delete-temporary');assert.equal(deletion.body.confirmed,true);assert(!('password' in deletion.body));
 deletion.resolve({ok:true,json:async()=>({status:'cleared'})});await flush();
@@ -227,4 +276,11 @@ deletion.resolve({ok:true,json:async()=>({status:'cleared'})});await flush();
 tempRequests.shift().resolve({ok:true,json:async()=>({public_only:true,items:[],examples:[],examples_authoritative:true})});await flush();
 assert.equal(tempElement('demo-reports').hidden,true);
 assert.match(tempElement('data-library-message').textContent,/已删除/);
+assert.match(tempElement('data-library-list').innerHTML,/归档为空/);
 console.log('Temporary data: server countdown, owned report deletion without password, protected public rows and withdrawn cached examples passed.');
+
+// Both section counts occupy the same position immediately before the disclosure icon.
+const index=fs.readFileSync(new URL('../apps/workbench/web/index.html',import.meta.url),'utf8');
+for(const id of ['demo-reports-count','data-library-count'])assert.match(index,new RegExp(`<span id="${id}" class="tag subtle rail-count">[^<]*</span></summary>`));
+assert(!index.includes('class="library-heading"'));
+console.log('Example and personal library counts share the same header alignment.');

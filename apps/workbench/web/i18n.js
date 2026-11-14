@@ -8,7 +8,24 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `运行检查	Run checks
+  const pairs = `计算原理	How it works
+结果说明	Interpreting results
+不适用情况	When not to use it
+验证情况	Validation
+模态待确认	Modality not confirmed
+暂无简要说明。	No summary available.
+输出结果	Results
+选择计分并设置权重后，参与综合分。	Included in the total when selected for scoring with a positive weight.
+提供检查结果，不参与综合分。	Provides findings without contributing to the total.
+请核对当前数据条件。	Check the current recording conditions.
+读入数据后检查是否适用。	Applicability is checked after reading the data.
+原理与来源	Method and sources
+使用限制	Limitations
+本次参数	Run parameters
+本次已选	Selected in this run
+选择此方法	Select this method
+历史选择只读；可复制配置后调整。	Historical selections are read-only. Copy the configuration to make changes.
+运行检查	Run checks
 推荐方案	Recommend checks
 推荐中…	Recommending…
 按需调整，留空使用默认参数。	Adjust as needed. Leave empty to use defaults.
@@ -68,6 +85,7 @@
 模块说明	Module details
 沿用上次方案	Using last run
 沿用上次方案 · 可继续修改	Using last run · editable
+已载入所选方案 · 可继续修改	Selected workflow loaded · editable
 恢复默认推荐	Restore default recommendation
 点击模块，展开选择检查方法	Open a module to choose its methods
 查看说明	View details
@@ -900,6 +918,8 @@ local AutoReject拟合需已核实电极坐标	Local AutoReject fitting requires
 按数据配置检查模块	Configure checks for this data
 支持配套文件包	Companion-file packages supported
 单文件读取	Single-file reading
+确认	Confirm
+信息已确认，请选择检查方法	Information confirmed. Select checks.
 确认信息	Confirm information
 其他记录	Other recordings
 输入必须是本地普通文件，不能是符号链接。	The input must be a regular local file, not a symbolic link.
@@ -2136,7 +2156,7 @@ EDF技术头与选道	EDF technical header and channel selection
     "source.chinese": ["中文来源", "Chinese source"],
     "source.original": ["来源原文", "Original source text"],
     "upload.read": ["读取文件", "Read file"],
-    "upload.confirm": ["确认并推荐", "Confirm and recommend"],
+    "upload.confirm": ["确认", "Confirm"],
     "workflow.preview": ["框架预览", "Workflow preview"]
   };
   const hasChinese = value => /[\u3400-\u9fff]/.test(value);

@@ -163,6 +163,26 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(data['records'][0]['signal']['status'],'failed')
         self.assertEqual(data['summary']['reported'],0)
 
+    def test_overview_uses_same_validated_score_publication_as_report(self):
+        self.save_dataset();self.save_signal()
+        original=signal()['result']
+        original['score_summary']={'value':23.37,'version':'eeg-basic-screen/0.2'}
+        before=copy.deepcopy(original)
+        revised={'report_view':{'score':{'value':74.43,'version':'project-weighted/1.0',
+                                        'components':[{'id':'line_noise','value':23.37}]}}}
+        with patch.object(self.store,'dataset_result',return_value=original), \
+             patch('project_score_cache.load',return_value=revised):
+            row=build_overview(self.store,'pilot')['records'][0]['signal']
+        self.assertEqual(row['score'],74.43)
+        self.assertEqual(row['score_version'],'project-weighted/1.0')
+        self.assertTrue(row['full_duration_computed'])
+        self.assertEqual(original,before)
+        # Missing or invalid publications are rejected by the shared loader.
+        with patch.object(self.store,'dataset_result',return_value=original), \
+             patch('project_score_cache.load',return_value=None):
+            row=build_overview(self.store,'pilot')['records'][0]['signal']
+        self.assertEqual(row['score'],23.37)
+
     def test_saved_fingerprints_join_and_manifest_history(self):
         jid=self.save_dataset();item=self.save_signal()
         result=evaluate_dataset(self.root,self.plan)

@@ -714,7 +714,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/v1/data':
             if self.temporary:
                 from example_cache import manifest
-                rows = self.temporary.library(self)
+                from data_library import demo_library
+                rows = self.temporary.library(self) + demo_library(self.server.store)
                 result = {'schema_version': 'data-library/1', 'public_only': True,
                           'items': rows, 'examples': manifest(self.store)['examples'],
                           'counts': {'records': sum(r['kind'] == 'record' for r in rows),
