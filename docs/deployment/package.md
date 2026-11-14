@@ -1,4 +1,4 @@
-# 1.1.1 打包部署
+# 1.1.2 打包部署
 
 一个仓库，两种安装形式：本页通过 Docker 自动安装并启动；[源码部署](demo.md)使用已有 Python/Node 环境。算法、报告和协作功能共用代码。
 
@@ -7,12 +7,12 @@
 - Linux x86_64 服务器，Docker Engine 与 Compose v2.20 或更新版本。
 - 建议至少 4 核、16 GiB 内存、100 GiB 可用磁盘。实际计算量取决于记录大小与方法；默认每次运行一项质检任务。
 - 首次构建需要联网下载 Python、Node、Caddy 和算法依赖；无需在宿主机安装 Python、Node 或 Git。
-- 下载 [v1.1.1 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.1)中的 `DBCI-QC-1.1.1-deploy.tar.gz` 与 `SHA256SUMS`。
+- 下载 [v1.1.2 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.2)中的 `DBCI-QC-1.1.2-deploy.tar.gz` 与 `SHA256SUMS`。
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -xzf DBCI-QC-1.1.1-deploy.tar.gz
-cd DBCI-QC-1.1.1
+tar -xzf DBCI-QC-1.1.2-deploy.tar.gz
+cd DBCI-QC-1.1.2
 sh deploy.sh
 ```
 
@@ -80,7 +80,9 @@ sh deploy.sh          # 启动或重新构建
 | `dbci-qc_flow-config` | 编辑密码校验值 |
 | `dbci-qc_gateway-data` / `dbci-qc_gateway-config` | HTTPS 证书及网关状态 |
 
-升级前停止服务、备份持久卷和 `.env`，然后解压新包、复制原 `.env` 并启动。Compose 项目名固定为 `dbci-qc`，更换代码目录不会自动建立另一套数据。不要删除这些卷；恢复时须连同协作数据库和附件一起恢复。
+升级前确认临时上传已处理完，再停止服务。备份需要保留的公共目录配置、协作数据和 `.env`，不要备份用户临时上传。解压新包后复制原 `.env`，如配置过公开源文件挂载，还须复制原 `compose.override.yaml`，然后运行 `sh deploy.sh` 重建并启动。Compose 项目名固定为 `dbci-qc`，更换代码目录不会自动建立另一套数据。不要删除持久卷；恢复协作数据时须连同数据库和附件一起恢复。
+
+发布包中的 `RELEASE.json` 记录精确版本和 Git 提交。下载后先核对 `SHA256SUMS`，不要把旧包的页面文件覆盖进新包。已有 `/data/public-catalog.json`、公开源文件及其挂载路径应保留；它们不随代码包自动下载。
 
 管理员登记公开数据时，可在 `qc-data` 卷内放置 `/data/public-catalog.json`，只填写 `inputs`、`profiles`、`packages`、`public_records`、`public_packages`、`example_review_sources`。路径使用容器内路径；通过 `compose.override.yaml` 将公开源文件只读挂载到质控容器。重启后读取目录，上传隔离规则不可由此文件关闭。
 
@@ -126,7 +128,7 @@ GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传�
 开发者从固定提交生成同一版本的文件集合：
 
 ```bash
-python3 scripts/build_deploy_bundle.py --ref v1.1.1 --output /path/to/releases
+python3 scripts/build_deploy_bundle.py --ref v1.1.2 --output /path/to/releases
 ```
 
 包内 `RELEASE.json` 记录版本和 Git 提交，外部 `SHA256SUMS` 校验下载文件。源码目录中的个人配置、运行库和未提交文件不会混入包内。
