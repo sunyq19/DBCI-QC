@@ -1,7 +1,7 @@
 """Snapshot registered implementation metadata; never read subject data.
 Usage: python3 scripts/import-qc-catalog.py /path/to/ephys-qc
 """
-import sys, json, hashlib
+import sys, json, hashlib, re
 from pathlib import Path
 repo=Path(sys.argv[1]).resolve()
 sys.path.insert(0,str(repo/'src'))
@@ -18,7 +18,9 @@ for mode,scope in modes.items():
   if key in collected:
    collected[key]['scope'].append(scope); continue
   d=m.get('documentation',{}); source=m.get('source',{})
-  n=node('f_'+key,m['name'],[scope],kind='conditional' if m['category']!='basic' else 'base',status='planned' if m['implementation']=='planned' else 'ready',summary={'basic':'随模块运行','conditional':'满足条件时运行','optional':'手动选择'}[m['category']],description=m['description'],inputs='\n'.join(m['inputs']),outputs='\n'.join(m['outputs']),conditions='\n'.join(m['requirements'])+('\n'+d['when_to_use'] if d.get('when_to_use') else ''),methods='\n'.join(x for x in [source.get('name',''),d.get('how_it_works',''),d.get('upstream_call','')] if x),evidence='\n'.join(x for x in [source.get('url',''),base+'src/ephys_qc/method_registry.py'] if x),notes='\n'.join(m.get('limitations',[])))
+  conditions='\n'.join(m['requirements']); when=d.get('when_to_use','')
+  if when and re.sub(r'[；;\s]','',when)!=re.sub(r'[；;\s]','',conditions): conditions+='\n'+when
+  n=node('f_'+key,m['name'],[scope],kind='conditional' if m['category']!='basic' else 'base',status='planned' if m['implementation']=='planned' else 'ready',summary={'basic':'随模块运行','conditional':'满足条件时运行','optional':'手动选择'}[m['category']],description=m['description'],inputs='\n'.join(m['inputs']),outputs='\n'.join(m['outputs']),conditions=conditions,methods='\n'.join(x for x in [source.get('name',''),d.get('how_it_works',''),d.get('upstream_call','')] if x),evidence='\n'.join(x for x in [source.get('url',''),base+'src/ephys_qc/method_registry.py'] if x),notes='\n'.join(m.get('limitations',[])))
   collected[key]=n; catalog.setdefault(m['module_id'],[]).append(n)
 reader_parent=collected['edf_reader']; reader_parent['children']=[]
 for r in list_readers():
@@ -84,7 +86,7 @@ for parent,children in catalog.items():
   roots.append(node(parent,parent+' · 新接入模块',scopes,entry='support',summary='由模块登记自动加入',description='展开查看已登记方法及其输入、输出和启用条件。'))
 from ephys_qc.flow_contracts import attach_scoring
 attach_scoring(catalog,roots,node,base)
-files+=['src/ephys_qc/score_registry.py','src/ephys_qc/project_scoring.py','src/ephys_qc/ieeg_scoring.py','src/ephys_qc/neuropixels_scoring.py','docs/ieeg-scoring.md','docs/neuropixels-scoring.md','docs/eeg-scoring.md','src/ephys_qc/flow_contracts.py']
+files+=['src/ephys_qc/advanced_methods.py','src/ephys_qc/format_validation.py','src/ephys_qc/method_scores.py','docs/design/public-methods-v1.md','src/ephys_qc/score_registry.py','src/ephys_qc/project_scoring.py','src/ephys_qc/ieeg_scoring.py','src/ephys_qc/neuropixels_scoring.py','docs/ieeg-scoring.md','docs/neuropixels-scoring.md','docs/eeg-scoring.md','src/ephys_qc/flow_contracts.py']
 out={'catalogVersion':__import__('ephys_qc.version',fromlist=['__version__']).__version__,'roots':roots,'sourceFiles':{f:hashlib.sha256((repo/f).read_bytes()).hexdigest() for f in files},'modules':catalog}
 Path('content/module-catalog.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
 print('Methods:',len(collected),'implemented:',sum(n['status']!='planned' for n in collected.values()),'readers:',len(reader_parent['children']),'dataset checks:',sum(len(catalog[k]) for k in ['D01','D02','D03']))

@@ -22,7 +22,9 @@ NS=percent(NP_WEIGHTS,neuropixels_scoring.STATE)
 MODES = {'scalp_eeg':'eeg','ecog':'ecog','seeg':'seeg','extracellular':'np'}
 LIMITED = '缺少有效证据的分项本次权重为0，其余有效权重按比例归一化；保留未评原因。有效得分为0仍参与计分。全部无效、权重全0或整份范围未覆盖时不给综合分。'
 
-def entry(scope, role='measurement', outputs=None, weight='不分配总分权重', rule='保留测量、状态或流程输出，不独立扣分。', version='method-score/1', limited=LIMITED):
+def entry(scope, role='measurement', outputs=None, weight='不分配总分权重', rule='保留测量、状态或流程输出，不独立扣分。', version='method-score/1', limited=None):
+    if limited is None:
+        limited = LIMITED if role in ('default','optional') else '条件不足或执行失败时保留原因，不把未评记作通过；本方法没有质量分，也不分配权重。'
     return dict(scope=scope,role=role,canOutputScore=role in ('default','optional'),outputs=outputs or [],weight=weight,rule=rule,limited=limited,version=version)
 
 def method_entry(m, scope):
@@ -30,8 +32,17 @@ def method_entry(m, scope):
     if m['implementation']=='planned':
         return entry(scope,'unavailable',rule='当前没有执行及评分输出；不能以计划功能参与计分。',version='尚未接入')
     if not scores:
-        return entry(scope,rule=m.get('scoring',{}).get('reason','只提供检查结果或执行支持。'))
+        limited='条件不足或执行失败时保留原因，不把未评记作通过；本方法没有质量分，也不分配权重。'
+        return entry(scope,rule=m.get('scoring',{}).get('reason','只提供检查结果或执行支持。'),limited=limited)
     key=m['id']; names=[s['name']+' · '+s['id'] for s in scores]
+    if key=='pyprep_ransac':
+        return entry(scope,'optional',names,'默认0%；启用方法并设为正权重后参与',
+            '分项 = 100 ×（1 − 空间预测候选通道数 / 实际完成预测的通道数）。只评价空间预测；原版准备检查不另扣分。整份记录按分析块时长汇总，不代表实际污染时长。',
+            version=project_scoring.VERSION,limited='存在因平线等未参与预测的通道时，本项不计分；保留未评名单和测量。'+LIMITED)
+    if key=='autoreject_epochs':
+        return entry(scope,'optional',names,'默认0%；启用方法并设为正权重后参与',
+            '分项 = 100 ×（1 − 超阈值通道片段数 / 实际受检通道片段数）。标签1、2都算超阈值，同一通道片段只计一次。默认2秒连续分段，不等同于任务试次。',
+            version=project_scoring.VERSION,limited='不足一个完整段的尾部不进入分母；标签或通道信息不完整时不计分。'+LIMITED)
     if scope=='eeg':
         default=any(EEG_WEIGHTS.get(s['id'],0)>0 for s in scores)
         return entry(scope,'default' if default else 'optional',names,

@@ -1,4 +1,4 @@
-# 1.1.2 打包部署
+# 1.1.3 打包部署
 
 一个仓库，两种安装形式：本页通过 Docker 自动安装并启动；[源码部署](demo.md)使用已有 Python/Node 环境。算法、报告和协作功能共用代码。
 
@@ -7,12 +7,12 @@
 - Linux x86_64 服务器，Docker Engine 与 Compose v2.20 或更新版本。
 - 建议至少 4 核、16 GiB 内存、100 GiB 可用磁盘。实际计算量取决于记录大小与方法；默认每次运行一项质检任务。
 - 首次构建需要联网下载 Python、Node、Caddy 和算法依赖；无需在宿主机安装 Python、Node 或 Git。
-- 下载 [v1.1.2 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.2)中的 `DBCI-QC-1.1.2-deploy.tar.gz` 与 `SHA256SUMS`。
+- 下载 [v1.1.3 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.3)中的 `DBCI-QC-1.1.3-deploy.tar.gz` 与 `SHA256SUMS`。
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -xzf DBCI-QC-1.1.2-deploy.tar.gz
-cd DBCI-QC-1.1.2
+tar -xzf DBCI-QC-1.1.3-deploy.tar.gz
+cd DBCI-QC-1.1.3
 sh deploy.sh
 ```
 
@@ -128,7 +128,7 @@ GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传�
 开发者从固定提交生成同一版本的文件集合：
 
 ```bash
-python3 scripts/build_deploy_bundle.py --ref v1.1.2 --output /path/to/releases
+python3 scripts/build_deploy_bundle.py --ref v1.1.3 --output /path/to/releases
 ```
 
 包内 `RELEASE.json` 记录版本和 Git 提交，外部 `SHA256SUMS` 校验下载文件。源码目录中的个人配置、运行库和未提交文件不会混入包内。

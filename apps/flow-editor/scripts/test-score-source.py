@@ -21,4 +21,15 @@ class SourceTests(unittest.TestCase):
    for method in methods(mode):
     result=flow_contracts.method_entry(method,scope)
     self.assertEqual(result['canOutputScore'],bool(method.get('scoring',{}).get('outputs')),method['id'])
+ def test_new_methods_explain_denominators_and_do_not_enable_scores(self):
+  eeg={m['id']:m for m in methods('scalp_eeg')}
+  ransac=flow_contracts.method_entry(eeg['pyprep_ransac'],'eeg')
+  local=flow_contracts.method_entry(eeg['autoreject_epochs'],'eeg')
+  self.assertIn('候选通道数 / 实际完成预测的通道数',ransac['rule'])
+  self.assertIn('超阈值通道片段数 / 实际受检通道片段数',local['rule'])
+  for row in [ransac,local]:
+   self.assertEqual(row['role'],'optional');self.assertIn('默认0%',row['weight'])
+  for key in ['ica_iclabel','nwb_inspector']:
+   row=flow_contracts.method_entry(eeg[key],'eeg')
+   self.assertFalse(row['canOutputScore']);self.assertIn('没有质量分',row['limited'])
 if __name__=='__main__':unittest.main()

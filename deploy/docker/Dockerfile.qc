@@ -6,9 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git ca-certificates libgomp1 fonts-wqy-zenhei \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY requirements/workbench.txt /tmp/workbench.txt
+COPY requirements/ /tmp/requirements/
 # Obtain external packages from their original sources during installation.
-RUN pip install --no-cache-dir -r /tmp/workbench.txt && pip check
+RUN pip install --no-cache-dir -r /tmp/requirements/workbench.txt && pip check && \
+    python -c "import pyprep, autoreject, mne_icalabel, onnxruntime, nwbinspector, bids_validator_deno, deno, torch; assert not torch.version.cuda"
 COPY . /app
 RUN pip install --no-cache-dir --no-deps . && \
     pip check && \

@@ -349,7 +349,7 @@ class RecommendationTests(unittest.TestCase):
 
     def test_invalid_config_is_not_silently_repaired(self):
         for config in ({"selection": {"duration_seconds": 121}}, {"selection": {"eeg_indices": [0, 0]}},
-                       {"method_config": {"extensions": ["ica_iclabel"]}},
+                       {"method_config": {"extensions": ["unknown_method"]}},
                        {"method_config": {"extension_parameters": {"mne_lof": {"n_neighbors": -1}}}}):
             result = recommend(recording(), config)
             self.assertEqual(result["status"], "needs_input")

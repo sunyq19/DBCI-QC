@@ -126,7 +126,8 @@ check("pipeline cards expand child methods with separate recommendation, eligibi
     optional_methods:[{id:"mne_muscle",applicability:"blocked",reason:"采样带宽不足"}],blocked_methods:[]});});
   t.state.catalog.modules.find(m=>m.id==="M03").methods[0].can_output_score=true;
   t.renderPipeline();let markup=t.get("pipeline").innerHTML;
-  assert.equal((markup.match(/data-pipeline-expand=/g)||[]).length,5);
+  assert.equal((markup.match(/data-pipeline-expand=/g)||[]).length,6);
+  assert(markup.includes('data-pipeline-expand="M01"')); // Optional format validation lives with the reader.
   assert(!markup.includes('data-pipeline-module='));
   const before=t.fingerprint(); t.togglePipelineModule("M03");await new Promise(resolve=>setImmediate(resolve));
   markup=t.get("pipeline").innerHTML;

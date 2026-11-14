@@ -26,10 +26,13 @@ test('unknown snapshots fail explicitly and malformed saves add no history',asyn
 test('hierarchy upgrade covers the registry and preserves every fixed snapshot and existing edit',async()=>{
  const {withCatalog}=await import('../lib/catalog');const {flattenNodes,updateNode,removeNode}=await import('../lib/flow');const {ensureHierarchy}=await import('../lib/repository');
  const d=withCatalog(seed),all=flattenNodes(d.nodes);
- assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,53);
- assert.equal(all.filter(n=>n.entryType==='method'&&n.status==='planned').length,3);
+ assert.equal(all.filter(n=>n.entryType==='method'&&n.status!=='planned').length,58);
+ assert.equal(all.filter(n=>n.entryType==='method'&&n.status==='planned').length,0);
  assert.equal(all.filter(n=>n.entryType==='reader').length,6);
- assert.equal(all.filter(n=>n.entryType==='check').length,11);
+ assert.equal(all.filter(n=>n.entryType==='check').length,12);
+ for (const id of ['f_pyprep_ransac','f_autoreject_epochs','f_ica_iclabel','f_dredge_lfp','f_nwb_inspector','d_D01_2']) {
+   assert.equal(all.find(n=>n.id===id)?.status,'ready',id);
+ }
  assert.equal(new Set(all.map(n=>n.id)).size,all.length);
  assert.equal(all.find(n=>n.id==='f_spikeinterface_bad_channels')?.scope.join(','),'np');
  assert.deepEqual(all.find(n=>n.id==='f_fieldtrip_zvalue')?.scope,['eeg','ecog','seeg']);
@@ -88,7 +91,7 @@ test('visualizations have one separate hierarchy and do not count as QC algorith
  const before=JSON.stringify(old);const doc=withCatalog(old.doc);const root=doc.nodes.find(n=>n.id==='VIS')!;
  assert.equal(root.children?.length,12);assert.equal(root.children?.filter(n=>n.status==='ready').length,10);
  assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='visualization').length,12);
- assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,53);
+ assert.equal(flattenNodes(doc.nodes).filter(n=>n.entryType==='method'&&n.status==='ready').length,58);
  assert.ok(doc.edges.some(e=>e.source==='M09'&&e.target==='VIS'));
  assert.deepEqual(withCatalog(doc),doc);assert.equal(JSON.stringify(old),before);
 });

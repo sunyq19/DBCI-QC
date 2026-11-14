@@ -46,3 +46,15 @@ def test_public_example_assets_and_environment_template_are_packaged():
     for path in ['deploy/demo.env.example', 'apps/workbench/example-cache/report.pdf',
                  'apps/flow-editor/content/module-catalog.json']:
         validate_member(path)
+
+
+def test_docker_copies_nested_dependency_files_and_versions_match():
+    from ephys_qc.version import __version__
+    import json
+    dockerfile=(ROOT/'deploy/docker/Dockerfile.qc').read_text()
+    assert 'COPY requirements/ /tmp/requirements/' in dockerfile
+    assert '-r drift-cpu.txt' in (ROOT/'requirements/workbench.txt').read_text()
+    assert (ROOT/'requirements/drift-cpu.txt').is_file()
+    for app in ['workbench','collaboration']:
+        assert f'image: dbci-qc/{app}:{__version__}' in (ROOT/'compose.yaml').read_text()
+    assert json.loads((ROOT/'apps/flow-editor/package.json').read_text())['version']==__version__
