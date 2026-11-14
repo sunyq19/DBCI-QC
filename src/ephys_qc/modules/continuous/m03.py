@@ -11,6 +11,7 @@ def run(context):
     state = context.state
     candidates, channels = [], []
     observed_count = 0
+    extracellular = context.record.get('modality') == 'extracellular'
     for index, values in enumerate(data):
         ident = identity(state, index)
         finite = np.isfinite(values)
@@ -22,6 +23,11 @@ def run(context):
             if kind == 'exact_constant_samples' and len(starts):
                 longest_equal_samples = int((stops - starts + 1).max())
             counts[kind] = len(starts)
+            # Quantized extracellular voltages commonly repeat for a few samples.
+            # Retain those measurements, but localize only a fully constant block.
+            if extracellular and kind == 'exact_constant_samples':
+                keep_run = (stops - starts + 1) == len(values)
+                starts, stops = starts[keep_run], stops[keep_run]
             observed_count += len(starts)
             keep = min(len(starts), MAX_REVIEW_CANDIDATES - len(candidates))
             for first, stop in zip(starts[:keep], stops[:keep] + stop_extra):
@@ -48,6 +54,10 @@ def run(context):
                    'scope': 'All samples scanned; detailed review locations limited to stored candidates'},
                'notes': ['Exact equality can reflect quantization or physiology; candidates require source review.',
                          'No endpoint, near-zero, scalp amplitude or clinical-event threshold is applied.']}
+    if extracellular:
+        payload['parameters']['candidate_constant_rule'] = 'entire_analysis_block_constant'
+        payload['parameters']['candidate_policy_version'] = 'extracellular-continuity/2'
+        payload['notes'][0] = 'Adjacent equal samples are measurements only; review candidates are nonfinite runs and entirely constant channel blocks.'
     context.state['continuity_candidates'] = candidates
     context.save('M03_continuity.json', payload)
     context.row['summary'] = {'analysis_profile': payload['analysis_profile'], 'candidate_count': len(candidates),

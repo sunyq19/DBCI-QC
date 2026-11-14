@@ -41,11 +41,17 @@
   function plotHeight(channelCount,available=270) {
     return Math.max(240,available,channelCount*44+35);
   }
+  function plotLayout(channels,width=800) {
+    const longest=Math.max(3,...(channels||[]).map(c=>String(c.name||'').length));
+    const nameWidth=Math.min(Math.max(30,longest*7.5),Math.max(30,Math.min(170,width*.28)));
+    const left=nameWidth+60,right=10;
+    return {left,right,nameWidth,w:width-left-right};
+  }
   function plot(wave,state,candidate,width=800,height=270,annotations=null) {
-    const left=74,right=10,top=8,bottom=27,w=width-left-right;
+    const {left,right,nameWidth,w}=plotLayout(wave.channels,width),top=8,bottom=27;
     const n=wave.channels.length,row=(height-top-bottom)/n;
     const ranges=scales(wave.channels),x=t=>left+(t-state.start)/state.span*w;
-    let out=`<defs><clipPath id="wave-clip"><rect x="${left}" y="0" width="${w}" height="${height-bottom}"/></clipPath></defs>`;
+    let out=`<defs><clipPath id="wave-label-clip"><rect x="0" y="0" width="${nameWidth}" height="${height}"/></clipPath><clipPath id="wave-clip"><rect x="${left}" y="0" width="${w}" height="${height-bottom}"/></clipPath></defs>`;
     for(let j=0;j<=5;j++) {
       const t=state.start+state.span*j/5,px=x(t);
       out+=`<line x1="${px}" x2="${px}" y1="${top}" y2="${height-bottom}" stroke="#edf1f6"/><text x="${px}" y="${height-7}" text-anchor="middle" class="wave-tick">${fmt(t)}</text>`;
@@ -64,7 +70,7 @@
       }
       // Aggregate channel findings have no localized time. Keep them in the
       // channel-results list, never paint a dot or interval on the waveform.
-      out+=`<text x="4" y="${y0+13}" class="wave-channel-name" fill="${selected?'#2459bc':'#42546b'}">${esc(c.name)}</text>`;
+      out+=`<text x="4" y="${y0+13}" clip-path="url(#wave-label-clip)" class="wave-channel-name" fill="${selected?'#2459bc':'#42546b'}"><title>${esc(c.name)}</title>${esc(c.name)}</text>`;
       out+=`<text x="4" y="${y0+26}" class="wave-unit">${esc(c.unit)}</text>`;
       // All lanes of the same unit use exactly the same amplitude range.
       out+=`<text x="${left-5}" y="${y0+8}" text-anchor="end" class="wave-scale">${Number(hi).toPrecision(3)}</text><text x="${left-5}" y="${y0+h}" text-anchor="end" class="wave-scale">${Number(lo).toPrecision(3)}</text>`;
@@ -86,7 +92,7 @@
     }
     return out;
   }
-  const api={viewport,pan,zoom,navigation,scales,plot,plotHeight};
+  const api={viewport,pan,zoom,navigation,scales,plot,plotHeight,plotLayout};
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(!root.document)return;
   root.QCWaveformGeometry=api;
@@ -283,7 +289,8 @@
     if(!state||drag||e.ctrlKey||e.metaKey)return;
     e.preventDefault();
     const rect=svg.getBoundingClientRect(),width=Math.max(320,stage.clientWidth||800);
-    const anchor=((e.clientX-rect.left)/rect.width*width-74)/(width-84);
+    const layout=plotLayout(wave?.channels,width);
+    const anchor=((e.clientX-rect.left)/rect.width*width-layout.left)/layout.w;
     const delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?rect.height:1);
     rescale(Math.exp(clamp(delta,-160,160)*.003),anchor);
   },{passive:false});
@@ -298,15 +305,16 @@
       const cursor=$('wave-cursor');
       if(cursor&&state){
         const rect=svg.getBoundingClientRect(),width=Math.max(320,stage.clientWidth||800);
-        const px=clamp((e.clientX-rect.left)/rect.width*width,74,width-10);
+        const layout=plotLayout(wave?.channels,width);
+        const px=clamp((e.clientX-rect.left)/rect.width*width,layout.left,width-10);
         cursor.setAttribute('visibility','visible');
         const line=cursor.querySelector('line'),text=cursor.querySelector('text');
         line.setAttribute('x1',px);line.setAttribute('x2',px);
-        text.setAttribute('x',Math.max(120,px-5));text.textContent=fmt(state.start+(px-74)/(width-84)*state.span)+' s';
+        text.setAttribute('x',Math.max(120,px-5));text.textContent=fmt(state.start+(px-layout.left)/layout.w*state.span)+' s';
       }
       return;
     }
-    state=pan(drag.state,e.clientX-drag.x,Math.max(1,stage.clientWidth-84),segment);
+    state=pan(drag.state,e.clientX-drag.x,plotLayout(wave?.channels,Math.max(320,stage.clientWidth||800)).w,segment);
     activity('moving');sync();render();
   });
   function endDrag(e) {
@@ -431,7 +439,7 @@
       button.innerHTML=`<span class="finding-item-top"><strong>${esc(name)}</strong><span>${time}</span></span><small>${marker}${esc(t(m.label,m.label_en))}</small>`;
       button.addEventListener('click',()=>chooseLocation(row));list.append(button);
     }
-    if(!rows.length){const note=doc.createElement('p');note.className='finding-empty';note.textContent=activeMethods.size?t('当前筛选下没有已保存的位置。','No saved locations match these filters.'):t('已隐藏全部标记。','All annotations are hidden.');list.append(note);}
+    if(!rows.length){const note=doc.createElement('p');note.className='finding-empty';note.textContent=!locationIndex.findings.length?t('本次未记录可定位的异常候选。','No localized findings were recorded.'):activeMethods.size?t('当前筛选下没有已保存的位置。','No saved locations match these filters.'):t('已隐藏全部标记。','All annotations are hidden.');list.append(note);}
     const paging=$('finding-pagination');paging.replaceChildren();
     const prev=doc.createElement('button'),next=doc.createElement('button'),counter=doc.createElement('span');
     prev.type=next.type='button';prev.textContent='‹';next.textContent='›';prev.setAttribute('aria-label',t('上一页候选','Previous findings'));next.setAttribute('aria-label',t('下一页候选','Next findings'));
@@ -458,6 +466,14 @@
     const primary=new Set(locationIndex.default_method_ids);
     filters.append(optionsFor(locationIndex.methods.filter(m=>primary.has(m.id))));
     const others=locationIndex.methods.filter(m=>!primary.has(m.id));
+    for(const m of locationIndex.methods.filter(m=>m.measurements?.length)){
+      const rows=m.measurements,invalid=rows.reduce((n,r)=>n+r.nonfinite_sample_count,0),flat=rows.reduce((n,r)=>n+r.constant_channel_blocks,0);
+      const maxMs=Math.max(...rows.map(r=>r.max_equal_seconds))*1000;
+      const note=doc.createElement('p');note.className='muted finding-measurement-note';
+      note.textContent=t(`数值检查：${invalid} 个无效采样，${flat} 个整窗恒值通道。最长重复值 ${maxMs.toFixed(2)} 毫秒；短暂重复仅作测量，不标为异常。`,
+        `Numeric check: ${invalid} nonfinite samples, ${flat} constant channel blocks. Longest repeat ${maxMs.toFixed(2)} ms; short repeats are measurements, not findings.`);
+      filters.append(note);
+    }
     if(others.length){
       const extra=doc.createElement('details'),summary=doc.createElement('summary');extra.className='finding-extra-checks';extra.open=extrasOpen;
       summary.textContent=t('无定位结果的检查','Checks without locations')+` · ${others.length}`;
@@ -466,7 +482,14 @@
   }
   function startLocations(data){
     locationIndex=data;data.default_method_ids??=data.methods.filter(m=>data.findings.some(r=>r.method===m.id)).map(m=>m.id);activeMethods=new Set(data.default_method_ids);
-    const sidebar=panel.closest('.finding-workspace').querySelector('.finding-sidebar');
+    const workspace=panel.closest('.finding-workspace');
+    if(!data.findings.length){
+      renderFilters();workspace.hidden=true;
+      if(fullButton)fullButton.hidden=true;
+      const empty=doc.createElement('p');empty.className='finding-empty';
+      empty.textContent=t('本次未记录异常区间或通道候选。','No interval or channel findings were recorded.');filters.append(empty);return;
+    }
+    const sidebar=workspace.querySelector('.finding-sidebar');
     const kinds=doc.createElement('div');kinds.id='finding-kinds';kinds.className='finding-kinds';kinds.setAttribute('aria-label',t('定位类型','Finding scope'));sidebar.append(kinds);
     const search=doc.createElement('input');search.type='search';search.id='finding-search';search.placeholder=t('筛选通道','Filter channels');search.setAttribute('aria-label',search.placeholder);search.addEventListener('input',refreshLocations);
     sidebar.querySelector('.finding-list-label').replaceChildren(search);

@@ -126,7 +126,7 @@ nodes.svg.fire('pointerdown',{button:0,clientX:100,pointerId:1});
 nodes.svg.fire('pointermove',{clientX:200});assert.equal(reads.length,0,'Dragging the chart only changes the viewport');
 nodes.svg.fire('pointerup',{pointerId:1});
 const p=new URL(reads[0].url,'http://local').searchParams;
-assert(Math.abs(Number(p.get('start_seconds'))-(90-100/716*40))<1e-5);await resolveWave();
+assert(Math.abs(Number(p.get('start_seconds'))-(90-100/g.plotLayout([{name:'F2'},{name:'FP1'}],800).w*40))<1e-5);await resolveWave();
 let prevented=false;
 nodes.svg.fire('wheel',{deltaY:-100,deltaMode:0,clientX:432,preventDefault(){prevented=true;}});
 assert(prevented);assert(Number.parseFloat(nodes['wave-span'].textContent)<40);

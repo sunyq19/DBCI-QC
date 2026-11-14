@@ -61,6 +61,11 @@ def aggregate_overview(manifest, dataset_job=None, dataset_result=None, signals=
     signals = signals or {}
     bindings = manifest['consistency']['records']
     checks = copy.deepcopy((dataset_result or {}).get('checks', []))
+    from .bids_findings import grouped_checks
+    bids=(dataset_result or {}).get('format_validation',{}).get('bids',{})
+    grouped=grouped_checks(bids)
+    if grouped is not None:
+        checks=[c for c in checks if c['code']!='bids_validator']+grouped
     findings = [c for c in checks if c['status'] in ('conflict', 'review', 'unassessed')]
     bad_files = {f['path'] for f in (dataset_result or {}).get('inventory', {}).get('files', []) if f['status'] != 'present'}
     rows = []
@@ -95,6 +100,7 @@ def aggregate_overview(manifest, dataset_job=None, dataset_result=None, signals=
     module_counts = {mid: dict(Counter(c['status'] for c in checks if c['module'] == mid)) for mid in ('D01', 'D02', 'D03')}
     counts = dict(Counter(r['signal']['status'] for r in rows))
     return {'schema_version': VERSION, 'scope': manifest['scope'], 'records': rows, 'subjects': subjects,
+            'format_validation': {'bids': copy.deepcopy(bids)},
             'comparison_groups': copy.deepcopy(manifest['consistency']['groups']),
             'checks': checks, 'findings': findings, 'module_counts': module_counts,
             'attention_groups': attention_groups(checks, rows),

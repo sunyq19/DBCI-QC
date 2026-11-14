@@ -21,15 +21,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build and start both applications behind one gateway
+        id: build
         run: sh deploy.sh
-      - name: Download public EEG and check upload, report, PDF and isolation
+      - uses: actions/cache@v4
+        with:
+          path: /tmp/public-eeg
+          key: public-eeg-S001R03-3427c8d01bff1380bc9ab9f27a35ece2af5dfadf3e291bbc05eb66e4dadbfe2e
+      - name: Obtain and verify the public EEG sample
+        id: sample
+        run: python3 scripts/demo_sample.py --output /tmp/public-eeg
+      - name: Check upload, report, PDF and browser isolation
+        id: acceptance
         run: |
-          python3 scripts/demo_sample.py --output /tmp/public-eeg
           python3 scripts/validate_demo.py --url http://localhost:8769 --edf /tmp/public-eeg/S001R03.edf --output /tmp/demo-acceptance
       - name: Verify collaboration uses the same address
+        id: flow
         run: |
           curl --fail http://localhost:8769/flow/ > /tmp/flow.html
           curl --fail 'http://localhost:8769/api/flow?head=1'
+      - name: Summarize each acceptance stage
+        if: always()
+        env:
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          SAMPLE_RESULT: ${{ steps.sample.outcome }}
+          ACCEPTANCE_RESULT: ${{ steps.acceptance.outcome }}
+          FLOW_RESULT: ${{ steps.flow.outcome }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          rows = [('Container build/start', 'BUILD_RESULT'), ('Public sample/checksum', 'SAMPLE_RESULT'),
+                  ('Upload/report/PDF/isolation (HTTP)', 'ACCEPTANCE_RESULT'), ('Collaboration address', 'FLOW_RESULT')]
+          text = '| Stage | Result |\n| --- | --- |\n' + ''.join(f'| {name} | {os.environ[key]} |\n' for name, key in rows)
+          text += '\nBrowser visual acceptance is tracked separately; HTTP success does not verify layout.\n'
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text(text)
+          PY
+      - name: Save acceptance results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-acceptance
+          path: /tmp/demo-acceptance/acceptance.json
+          if-no-files-found: ignore
       - name: Collect service status
         if: always()
         run: docker compose ps -a && docker compose logs --tail 100

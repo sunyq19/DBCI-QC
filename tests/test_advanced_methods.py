@@ -85,6 +85,21 @@ def test_saved_measurements_are_rendered_without_rerunning(tmp_path):
     nested=append_to('<main><details id="checks"><summary>报告详情</summary><div id="method-evidence-slot"></div></details></main>',tmp_path)
     assert 'class="report-detail-group"' in nested and '<h3>方法测量</h3>' in nested
     assert nested.index('DREDge LF') < nested.rindex('</details>')
+    visible=append_to('<main><details id="locations"></details></main>',tmp_path)
+    assert visible.index('12.50') < visible.index('id="locations"')
+
+
+def test_bids_grouping_keeps_repeated_locations_and_severities_distinct():
+    from ephys_qc.dataset_qc.bids_findings import grouped_checks
+    issues=[{'severity':severity,'code':code,'location':'/same.tsv','subCode':str(i)}
+            for severity,code,n in [('error','TYPE',2),('warning','TYPE',4),('warning','FIELD',201)] for i in range(n)]
+    before=json.dumps(issues)
+    grouped=grouped_checks({'status':'completed','issues':{'issues':issues}})
+    assert len(grouped)==3
+    assert len({g['id'] for g in grouped})==3
+    assert sum(g['observed']['occurrences'] for g in grouped)==207
+    assert sum(len(g['observed']['details']) for g in grouped)==207
+    assert json.dumps(issues)==before
 
 
 def test_coordinates_survive_reader(tmp_path):

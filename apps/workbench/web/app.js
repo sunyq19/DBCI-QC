@@ -610,7 +610,7 @@
     $("intake-file").disabled = state.submitting;
     const pickedFile = $("intake-file").files?.[0];
     $("file-picker-title").textContent = pickedFile ? "已选择文件" : "选择本机文件";
-    $("file-picker-hint").textContent = pickedFile ? "点击“读取文件”，下一步确认通道和模态" : "一份记录选文件，多份记录打包 ZIP";
+    $("file-picker-hint").textContent = pickedFile ? "点击“读取文件”，下一步确认通道和模态" : "单个记录，或包含配套文件的 ZIP";
     $("file-picker-name").textContent = pickedFile ? `${pickedFile.name} · ${size(pickedFile.size)}` : "";
     $("file-picker-name").hidden = !pickedFile;
     $("intake-restore-button").disabled = state.intakeBusy || state.submitting;
@@ -1477,7 +1477,7 @@
     }
     const score = result.project_score || result.score || {};
     container.innerHTML = `<div class="score-card"><div class="score-value" aria-label="无已校准总分">—</div><div><strong>总分尚未校准</strong><p>${escape(score.reason || "当前仅报告分项证据与限制，不生成整体质量分数。")}</p></div></div>${arr(result.warnings).length ? `<ul class="result-warnings">${result.warnings.map(warning => `<li>${escape(pretty(warning))}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<h3>模块结果摘要</h3>${arr(result.modules).length ? result.modules.map(module => `<details class="result-summary"><summary>${escape(module.id || module.module_id || "模块")} · ${escape(module.name || "结果")} ${module.status ? statusTag(displayStatus(module,state.job?.plan)) : ""}</summary><pre>${escape(pretty(module))}</pre></details>`).join("") : '<p class="small muted">服务端未提供模块摘要，请查看实际报告。</p>'}${result.recording ? `<details class="result-summary"><summary>本次记录与分析范围</summary><pre>${escape(pretty(result.recording))}</pre></details>` : ""}${result.artifacts ? `<details class="result-summary"><summary>产物清单</summary><pre>${escape(pretty(result.artifacts))}</pre></details>` : ""}`;
-    if(result.project_score) container.innerHTML=`<div class="score-card"><div class="score-value">${numeric(score.value)?Number(score.value).toFixed(2):'—'}</div><div><strong>项目自定义评分</strong><p>${escape(score.missing_reason||scoreMixLabel(arr(score.components)))}</p></div></div>${methodScoreTable(arr(score.components))}`+container.innerHTML.replace(/<div class="score-card">[\s\S]*?<\/div><\/div>/,'');
+    if(result.project_score) container.innerHTML=`<div class="score-card"><div class="score-value">${numeric(score.value)?Number(score.value).toFixed(2):'—'}</div><div><strong>项目自定义评分</strong><p>${escape(score.missing_reason||'按本次有效分项及实际权重汇总。')}</p></div></div>${methodScoreTable(arr(score.components))}`+container.innerHTML.replace(/<div class="score-card">[\s\S]*?<\/div><\/div>/,'');
     container.innerHTML = `<p class="coverage-summary">${escape(coverageText(result))}</p>` + container.innerHTML;
   }
 

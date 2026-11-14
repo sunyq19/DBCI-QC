@@ -112,6 +112,11 @@ def build(workspace):
             try:
                 if states.get(module) == 'failed': raise ValueError('failed_module')
                 payload = read_locations(path)
+                if method == 'raw_continuity_review':
+                    from ephys_qc.continuity_evidence import neuropixels_locations
+                    payload = neuropixels_locations(payload)
+                    if payload.get('measurement_summary'):
+                        m.setdefault('measurements', []).append(payload['measurement_summary'])
                 if payload.get('localization_assessed') is False: continue
                 if payload.get('status') in {'blocked', 'failed', 'skipped', 'unavailable'} or payload.get('calculated') is False:
                     raise ValueError('unavailable_method')
@@ -183,7 +188,8 @@ def build(workspace):
 def locations(workspace):
     from presentation_cache import cached, stamps
     from review_workspace import __file__ as review_code
-    paths = [Path(__file__), Path(review_code), workspace.root / 'request.json', workspace.root / 'result.json']
+    from ephys_qc.continuity_evidence import __file__ as continuity_code
+    paths = [Path(__file__), Path(review_code), Path(continuity_code), workspace.root / 'request.json', workspace.root / 'result.json']
     paths += list((workspace.root / 'windows').glob('w*/result.json'))
     paths += list((workspace.root / 'windows').glob('w*/request.json'))
     paths += list((workspace.root / 'windows').glob('w*/artifacts/*.json'))

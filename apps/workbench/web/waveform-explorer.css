@@ -98,3 +98,6 @@
 .finding-is-fullscreen .finding-index-notice,.finding-is-fullscreen .finding-caption{flex:none}
 @media(max-width:760px){.finding-inspector.finding-is-fullscreen{padding:12px}.finding-inspector.finding-is-fullscreen .finding-fullscreen{top:12px;right:12px}.finding-is-fullscreen .finding-filter-options{max-height:15vh;overflow:auto}.finding-inspector.finding-is-fullscreen .finding-workspace{display:flex;flex-direction:column}.finding-inspector.finding-is-fullscreen .finding-preview{height:auto;flex:1;min-height:0}.finding-is-fullscreen .finding-sidebar{flex:none;max-height:24vh}.finding-is-fullscreen .finding-list{max-height:12vh}.finding-is-fullscreen .wave-toolbar{margin-bottom:4px}}
 @media print{.finding-fullscreen{display:none!important}.finding-inspector.finding-is-fullscreen{position:static;display:block;width:auto;height:auto;padding:0;overflow:visible}.finding-inspector.finding-is-fullscreen .finding-workspace{height:auto;display:block}}
+
+.finding-workspace[hidden], #finding-fullscreen[hidden] { display: none !important; }
+.finding-measurement-note { margin: .65rem 0; line-height: 1.6; }

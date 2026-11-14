@@ -80,6 +80,25 @@ class Locations(unittest.TestCase):
         self.save('artifacts/M06_muscle.json',{'candidates':[{'channel_index':0,'start_seconds':1,'stop_seconds':2}]})
         self.assertEqual(len(locations(workspace)['findings']),1)
 
+    def test_np_repetitions_are_measurements_flat_block_and_nan_remain(self):
+        self.save('artifacts/M03_continuity.json', {
+            'modality':'extracellular', 'input_range':{'start_seconds':0,'stop_seconds':30},
+            'candidate_details_truncated': True,
+            'channels':[
+                {'channel_id':'x:7', 'fully_constant':False, 'exact_constant_run_count':10000, 'nonfinite_run_count':1},
+                {'channel_id':'x:2', 'fully_constant':True, 'exact_constant_run_count':1, 'nonfinite_run_count':0}],
+            'candidates':[
+                {'channel_id':'x:7','kind':'exact_constant_samples','start_seconds':1,'stop_seconds':1.002},
+                {'channel_id':'x:7','kind':'nonfinite_samples','start_seconds':4,'stop_seconds':5}]})
+        path=self.root/'artifacts/M03_continuity.json'; original=path.read_bytes()
+        data=self.result()
+        self.assertEqual({r['kind'] for r in data['findings']}, {'nonfinite_samples','constant_analysis_block'})
+        self.assertEqual(data['warnings'], [])
+        self.assertEqual(path.read_bytes(), original)
+        payload=json.loads(original);payload['channels'][0]['nonfinite_run_count']=2
+        self.save('artifacts/M03_continuity.json', payload)
+        self.assertEqual(self.result()['warnings'][0]['code'], 'stored_locations_incomplete')
+
     def test_candidates_default_on_regardless_of_score_or_publication(self):
         candidate={'channel_index':0,'start_seconds':1,'stop_seconds':2}
         self.save('artifacts/M03_continuity.json', {'candidates':[candidate]})

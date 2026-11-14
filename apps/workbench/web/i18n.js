@@ -264,6 +264,7 @@ RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态�
 选择本机文件	Choose a local file
 已选择文件	File selected
 单个记录，或包含配套文件的 ZIP	A single recording or a ZIP with companion files
+当前上传入口仅支持一份记录；数据集检查可通过预置示例体验。	The upload entry currently accepts one recording. Use the prepared examples to try dataset checks.
 点击更换文件	Click to choose another file
 基础方法	Core methods
 按条件启用	Conditional methods

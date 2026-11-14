@@ -3,6 +3,11 @@ from collections import defaultdict
 
 # title, meaning, next step, suggested owner (zh / en).
 COPY = {
+    'bids_validator': (
+        ('BIDS 格式与配套说明', 'BIDS format and companion metadata'),
+        ('以下是文件组织及说明字段的检查；重复发现已按规则合并，不代表所有信号损坏。', 'Repeated format and metadata findings are grouped by rule, not counted as corrupted signals.'),
+        ('先处理错误，再核对建议；按数据声明的 BIDS 版本复核适用性。', 'Review errors before recommendations and check applicability to the declared BIDS version.'),
+        ('资料管理员', 'Dataset coordinator')),
     'channel_schema': (
         ('通道表需要核对', 'Channel table needs review'),
         ('配套通道表无法建立唯一的通道对应关系，关联核对暂未完成。', 'The channel table does not establish a unique mapping; dependent comparisons were not completed.'),

@@ -24,6 +24,7 @@ def main():
         ['node', 'tests/check-dataset-review.mjs'],
         ['node', 'tests/check-dataset-report.mjs'],
         ['node', 'tests/check-data-library.mjs'],
+        ['node', 'tests/check-project-result.mjs'],
         ['node', 'tests/check-report-interactions.mjs'],
         ['node', 'tests/check-waveform-explorer.mjs'],
         ['node', 'tests/check-chart-refresh.mjs'],

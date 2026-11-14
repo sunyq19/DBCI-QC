@@ -345,10 +345,8 @@ def evaluate_dataset(root, manifest, *, progress=None):
         issues=bids.get('issues',{})
         items=issues.get('issues',[]) if isinstance(issues,dict) else issues
         if bids['status']=='completed':
-            errors=sum(i.get('severity')=='error' for i in items);warnings=sum(i.get('severity')=='warning' for i in items)
-            checks.add('D01','bids_validator','review' if errors or warnings else 'pass','BIDS',f'BIDS Validator：{errors}项错误，{warnings}项建议；按内置规则检查，不折算信号分数。')
-            for i,item in enumerate(items[:200]):
-                checks.add('D01','bids_validator','review',str(item.get('location','BIDS')),str(item.get('code',''))+(' · '+str(item['subCode']) if item.get('subCode') else ''),files=[str(item.get('location','')).lstrip('/')])
+            from .bids_findings import grouped_checks
+            checks.rows.extend(grouped_checks(bids))
         else:
             checks.add('D01','bids_validator','unassessed','BIDS',bids['reason'])
     notify('D01','completed'); notify('D02','running')

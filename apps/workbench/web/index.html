@@ -37,7 +37,7 @@
         <label class="file-picker" for="intake-file">
           <span class="file-picker-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M19 4H9a2 2 0 0 0-2 2v20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10L19 4Z"/><path d="M19 4v7h6M16 23V14m-4 4 4-4 4 4"/></svg></span>
           <strong id="file-picker-title">选择本机文件</strong>
-          <span id="file-picker-hint">一份记录选文件，多份记录打包 ZIP</span>
+          <span id="file-picker-hint">单个记录，或包含配套文件的 ZIP</span>
           <span id="file-picker-name" data-i18n-skip hidden></span>
           <input id="intake-file" type="file" accept=".edf,.bdf,.vhdr,.set,.fif,.meta,.nwb,.zip" aria-labelledby="file-picker-title" aria-describedby="file-picker-hint file-picker-name upload-capabilities">
         </label>
@@ -58,6 +58,7 @@
             <li>FIF：仅支持单文件 Raw 记录；暂不支持拆分 FIF 或 epochs。</li>
             <li>EDF/BDF：暂不支持不连续记录 EDF+D / BDF+D。</li>
             <li id="zip-limit-note">ZIP：每包一份记录，仅一个主文件；上传和解压后均不超过 2 GiB。</li>
+            <li>当前上传入口仅支持一份记录；数据集检查可通过预置示例体验。</li>
             <li>ECoG / sEEG 与 Neuropixels 仅提供基础质控，不套用头皮 EEG 判坏阈值。</li>
             <li>SpikeGLX：每包仅一个 AP 或 LF 原始流，将同名 .bin 与 .meta 打包 ZIP；两类流不拼接、不混选。</li><li>NWB：仅接入 NWB 2 / HDF5 中受支持的连续电压 ElectricalSeries；多流须选择一条，不拼接。Units 仅识别，不做波形质控。</li><li>Neuropixels 接入受支持的 SpikeGLX AP/LF 与具明确设备证据的 NWB 连续电压，不评估已分选单元。单独 .eeg 不能上传。</li>
           </ul>

@@ -81,6 +81,10 @@ class NeuropixelsStandardTests(unittest.TestCase):
         self.assertEqual(rows[2]['nonfinite_sample_count'],1)
         self.assertEqual(context.row['summary']['fully_constant_channel_count'],1)
         self.assertFalse(context.row['summary']['quality_classification'])
+        candidates = saved['M03_continuity.json']['candidates']
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual({c['channel_name'] for c in candidates}, {'C0', 'C2'})
+        self.assertEqual(rows[1]['exact_constant_run_count'], 500)
 
     def test_zero_signal_and_missing_historical_checks_are_visible_in_report(self):
         import json, tempfile, re

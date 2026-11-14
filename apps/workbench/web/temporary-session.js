@@ -44,7 +44,7 @@
     } catch { /* The workbench connection status handles service outages. */ }
   }
   window.addEventListener('qc:temporary', refresh);
-  window.addEventListener('qc:languagechange', render);
+  document.addEventListener('qc:languagechange', render);
   window.QCTemporarySession = {refresh};
   refresh(); setInterval(refresh, 30000);
 })();
