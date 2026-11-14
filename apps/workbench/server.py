@@ -676,6 +676,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.check_local()
             path = unquote(urlsplit(self.path).path)
+            from collaboration_route import dispatch as flow_dispatch
+            if flow_dispatch(self, path):
+                return
             with self.temporary.request(self, path) if self.temporary else nullcontext():
                 (self.get if self.command == 'GET' else self.post)(path)
         except PermissionError as exc:

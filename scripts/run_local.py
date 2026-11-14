@@ -73,6 +73,8 @@ def main():
     ready = health(url)
     if args.status:
         print(('运行中：' if ready else '未运行：') + url)
+        if settings.get('collaboration', {}).get('url'):
+            print('团队模块协作：' + settings['collaboration']['url'])
         return
     if not ready:
         try:

@@ -80,6 +80,19 @@ python3 scripts/run_local.py --stop
 
 配置中的 `python` 必须保留 `.venv/bin/python` 路径，不要将符号链接转换为底层系统 Python。移动整个仓库后须重新创建环境并调整配置路径，不能直接复制其他机器的 `.venv`。本机启动器不安装开机自启；重启电脑后运行启动命令即可。需要自动恢复的服务器按[一站部署](deployment/demo.md)使用 systemd 或 Docker。
 
+## 模块协作入口
+
+本地 Python 启动器提供质控台，不会自动部署协作数据库。团队已有协作网站时，在 `.local/workbench.json` 增加以下字段，将按钮指向同一份草稿和版本：
+
+```json
+"collaboration": {
+  "enabled": true,
+  "url": "http://团队服务器地址:8769/flow/"
+}
+```
+
+将地址替换为团队的实际地址；配置后在临时任务结束时重启工作台。以后重启保留此配置，不需要再次修改按钮。版本链接中的参数会保留，不建立第二套协作库。单机独立部署两页请使用[一站部署](deployment/demo.md)或[Docker 部署包](deployment/package.md)；同址部署无需此跳转配置。
+
 ## 模块独立调用
 
 ```bash
