@@ -856,7 +856,7 @@
     "src/ephys_qc/voltage_methods.py": "5a4e14013d7a7082e7d4e60cf6bd0ac63f898739e098191ad5eec56e0eb9ebc6",
     "src/ephys_qc/readers/spikeglx_reader.py": "353819c82eb9fec0a24ae1218aca24a5b5a6fe6be1de4d5262e82b77bb06f3b1",
     "src/ephys_qc/visualizations/catalog.py": "cd5cf03fdb2f9df4719ff54e9e462a345e09325875c939372b9cae3d1cc46df0",
-    "src/ephys_qc/visualizations/render.py": "e089325e74b93f7caa03ae5f336869d6c87dda873d4c90160232f996fbdd4bf3",
+    "src/ephys_qc/visualizations/render.py": "8bc3df65c6f1846bbc58603b6e9423f9f0b974fbfc390ad8f7968e1ad8a1aaef",
     "src/ephys_qc/method_registry.py": "93ebd041129f058f65e2b26d281e786b85645b6118c1865a79221a45719b2829",
     "src/ephys_qc/readers/__init__.py": "22ef0b06571e3b3f0abb1c5125c4dc78183eb1187f61fea285ae02c273f3351e",
     "src/ephys_qc/research_runtime.py": "c0c33b9f1624ee7b71be02d7bf49fc8848faab7fa7034bafa15bd6eb1b6ea2b8",
