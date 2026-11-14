@@ -6,17 +6,27 @@ from pathlib import Path
 from urllib.request import urlopen
 
 URL = 'https://physionet.org/files/eegmmidb/1.0.0/S001/S001R03.edf'
+# Official public mirror listed at https://physionet.org/content/eegmmidb/1.0.0/.
+MIRROR_URL = 'https://physionet-open.s3.amazonaws.com/eegmmidb/1.0.0/S001/S001R03.edf'
 SHA256 = '3427c8d01bff1380bc9ab9f27a35ece2af5dfadf3e291bbc05eb66e4dadbfe2e'
 
 
 def download(directory):
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / 'S001R03.edf'
+    downloaded_from = None
     if target.exists():
         data = target.read_bytes()
     else:
-        with urlopen(URL, timeout=90) as response:
-            data = response.read(5 * 1024**2)
+        for address in (URL, MIRROR_URL):
+            try:
+                with urlopen(address, timeout=30) as response:
+                    data = response.read(5 * 1024**2)
+                downloaded_from = address
+                break
+            except OSError:
+                if address == MIRROR_URL:
+                    raise
         if hashlib.sha256(data).hexdigest() != SHA256:
             raise ValueError('Public sample checksum mismatch; no file written')
         with target.open('xb') as stream:
@@ -30,6 +40,8 @@ def download(directory):
               'dataset_url': 'https://physionet.org/content/eegmmidb/1.0.0/',
               'description': '公开头皮 EEG，64 道，160 Hz，125 秒；左右握拳任务。',
               'usage': '上传 EDF，确认头皮 EEG，保留 64 个信号通道；参考构型不清楚时留未知。采用推荐方案、整份检查。无人工伪迹真值，不能据此验证检测准确率。'}
+    if downloaded_from:
+        source['downloaded_from'] = downloaded_from
     (directory / 'SOURCE.json').write_text(json.dumps(source, ensure_ascii=False, indent=2) + '\n')
     print(target)
     return target
