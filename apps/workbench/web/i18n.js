@@ -64,7 +64,7 @@
 以下检查按通道合并，同一问题不重复计分。	These checks are combined by channel without duplicate penalties.
 综合分 = 各分项得分 × 实际权重后相加	Overall score = sum of each score × its effective weight
 本次仅展示检查结果，不计算综合分。	Check results only; no overall score.
-运行后无有效分数的项目不计入，其余重新分配。	Checks without valid scores are excluded; remaining weights are redistributed.
+受限项不计分，其余按比例计算。	Checks without valid scores are excluded; remaining weights are redistributed.
 权重须为 0–100%	Weight must be between 0 and 100%.
 计分与参数	Scoring and parameters
 完整方法列表	Full method list
@@ -192,6 +192,7 @@ RMS、PSD不直接判坏；LF不套用AP参数。AP候选合并至通道状态�
 仅 1 项计入	One check included
 按所选项目汇总	Combined selected checks
 其他检查结果	Additional check results
+包含检查	Included checks
 原始计分数据	Original scoring data
 总分由各项得分按计分比例相加。数值相同的项目同等计入，0 表示不计入。	The total is the sum of each score multiplied by its share. Equal settings count equally; zero excludes a check.
 参与计分的项目全部完成后才生成总分。分数只代表所选检查，尚未经过专家校准。	A total is generated only when all included checks complete. Scores cover the selected checks and have not been expert-calibrated.
@@ -444,7 +445,13 @@ ECoG / sEEG 与 Neuropixels 仅提供基础质控，不套用头皮 EEG 判坏�
 SpikeGLX：每包仅一个 AP 或 LF 原始流，将同名 .bin 与 .meta 打包 ZIP；两类流不拼接、不混选。	SpikeGLX: ZIP one raw AP or LF stream with its matching .bin and .meta files. Streams are not concatenated or selected together.
 Neuropixels 仅接入原始 AP/LF，不评估已分选单元；NWB 暂不支持读取，单独 .eeg 不能上传。	Neuropixels supports raw AP/LF only, not quality assessment of sorted units. NWB is not supported; a standalone .eeg file cannot be uploaded.
 原始数据流	Raw stream
-探针型号	Probe type
+选择方法	Select checks
+方案已准备好，可开始检查。	Ready to run.
+选择检查方法，或使用推荐方案。	Select checks or use the recommended plan.
+检查说明	Check notes
+执行明细	Execution details
+部分检查未完成，请查看执行明细。	Some checks did not complete; see execution details.
+探针型号	Probe model
 sEEG 触点	sEEG contacts
 背景（可选）	Context (optional)
 当前仅接入 SpikeGLX 原始 AP/LF；其他细胞外记录需另行核验。	Only raw SpikeGLX AP/LF is supported here; other extracellular recordings require separate validation.
@@ -1429,7 +1436,7 @@ ECoG 触点	ECoG contacts
 等待服务确认，勿重复提交。	Awaiting service confirmation. Do not submit again.
 读取中	Reading
 读取文件信息后，确认通道。	Confirm the channels after reading the file information.
-确认文件信息后，生成检查方案。	Confirm the file information to generate a check plan.
+确认模态与分析通道。	Confirm the modality and analysis channels.
 待读取	Awaiting file read
 点击“读取文件”以继续。	Select “Read file” to continue.
 准备方案	Preparing plan

@@ -94,6 +94,6 @@ def homepage(template, settings):
     if not private:
         template = template.replace('<div id="upload-run-name-field"',
             '<p class="small muted shared-demo-note">共享演示区：文件和报告对所有访客可见，请仅上传公开或已脱敏数据。</p><div id="upload-run-name-field"', 1)
-    return (template.replace('质控台 · 本地处理', '质控台 · 共享演示')
+    return (template.replace('质控台 · 本地处理', '质控台')
             .replace('连接本地服务…', '连接服务…')
             .replace('保持本机服务运行即可', '处理完成后可回来查看报告'))

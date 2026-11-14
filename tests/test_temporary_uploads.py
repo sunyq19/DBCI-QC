@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import threading
+import time
 from urllib.request import build_opener, ProxyHandler, HTTPCookieProcessor, Request
 from urllib.error import HTTPError
 
@@ -31,7 +32,19 @@ def service(tmp_path):
         headers = {'Content-Type': 'application/octet-stream', 'X-Filename': 'private.edf'} if upload else {'Content-Type': 'application/json'}
         body = data if upload else json.dumps(data).encode() if data is not None else None
         response = clients[client].open(Request(f'http://127.0.0.1:{server.server_port}'+path, data=body, headers=headers))
-        return json.load(response)
+        with response:
+            result = json.load(response)
+        # The body can arrive before the handler's finally releases its lease.
+        # Finish the request before advancing this fixture's simulated clock.
+        deadline = time.monotonic() + 2
+        while True:
+            with server.temporary.lock:
+                pending = any(s['requests'] for s in server.temporary.sessions.values())
+            if not pending:
+                return result
+            if time.monotonic() >= deadline:
+                raise AssertionError('HTTP handler did not release its temporary-session lease')
+            time.sleep(.001)
     yield server, call, clock
     server.shutdown(); server.temporary.shutdown(); server.server_close(); thread.join(2)
 

@@ -216,7 +216,8 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                     x=18+(i%16)*54;y=18+(i//16)*32;label=row.get('label');name=mapping.get(row.get('channel_name'),row.get('channel_name','—'))
                     parts.append(f'<rect x="{x}" y="{y}" width="48" height="25" rx="3" fill="{colors.get(label,"#f1f5f9")}"><title>{esc(name)}: {esc(names.get(label,label))}</title></rect>')
                     parts.append(text(x+24,y+17,name,text_anchor='middle',font_size='9',fill=INK if label=='good' else 'white'))
-                out+=section(title,'<p class="caption">'+esc(legend)+'</p>'+svg(''.join(parts),45+math.ceil(len(labels)/16)*32,title)+'<p class="caption">按保存通道顺序排列；这是分类索引，不是解剖位置图。组织外候选默认不计分。</p>','SpikeInterface')
+                caption = '按通道顺序排列；色块表示通道级判定，不表示整段异常。邻近通道对照见问题定位。' if method.endswith('lfp_neighbors') else '按通道顺序排列，非解剖位置图；组织外候选默认不计分。'
+                out+=section(title,'<p class="caption">'+esc(legend)+'</p>'+svg(''.join(parts),45+math.ceil(len(labels)/16)*32,title)+'<p class="caption">'+caption+'</p>','SpikeInterface')
             if contacts:
                 for field,label in [('rms_volts','触点 RMS'),('peak_to_peak_volts','触点峰峰值')]:
                     out+=section(label,bars([(c['channel_name'],c[field]*1e6 if finite(c.get(field)) else None,False) for c in contacts],'μV',limit=limit)+'<p class="caption">所选分析窗口的电压统计；幅度差异不直接判定为坏道。</p>','连续电压')

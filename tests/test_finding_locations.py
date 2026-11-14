@@ -80,6 +80,31 @@ class Locations(unittest.TestCase):
         self.save('artifacts/M06_muscle.json',{'candidates':[{'channel_index':0,'start_seconds':1,'stop_seconds':2}]})
         self.assertEqual(len(locations(workspace)['findings']),1)
 
+    def test_lf_neighbors_use_frozen_geometry_not_channel_numbers(self):
+        channels = [dict(channel_id=f'x:{i}', source_index=i, raw_name=f'LF{i}',
+                         probe_position_um=pos, probe_grid={'shank':shank})
+                    for i,pos,shank in [(1,[0,0],0),(2,[0,20],0),(3,[0,10],1),(10,[0,40],0),(11,[0,30],0)]]
+        self.save('artifacts/M02_selection.json', {'channels':channels, 'recording':{'start_seconds':0,'duration_seconds':30}})
+        self.save('artifacts/M05_spikeinterface_lfp_neighbors.json', {'status':'completed', 'calculated':True,
+            'parameters':{'radius_um':30,'r2_threshold':.9},
+            'channel_labels':[{'channel_name':f'LF{i}','label':'noise' if i in [1,10] else 'good'} for i in [1,2,3,10,11]],
+            'candidates':[{'channel_index':i,'localization':'channel_only','analysis_range':[0,30]} for i in [3,0]]})
+        path=self.root/'artifacts/M05_spikeinterface_lfp_neighbors.json';before=path.read_bytes()
+        result=self.result()['findings']
+        self.assertEqual([r['channels'] for r in result],[['x:1'],['x:10']])
+        evidence=result[0]['comparison']
+        self.assertEqual([r['channel_id'] for r in evidence['neighbors']],['x:2'])
+        self.assertEqual(evidence['threshold'],.9)
+        self.assertIsNone(evidence['measured_r2'])
+        self.assertEqual(result[0]['localization'],'channel')
+        self.assertEqual(path.read_bytes(),before)
+
+    def test_lf_missing_geometry_does_not_guess_neighbors(self):
+        self.save('artifacts/M05_spikeinterface_lfp_neighbors.json', {'status':'completed',
+            'parameters':{'radius_um':30,'r2_threshold':.9},
+            'candidates':[{'channel_index':0,'localization':'channel_only'}]})
+        self.assertNotIn('comparison',self.result()['findings'][0])
+
     def test_np_repetitions_are_measurements_flat_block_and_nan_remain(self):
         self.save('artifacts/M03_continuity.json', {
             'modality':'extracellular', 'input_range':{'start_seconds':0,'stop_seconds':30},

@@ -93,10 +93,49 @@ def _finite(v):
     return type(v) in (int, float) and math.isfinite(v)
 
 
+def lf_comparisons(selection, payload, mapping):
+    """Reconstruct detector neighbours from frozen geometry, never from names.
+
+    The original detector saves labels, not R² measurements. This projection
+    must not invent a measured R² or turn its channel decision into intervals.
+    """
+    radius = payload.get('parameters', {}).get('radius_um')
+    threshold = payload.get('parameters', {}).get('r2_threshold')
+    if not _finite(radius) or radius <= 0:
+        return {}
+    geometry = {r.get('channel_id'): r for r in selection.get('channels', [])}
+    labels = {r.get('channel_name'): r.get('label') for r in payload.get('channel_labels', [])}
+    result = {}
+    for row in mapping.values():
+        source = geometry.get(row['channel_id'], {})
+        pos = source.get('probe_position_um', [])
+        shank = source.get('probe_grid', {}).get('shank')
+        if shank is None or len(pos) != 2 or not all(_finite(v) for v in pos):
+            continue
+        neighbors = []
+        for other in mapping.values():
+            target = geometry.get(other['channel_id'], {})
+            xy = target.get('probe_position_um', [])
+            if (other['channel_id'] == row['channel_id'] or target.get('probe_grid', {}).get('shank') != shank
+                    or len(xy) != 2 or not all(_finite(v) for v in xy)):
+                continue
+            distance = math.dist(pos, xy)
+            if distance < radius:
+                neighbors.append(dict(channel_id=other['channel_id'], name=other.get('raw_name', ''),
+                                      distance_um=round(distance, 3),
+                                      label=labels.get(other.get('adapter_name', other.get('raw_name')))))
+        neighbors.sort(key=lambda r: (r['distance_um'], r['name']))
+        result[row['channel_id']] = dict(kind='lf_neighborhood', radius_um=radius,
+                                         threshold=threshold if _finite(threshold) else None,
+                                         measured_r2=None, neighbors=neighbors)
+    return result
+
+
 def build(workspace):
     specs, labels = registry()
     groups = defaultdict(list)
     channels, methods, warnings = {}, {}, set()
+    comparisons = {}
     for directory, window_id, request in workspace._contexts():
         selection = _json(directory / 'artifacts' / 'M02_selection.json', {})
         # Read just module statuses, not the possibly huge result report_view.
@@ -124,6 +163,8 @@ def build(workspace):
                 if payload.get('candidate_details_truncated') or payload.get('candidate_evidence', {}).get('truncated'):
                     warnings.add((method, 'stored_locations_incomplete'))
                 mapping = _mapping(request, selection, payload)
+                if method == 'spikeinterface_lfp_neighbors':
+                    comparisons[(method, window_id)] = lf_comparisons(selection, payload, mapping)
                 by_id = {r.get('channel_id'): r for r in mapping.values()}
                 by_name = defaultdict(list)
                 for r in mapping.values():
@@ -176,8 +217,14 @@ def build(workspace):
             if merged and a <= merged[-1][1] + 1e-9: merged[-1][1] = max(b, merged[-1][1])
             else: merged.append([a, b])
         for a, b in merged:
-            findings.append(dict(method=method, channels=list(ids), start=a, stop=b, localization=loc, kind=kind))
-    findings.sort(key=lambda r: (r['start'], r['method'], r['channels'], r['stop']))
+            row = dict(method=method, channels=list(ids), start=a, stop=b, localization=loc, kind=kind)
+            if loc == 'channel' and len(ids) == 1:
+                evidence = comparisons.get((method, wid), {}).get(ids[0])
+                if evidence is not None:
+                    row['comparison'] = evidence
+            findings.append(row)
+    findings.sort(key=lambda r: (r['start'], r['method'],
+                                [channels[c]['source_index'] for c in r['channels']], r['stop']))
     for n, row in enumerate(findings): row['id'] = str(n)
     for m in methods.values(): m['location_count'] = sum(r['method'] == m['id'] for r in findings)
     return dict(schema_version='finding-locations/1', methods=[m for m in methods.values() if m['id'] != 'line_noise' or m['locating_blocks'] or m['unavailable_blocks']], channels=list(channels.values()),

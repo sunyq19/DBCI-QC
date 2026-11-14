@@ -758,6 +758,7 @@
     const historical = state.mode === "job", selected = Boolean(state.input) && !state.filePending;
     $("analysis-workspace").hidden = !historical && !selected;
     $("input-metadata").hidden = historical || !selected;
+    $("run-controls").hidden = historical;
     $("run-history-panel").hidden = false;
     $("main").setAttribute("data-active-record", String(Boolean(historical || selected || state.intake || state.filePending)));
     $("example-presets").hidden = true;
@@ -865,7 +866,7 @@
     const frozenModality = state.job?.plan?.input_modality;
     const source = history ? (state.job?.plan?.input_metadata ? {metadata:state.job.plan.input_metadata,label:state.job.label,modality:typeof frozenModality === 'string' ? frozenModality : frozenModality?.value} : null) : state.filePending ? state.intake : state.input || state.intake;
     const box = $("record-summary"), meta = source?.metadata;
-    box.hidden = !meta || Boolean(history && state.result?.report_view);
+    box.hidden = !meta || Boolean(history && state.result);
     const key = history ? `job:${state.job?.id || "loading"}` : state.input && !state.filePending ? `input:${state.input.id}` : state.intake ? `intake:${state.intake.id}` : "empty";
     if (key !== state.boardKey) { $("workflow-panel").open = !meta || history || Boolean(state.input && !state.filePending); state.boardKey = key; }
     if (!meta) { box.innerHTML = ""; return; }
@@ -877,12 +878,12 @@
     const facts = [["数据格式",meta.format || "未知"],["通道数",awaitingStream ? "待选信号" : number(arr(meta.channels).length,0)],["记录时长",awaitingStream ? "待选信号" : `${number(meta.duration_seconds,2)} s`],["采样率",awaitingStream ? "待选信号" : !rates.length ? "未知" : rates.length <= 3 ? rates.map(rate => number(rate,2)).join(" / ") + " Hz" : "多个原生采样率"],modalityFact,["标注",awaitingStream ? "待选信号" : annotationText(meta)]];
     const acquisition = awaitingStream ? {} : meta.acquisition || {};
     if (["ap","lf"].includes(acquisition.stream_band)) facts.push(["信号频带",acquisition.stream_band.toUpperCase()]);
-    const probeModel = acquisition.probe_type ?? acquisition.probe_model;
+    const probeModel = acquisition.probe_model ?? acquisition.probe_part_number ?? acquisition.probe_type;
     if (typeof probeModel === "string" || typeof probeModel === "number") facts.push(["探针型号",String(probeModel)]);
     if (["acquisition","processing"].includes(acquisition.source_container)) facts.push(["来源容器",acquisition.source_container]);
     const kinds = awaitingStream ? [] : arr(meta.annotations?.kinds), evidence = awaitingStream ? null : meta.modality_evidence || source.suggestions?.modality_evidence;
     const streamMarkup = streamSummaryHtml(source,!history && source === state.intake && !state.revisionInput && source.status !== "registered");
-    const markup = `<div class="extraction-heading"><span class="tag subtle">自动提取</span><span class="small muted" data-i18n-skip>${escape(meta.reader_id || "")}</span></div><h3 class="extraction-filename" data-i18n-skip>${escape(source.filename || source.label || "已读取文件")}</h3>${streamMarkup}<dl class="extraction-grid">${facts.map(([label,value]) => `<div><dt>${label}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>${!awaitingStream && meta.annotations?.extraction_status === "not_extracted" ? '<details class="extraction-details"><summary>文件标注</summary><p class="small muted">文件可能含事件；尚未映射到所选信号。</p></details>' : kinds.length ? `<details class="extraction-details"><summary>文件标注</summary><p class="small muted">保留原始标签，尚未确认其含义。</p><div class="annotation-labels" data-i18n-skip>${kinds.slice(0,12).map(label=>`<span>${escape(label)}</span>`).join("")}</div></details>` : ""}${evidence ? `<details class="extraction-details"><summary>模态与通道类型依据</summary><p class="small muted">文件类型和通道声明不等于采集位置，分析模态需确认。</p><pre data-i18n-skip>${escape(pretty(evidence))}</pre></details>` : ""}`;
+    const markup = `<div class="extraction-heading"><span class="tag subtle">自动提取</span></div><h3 class="extraction-filename" data-i18n-skip>${escape(source.filename || source.label || "已读取文件")}</h3>${streamMarkup}<dl class="extraction-grid">${facts.map(([label,value]) => `<div><dt>${label}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>${!awaitingStream && meta.annotations?.extraction_status === "not_extracted" ? '<details class="extraction-details"><summary>文件标注</summary><p class="small muted">文件可能含事件；尚未映射到所选信号。</p></details>' : kinds.length ? `<details class="extraction-details"><summary>文件标注</summary><p class="small muted">保留原始标签，尚未确认其含义。</p><div class="annotation-labels" data-i18n-skip>${kinds.slice(0,12).map(label=>`<span>${escape(label)}</span>`).join("")}</div></details>` : ""}${evidence ? `<details class="extraction-details"><summary>模态与通道类型依据</summary><p class="small muted">文件类型和通道声明不等于采集位置，分析模态需确认。</p><pre data-i18n-skip>${escape(pretty(evidence))}</pre></details>` : ""}`;
     if (box.innerHTML !== markup) box.innerHTML = markup;
   }
 
@@ -1195,7 +1196,7 @@
     const bars=active.map((s,i)=>`<span style="flex:${s.weight};--score-color:var(--score-${i%5})" title="${escape(s.name)} ${share(s.weight,effectiveTotal)}"></span>`).join('');
     const children=model.grouped && rows.some(s=>s.id===model.groupId) ? `<details class="scoring-children" ${childOpen?'open':''}><summary>${model.intracranial?'信号稳定性 · 子项权重':'通道状态 · 合并项目'}</summary><p>${model.intracranial?(model.legacyChildren?'保留历史最低分规则；调整子项后改为加权平均。':'子项先加权汇总，仅以信号稳定性计入一次。'):'以下检查按通道合并，同一问题不重复计分。'}</p>${model.intracranial?table(model.children,true):`<ul>${model.children.map(s=>`<li>${escape(s.name)} <span class="muted">${escape(s.module_id)}${s.blocked?' · 受限':''}</span></li>`).join('')}</ul>`}</details>`:'';
     const url=model.neuropixels?'/standards/neuropixels-scoring':model.intracranial?'/standards/ieeg-scoring':'/standards/eeg-scoring';
-    box.innerHTML=`<header class="score-composition-header"><h4>计分组成</h4><span>${active.length} 项预计计入</span></header><p class="score-composition-intro">调整一项，其余按比例分配；0% 不计入。</p>${rows.length?table(rows):'<p class="small muted">当前选择没有可计分项目。</p>'}${children}${active.length?`<div class="score-composition-bar" aria-hidden="true">${bars}</div><p class="score-formula">综合分 = 各分项得分 × 实际权重后相加</p>`:'<p class="score-formula">本次仅展示检查结果，不计算综合分。</p>'}<footer><span>运行后无有效分数的项目不计入，其余重新分配。</span><a href="${url}" target="_blank" rel="noopener">评分规则</a></footer>`;
+    box.innerHTML=`<header class="score-composition-header"><h4>计分组成</h4><span>${active.length} 项预计计入</span></header><p class="score-composition-intro">调整一项，其余按比例分配；0% 不计入。</p>${rows.length?table(rows):'<p class="small muted">当前选择没有可计分项目。</p>'}${children}${active.length?`<div class="score-composition-bar" aria-hidden="true">${bars}</div><p class="score-formula">综合分 = 各分项得分 × 实际权重后相加</p>`:'<p class="score-formula">本次仅展示检查结果，不计算综合分。</p>'}<footer><span>受限项不计分，其余按比例计算。</span><a href="${url}" target="_blank" rel="noopener">评分规则</a></footer>`;
     box.querySelector?.('.scoring-children')?.addEventListener('toggle',event=>{state.scoreChildrenOpen=event.target.open;});
     for(const selector of ['[data-score-weight]','[data-score-child]']) box.querySelectorAll(selector).forEach(input=>input.addEventListener('change',()=>{
       const value=Number(input.value);
@@ -1305,7 +1306,7 @@
       const locked = fixedChild || busy || method.implementation !== "available" || status === "blocked" && !selected;
       const toggle = `<input type="checkbox" ${method.optional_extension?'data-extension':'data-core-method'}="${escape(method.id)}" id="pipeline-method-${escape(method.id)}" ${selected?'checked':''} ${locked?'disabled':''} aria-label="${escape(method.name)}">`;
       const label = `<label for="pipeline-method-${escape(method.id)}">${escape(method.name)}</label>`;
-      return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span><span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
+      return `<article class="pipeline-method-row ${selected?"chosen":""}"><div class="pipeline-method-main">${toggle}<div class="pipeline-method-description">${label}<div class="pipeline-method-tags">${recommended.has(method.id)?'<span class="method-badge recommended">推荐</span>':""}${status==="planned"?'<span class="method-badge">未接入</span>':`${recommended.has(method.id) && status==="ready" ? "" : `<span class="method-badge ${restricted?"restricted":""}">${({ready:"可用",partial:"部分受限",blocked:"当前不可用"})[status] || "条件待核对"}</span>`}<span class="method-badge ${scoreable?"scoreable":""}">${scoreable?"可计分":"仅测量"}</span>`}</div>${restricted?`<p class="method-restriction">${escape(reason)}</p>`:""}</div><button class="method-help text-button" data-pipeline-method-detail="${escape(method.id)}" data-parent-module="${escape(id)}">说明</button></div></article>`;
     };
     const available = methods.filter(method=>method.implementation==="available"), planned=methods.filter(method=>method.implementation!=="available");
     return `<section id="pipeline-method-panel" class="pipeline-method-panel" aria-label="${escape(id)} 检查方法"><header><div><span class="node-id">${escape(id)}</span><strong>${escape(moduleLabel(id))}</strong></div><button class="text-button" data-pipeline-expand="${escape(id)}" aria-label="收起检查方法">收起</button></header><p class="pipeline-method-hint">${id === "M01" ? "文件读取为固定步骤，可增加格式校验。" : "选择检查项后自动启用本模块。"}</p>${state.methodGuidanceLoading?'<p class="small muted" role="status">正在核对推荐与适用条件…</p>':state.methodGuidanceError?`<p class="field-error">${escape(state.methodGuidanceError)}</p><button class="text-button" data-guidance-retry>重新核对</button>`:""}<div class="pipeline-method-list">${available.map(render).join("")}</div>${planned.length?`<details class="pipeline-planned"><summary>待接入方法 · ${planned.length}</summary>${planned.map(render).join("")}</details>`:""}<footer><button class="text-button" data-open-scoring>计分设置</button><button class="text-button" data-detail="${escape(id)}">模块说明</button></footer></section>`;
@@ -1336,7 +1337,7 @@
     const choosing = !historical && hasInput && !unsupportedInput();
     $("pipeline-help").textContent = choosing ? "点击模块，展开选择检查方法" : "点击模块查看说明";
     $("advanced-settings").hidden = !choosing;
-    $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : state.intake || state.input ? "信息提取" : "数据工作台";
+    $("pipeline-title").textContent = historical ? state.result ? "质控结果" : "检查记录" : choosing ? "检查方案" : state.intake || state.input ? "信息提取" : "数据工作台";
     let label = "框架预览", caption = "上传文件后，先提取基本信息。", style = "subtle";
     if (historical) {
       label = state.job ? STATUS[state.job.status] || state.job.status : "状态未载入";
@@ -1346,18 +1347,18 @@
       label = "正在提交"; caption = "等待服务确认，勿重复提交。";
     } else if (!hasInput) {
       if (state.intakeBusy) { label = "读取中"; caption = "读取文件信息后，确认通道。"; }
-      else if (state.intake && state.intake.status !== "registered") { label = "待确认"; caption = "确认文件信息后，生成检查方案。"; }
+      else if (state.intake && state.intake.status !== "registered") { label = "待确认"; caption = "确认模态与分析通道。"; }
       else if (state.filePending) { label = "待读取"; caption = "点击“读取文件”以继续。"; }
     } else if (unsupportedInput() || state.recommendation?.status === "unsupported") {
       label = "仅信息提取"; caption = "当前模态暂无已验证的质控配置。";
     } else {
-      label = state.recommending || state.planning ? "准备方案" : validPlan() ? "方案就绪" : "待核对";
-      caption = `${state.input.label || state.input.id} · ${validPlan() ? "点击开始检查" : "按数据配置检查模块"}`;
+      label = state.recommending || state.planning ? "准备方案" : validPlan() ? "方案就绪" : "选择方法";
+      caption = `${validPlan() ? "方案已准备好，可开始检查。" : "选择检查方法，或使用推荐方案。"}`;
       style = validPlan() ? "ready" : "subtle";
     }
     for (const id of ["pipeline-state","plan-state"]) { $(id).className = `tag ${style}`; $(id).textContent = label; }
     $("pipeline-caption").textContent = caption;
-    if (historical && state.result?.report_view) $("record-summary").hidden = true;
+    if (historical && state.result) $("record-summary").hidden = true;
     $("pipeline-legend").hidden = !historical || !state.job;
     $("pipeline-legend").textContent = "图中颜色表示执行状态，质量结论见报告。";
     $("plan-disclosure").hidden = !(historical ? state.job?.plan : validPlan());
@@ -1476,8 +1477,10 @@
       return;
     }
     const score = result.project_score || result.score || {};
-    container.innerHTML = `<div class="score-card"><div class="score-value" aria-label="无已校准总分">—</div><div><strong>总分尚未校准</strong><p>${escape(score.reason || "当前仅报告分项证据与限制，不生成整体质量分数。")}</p></div></div>${arr(result.warnings).length ? `<ul class="result-warnings">${result.warnings.map(warning => `<li>${escape(pretty(warning))}</li>`).join("")}</ul>` : ""}${extensionResultsHtml(result)}<h3>模块结果摘要</h3>${arr(result.modules).length ? result.modules.map(module => `<details class="result-summary"><summary>${escape(module.id || module.module_id || "模块")} · ${escape(module.name || "结果")} ${module.status ? statusTag(displayStatus(module,state.job?.plan)) : ""}</summary><pre>${escape(pretty(module))}</pre></details>`).join("") : '<p class="small muted">服务端未提供模块摘要，请查看实际报告。</p>'}${result.recording ? `<details class="result-summary"><summary>本次记录与分析范围</summary><pre>${escape(pretty(result.recording))}</pre></details>` : ""}${result.artifacts ? `<details class="result-summary"><summary>产物清单</summary><pre>${escape(pretty(result.artifacts))}</pre></details>` : ""}`;
-    if(result.project_score) container.innerHTML=`<div class="score-card"><div class="score-value">${numeric(score.value)?Number(score.value).toFixed(2):'—'}</div><div><strong>项目自定义评分</strong><p>${escape(score.missing_reason||'按本次有效分项及实际权重汇总。')}</p></div></div>${methodScoreTable(arr(score.components))}`+container.innerHTML.replace(/<div class="score-card">[\s\S]*?<\/div><\/div>/,'');
+    container.innerHTML = `<div class="score-card"><div class="score-value" aria-label="无已校准总分">—</div><div><strong>总分尚未校准</strong><p>${escape(score.reason || "当前仅报告分项证据与限制，不生成整体质量分数。")}</p></div></div>${arr(result.warnings).length ? `<details class="result-summary"><summary>检查说明</summary><ul class="result-warnings">${result.warnings.map(warning => `<li>${escape(pretty(warning))}</li>`).join("")}</ul></details>` : ""}${extensionResultsHtml(result)}${arr(result.modules).some(m=>["failed","blocked"].includes(m.status))?'<p class="notice warning">部分检查未完成，请查看执行明细。</p>':""}<details class="result-summary"><summary>执行明细</summary>${arr(result.modules).length ? result.modules.map(module => `<details class="result-summary"><summary>${escape(module.id || module.module_id || "模块")} · ${escape(module.name || "结果")} ${module.status ? statusTag(displayStatus(module,state.job?.plan)) : ""}</summary><pre>${escape(pretty(module))}</pre></details>`).join("") : '<p class="small muted">服务端未提供模块摘要，请查看实际报告。</p>'}${result.recording ? `<details class="result-summary"><summary>本次记录与分析范围</summary><pre>${escape(pretty(result.recording))}</pre></details>` : ""}${result.artifacts ? `<details class="result-summary"><summary>产物清单</summary><pre>${escape(pretty(result.artifacts))}</pre></details>` : ""}</details>`;
+    $("workflow-panel").open = false;
+    $("record-summary").hidden = true;
+    if(result.project_score) container.innerHTML=`<div class="score-card"><div class="score-value">${numeric(score.value)?Number(score.value).toFixed(2):'—'}</div><div><strong>项目自定义评分</strong><p>${escape(score.missing_reason||'按本次有效分项及实际权重汇总。')}</p></div></div>${methodScoreTable(arr(score.components),undefined,true)}`+container.innerHTML.replace(/<div class="score-card">[\s\S]*?<\/div><\/div>/,'');
     container.innerHTML = `<p class="coverage-summary">${escape(coverageText(result))}</p>` + container.innerHTML;
   }
 
@@ -1487,10 +1490,13 @@
   function scoreShareLabel(weight,total) {
     return numeric(weight)&&weight>0&&total>0 ? `${number(weight/total*100,1)}%` : "不计入";
   }
-  function methodScoreTable(parts,allParts=parts) {
+  function methodScoreTable(parts,allParts=parts,primary=false) {
     if(!parts.length)return '';
     const total=scoreWeightTotal(allParts);
-    return `<details class="result-summary"><summary>其他检查结果 · ${parts.length}</summary><div class="qc-score-table"><table><thead><tr><th>检查项</th><th>分数 / 100</th><th title="占综合分的比例">权重</th><th>结果说明</th></tr></thead><tbody>${parts.map(p=>`<tr><th>${escape(p.name)}</th><td>${numeric(p.value)?Number(p.value).toFixed(2):'—'}</td><td>${scoreShareLabel(p.weight,total)}</td><td>${escape(p.reason||'')}</td></tr>`).join('')}</tbody></table></div></details>`;
+    const grouped=new Set(primary?parts.flatMap(p=>arr(p.evidence_components).map(c=>c.id)):[]);
+    const displayed=parts.filter(p=>!grouped.has(p.id)||p.weight>0);
+    const details=p=>primary&&arr(p.evidence_components).length?`<details class="result-summary"><summary>包含检查 · ${p.evidence_components.length}</summary>${p.evidence_components.map(c=>`<p>${escape(c.name)} · ${numeric(c.value)?Number(c.value).toFixed(2):'—'} / 100</p>`).join('')}</details>`:'';
+    return `<details class="result-summary"${primary?" open":""}><summary>${primary?"检查结果":"其他检查结果"} · ${displayed.length}</summary><div class="qc-score-table"><table><thead><tr><th>检查项</th><th>分数 / 100</th><th title="占综合分的比例">权重</th><th>结果说明</th></tr></thead><tbody>${displayed.map(p=>`<tr><th>${escape(p.name)}</th><td>${numeric(p.value)?Number(p.value).toFixed(2):'—'}</td><td>${scoreShareLabel(p.weight,total)}</td><td>${escape(p.reason||'')}${details(p)}</td></tr>`).join('')}</tbody></table></div></details>`;
   }
 
   function scoredResultHtml(view, result) {
@@ -1752,7 +1758,10 @@
   }
   function coverageText(result = state.result) {
     const coverage = result?.coverage || state.job?.recording_progress?.coverage || state.job?.coverage;
-    if (coverage) return `整份检查 · 记录 ${number(coverage.total_seconds,2)} 秒 · 已计算 ${number(coverage.completed_seconds,2)} 秒 · 失败 ${number(coverage.failed_seconds,2)} 秒 · 未执行 ${number(coverage.unexecuted_seconds,2)} 秒 · 数据间隙 ${number(coverage.gap_seconds,2)} 秒。计算覆盖不代表质量通过。`;
+    if (coverage) {
+      const gaps=[["失败",coverage.failed_seconds],["未执行",coverage.unexecuted_seconds],["数据间隙",coverage.gap_seconds]].filter(([,value])=>!numeric(value)||value>0);
+      return `整份检查 · 已计算 ${number(coverage.completed_seconds,2)} / ${number(coverage.total_seconds,2)} 秒${gaps.map(([label,value])=>` · ${label} ${number(value,2)} 秒`).join("")}`;
+    }
     const plan = state.job?.plan, selection = plan?.qc_config?.selection || {};
     return plan ? `片段预检 · 原记录 ${number(selection.start_seconds,2)}–${number((selection.start_seconds || 0) + (selection.duration_seconds || 0),2)} 秒 · 不代表整份记录。` : "仅波形预览，尚未执行质控。";
   }

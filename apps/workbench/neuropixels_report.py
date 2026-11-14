@@ -79,7 +79,7 @@ def render(store, identifier, language='zh-CN'):
             if r.get('automatically_excluded'):explanation=t('受限，本次不计入','Unavailable; excluded from this total')
             elif not measured(r.get('value')):explanation=t('未评','Not assessed')
             elif r['id']==NUMERIC:explanation=t(f"{100-r['value']:.2f}% 的采样点为NaN或Inf",f"{100-r['value']:.2f}% of samples are NaN or Inf")
-            elif r['id']==STATE:explanation=t(f"{100-r['value']:.2f}% 候选通道窗负担；",f"{100-r['value']:.2f}% candidate channel-window burden; ")+basis
+            elif r['id']==STATE:explanation=t(f"{100-r['value']:.2f}% 的通道检查窗被标记；",f"{100-r['value']:.2f}% of channel-check windows flagged; ")+basis
             else:explanation=t('原方法候选比例','Original method candidate fraction')
             primary.append(r);findings[r['id']]=explanation
         results='<div class="ieeg-score-panel"><div><span>'+t('Neuropixels 项目评分','Neuropixels project score')+'</span><strong>'+point(project.get('value'))+'<small> / 100</small></strong></div><p>'+t('仅评价本次有效的连续电压检查。','Applies only to the valid voltage checks in this run.')+'</p></div>'
@@ -103,7 +103,7 @@ def render(store, identifier, language='zh-CN'):
     if len(findings)>200:locations+='<p>'+t(f'显示前200条，共{len(findings)}条。',f'Showing 200 of {len(findings)} rows.')+'</p>'
     first=(windows[0]['id']+'--' if windows[0].get('id') else '')+'waveform.png'
     if (artifacts/first).is_file():locations+='<details class="disclosure"><summary>'+t('查看首段波形','First-window waveform')+'</summary><img class="ieeg-waveform" src="'+url(first)+'" alt="'+t('首段已保存波形，范围以图内标记为准','Saved first-window traces; labels define the preview scope')+'"></details>'
-    details='<p>'+t('本页按neuropixels-qc/0.3组织已保存的原始电压证据；历史缺项不补算。没有执行分选后unit质控、漂移或跨流同步判定。','This page organizes saved voltage evidence under neuropixels-qc/0.3; historical missing checks are not recomputed. Sorted-unit QC, drift and cross-stream synchronization have not been evaluated.')+'</p>'
+    details='<p>'+t('本报告评估连续电压；已运行的方法与结果见下表，不评价分选后的神经元质量。','This report assesses continuous voltage. The table below lists executed methods and results; sorted-unit quality is not evaluated.')+'</p>'
     details+='<p>'+t('已计算 / 本地文件时长：','Computed / local file duration: ')+num(coverage.get('completed_seconds'))+' / '+num(info['duration_seconds'])+' s · '+t('来源缺口：','Source gaps: ')+num(coverage.get('gap_seconds',0))+' s</p>'
     details+='<p>'+t('如为来源片段，本次覆盖仅指本地片段。AP离群方法内部抽样，不代表每个样本都接受了该项判定。','For source extracts, coverage applies only to the local extract. AP outlier detection samples internally; it does not classify every individual sample.')+'</p>'
     details+='<p><a href="'+('/en' if en else '')+'/standards/neuropixels">'+t('Neuropixels质控规范','Neuropixels QC specification')+'</a> · <a href="'+url(scope_file)+'">'+t('执行记录','Execution record')+'</a></p>'

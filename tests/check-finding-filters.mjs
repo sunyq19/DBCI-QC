@@ -9,6 +9,8 @@ class N{
  append(...n){this.children.push(...n);}
  replaceChildren(...n){this.children=n;}
  setAttribute(k,v){this.attrs[k]=String(v);}getAttribute(k){return this.attrs[k];}removeAttribute(k){delete this.attrs[k];}
+ before(...nodes){this.beforeNodes=nodes;}
+ prepend(...nodes){this.children.unshift(...nodes);}
  addEventListener(k,f){this.handlers[k]=f;}fire(k,e={}){this.handlers[k]?.(e);}
  focus(){document.activeElement=this;}getBoundingClientRect(){return {width:800,height:270,left:0};}
 }
@@ -77,7 +79,8 @@ get('finding-kinds').children[1].fire('click');await tick();
 assert.equal(list.children.length,1,'Channel results are separate from precise intervals');
 assert.equal(get('finding-title').textContent,'AF4 · 频谱差异');
 assert(get('finding-measure').textContent.includes('分析范围 0–120 s'));
-assert(get('finding-measure').textContent.includes('未定位异常时刻'));
+assert(get('finding-measure').textContent.includes('通道级结果'));
+assert(created.find(n=>n.className==='finding-comparison').children[0].textContent.includes('不能据此认定每一秒都异常'));
 assert(!svg.innerHTML.includes('data-mark-method="psd"')&&!svg.innerHTML.includes('<circle'));
 get('finding-kinds').children[0].fire('click');await tick();
 const extraBox=get('finding-filters').children[2].children[1].children[0].children[0];extraBox.checked=true;extraBox.fire('change');

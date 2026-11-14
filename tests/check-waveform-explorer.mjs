@@ -55,6 +55,8 @@ assert(!hfOnly.includes('data-mark-method="line"')&&hfOnly.includes('data-mark-c
 
 class Node {
   constructor(tag='div'){this.tagName=tag.toUpperCase();this.dataset={};this.attrs={};this.children=[];this.handlers={};this.value='';this.hidden=false;this.classList={add(){},remove(){}};this.style={setProperty(k,v){this[k]=v;}};this.clientWidth=800;this.clientHeight=270;}
+ before(...nodes){this.beforeNodes=nodes;}
+ prepend(...nodes){this.children.unshift(...nodes);}
   addEventListener(n,fn){this.handlers[n]=fn;}
   fire(n,e={}){return this.handlers[n]?.(e);}
   setAttribute(k,v){this.attrs[k]=String(v);}
@@ -79,6 +81,8 @@ const link=new Node('a');link.href='/saved-0.png';link.dataset={channelId:'a',st
 const document={documentElement:{lang:'zh-CN'},getElementById:id=>nodes[id],querySelectorAll:()=>[link],handlers:{},
  createElement:tag=>new Node(tag),createElementNS:(_,tag)=>{const n=new Node(tag);if(tag==='svg')nodes.svg=n;return n;},
  addEventListener(n,fn){this.handlers[n]=fn;}};
+assert.equal(JSON.stringify(g.comparisonIndices({comparison:{neighbors:[{channel_id:'b'},{channel_id:'missing'}]}},[{channel_id:'a',source_index:7},{channel_id:'b',source_index:2}])), '[2]');
+assert.equal(g.comparisonIndices({comparison:{neighbors:Array.from({length:30},(_,i)=>({channel_id:String(i)}))}},Array.from({length:30},(_,i)=>({channel_id:String(i),source_index:i}))).length,14);
 const reads=[];
 const timers=new Map();let timerId=0;
 const context={document,window:null,URLSearchParams,fetch:(url)=>new Promise(resolve=>reads.push({url,resolve})),console,

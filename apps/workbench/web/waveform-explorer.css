@@ -101,3 +101,24 @@
 
 .finding-workspace[hidden], #finding-fullscreen[hidden] { display: none !important; }
 .finding-measurement-note { margin: .65rem 0; line-height: 1.6; }
+
+/* Channel decisions show their comparison context without implying a time interval. */
+.finding-comparison{margin:0 0 10px;padding:10px 12px;background:#f5f8fc;border-left:3px solid #9ab3d7;color:#42546b;font-size:12px;line-height:1.55}
+.finding-comparison[hidden]{display:none}
+.finding-comparison p{margin:4px 0;font-size:12px;line-height:1.55}
+.finding-comparison-summary{font-weight:600;color:#263e5a}
+.finding-neighbors{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:6px}
+.finding-neighbor{padding:1px 6px;border:1px solid #d6e0ed;border-radius:3px;background:white;font-size:11px}
+.finding-neighbor.is-flagged{border-color:#d6b68f;color:#825721;background:#fff8ef}
+.finding-comparison details{margin:6px 0 0;border:0;padding:0;font-size:11px}
+.finding-comparison details>summary{padding:0;font-size:11px;font-weight:400;min-height:0}
+.finding-workspace:has(.finding-comparison:not([hidden])){height:auto;min-height:600px}
+.finding-workspace:has(.finding-comparison:not([hidden])) .finding-sidebar{max-height:720px}
+@media(max-width:700px){.finding-comparison{font-size:11px;padding:8px}.finding-workspace:has(.finding-comparison:not([hidden])) .finding-sidebar{max-height:260px}}
+
+@media(max-width:760px){
+  .report-section-body>table{min-width:0;width:100%;table-layout:fixed}
+  .report-section-body>table th,.report-section-body>table td{overflow-wrap:anywhere}
+  .finding-workspace:has(.finding-comparison:not([hidden])) .finding-preview{height:auto;min-height:580px}
+  .finding-workspace:has(.finding-comparison:not([hidden])) .finding-stage{height:300px;flex:none}
+}

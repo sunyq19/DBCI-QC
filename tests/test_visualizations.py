@@ -50,7 +50,7 @@ class VisualizationTests(unittest.TestCase):
         old=copy.deepcopy(data)
         page=render_gallery({'artifacts':[{'name':'M05_spikeinterface_coherence_psd.json'}]},lambda _:data)
         self.assertIn('AP348: 失活候选',page)
-        self.assertIn('这是分类索引，不是解剖位置图',page)
+        self.assertIn('非解剖位置图',page)
         self.assertIn('spikeinterface.readthedocs.io',page)
         self.assertNotIn('BrainElecQC / PREP',page)
         self.assertEqual(old,data)

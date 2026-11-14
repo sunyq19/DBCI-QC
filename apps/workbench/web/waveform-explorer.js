@@ -92,7 +92,11 @@
     }
     return out;
   }
-  const api={viewport,pan,zoom,navigation,scales,plot,plotHeight,plotLayout};
+  function comparisonIndices(finding,channels,limit=15){
+    const ids=new Set((finding?.comparison?.neighbors||[]).map(r=>r.channel_id));
+    return channels.filter(c=>ids.has(c.channel_id)).map(c=>c.source_index).slice(0,limit-1);
+  }
+  const api={viewport,pan,zoom,navigation,scales,plot,plotHeight,plotLayout,comparisonIndices};
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(!root.document)return;
   root.QCWaveformGeometry=api;
@@ -103,6 +107,8 @@
   const filters=$('finding-filters');let locationIndex=null,activeMethods=new Set(),annotations=null,activeLocation=null,listPage=0,locationKind='interval',extrasOpen=false;
   const stage=panel.querySelector('.finding-stage'),controls=$('wave-controls'),notice=$('wave-notice');
   const image=$('finding-image'),status=$('finding-status'),spanLabel=$('wave-span'),position=$('wave-position');
+  const comparisonNote=doc.createElement('div');comparisonNote.className='finding-comparison';comparisonNote.hidden=true;
+  controls.before(comparisonNote);
   const svg=doc.createElementNS('http://www.w3.org/2000/svg','svg');
   svg.id='wave-plot';svg.setAttribute('role','img');svg.setAttribute('tabindex','0');
   svg.setAttribute('aria-label',t('波形对照；左右拖动或使用方向键查看前后','Aligned waveforms; drag or use arrow keys to pan'));
@@ -227,6 +233,8 @@
     const c=next.channels.find(c=>c.channel_id===id);
     if(stream?.stream_id!==next.stream_id)comparisons=[];
     stream=next;segment=seg;candidate={id,source:c.source_index,start,stop};
+    const finding=locationIndex?.findings.find(r=>r.id===link.dataset.locationId);
+    if(finding?.comparison?.neighbors?.length)comparisons=comparisonIndices(finding,stream.channels,info.limits.max_channels);
     sliding=false;nav=null;
     comparisons=comparisons.filter(i=>i!==c.source_index&&stream.channels.some(c=>c.source_index===i));
     selected=[c.source_index,...comparisons].slice(0,info.limits.max_channels);
@@ -378,6 +386,7 @@
   }
   function clearLocation(){
     activeLocation=null;
+    comparisonNote.hidden=true;
     $('finding-title').textContent=t('波形浏览','Waveform');
     $('finding-measure').textContent=t('当前筛选下没有选中的检查结果。','No finding selected under these filters.');
   }
@@ -403,11 +412,37 @@
     const ids=row.channels,channel=info?.streams.flatMap(s=>s.channels).find(c=>ids.includes(c.channel_id));
     const method=locationIndex.methods.find(m=>m.id===row.method),names=new Map(locationIndex.channels.map(c=>[c.id,c.name]));
     const label=t(method.label,method.label_en);
-    const scope=row.localization==='channel'?t('整体特征偏离 · 未定位异常时刻','Aggregate feature outlier · abnormal times not localized'):row.localization==='group_interval'?t('通道组区间 · 未定位单个通道','Group interval · individual channels not localized'):['line_noise','ieeg_spectrum_fit'].includes(row.method)?t('命中检查窗 · 相连窗口已合并','Flagged analysis windows · connected windows merged'):t('已保存的检测区间','Saved detection interval');
+    const scope=row.localization==='channel'?t('通道级结果','Channel-level finding'):row.localization==='group_interval'?t('通道组异常区间','Channel-group interval'):t('异常区间','Flagged interval');
     const title=(row.localization==='group_interval'?t('通道组','Channel group'):ids.map(id=>names.get(id)||id).join(' / '))+' · '+label;
     const proxy={dataset:{channelId:channel?.channel_id||ids[0],start:String(row.start),stop:String(row.stop),title,
       measure:(row.localization==='channel'?t('分析范围 ','Analysis range ')+`${fmt(row.start)}–${fmt(row.stop)} s · `:'')+scope+(row.localization==='channel'?'':` · ${fmt(row.start)}–${fmt(row.stop)} s`),position:'',localization:row.localization,locationId:row.id},href:''};
     $('finding-title').textContent=title;$('finding-measure').textContent=proxy.dataset.measure;
+    comparisonNote.replaceChildren();comparisonNote.hidden=row.localization!=='channel';
+    if(row.localization==='channel'){
+      const note=doc.createElement('p');
+      note.textContent=t('本项判断通道整体特征，不能据此认定每一秒都异常。','This check evaluates the channel as a whole; it does not identify abnormal moments.');
+      comparisonNote.append(note);
+      const evidence=row.comparison;
+      if(evidence?.kind==='lf_neighborhood'){
+        const summary=doc.createElement('div');summary.className='finding-comparison-summary';
+        summary.textContent=t(`判定：邻域一致性低于 ${evidence.threshold??'—'} · 同一针柄 ${evidence.radius_um} μm 内`,
+          `Decision: neighborhood agreement below ${evidence.threshold??'—'} · same shank, within ${evidence.radius_um} μm`);
+        comparisonNote.prepend(summary);
+        const neighbors=doc.createElement('div');neighbors.className='finding-neighbors';
+        const label=doc.createElement('span');label.textContent=t('判定邻居','Detector neighbors');neighbors.append(label);
+        for(const n of evidence.neighbors){
+          const tag=doc.createElement('span');tag.className='finding-neighbor'+(n.label==='noise'?' is-flagged':'');
+          tag.textContent=n.name+(n.label==='noise'?t(' · 也被标记',' · flagged'):'');tag.title=`${n.distance_um} μm`;neighbors.append(tag);
+        }
+        if(!evidence.neighbors.length)neighbors.append(t('未保存可用的邻域位置','No usable saved neighbor positions'));
+        comparisonNote.append(neighbors);
+        const detail=doc.createElement('details'),head=doc.createElement('summary'),body=doc.createElement('p');
+        head.textContent=t('判定说明','Decision details');
+        body.textContent=t('逐个抽样窗口比较本通道与邻居的中位波形，取相关系数的中位数后平方（R²）。原版接口仅保存分类，未保存逐通道 R²；下方波形用于人工对照，不是该统计量。',
+          'The detector compares each sampled chunk with the median neighbor trace, then squares the median correlation (R²). The original interface saved labels, not per-channel R². The waveforms below are for visual review, not that statistic.');
+        detail.append(head,body);comparisonNote.append(detail);
+      }
+    }
     if(!select(proxy)){
       invalidate();wave=null;svg.setAttribute('hidden','');image.hidden=true;controls.hidden=true;
       activity('error',t('该位置的原始波形暂不可用。检测位置仍保留。','Original waveform unavailable; saved locations remain listed.'));
@@ -422,7 +457,7 @@
     const notice=$('finding-index-notice');notice.hidden=!locationIndex.warnings.some(r=>activeMethods.has(r.method));
     notice.textContent=t('部分所选检查缺少完整定位信息；完整计数见检查结果。','Some selected checks have incomplete locations; see results for full counts.');
     const kinds=$('finding-kinds');kinds.replaceChildren();
-    for(const [kind,label,en] of [['interval','异常片段','Intervals'],['channel','通道整体','Channels']]){
+    for(const [kind,label,en] of [['interval','异常时段','Intervals'],['channel','通道比较','Channels']]){
       const count=selectedLocations().filter(r=>(r.localization==='channel')===(kind==='channel')).length;
       const button=doc.createElement('button');button.type='button';button.dataset.kind=kind;
       button.textContent=t(label,en)+` ${count}`;button.setAttribute('aria-pressed',String(locationKind===kind));
@@ -434,7 +469,7 @@
       const m=methods.get(row.method),button=doc.createElement('button');button.type='button';button.className='finding-item finding-location';
       button.setAttribute('aria-current',String(row.id===activeLocation));button.dataset.locationId=row.id;
       const name=row.localization==='group_interval'?t('通道组','Channel group'):row.channels.map(id=>names.get(id)||id).join(' / ');
-      const time=(row.localization==='channel'?t('分析段 ','Block '):'')+fmt(row.start)+'–'+fmt(row.stop)+' s';
+      const time=(row.localization==='channel'?t('检查范围 ','Checked '):'')+fmt(row.start)+'–'+fmt(row.stop)+' s';
       const marker=row.localization==='channel'?'':`<i style="background:${m.color}"></i>`;
       button.innerHTML=`<span class="finding-item-top"><strong>${esc(name)}</strong><span>${time}</span></span><small>${marker}${esc(t(m.label,m.label_en))}</small>`;
       button.addEventListener('click',()=>chooseLocation(row));list.append(button);
@@ -466,18 +501,11 @@
     const primary=new Set(locationIndex.default_method_ids);
     filters.append(optionsFor(locationIndex.methods.filter(m=>primary.has(m.id))));
     const others=locationIndex.methods.filter(m=>!primary.has(m.id));
-    for(const m of locationIndex.methods.filter(m=>m.measurements?.length)){
-      const rows=m.measurements,invalid=rows.reduce((n,r)=>n+r.nonfinite_sample_count,0),flat=rows.reduce((n,r)=>n+r.constant_channel_blocks,0);
-      const maxMs=Math.max(...rows.map(r=>r.max_equal_seconds))*1000;
-      const note=doc.createElement('p');note.className='muted finding-measurement-note';
-      note.textContent=t(`数值检查：${invalid} 个无效采样，${flat} 个整窗恒值通道。最长重复值 ${maxMs.toFixed(2)} 毫秒；短暂重复仅作测量，不标为异常。`,
-        `Numeric check: ${invalid} nonfinite samples, ${flat} constant channel blocks. Longest repeat ${maxMs.toFixed(2)} ms; short repeats are measurements, not findings.`);
-      filters.append(note);
-    }
     if(others.length){
       const extra=doc.createElement('details'),summary=doc.createElement('summary');extra.className='finding-extra-checks';extra.open=extrasOpen;
       summary.textContent=t('无定位结果的检查','Checks without locations')+` · ${others.length}`;
-      extra.addEventListener('toggle',()=>{extrasOpen=extra.open;});extra.append(summary,optionsFor(others));filters.append(extra);
+      extra.addEventListener('toggle',()=>{extrasOpen=extra.open;});extra.append(summary,optionsFor(others));
+      filters.append(extra);
     }
   }
   function startLocations(data){
@@ -505,7 +533,7 @@
   if(filters){
     Promise.all([contextPromise,readJSON(`${base}/finding-locations`)]).then(([,data])=>{
       const caption=panel.querySelector('.finding-caption');
-      if(caption)caption.textContent=t('仅标记已定位的异常区间；通道整体结果不标记时间。','Only localized intervals are shaded; aggregate channel results have no time markings.');
+      if(caption)caption.textContent=t('同单位使用相同幅度刻度','Same amplitude scale for matching units');
       startLocations(data);
     }).catch(()=>{
       filters.textContent=t('检查位置暂未载入','Locations could not be loaded');
