@@ -16,8 +16,8 @@ def demo_library(store):
     selected = store.settings.get('demo_library_reports', [])
     if not isinstance(selected, list) or not selected:
         return []
-    from temporary_uploads import public_source
-    inputs, jobs = {}, {}
+    from temporary_uploads import public_source, source as validated_source
+    inputs, jobs, packages, package_jobs = {}, {}, {}, {}
     with store.lock:
         for identifier in selected:
             if not isinstance(identifier, str): continue
@@ -31,12 +31,25 @@ def demo_library(store):
             item.update(public_source=source, library_origin='user_registered')
             inputs[item['id']] = item
             jobs[identifier] = copy.deepcopy(job)
-    if not jobs: return []
+    with store.packages.lock:
+        for identifier in selected:
+            if not isinstance(identifier, str): continue
+            job = store.packages.jobs.get(identifier)
+            if not job or job.get('status') != 'completed': continue
+            item = store.packages.packages.get(job.get('package_id'))
+            if not item or item.get('retention', {}).get('state') == 'temporary': continue
+            provenance = validated_source(store.settings.get('public_packages', {}).get(item['id']))
+            if not provenance or not (store.packages.root/identifier/'result/report.html').is_file(): continue
+            item = copy.deepcopy(item)
+            item.update(public_source=provenance, library_origin='user_registered')
+            packages[item['id']] = item
+            package_jobs[identifier] = copy.deepcopy(job)
+    if not jobs and not package_jobs: return []
     scope = SimpleNamespace(**vars(store))
     scope.inputs, scope.jobs = inputs, jobs
     scope.intakes = SimpleNamespace(pending=lambda: [])
-    scope.packages = SimpleNamespace(catalog=lambda: {'packages': []}, jobs={},
-                                     packages={}, lock=store.lock)
+    scope.packages = copy.copy(store.packages)
+    scope.packages.packages, scope.packages.jobs = packages, package_jobs
     return library(scope)['items']
 
 

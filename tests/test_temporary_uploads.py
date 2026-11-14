@@ -155,6 +155,52 @@ def test_opt_in_public_demo_reports_do_not_restore_history_or_merge_uploads(serv
     assert call('/api/v1/data')['items'] == []
 
 
+def test_opt_in_public_dataset_reports_are_scoped_and_require_provenance(service):
+    server, call, _ = service
+    public = server.store
+    identifier = 'public-method-comparison'
+    public.packages.packages[identifier] = {'id': identifier, 'label': 'Public BIDS subset',
+        'root': str(public.root / 'dataset'), 'expectations': str(public.root / 'plan.json')}
+    for jid in ['d'*32, 'e'*32]:
+        folder = public.packages.root / jid / 'result'; folder.mkdir(parents=True)
+        (folder / 'report.html').write_text('Public dataset report')
+        public.packages.jobs[jid] = {'id': jid, 'package_id': identifier,
+            'status': 'completed', 'created_at': '2026-11-14', 'manifest_hash': 'test'}
+    public.settings['demo_library_reports'] = ['d'*32]
+    assert call('/api/v1/data')['items'] == []
+    public.settings['public_packages'] = {identifier: {
+        'name': 'Public dataset', 'url': 'https://example.org/data', 'license': 'CC0'}}
+    for client in [0, 1]:
+        rows = call('/api/v1/data', client=client)['items']
+        assert len(rows) == 1 and rows[0]['id'] == 'dataset:' + identifier
+        assert rows[0]['source']['license'] == 'CC0'
+        assert len(rows[0]['recent_reports']) == 1
+        assert 'd'*32 in rows[0]['recent_reports'][0]['url']
+        assert 'e'*32 not in json.dumps(rows)
+        assert not rows[0].get('temporary')
+    public.packages.jobs['d'*32]['status'] = 'failed'
+    assert call('/api/v1/data')['items'] == []
+    public.packages.jobs['d'*32]['status'] = 'completed'
+    (public.packages.root / ('d'*32) / 'result/report.html').unlink()
+    assert call('/api/v1/data')['items'] == []
+
+    # Dataset and signal demonstrations coexist without exposing other runs.
+    (public.packages.root / ('d'*32) / 'result/report.html').write_text('Public dataset report')
+    intake = public.intakes.receive('public.edf', len(recording()), io.BytesIO(recording()))
+    record_id = 'local-' + intake['id']
+    public.settings['public_records'] = {record_id: {
+        'name': 'Public recording', 'url': 'https://example.org/record', 'license': 'CC0'}}
+    public.confirm_intake(intake['id'], confirmation())
+    folder = public.root / 'jobs' / ('f'*32) / 'artifacts'; folder.mkdir(parents=True)
+    (folder / 'report.html').write_text('Public signal report')
+    public.jobs['f'*32] = {'id': 'f'*32, 'input_id': record_id,
+        'status': 'completed', 'created_at': '2026-11-14'}
+    public.settings['demo_library_reports'].append('f'*32)
+    rows = call('/api/v1/data')['items']
+    assert {r['id'] for r in rows} == {'dataset:' + identifier, 'record:' + record_id}
+    assert sum(len(r['recent_reports']) for r in rows) == 2
+
+
 def test_public_archive_delete_denied_while_own_temporary_cleanup_still_works(service):
     server, call, _ = service
     public = server.store
