@@ -41,7 +41,10 @@ class UICascadeTests(unittest.TestCase):
                 node = page.ids[identifier]
                 content = next(c for c in node.iter_children() if 'disclosure-content' in c.classes)
                 values.append(tuple(page.value(content, 'padding-'+side) for side in ['top', 'right', 'bottom', 'left']))
-            self.assertEqual(len(set(values)), 1, (width, dict(zip(RAILS, values))))
+            # Library search sits closer to its heading; horizontal alignment
+            # and bottom padding remain shared by all four rail sections.
+            self.assertEqual(len({v[1:] for v in values}), 1, (width, dict(zip(RAILS, values))))
+            self.assertEqual(dict(zip(RAILS, values))['data-library'][0], '8px')
 
     def test_left_rail_examples_do_not_inherit_viewport_two_column_layout(self):
         for width, page in self.pages.items():

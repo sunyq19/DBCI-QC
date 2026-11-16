@@ -1250,6 +1250,8 @@ JSON 按扩展 ID 分组；只写需覆盖的参数，留空对象使用方法�
 观察区间数	Observed intervals
 已存区间数	Stored intervals
 未存区间数	Omitted intervals
+选择模态	Select modality
+选择适用模态，查看方法。	Select a modality to browse methods.
 方法目录	Method catalog
 方法范围：ECoG	Method scope: ECoG
 方法范围：头皮 EEG	Method scope: scalp EEG

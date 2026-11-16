@@ -223,7 +223,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                     out+=section(label,bars([(c['channel_name'],c[field]*1e6 if finite(c.get(field)) else None,False) for c in contacts],'μV',limit=limit)+'<p class="caption">所选分析窗口的电压统计；幅度差异不直接判定为坏道。</p>','连续电压')
             if rows:
                 for field,label,unit in [('robust_amplitude_uv','稳健幅值','μV'),('hf_ratio','高频残差比例','比例'),('low_correlation_fraction','低相关窗口占比','%')]:
-                    out+=section(label,bars([(r['channel_name'],r.get(field)*100 if field=='low_correlation_fraction' and finite(r.get(field)) else r.get(field),bool(r.get('flags'))) for r in rows],unit,limit=limit),'雷佳欣 / PREP')
+                    out+=section(label,bars([(r['channel_name'],r.get(field)*100 if field=='low_correlation_fraction' and finite(r.get(field)) else r.get(field),bool(r.get('flags'))) for r in rows],unit,limit=limit),'BrainElecQC / PREP')
             g=gnosis('line_length')
             if g:
                 flags={c['channel_name'] for c in g.get('candidates',[])}
@@ -233,7 +233,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
             out='';d=evidence('M04_spectral.json');p=d.get('psd',{});sel=evidence('M02_selection.json');mapping={c['channel_id']:c['raw_name'] for c in sel.get('channels',[])}
             if p.get('power_v2_hz'):
                 names=[c.get('channel_name',c.get('channel_id','—')) for c in p['channels']] if 'channels' in p else [mapping.get(c,c) for c in p.get('channel_ids',[])]
-                out+=section('原始输入 · Welch PSD','<p class="caption input-note">使用输入文件中的信号，此图不执行清洗。PSD 描述频率能量，不是质量分。</p>'+spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),names,1e12),'连续电压' if 'channels' in p else '雷佳欣')
+                out+=section('原始输入 · Welch PSD','<p class="caption input-note">使用输入文件中的信号，此图不执行清洗。PSD 描述频率能量，不是质量分。</p>'+spectrum(p.get('frequencies_hz'),p.get('power_v2_hz'),names,1e12),'连续电压' if 'channels' in p else 'BrainElecQC')
             g=next((gnosis(k) for k in ['band_power','psd_deviation','reference_ranges'] if gnosis(k)),{})
             if g:
                 p=g['metrics'];out+=section('分析副本 · Welch PSD',processing_note(g,spectral=True)+spectrum(p.get('frequencies_hz'),p.get('psd_uv2_hz'),g['channel_names'],1)+'<p class="caption">PSD 描述频率能量，不是质量分。处理和取样片段不同，不能将曲线更平滑直接解释为质量更好。</p>','灵犀云')
@@ -256,7 +256,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                 return out or missing('没有可测的工频邻域。')
             if mt_html and not payload:return mt_html
             d=line_summary(payload)
-            return mt_html+section('工频命中窗 / 可评窗口',bars([(c['name'],c['percent'],bool(c['hits'])) for c in d['channels']],'%',limit=limit,upper=100),'雷佳欣')
+            return mt_html+section('工频命中窗 / 可评窗口',bars([(c['name'],c['percent'],bool(c['hits'])) for c in d['channels']],'%',limit=limit,upper=100),'BrainElecQC')
         if key in ['artifact_burden','timeline']:
             out=''
             for m,label in [('artifact','伪差候选'),('low_band','低频异常'),('high_band','高频异常')]:
@@ -266,7 +266,7 @@ def render_gallery(result,load,*,selected=None,window='',limit=32,band='alpha',a
                 out+=section(label,processing_note(g)+body,'灵犀云')
             if key=='timeline':
                 d=evidence('M06_muscle.json');rec=evidence('M02_selection.json').get('recording',{});start=rec.get('start_seconds');dur=rec.get('duration_seconds')
-                if d:out+=section('高频突发候选',timeline(d.get('candidates',[]),start,start+dur if finite(start) and finite(dur) else None,limit,d.get('_visualization_candidate_count')),'雷佳欣')
+                if d:out+=section('高频突发候选',timeline(d.get('candidates',[]),start,start+dur if finite(start) and finite(dur) else None,limit,d.get('_visualization_candidate_count')),'BrainElecQC')
                 flat=evidence('M03_mne_amplitude.json')
                 if flat.get('calculated', True) is True and flat.get('status')=='completed':
                     rows=[{**c,'channel_name':'所选通道合并'} for c in flat.get('candidates',[]) if c.get('localization')=='interval_only']

@@ -76,7 +76,7 @@
 
 ## 来源
 
-- 雷佳欣：[BrainElecQC](https://github.com/Jlei61/BrainElecQC)
+- BrainElecQC：[BrainElecQC](https://github.com/Jlei61/BrainElecQC)
 - 灵犀云：[GnosisNeuroDynamicSE](https://github.com/Gnosis-Neurodynamics/GnosisNeuroDynamicSE)
 - 本项目：[DBCI-QC](https://github.com/sunyq19/DBCI-QC)
 

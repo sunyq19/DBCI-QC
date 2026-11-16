@@ -47,7 +47,10 @@ def prepare(asset,subject,probe,base=DEFAULT_ROOT):
         device=n.create_device(name='Neuropixels_1.0',description='Neuropixels 1.0 probe; Allen Visual Coding source',manufacturer='imec')
         group=n.create_electrode_group(name='probe_'+probe,description='Single source Neuropixels probe; positions retained',location='See source electrode locations',device=device)
         for key in ['source_row_index','probe_horizontal_position','probe_vertical_position']:
-            n.add_electrode_column(key,'Retained source '+key)
+            description = 'Retained source '+key
+            if key.startswith('probe_'):
+                description += ' (microns; AllenSDK electrode table definition)'
+            n.add_electrode_column(key,description)
         for row in rows:
             n.add_electrode(id=int(ids[row]),group=group,location=plain(table['location'][row]) or 'unknown',source_row_index=int(row),probe_horizontal_position=float(table['probe_horizontal_position'][row]),probe_vertical_position=float(table['probe_vertical_position'][row]))
         n.add_acquisition(LFP(electrical_series=ElectricalSeries(name='lfp',data=H5DataIO(raw,compression='gzip'),timestamps=ts,electrodes=n.create_electrode_table_region(list(range(len(rows))),'Source channel order retained'),conversion=float(g['data'].attrs.get('conversion',1)),offset=float(g['data'].attrs.get('offset',0)),filtering=source['source_processing'],description='Continuous preprocessed LFP, not AP or spike-sorted units.')))

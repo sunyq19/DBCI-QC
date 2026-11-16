@@ -141,6 +141,15 @@ def build_overview(store, package_id, job_id=None):
                     signal['result']['score_summary'] = {
                         key: copy.deepcopy(score[key]) for key in ('value', 'version', 'preset', 'components')
                         if key in score}
+                else:
+                    # The non-EEG report reads this small frozen score artifact.
+                    # Reuse its components too; a PSD channel count cannot explain
+                    # deductions from a different selected method.
+                    score_path = store.root / 'jobs' / job['id'] / 'artifacts' / 'method-scores.json'
+                    if score_path.is_file() and score_path.stat().st_size <= 8 * 1024 * 1024:
+                        score = json.loads(score_path.read_text()).get('project_score')
+                        if score:
+                            signal['result']['score_summary'] = score
         except (OSError, ValueError, KeyError, TypeError):
             signal['result_error'] = True
         signals[rid] = signal

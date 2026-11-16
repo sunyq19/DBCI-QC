@@ -150,6 +150,18 @@ def run(args):
                 from ephys_qc.gnosis_catalog import IDS
                 qc['method_config']['extensions']=sorted(set(qc['method_config'].get('extensions',[]))|IDS)
                 qc['scoring']=dict(version='project-weighted/1.2',weights={key:20 for key in ['gnosis_line_length','gnosis_artifact','gnosis_low_band','gnosis_high_band','gnosis_psd_deviation']})
+            if pid=='example-mouse-neuropixels':
+                # Spatially subsampled Allen LF has 40 um nearest-neighbor
+                # spacing. 60 um includes the immediate retained neighbors,
+                # not the next 80 um contacts. Chosen from geometry, not scores.
+                from ephys_qc.tagging import data_facts
+                from ephys_qc.voltage_methods import evaluate_extension
+                method='spikeinterface_lfp_neighbors'
+                params={'radius_um':60.}
+                gate=evaluate_extension(method,data_facts(item,qc),params)
+                if gate['status']!='ready':raise ValueError(gate['reason'])
+                qc['method_config']['extensions']=sorted(set(qc['method_config'].get('extensions',[]))|{method})
+                qc['method_config'].setdefault('extension_parameters',{})[method]=params
             plan=build_plan(item,proposed['selected_modules'],qc)
             assert plan['qc_config']['scope']=='recording' and plan['qc_config'].get('scoring')
             name='灵犀云 · 全记录' if pid=='example-rest-eeg' else '基础方案 · 全记录'

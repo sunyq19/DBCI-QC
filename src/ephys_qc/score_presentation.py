@@ -55,6 +55,15 @@ def measurement(row, english=False):
 
 
 _EN_NAMES = {
+    'integrity': 'Signal integrity',
+    'line_noise': 'Line interference',
+    'hf_burst': 'High-frequency bursts',
+    'ieeg_spectrum_fit': 'Multitaper line candidates',
+    'gnosis_line_length': 'Gnosis line length',
+    'gnosis_artifact': 'Gnosis artifact intervals',
+    'gnosis_low_band': 'Gnosis low-band abnormalities',
+    'gnosis_high_band': 'Gnosis high-band abnormalities',
+    'gnosis_psd_deviation': 'Gnosis PSD differences',
     'ieeg_numeric_integrity': 'Numerical validity',
     'neuropixels_numeric_integrity': 'Numerical validity',
     'ieeg_signal_stability': 'Signal stability',

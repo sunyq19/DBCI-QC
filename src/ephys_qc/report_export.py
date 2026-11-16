@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import threading
 
-EXPORT_VERSION = 'eeg-pdf/1.5'
+EXPORT_VERSION = 'eeg-pdf/1.6'
 _RENDER_LOCK = threading.RLock()
 
 

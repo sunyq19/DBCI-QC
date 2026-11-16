@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "catalog-e2b9cee08ce657f2c1348ef22f652e869f5eb5421db184730b1ec2ca22866152",
-  "sequence": 26,
-  "sourceVersion": "1.1.3",
-  "sourceCommit": "da15cfe2029c1a27922dbff05c0e9ed70e7d0128",
+  "id": "catalog-7d96f0839fb2b38967c4b0fb025fe5feecaf7ce8e900e2ef3be831c0efbde547",
+  "sequence": 27,
+  "sourceVersion": "1.1.4",
+  "sourceCommit": "local",
   "doc": {
     "schemaVersion": 1,
     "title": "数据质控流程",

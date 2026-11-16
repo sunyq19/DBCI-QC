@@ -110,6 +110,8 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
                 self.line(42, 40, 553.28, 40)
                 self.setFont(font, 7); self.drawString(42, 27, '项目自定义检查 · 自动候选待复核')
                 self.setFont('Helvetica', 7.5); self.drawRightString(553.28, 27, f'{self._pageNumber} / {total}')
+                self.setFont('Helvetica', 6)
+                self.drawString(42, 16, f'{score["version"]}  |  {EXPORT_VERSION}')
                 self.restoreState(); super().showPage()
             super().save()
 
@@ -216,9 +218,7 @@ def build_pdf(view, figure=None, figure_notes=(), job_id=''):
     revision = view.get('score_revision')
     if revision:
         story.append(para(f'本报告使用保存的展示修订；原评分 {revision["previous_version"]} 为 {point(revision["previous_value"])} 分，原始报告保留。', 'note'))
-    trace = f'评分规则：{score["version"]}  ·  导出版本：{EXPORT_VERSION}'
-    if job_id: trace += f'  ·  报告编号：{job_id}'
-    story.extend([Spacer(1, 4), para(trace, 'note')])
-    # The exact configuration stays in PDF metadata, outside the result hierarchy.
+    # Versions stay in each page footer; report identity/configuration stay in
+    # PDF metadata, so a trailing trace paragraph cannot create an empty page.
     doc.build(story, canvasmaker=ReportCanvas)
     return out.getvalue()

@@ -18,7 +18,7 @@ HAS_NWB = importlib.util.find_spec('pynwb') is not None
 
 def nwb_fixture(path, *, multiple=False, units=False, only_units=False, timestamps=None,
                 duplicate_labels=False, neuropixels=False, name='voltage', one_dim=False,
-                spike_events=False, filtered=False):
+                spike_events=False, filtered=False, geometry_unit=None):
     import numpy as np
     from hdmf.backends.hdf5.h5_utils import H5DataIO
     from pynwb import NWBFile, NWBHDF5IO
@@ -33,10 +33,15 @@ def nwb_fixture(path, *, multiple=False, units=False, only_units=False, timestam
     device = nwb.create_device(**device_args)
     group = nwb.create_electrode_group(name='group', description='test', location='brain area not a modality', device=device)
     nwb.add_electrode_column(name='label', description='Source channel label')
+    if geometry_unit is not None:
+        for key in ('probe_horizontal_position', 'probe_vertical_position'):
+            nwb.add_electrode_column(key, 'Probe coordinate (' + geometry_unit + ')')
     for index, electrode_id in enumerate([101, 305, 999]):
         nwb.add_electrode(id=electrode_id, x=float(index), y=0., z=0., imp=np.nan,
                          location='motor cortex', filtering='unknown', group=group,
-                         label='duplicate' if duplicate_labels else f'e{electrode_id}')
+                         label='duplicate' if duplicate_labels else f'e{electrode_id}',
+                         **({'probe_horizontal_position': 59., 'probe_vertical_position': float(index * 40)}
+                            if geometry_unit is not None else {}))
     rows = [2] if one_dim else [2, 0]
     region = nwb.create_electrode_table_region(region=rows, description='Noncontiguous IDs and reordered rows')
     values = np.arange(12, dtype=np.int16) if one_dim else np.arange(24, dtype=np.int16).reshape(12, 2)
@@ -88,6 +93,23 @@ class NWBReaderTests(unittest.TestCase):
         stream = reader.describe()['streams'][0]
         return reader.read_window(stream['stream_id'], stream['segments'][0]['segment_id'],
                                   [stream['channels'][i]['channel_id'] for i in indices], start, stop)
+
+    def test_declared_probe_geometry_follows_electrode_rows(self):
+        nwb_fixture(self.path, neuropixels=True, geometry_unit='microns')
+        reader = self.reader()
+        metadata = reader.metadata()['channels']
+        channels = reader.describe()['streams'][0]['channels']
+        self.assertEqual([c['probe_position_um'] for c in channels], [[59., 80.], [59., 0.]])
+        self.assertEqual([c['probe_grid']['shank'] for c in metadata], [0, 0])
+        self.assertEqual(metadata[0]['probe_position_um'], channels[0]['probe_position_um'])
+
+    def test_geometry_without_units_or_probe_model_is_not_inferred(self):
+        for i, (model, unit) in enumerate([(True, 'unknown'), (True, 'mm'), (False, 'microns')]):
+            path = self.root / f'no-geometry-{i}.nwb'
+            nwb_fixture(path, neuropixels=model, geometry_unit=unit)
+            reader = open_reader(path, 'fixture')
+            self.addCleanup(reader.close)
+            self.assertTrue(all('probe_position_um' not in c for c in reader.metadata()['channels']))
 
     def test_calibration_dtr_rows_not_ids_original_order_and_native_clock(self):
         import numpy as np

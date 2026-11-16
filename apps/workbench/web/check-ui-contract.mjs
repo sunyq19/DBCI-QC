@@ -286,6 +286,16 @@ function recommendationFixture(t, extra={}) {
   const config=JSON.parse(JSON.stringify(t.currentConfig()));config.method_config.extensions=["mne_amplitude"];config.method_config.extension_parameters={mne_amplitude:{flat_volts:0,min_duration_seconds:0.2}};
   return {schema_version:"test",recommendation_id:"r1",plan_id:"preview-only",policy_version:"p1",status:"ready",can_apply:true,summary:"建议基础检查",selected_modules:["M01","M02","M03","M08","M09"],qc_config:config,recommended_methods:[{id:"mne_amplitude",module_id:"M03",name:"平线",reason:"显式零差分候选"}],optional_methods:[],blocked_methods:[],missing_fields:[],cautions:["候选需复核"],...extra};
 }
+check("Toolkit does not infer a scalp scope before confirmation and follows confirmed data only",async()=>{
+  const t=harness(undefined,{selected:false});t.state.catalog=fourCatalog();t.renderToolkit();
+  assert.equal(t.get("toolkit-modality-filter").value,"");assert(t.get("toolkit-count").hidden);
+  assert.equal(t.toolkitMethods("all","all").length,0);assert(!html.includes('id="toolkit-modality"'));
+  t.state.intake={id:"pending",status:"needs_confirmation",suggestions:{modality:"scalp_eeg"}};
+  t.renderToolkit();assert.equal(t.get("toolkit-modality-filter").value,"");
+  await t.selectInput("scalp_eeg-0");assert.equal(t.get("toolkit-modality-filter").value,"scalp_eeg");
+  assert(!t.get("toolkit-count").hidden);assert(t.toolkitMethods("all","all").length);
+  t.clearInputDraft();assert.equal(t.get("toolkit-modality-filter").value,"");assert(t.get("toolkit-count").hidden);
+});
 check("Toolkit filters purpose and availability without changing configuration or legacy choices",()=>{
   const t=harness(),before=t.fingerprint();assert.equal(t.toolkitMethods("artifacts","available").length,2);assert.equal(t.toolkitMethods("artifacts","planned")[0].id,"future_check");
   t.get("toolkit-category").value="artifacts";t.get("toolkit-implementation").value="available";t.renderToolkit();const markup=t.get("toolkit-methods").innerHTML;
@@ -818,7 +828,7 @@ check("four confirmed modalities use their own catalogs, contact labels and safe
   const t=harness(async url=>response(catalogs[new URL(url,"http://localhost").searchParams.get("modality")||"scalp_eeg"]),{selected:false});t.state.catalog=catalogs.scalp_eeg;t.state.records=ids.flatMap(id=>catalogs[id].inputs);
   for(const id of ids){await t.selectInput(`${id}-0`);t.renderToolkit();assert.equal(t.state.activeModality,id);assert.equal(t.state.input.id,`${id}-0`);assert.equal(t.get("standards-link").attrs.href,catalogs[id].overview_url);assert.equal(t.moduleStandardsUrl("M03"),catalogs[id].overview_url+"/modules/M03");
     if(id!=="scalp_eeg"){assert.deepEqual([...t.state.selected],["M03","M04","M05"]);assert.equal(t.state.extensions.size,0);assert(!t.body().selected_modules.includes("M06"));assert(!t.body().selected_modules.includes("M07"));assert(t.toolkitMethods("all","all").every(method=>method.supported_modalities.includes(id)));}
-    assert.equal(t.get("toolkit-modality").textContent,`方法范围：${catalogs[id].modalities.find(row=>row.id===id).label}`);assert(!t.get("recommendation-content").innerHTML.includes("道 EEG"));
+    assert.equal(t.get("toolkit-modality-filter").value,id);assert(!t.get("recommendation-content").innerHTML.includes("道 EEG"));
   }
   assert(t.get("record-summary").innerHTML.includes("信号频带"));assert(t.get("record-summary").innerHTML.includes("<dd>AP</dd>"));assert(t.get("record-summary").innerHTML.includes("NP1.0"));assert(t.get("channel-count").textContent.includes("分析通道"));
   const module=t.state.catalog.modules.find(row=>row.id==="M03");module.documentation_url="/standards/seeg/modules/M03";assert.equal(t.moduleStandardsUrl("M03"),null);module.documentation_url="/standards/neuropixels/modules/M03?run=1";assert.equal(t.moduleStandardsUrl("M03"),null);

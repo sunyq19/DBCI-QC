@@ -66,7 +66,10 @@ class ReportExportTests(unittest.TestCase):
         self.assertIn('50.0%',pages[0])
         self.assertIn('未评',pages[0])
         self.assertIn('问题定位与证据',pages[1])
-        for i,page in enumerate(pages,1):self.assertRegex(page,rf'{i}\s*/\s*2\s*$')
+        for i,page in enumerate(pages,1):
+            self.assertRegex(page,rf'{i}\s*/\s*2\s*\n')
+            self.assertIn('project-weighted/', page)
+            self.assertIn('eeg-pdf/1.6', page)
         self.assertEqual(view,before)
 
     def test_weights_belong_to_result_rows_and_candidates_share_one_inspector(self):

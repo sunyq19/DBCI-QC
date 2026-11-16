@@ -163,6 +163,49 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(data['records'][0]['signal']['status'],'failed')
         self.assertEqual(data['summary']['reported'],0)
 
+    def test_summary_uses_selected_score_evidence_not_generic_eeg_findings(self):
+        self.save_dataset(); self.save_signal()
+        score = {'value': 95., 'version': 'project-weighted/1.2', 'components': [
+            {'id': 'line_noise', 'name': '工频干扰', 'value': 1., 'weight': 0, 'configured_weight': 0},
+            {'id': 'gnosis_low_band', 'name': '灵犀云 · 低频异常', 'value': 95., 'weight': 1, 'configured_weight': 1},
+            {'id': 'gnosis_psd_deviation', 'name': '频谱差异', 'value': None, 'weight': 0, 'configured_weight': 1}]}
+        path = self.store.root / 'jobs' / ('a' * 32) / 'artifacts' / 'method-scores.json'
+        path.write_text(json.dumps({'project_score': score}))
+        with patch.object(self.store, 'dataset_result', return_value=signal()['result']), \
+             patch('project_score_cache.load', return_value=None):
+            data = build_overview(self.store, 'pilot')
+        html = render_overview(data)
+        self.assertIn('主要扣分：灵犀云 · 低频异常 95.00', html)
+        self.assertIn('1 项未能计分', html)
+        self.assertNotIn('主要扣分：工频干扰', html)
+        self.assertIn('Main deduction: Gnosis low-band abnormalities', render_overview(data, 'en'))
+
+    def test_overview_reveals_unassessed_metadata_and_limited_channel_checks(self):
+        data = aggregate_overview(self.plan, dataset_result=evaluate_dataset(self.root, self.plan),
+                                  signals={self.r['id']: signal()})
+        data.update(package_id='pilot', label='Pilot', manifest_hash='f' * 64)
+        data['module_counts']['D03'] = {'pass': 2, 'unassessed': 5}
+        data['records'][0]['signal']['components'] = [dict(
+            id='neuropixels_channel_state', name='通道状态', value=100., weight=70,
+            assessed_methods=['neuropixels_constant_channels'])]
+        html = render_overview(data)
+        self.assertIn('2 项一致 · 5 项未核对', html)
+        self.assertIn('通道状态仅检查整窗恒值', html)
+
+    def test_public_overview_leads_with_results_and_keeps_metadata_unknowns_visible(self):
+        data = aggregate_overview(self.plan, dataset_result=evaluate_dataset(self.root, self.plan),
+                                  signals={self.r['id']: signal()})
+        data.update(package_id='example-neuropixels', label='Pilot', manifest_hash='f' * 64,
+                    example={'label': 'Neuropixels · 人类电压', 'description': '公开片段'},
+                    dataset_job={'id': 'd' * 32, 'run_name': '旧运行标题 · 11-13'})
+        html = render_overview(data)
+        self.assertIn('<h1>Neuropixels · 人类电压</h1>', html)
+        self.assertNotIn('旧运行标题', html)
+        self.assertLess(html.index('id="recordings"'), html.index('id="metadata"'))
+        self.assertIn('AP 样本为 2 秒、4 秒', html)
+        self.assertIn('类未评', html)
+        self.assertNotIn('id="metadata" open', html)
+
     def test_overview_uses_same_validated_score_publication_as_report(self):
         self.save_dataset();self.save_signal()
         original=signal()['result']

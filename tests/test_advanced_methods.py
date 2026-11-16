@@ -89,6 +89,21 @@ def test_saved_measurements_are_rendered_without_rerunning(tmp_path):
     assert visible.index('12.50') < visible.index('id="locations"')
 
 
+def test_channel_method_summary_uses_saved_geometry_and_unique_channels(tmp_path):
+    from ephys_qc.advanced_report import overview
+    for i in range(2):
+        folder=tmp_path/'windows'/str(i)/'artifacts';folder.mkdir(parents=True)
+        (folder/'M05_spikeinterface_lfp_neighbors.json').write_text(json.dumps(dict(
+            status='completed',channel_names=['a','b','c'],candidates=[dict(channel_name='b')],
+            parameters=dict(radius_um=60))))
+    report=overview(tmp_path)
+    assert '1 / 3 道被标为候选' in report and '2 个分析段' in report
+    assert '邻域半径 60 微米' in report and 'LF 邻域一致性' in report
+    folder=tmp_path/'artifacts';folder.mkdir()
+    (folder/'M05_spikeinterface_coherence_psd.json').write_text(json.dumps(dict(status='blocked',reason='仅适用于 AP')))
+    assert '未完成：仅适用于 AP' in overview(tmp_path)
+
+
 def test_bids_grouping_keeps_repeated_locations_and_severities_distinct():
     from ephys_qc.dataset_qc.bids_findings import grouped_checks
     issues=[{'severity':severity,'code':code,'location':'/same.tsv','subCode':str(i)}

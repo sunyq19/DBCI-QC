@@ -7,6 +7,21 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {seed} from '../lib/seed';
 import {validateDoc,isEditor} from '../lib/flow';
 import {initialize,readFlow,saveFlow,freezeFlow,digest} from '../lib/repository';
+import {publicDisplay} from '../lib/public-display';
+test('public attribution hides legacy names without changing stored versions or score evidence',async()=>{
+ const name=String.fromCodePoint(0x96f7,0x4f73,0x6b23);
+ const doc={notes:name+' / BrainElecQC',score:88.71,url:'https://github.com/Jlei61/BrainElecQC'};
+ const original={doc,hash:await digest(doc as any),revision:19};
+ const shown:any=await publicDisplay(original);
+ assert.equal(original.doc.notes,name+' / BrainElecQC');
+ assert.equal(shown.doc.notes,'BrainElecQC');
+ assert.equal(shown.doc.score,88.71);
+ assert.equal(shown.doc.url,doc.url);
+ assert.equal(shown.revision,19);
+ assert.equal(shown.hash,await digest(shown.doc));
+ assert.equal(shown.displayPolicy,'project-attribution/1');
+ assert.equal(await publicDisplay(shown),shown);
+});
 function database(){
  const sql=new DatabaseSync(':memory:');for(const f of readdirSync('drizzle').filter(f=>f.endsWith('.sql')).sort())sql.exec(readFileSync('drizzle/'+f,'utf8'));
  function prepare(query:string,args:unknown[]=[]):any{return{bind(...values:unknown[]){return prepare(query,values);},async first(){return sql.prepare(query).get(...args as any[])||null;},async all(){return{results:sql.prepare(query).all(...args as any[])};},async run(){return{meta:sql.prepare(query).run(...args as any[])};}};}

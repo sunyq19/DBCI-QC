@@ -35,7 +35,7 @@ def summarize_signal(snapshot):
     full = bool(full and coverage['total_seconds'] > 0 and coverage['failed_seconds'] == 0
                 and coverage['unexecuted_seconds'] == 0 and coverage['gap_seconds'] == 0
                 and coverage['completed_seconds'] >= coverage['total_seconds'] - 1e-6)
-    components = [{k: c.get(k) for k in ('id', 'name', 'value')} for c in score.get('components', [])]
+    components = [{k: c.get(k) for k in ('id', 'name', 'value', 'weight', 'configured_weight', 'status', 'assessed_methods')} for c in score.get('components', [])]
     for part in components:
         if not finite(part.get('value')): part['value'] = None
     incomplete = [{'id': m['id'], 'name': m.get('name', m['id']), 'status': m['status']}

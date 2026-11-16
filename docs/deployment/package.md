@@ -1,18 +1,31 @@
-# 1.1.3 打包部署
+# 1.1.4 打包部署
 
 一个仓库，两种安装形式：本页通过 Docker 自动安装并启动；[源码部署](demo.md)使用已有 Python/Node 环境。算法、报告和协作功能共用代码。
+
+## 云端交接要点
+
+| 要更新或保留的内容 | 操作要求 |
+| --- | --- |
+| 版本 | 使用同一个发布包；核对 `RELEASE.json` 的版本与提交，升级后重新构建质控和协作服务。GitHub 更新不会自动更新已有云主机。 |
+| 页面与示例 | 代码、`example-cache/manifest.json` 及它指向的完整缓存目录一起更新。当前为 8 组数据集、21 份记录及 2 份额外方案报告。 |
+| 可拖动的示例波形 | 原始公开文件不在 GitHub；另行复制并只读挂载，更新 `example_review_sources`，运行下方文件校验。只有报告缓存时不能完整演示波形交互。 |
+| 扩展算法 | 灵犀云独立环境、FieldTrip 等须单独配置。能看缓存报告不代表服务器能重新执行其中的所有方法。 |
+| 协作与上传 | 保留协作数据库、附件、密码校验文件及公开源文件配置。不要迁移用户临时上传，不向新访客展示旧的个人运行目录。 |
+| 对外入口 | `/` 与 `/flow/` 使用同一域名/IP；`PUBLIC_ORIGIN` 必须匹配浏览器地址。最终核对报告、波形、上传运行、PDF及协作保存。 |
+
+1.1.4 将公开署名统一为项目名。协作历史在展示时采用同一规则，数据库原件保留；旧部署不会自动隐名，须部署新版。旧 Git 标签、历史提交与旧发布包仍是当时的存档，不等同于当前发布版本。
 
 ## 1. 准备
 
 - Linux x86_64 服务器，Docker Engine 与 Compose v2.20 或更新版本。
 - 建议至少 4 核、16 GiB 内存、100 GiB 可用磁盘。实际计算量取决于记录大小与方法；默认每次运行一项质检任务。
 - 首次构建需要联网下载 Python、Node、Caddy 和算法依赖；无需在宿主机安装 Python、Node 或 Git。
-- 下载 [v1.1.3 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.3)中的 `DBCI-QC-1.1.3-deploy.tar.gz` 与 `SHA256SUMS`。
+- 下载 [v1.1.4 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.4)中的 `DBCI-QC-1.1.4-deploy.tar.gz` 与 `SHA256SUMS`。
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -xzf DBCI-QC-1.1.3-deploy.tar.gz
-cd DBCI-QC-1.1.3
+tar -xzf DBCI-QC-1.1.4-deploy.tar.gz
+cd DBCI-QC-1.1.4
 sh deploy.sh
 ```
 
@@ -128,7 +141,7 @@ GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传�
 开发者从固定提交生成同一版本的文件集合：
 
 ```bash
-python3 scripts/build_deploy_bundle.py --ref v1.1.3 --output /path/to/releases
+python3 scripts/build_deploy_bundle.py --ref v1.1.4 --output /path/to/releases
 ```
 
 包内 `RELEASE.json` 记录版本和 Git 提交，外部 `SHA256SUMS` 校验下载文件。源码目录中的个人配置、运行库和未提交文件不会混入包内。

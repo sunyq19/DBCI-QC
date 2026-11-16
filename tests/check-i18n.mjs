@@ -192,7 +192,7 @@ check('persistent candidate-evidence coverage warnings translate without changin
 });
 check('unified framework and unconfirmed modality evidence translate without changing scope',()=>{
   const h=harness({saved:'en'}),link=h.element('a','质控标准',{href:'/standards/overview'});h.body.append(link);const api=h.start();assert.equal(link.getAttribute('href'),'/en/standards/overview');
-  for(const label of ['文件读取','字段与方案','信号完整性','频谱与干扰','通道质量','伪迹线索','事件与时间','结果汇总','报告与复核','确认与规划','当前记录 / 默认目录','方法范围：ECoG','方法范围：头皮 EEG','模态建议来自文件声明，待核对','含混合通道，请选择分析组','建议模态','ECoG（待确认）','头皮 EEG（待确认）','核对通道 · 已选择 89 道分析信号','读取并确认记录后，显示适用的方法与条件。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
+  for(const label of ['文件读取','字段与方案','信号完整性','频谱与干扰','通道质量','伪迹线索','事件与时间','结果汇总','报告与复核','确认与规划','选择模态','选择适用模态，查看方法。','模态建议来自文件声明，待核对','含混合通道，请选择分析组','建议模态','ECoG（待确认）','头皮 EEG（待确认）','核对通道 · 已选择 89 道分析信号','读取并确认记录后，显示适用的方法与条件。'])assert(!/[\u3400-\u9fff]/.test(api.translate(label,'en')),label);
   assert.equal(api.translate('ECoG（待确认）','en'),'ECoG (needs confirmation)');api.setLanguage('zh-CN');assert.equal(link.getAttribute('href'),'/standards/overview');
 });
 check('shared and modality documentation links translate without broadening URL privileges',()=>{

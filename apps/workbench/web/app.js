@@ -281,8 +281,14 @@
       activation,activation_label:method.activation_label || METHOD_ACTIVATION[activation] || "启用方式未声明"};
   }
 
+  function toolkitModality() {
+    return state.browseModality || (hasExecutionContext() ? state.activeModality : state.compatModality) || null;
+  }
+
   function toolkitMethods(domain = $("toolkit-category").value, implementation = $("toolkit-implementation").value || "available") {
-    return allMethods(state.browseCatalog || state.catalog,state.browseModality || state.activeModality).map(method => ({...method,...methodClassification(method)})).filter(method => (!domain || domain === "all" || method.domain === domain) && (!implementation || implementation === "all" || method.implementation === implementation));
+    const modality = toolkitModality();
+    if (!modality) return [];
+    return allMethods(state.browseCatalog || state.catalog,modality).map(method => ({...method,...methodClassification(method)})).filter(method => (!domain || domain === "all" || method.domain === domain) && (!implementation || implementation === "all" || method.implementation === implementation));
   }
 
   function toolkitDomains() {
@@ -295,18 +301,23 @@
   }
 
   function renderToolkit() {
-    const browseModality = state.browseModality || state.activeModality;
+    const browseModality = toolkitModality();
     const choices = arr(state.modalityChoices.length ? state.modalityChoices : state.catalog?.modalities).filter(item=>item.qc_supported);
-    $("toolkit-modality-filter").innerHTML = '<option value="current">当前记录 / 默认目录</option>' + (choices.length?choices:[{id:"scalp_eeg",label:"头皮 EEG"}]).map(item=>`<option value="${escape(item.id)}">${escape(item.label || item.id)}</option>`).join("");
-    $("toolkit-modality-filter").value = state.browseModality || "current";
-    $("toolkit-modality").textContent = `方法范围：${modalityLabel(browseModality)}`;
+    $("toolkit-modality-filter").innerHTML = '<option value="" disabled>选择模态</option>' + (choices.length?choices:[{id:"scalp_eeg",label:"头皮 EEG"}]).map(item=>`<option value="${escape(item.id)}">${escape(item.label || item.id)}</option>`).join("");
+    $("toolkit-modality-filter").value = browseModality || "";
+    $("toolkit-category").disabled = !browseModality;
+    $("toolkit-implementation").disabled = !browseModality;
     const domains = toolkitDomains(), selectedDomain = $("toolkit-category").value || "all";
     $("toolkit-category").innerHTML = '<option value="all">全部目的</option>' + domains.map(domain => `<option value="${escape(domain.id)}">${escape(domain.label)}</option>`).join("");
     $("toolkit-category").value = domains.some(domain => domain.id === selectedDomain) ? selectedDomain : "all";
     const catalog = state.browseCatalog || state.catalog, methods = toolkitMethods();
     const moduleIds = new Set(methods.map(method=>method.module_id));
-    $("toolkit-count").hidden = false;
+    $("toolkit-count").hidden = !browseModality;
     $("toolkit-count").textContent = `${moduleIds.size} 个模块 · ${methods.length} 项方法`;
+    if (!browseModality) {
+      $("toolkit-methods").innerHTML = '<p class="small muted">选择适用模态，查看方法。</p>';
+      return;
+    }
     const openModules = new Set(Array.from($("toolkit-methods").querySelectorAll("details.toolkit-module[open]")).map(item=>item.dataset.toolkitModule));
     $("toolkit-methods").innerHTML = methods.length ? workflowGroups(catalog).map((stage,index) => {
       const modules = stage.module_ids.map(id=>arr(catalog?.modules).find(module=>module.id===id)).filter(module=>module && moduleIds.has(module.id));
@@ -590,6 +601,7 @@
   function resetRunName() { state.runName="";state.runNameStamp=new Date().toISOString(); }
 
   function updateActions() {
+    if ($("toolkit-modality-filter").value !== (toolkitModality() || "")) renderToolkit();
     renderRunName();
     renderDatasetContext();
     const invalid = validation(), busy = state.planning || state.submitting || state.recommending || state.intakeBusy || state.loadingCatalog || state.loadingRecord;

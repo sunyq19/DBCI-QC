@@ -89,6 +89,8 @@ def publish(config,destination):
     store=snapshot(config);examples=featured_reports(store)
     if not examples:raise ValueError('No explicitly configured examples')
     overviews={r['package_id']:build_overview(store,r['package_id']) for r in examples}
+    from example_editorial import context as example_context
+    record_packages={r['signal']['job_id']:pid for pid,o in overviews.items() for r in o['records'] if r.get('signal',{}).get('report_url')}
     jobids={r['signal']['job_id'] for o in overviews.values() for r in o['records'] if r.get('signal',{}).get('report_url')}
     comparisons=copy.deepcopy(store.settings.get('demo_comparisons',[]))
     comparison_jobs={}
@@ -232,7 +234,7 @@ def publish(config,destination):
             html=re.sub(r'\sdata-waveform-base="/api/v1/jobs/([a-f0-9]{32})"',review_base,html)
             html=re.sub(r'<pre\b[^>]*>.*?</pre>','',html,flags=re.S|re.I)
             # A public example has no user's live run workspace to restore.
-            html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run)\s*</a>','',html)
+            html=re.sub(r'<a\b[^>]*>\s*(?:本次检查|Open this run|进入检查工作区|Open dataset workspace)\s*</a>','',html)
             html=re.sub(r'''\b(data-chart-src|src|href)=(['"])([^'"]+)\2''',lambda m:m[1]+'='+m[2]+escape(resource(m[3],origin,language),quote=True)+m[2],html)
             html=re.sub(r'<img\b[^>]*\bsrc=[\"\']#snapshot-info[\"\'][^>]*>','',html,flags=re.I)
             html=re.sub(r'<a\b[^>]*\bhref=[\"\']#snapshot-info[\"\'][^>]*>(.*?)</a>',lambda m:'<span class="snapshot-unavailable" title="'+('Not included in this example' if language=='en' else '此示例未附带该文件')+'">'+m[1]+'</span>',html,flags=re.S|re.I)
@@ -251,11 +253,16 @@ def publish(config,destination):
                     title=source.get('name') or source.get('dataset') or source.get('dataset_id') or url
                     version=source.get('snapshot') or source.get('version') or source.get('version_doi') or ''
                     links.append(f'<li><a href="{escape(url,quote=True)}">{escape(title)}</a> · {escape(version)} · {escape(source.get("license",""))}</li>')
-                html=html.replace('</main>', '<details class="disclosure"><summary>'+('Sources and licenses' if language=='en' else '来源与许可')+'</summary><ul>'+''.join(links)+'</ul></details></main>')
+                if 'id="scope-and-sources"' not in html:
+                    html=html.replace('</main>', '<details class="disclosure"><summary>'+('Sources and licenses' if language=='en' else '来源与许可')+'</summary><ul>'+''.join(links)+'</ul></details></main>')
                 put(f'datasets/{pid}.{language}.html',clean(html,f'/api/v1/packages/{pid}/overview/report',language))
             for jid in sorted(jobids):
                 # Each modality uses the same read-only frozen finding index.
                 html=clean(served_report(store,jid,language,interactive=jid in interactive_jobs),f'/api/v1/jobs/{jid}/report',language)
+                boundary=example_context(record_packages.get(jid,''),language=='en').get('boundary')
+                if boundary:
+                    note='<p class="muted example-boundary">'+escape(boundary)+'</p>'
+                    html=html.replace('</h1>','</h1>'+note,1)
                 if jid in comparison_jobs:
                     url=replacement+f'comparisons/{comparison_jobs[jid]["comparison_id"]}.{language}.html'
                     label='← EEG workflow comparison' if language=='en' else '← 返回 EEG 方案对照'

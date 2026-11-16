@@ -108,5 +108,54 @@ th,td { padding:9px 10px; }
 .disclosure { padding:12px 0; }
 .disclosure:first-of-type { margin-top:20px; }
 .table-scroll { width:100%; min-width:0; }
+
+/* The overview leads with recordings; metadata remains a separate audit layer. */
+.dataset-overview .report-title { border-left:3px solid var(--primary); padding:2px 0 2px 20px; margin:28px 0 24px; }
+.dataset-overview .eyebrow { margin-top:0; }
+.example-lead { color:var(--ink); font-size:14px; margin:8px 0; }
+.example-source { color:var(--muted); font-size:12px; margin:12px 0 0; }
+.example-source a { color:var(--muted); }
+.dataset-overview .dataset-facts { border:1px solid var(--line); border-radius:6px; background:var(--wash); padding:14px 20px; gap:20px; }
+.example-boundary { color:#645540; border-left:2px solid #c6a775; padding:4px 12px; font-size:12px; margin:16px 0; }
+.dataset-overview #recordings { margin-top:28px; }
+.dataset-overview .record-table { table-layout:fixed; min-width:860px; }
+.dataset-overview .record-table th:first-child { width:21%; }
+.dataset-overview .record-table th:nth-child(2) { width:24%; }
+.dataset-overview .record-table th:nth-child(3) { width:13%; }
+.dataset-overview .record-table th:nth-child(4) { width:29%; }
+.dataset-overview .record-table th:last-child { width:13%; }
+.dataset-overview .record-table td { width:auto; vertical-align:middle; padding-top:18px; padding-bottom:18px; }
+.dataset-overview .record-table tbody th { vertical-align:middle; }
+.record-name { margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.record-score { display:inline-flex; align-items:baseline; gap:4px; font-size:21px; font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap; color:#203856; }
+.record-score small { font-size:11px; font-weight:400; }
+.record-finding { font-size:12px; color:var(--ink); margin:2px 0; }
+.record-finding + .record-finding { color:var(--muted); }
+.dataset-overview .report-link { background:var(--primary-light); border-color:transparent; padding:6px 10px; }
+.dataset-overview .report-link:hover { background:#dfeafb; }
+.score-note { color:var(--muted); font-size:12px; margin:12px 0 22px; }
+.dataset-overview .report-section > summary { font-size:16px; font-weight:600; }
+.section-status { font-size:12px; color:var(--muted); font-weight:400; background:var(--wash); border:1px solid var(--line); border-radius:4px; padding:1px 8px; }
+.dataset-overview > .disclosure { padding:16px 0; margin-top:0; }
+@media(max-width:720px) {
+  .dataset-overview .report-title { padding-left:14px; margin:18px 0; }
+  .dataset-overview .dataset-facts { padding:12px 14px; }
+  .dataset-overview .record-table { min-width:0; display:block; }
+  .dataset-overview .record-table thead { display:none; }
+  .dataset-overview .record-table tbody { display:grid; gap:14px; }
+  .dataset-overview .record-table tr { display:grid; grid-template-columns:minmax(0,1fr) auto; border:1px solid var(--line); border-radius:6px; padding:14px; gap:8px 14px; }
+  .dataset-overview .record-table tr > * { padding:0; border:0; width:auto; min-width:0; }
+  .dataset-overview .record-table tr > th { grid-column:1; }
+  .dataset-overview .record-table tbody th:first-child { width:auto; }
+  .dataset-overview .record-table td:nth-child(2) { grid-column:1; grid-row:2; font-size:12px; color:var(--muted); }
+  .dataset-overview .record-table td:nth-child(3) { grid-column:2; grid-row:1 / 3; align-self:center; }
+  .dataset-overview .record-table td:nth-child(4) { grid-column:1 / -1; }
+  .dataset-overview .record-table td:last-child { grid-column:1 / -1; text-align:left; padding-top:4px; }
+}
+@media print {
+  .dataset-overview .record-table { min-width:0; }
+  .dataset-overview .record-score { font-size:16px; }
+  .dataset-overview .record-name { white-space:normal; }
+}
 table { table-layout:fixed; }
 .report-link:hover { background:var(--primary-light); border-color:var(--primary); text-decoration:none; }

@@ -18,8 +18,10 @@ def render(data, language='zh-CN'):
     title = (example.get('label_en') if en else example.get('label')) or data['label']
     run_name = (data.get('dataset_job') or {}).get('run_name')
     source_title = title
-    title = run_name or title
+    title = title if example else (run_name or title)
     description = (example.get('description_en') if en else example.get('description')) or ''
+    from example_editorial import context
+    editorial = context(data['package_id'], en) if example else {}
     groups = data.get('attention_groups', [])
     present = (summary.get('file_counts') or {}).get('present', 0)
     dataset_done = summary['dataset_assessed']
@@ -29,16 +31,26 @@ def render(data, language='zh-CN'):
     formats = ' / '.join(sorted({r.get('display', {}).get('format') for r in records if r.get('display', {}).get('format')}))
     sources = data.get('source') or {}
     source_rows = sources.get('sources', [sources]) if isinstance(sources, dict) else []
-    source_links = []
+    source_links = []; source_details = []
     for source in source_rows:
         if not isinstance(source, dict): continue
-        url = source.get('url', '')
+        url = source.get('dataset_url') or source.get('url', '')
         name = source.get('name') or source.get('dataset') or url
+        if name == url:
+            match=re.search(r'openneuro\.org/datasets/(ds\d+)',url)
+            if match:name='OpenNeuro · '+match[1]
         if re.match(r'^https?://[^\s<>]+$', url):
             source_links.append(f'<a href="{esc(url)}" rel="noreferrer">{esc(name)}</a>')
+            version = source.get('snapshot') or source.get('version') or source.get('version_doi') or ''
+            source_details.append(source_links[-1] + ' · ' + esc(' · '.join(filter(None, [version, source.get('license')]))))
     files_value = f'{present} / {summary["expected_files"]}' if dataset_done else '—'
+    def duration_label(seconds):
+        if seconds is None: return '—'
+        if seconds >= 3600: return f'{seconds / 3600:.1f} h'
+        if seconds >= 120: return f'{seconds / 60:.1f} min'
+        return number(seconds) + ' s'
     facts = [(summary['subjects'], t('个体', 'Subjects')), (len(records), t('记录', 'Recordings')),
-             (number(total_duration) + ' s', t('样本总时长', 'Sample duration')),
+             (duration_label(total_duration), t('样本总时长', 'Sample duration')),
              (formats or '—', t('文件格式', 'Formats'))]
     if metadata_only: facts=facts[:2]+[(files_value,t('文件与清单相符','Files match inventory'))]
     fact_html = ''.join(f'<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>' for v, k in facts)
@@ -52,9 +64,11 @@ def render(data, language='zh-CN'):
         counts = data['module_counts'].get(mid, {})
         if not counts: return t('未检查', 'Not checked')
         problems = counts.get('conflict', 0) + counts.get('review', 0)
-        if problems: return t(f'{problems} 项需核对', f'{problems} checks need review')
-        if counts.get('pass'): return t(f'{counts["pass"]} 项一致', f'{counts["pass"]} checks agree')
-        return t('配套资料不足', 'Insufficient companion metadata')
+        parts = []
+        if problems: parts.append(t(f'{problems} 项需核对', f'{problems} checks need review'))
+        if counts.get('pass'): parts.append(t(f'{counts["pass"]} 项一致', f'{counts["pass"]} checks agree'))
+        if counts.get('unassessed'): parts.append(t(f'{counts["unassessed"]} 项未核对', f'{counts["unassessed"]} checks not assessed'))
+        return ' · '.join(parts) or t('配套资料不足', 'Insufficient companion metadata')
 
     check_rows = [
         ('D01', t('文件完整性', 'File completeness'), t('清单中的文件是否齐全，记录能否读取', 'Expected files present; recordings readable'),
@@ -93,7 +107,23 @@ def render(data, language='zh-CN'):
                   'failed': t('检查失败', 'Check failed'), 'report_unavailable': t('报告不可用', 'Report unavailable'),
                   'not_run': t('未运行', 'Not run')}.get(sig['status'])
         pieces = []
+        parts = sig.get('components', [])
+        scored_parts = [p for p in parts if isinstance(p.get('value'), (int, float)) and (p.get('weight') or 0) > 0]
         if status: pieces.append(status)
+        elif scored_parts:
+            deductions = sorted((p for p in scored_parts if p['value'] < 99.995),
+                                key=lambda p: (100 - p['value']) * p['weight'], reverse=True)
+            if deductions:
+                part = deductions[0]
+                from ephys_qc.score_presentation import name as component_name
+                name = component_name(part, english=en)
+                pieces.append(t(f'主要扣分：{name} {part["value"]:.2f} / 100', f'Main deduction: {name} {part["value"]:.2f} / 100'))
+            else:
+                pieces.append(t('本次计分项未检出候选', 'No candidates in scored checks'))
+            if any(p['id'] == 'neuropixels_channel_state' and p.get('assessed_methods') == ['neuropixels_constant_channels'] for p in scored_parts):
+                pieces.append(t('通道状态仅检查整窗恒值', 'Channel state checks whole-window constants only'))
+            unscored = sum(1 for p in parts if (p.get('configured_weight') or 0) > 0 and p.get('value') is None)
+            if unscored: pieces.append(t(f'{unscored} 项未能计分', f'{unscored} checks could not be scored'))
         elif display.get('summary_available'):
             if record['modality'] == 'scalp_eeg':
                 pieces.append(t('检出窄带成分' if display.get('line_detected') else '未检出窄带候选',
@@ -108,8 +138,10 @@ def render(data, language='zh-CN'):
         rates = ', '.join(number(rate) for rate in display.get('rates_hz', []))
         info = ' · '.join(filter(None, [display.get('format'), (t(f'{display["channels"]} 道', f'{display["channels"]} channels') if display.get('channels') else ''), rates + ' Hz' if rates else '', number(display.get('duration_seconds')) + ' s']))
         score = sig.get('score')
-        scored = f'<strong>{t("本方案评分", "Workflow score")} {score:.2f} / 100</strong><small>{esc(" · ".join(pieces))}</small>' if not status and isinstance(score, (int, float)) else esc(' · '.join(pieces))
-        record_rows.append(f'<tr><th>{esc(record["subject"])}<small>{esc(record["id"])}</small></th><td>{esc(info)}<small>{esc(coverage)}</small></td><td>{scored}</td><td>{button}</td></tr>')
+        scored = (f'<span class="record-score" aria-label="{t("本方案评分", "Workflow score")} {score:.2f} / 100">{score:.2f}<small>/ 100</small></span>'
+                  if not status and isinstance(score, (int, float)) else '<span class="secondary">—</span>')
+        findings = ''.join(f'<small class="record-finding">{esc(piece)}</small>' for piece in pieces)
+        record_rows.append(f'<tr><th>{esc(record["subject"])}<small class="record-name" title="{esc(record["id"])}">{esc(record["id"])}</small></th><td>{esc(info)}<small>{esc(coverage)}</small></td><td>{scored}</td><td>{findings}</td><td>{button}</td></tr>')
 
     # Unknowns remain in the audit, grouped by check type instead of amplified
     # into a wall of warnings for every record and downstream dependency.
@@ -138,19 +170,26 @@ def render(data, language='zh-CN'):
     scope_note = t('仅代表这些公开样本；不代表原始研究的完整数据集。', 'These public samples do not represent the complete upstream study.') if example else ''
     method_note = t('逐份显示本方案评分，分项与权重见报告。不同模态或检查方案的分数不直接比较；未评项目不计入。', 'Scores belong to each recording and workflow; see the report for components and weights. Do not compare unlike modalities or workflows. Unassessed items are excluded.') if any(r['signal'].get('score') is not None for r in records) else t('各模态按适用方法检查，结果见逐份报告；未评项目不计为通过。', 'Each modality uses applicable methods; see recording reports. Unassessed items are not passes.')
     recording_title=t('逐份结果','Recording results')
-    recording_headers=[t('个体 / 记录','Subject / recording'),t('检查范围','Scope'),t('信号结果摘要','Signal findings'),'']
+    recording_headers=[t('个体 / 记录','Subject / recording'),t('检查范围','Scope'),t('本方案评分','Workflow score'),t('主要发现','Main findings'),'']
     if metadata_only:
         recording_title=t('纳入检查的记录','Included recordings')
         recording_headers=[t('个体','Subject'),t('记录','Recording'),t('模态','Modality'),t('资料核对','Metadata checks')]
         method_note=t('本次仅核对文件与配套资料，未运行逐份信号检查。','This run checked files and metadata; individual signal checks were not requested.')
     recording_heads=''.join(f'<th>{esc(h)}</th>' for h in recording_headers)
+    source_line = f'<p class="example-source">{t("数据来源", "Data source")} · {" · ".join(source_links)}</p>' if example and source_links else ''
+    lead = editorial.get('purpose') or description
+    boundary = f'<p class="example-boundary">{esc(editorial["boundary"])}</p>' if editorial.get('boundary') else ''
+    metadata_status = []
+    if groups: metadata_status.append(t(f'{len(groups)} 类需核对', f'{len(groups)} issue types'))
+    if missing: metadata_status.append(t(f'{len(missing)} 类未评', f'{len(missing)} unassessed types'))
+    metadata_summary = ' · '.join(metadata_status) or t('已核对' if dataset_done else '未检查', 'Assessed' if dataset_done else 'Not checked')
     return f'''<!doctype html><html lang="{esc(language)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{esc(title)} · {t('数据集报告','Dataset report')}</title><style>{css}</style><script src="/dataset-report.js" defer></script></head><body class="dataset-report">
 +<header class="report-header"><a href="/#demo-reports">← {t('质控台','Workbench')}</a><span>{t('数据集报告','Dataset report')}</span><nav><a href="?lang={'zh-CN' if en else 'en'}{('&amp;job=' + esc(data['dataset_job']['id'])) if data.get('dataset_job') else ''}">{'中文' if en else 'EN'}</a><button id="print-report">{t('打印 / PDF','Print / PDF')}</button></nav></header>
-+<main><div class="report-title"><div><p class="eyebrow">DBCI-QC / {t('公开样本示例' if example else '数据集检查', 'Public sample' if example else 'Dataset QC')}</p><h1>{esc(title)}</h1><p class="secondary">{esc(source_title) + ' · ' if run_name else ''}{esc(description)}</p></div></div>
-+<dl class="dataset-facts">{fact_html}</dl><p class="report-conclusion">{esc(primary)}</p>
-+<section id="checks"><h2>{t('检查了什么','Checks performed')}</h2><div class="table-scroll" tabindex="0" role="region" aria-label="{t('检查结果', 'Check results')}"><table class="check-table"><tbody>{check_html}</tbody></table></div></section>
-+{('<section id="findings"><h2>'+t('需要核对','Needs review')+'</h2>'+''.join(attention)+'</section>') if attention else ''}
-+{bids_section}<section id="recordings"><h2>{recording_title} <span>{len(records)}</span></h2><p class="secondary">{esc(method_note)}</p><div class="table-scroll" tabindex="0" role="region" aria-label="{t('逐份结果', 'Recording results')}"><table class="record-table"><thead><tr>{recording_heads}</tr></thead><tbody>{''.join(record_rows)}</tbody></table></div></section>
-+{optional}<details class="disclosure"><summary>{t('检查范围与来源','Scope and sources')}</summary><p>{esc(data['scope'])}</p><p>{esc(scope_note)}</p><p>{' · '.join(source_links)}</p><h3>{t('比较组及核对字段','Groups and compared fields')}</h3><ul>{group_rows}</ul><p>{t('未计算跨个体或跨模态总分；本页未进行人工核验。','No score is pooled across subjects or modalities. This page is not a human review.')}</p></details>
++<main class="dataset-overview"><div class="report-title"><div><p class="eyebrow">DBCI-QC / {t('公开样本示例' if example else '数据集检查', 'Public sample' if example else 'Dataset QC')}</p><h1>{esc(title)}</h1><p class="example-lead">{esc(lead)}</p>{source_line}</div></div>
++<dl class="dataset-facts">{fact_html}</dl>{boundary}
++<section id="recordings"><h2>{recording_title} <span>{len(records)}</span></h2><div class="table-scroll" tabindex="0" role="region" aria-label="{t('逐份结果', 'Recording results')}"><table class="record-table"><thead><tr>{recording_heads}</tr></thead><tbody>{''.join(record_rows)}</tbody></table></div><p class="score-note">{esc(method_note)}</p></section>
++<details class="disclosure report-section" id="metadata" {'open' if metadata_only else ''}><summary>{t('资料检查','Metadata checks')}<span class="section-status">{esc(metadata_summary)}</span></summary><p class="secondary">{esc(primary)}</p><section id="checks"><h3>{t('检查了什么','Checks performed')}</h3><div class="table-scroll" tabindex="0" role="region" aria-label="{t('检查结果', 'Check results')}"><table class="check-table"><tbody>{check_html}</tbody></table></div></section>
++{('<section id="findings"><h3>'+t('需要核对','Needs review')+'</h3>'+''.join(attention)+'</section>') if attention else ''}{bids_section}{optional}</details>
++<details class="disclosure" id="scope-and-sources"><summary>{t('检查范围与来源','Scope and sources')}</summary><p>{esc(data['scope'])}</p><p>{esc(scope_note)}</p><p>{'<br>'.join(source_details)}</p><h3>{t('比较组及核对字段','Groups and compared fields')}</h3><ul>{group_rows}</ul><p>{t('未计算跨个体或跨模态总分；本页未进行人工核验。','No score is pooled across subjects or modalities. This page is not a human review.')}</p></details>
 +<details class="disclosure"><summary>{t('完整检查记录','Full audit trail')}</summary><div class="table-scroll" tabindex="0" role="region" aria-label="{t('检查记录', 'Audit trail')}"><table><tbody>{audit_rows}</tbody></table></div><p class="secondary">{t('清单指纹','Manifest fingerprint')}: {esc(data['manifest_hash'])}<br>{t('检查任务','Dataset run')}: {esc((data.get('dataset_job') or {}).get('id'))}</p></details>
 +<footer>{t('依据已保存的检查结果；打开页面不会重新运行算法。','Based on saved checks; opening this page does not rerun the algorithms.')} <a href="/datasets?package={package}">{t('进入检查工作区','Open dataset workspace')}</a></footer></main></body></html>'''.replace('\n+', '\n')

@@ -188,6 +188,38 @@ def _device_info(device):
             'neuropixels_device_declared': bool(declared), 'model_evidence': fields}
 
 
+def _probe_geometry(table, rows, devices):
+    """Read declared probe coordinates, never infer positions from channel order.
+
+    AllenSDK defines these two columns in microns. Require that unit in the
+    actual column descriptions and an explicitly single-shank NP 1.0 model.
+    Multi-shank devices require a separate, explicit shank mapping.
+    """
+    columns = ('probe_horizontal_position', 'probe_vertical_position')
+    if not all(k in table.colnames for k in columns):
+        return {}
+    if not all(re.search(r'\b(microns?|micrometers?|micrometres?|um)\b|[µμ]m',
+                         _text(table[k].description), re.I) for k in columns):
+        return {}
+    single_shank = lambda d: d['probe_type'] == 0 or any(
+        re.search(r'\bNeuropixels\s+1\.0\b', e['value'], re.I) for e in d['model_evidence'])
+    if not all(d['neuropixels_device_declared'] and single_shank(d) for d in devices):
+        return {}
+    groups = [getattr(table['group'][int(row)], 'name', None) for row in rows]
+    if any(not name for name in groups):
+        return {}
+    try:
+        positions = [[float(table[k][int(row)]) for k in columns] for row in rows]
+    except (ValueError, TypeError):
+        return {}
+    if any(not math.isfinite(v) for xy in positions for v in xy):
+        return {}
+    mapping = {name: i for i, name in enumerate(dict.fromkeys(groups))}
+    return {i: {'probe_position_um': xy, 'probe_grid': {'shank': mapping[groups[i]]},
+                'probe_geometry_source': 'NWB electrode columns with explicit micrometre units; single-shank Neuropixels 1.0 model'}
+            for i, xy in enumerate(positions)}
+
+
 class NWBReader(SourceGuard):
     def __init__(self, path, record_id, *, stream_id=None):
         import h5py
@@ -305,6 +337,9 @@ class NWBReader(SourceGuard):
                 'physical_min': None, 'physical_max': None, 'conversion': conversion,
                 'channel_conversion': float(channel_conversion[index]), 'unit_scale_to_si': unit_scale,
                 'calibration_source': '(stored * conversion * channel_conversion + offset) * unit_to_si'})
+        geometry = _probe_geometry(table, rows, devices)
+        for index, fields in geometry.items():
+            channels[index].update(fields)
         source_container = source_path.split('/')[1]
         processed = source_container == 'processing' or parent_kind in {'LFP', 'FilteredEphys'}
         warnings = []
@@ -342,7 +377,7 @@ class NWBReader(SourceGuard):
 
     def describe(self):
         self.assert_unchanged()
-        return {'reader_id': 'pynwb_electrical_series', 'reader_version': 'nwb-adapter/1',
+        return {'reader_id': 'pynwb_electrical_series', 'reader_version': 'nwb-adapter/1.1',
             'backend_version': self.backend_version, 'source_id': self.record_id, 'format': 'NWB',
             'source_files': copy.deepcopy(self.source_files),
             'header_channel_count': len(self.selected['channels']) if self.selected else 0,
@@ -379,10 +414,12 @@ class NWBReader(SourceGuard):
                 'unit': 'V', 'source_unit': c['source_unit'], 'unit_source': c['unit_source'],
                 'channel_type': c['channel_type'], 'channel_type_source': c['channel_type_source'],
                 'sampling_rate_hz': selected['sampling_frequency_hz'], 'electrode_id': c['electrode_id'],
-                'electrode_row_index': c['electrode_row_index']} for c in channels],
+                'electrode_row_index': c['electrode_row_index'],
+                **{k: copy.deepcopy(c[k]) for k in ('probe_grid', 'probe_position_um', 'probe_geometry_source') if k in c}}
+                for c in channels],
             'raw_signal_count': len(channels), 'annotation_signal_count': 0,
             'size_bytes': sum(f['size_bytes'] for f in self.source_files), 'reader_id': 'pynwb_electrical_series',
-            'reader_version': 'nwb-adapter/1', 'backend_version': self.backend_version,
+            'reader_version': 'nwb-adapter/1.1', 'backend_version': self.backend_version,
             'source_files': public_manifest(self.source_files), 'annotations': self._annotations(),
             'modality_evidence': {'value': 'extracellular' if np_declared else 'unknown',
                 'source': 'file_declared' if np_declared else 'unknown',

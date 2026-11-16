@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 
 NAMES={'pyprep_ransac':'RANSAC 空间预测','autoreject_epochs':'local AutoReject','ica_iclabel':'ICLabel 成分类别','dredge_lfp':'DREDge LF 漂移','nwb_inspector':'NWB 文件规范'}
+CHANNEL_METHODS={'spikeinterface_lfp_neighbors':'LF 邻域一致性',
+                 'spikeinterface_coherence_psd':'IBL 相干与高频噪声'}
 CLASSES={'brain':'脑成分','muscle':'肌电','eye':'眼动','heart':'心电','line_noise':'工频','channel_noise':'通道噪声','other':'其他'}
 
 
@@ -12,7 +14,7 @@ def overview(root):
     """Keep measured extension results visible without opening the audit log."""
     root=Path(root); grouped={}; continuity=[]
     for directory in [root/'artifacts',*sorted((root/'windows').glob('*/artifacts'))]:
-        for method in NAMES:
+        for method in {**NAMES, **CHANNEL_METHODS}:
             for path in directory.glob('M??_'+method+'.json'):
                 grouped.setdefault(method,[]).append(json.loads(path.read_text()))
         path=directory/'M03_continuity.json'
@@ -29,6 +31,15 @@ def overview(root):
     for method,payloads in grouped.items():
         good=[p for p in payloads if p.get('status') in {'completed','partial'}]
         if not good: text='未完成：'+str(payloads[0].get('reason','条件不足'))
+        elif method in CHANNEL_METHODS:
+            channels={c['channel_name'] for p in good for c in p.get('candidates',[]) if c.get('channel_name')}
+            total={name for p in good for name in p.get('channel_names',[])}
+            text=f'{len(channels)} / {len(total)} 道被标为候选；检查 {len(good)} 个分析段。'
+            if method=='spikeinterface_lfp_neighbors':
+                radii=sorted({p.get('parameters',{}).get('radius_um') for p in good
+                              if isinstance(p.get('parameters',{}).get('radius_um'),(int,float))})
+                if radii:text+='邻域半径 '+ '、'.join(f'{v:g}' for v in radii)+' 微米。'
+            text+='通道级结果，在“问题定位”中与邻近通道比较。'
         elif method=='pyprep_ransac':
             counts=[len(p.get('candidates',[])) for p in good]
             text=f'可计分 · {len(good)} 个分析段，各段候选通道数：'+ '、'.join(map(str,counts))+'。'
@@ -45,7 +56,7 @@ def overview(root):
             issues=[r for p in good for r in p.get('issues',[])]
             errors=sum(p.get('error_count',sum(r.get('importance') in {'ERROR','CRITICAL','PYNWB_VALIDATION'} for r in p.get('issues',[]))) for p in good)
             text=f'结构检查 · {errors} 条错误，{len(issues)-errors} 条其他发现或建议；不折算信号分数。'
-        rows.append((NAMES[method],text))
+        rows.append(({**NAMES, **CHANNEL_METHODS}[method],text))
     if not rows:return ''
     from .report_presentation import report_section
     body='<table><thead><tr><th>检查方法</th><th>本次结果</th></tr></thead><tbody>'+''.join('<tr><th>'+html.escape(title)+'</th><td>'+html.escape(text)+'</td></tr>' for title,text in rows)+'</tbody></table>'
