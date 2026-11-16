@@ -1,0 +1,404 @@
+{
+  "capture_date": "2026-11-16",
+  "slides_date": "2026-11-17",
+  "scope": "真实公开样本操作录像和截图，非当前云端实时状态",
+  "recording_note": "原始浏览器截图按实际时间间隔编码，无字幕、无运镜、无模拟点击；每段末尾保留约 1.2 秒静帧。无音频。",
+  "assets": [
+    {
+      "id": "V01",
+      "file": "raw-clips/V01-01-select.mp4",
+      "description": "选择本地 EDF 文件",
+      "duration_seconds": 2.733,
+      "captured_duration_seconds": 1.449,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.87,
+          "action": "选择本地 EDF",
+          "x": 512.03,
+          "y": 304.59
+        }
+      ],
+      "caution": "",
+      "sha256": "e1cc870f338099f1631b0047d25b270d0b3f8291fc6f37d9ccf18fb6413f4559"
+    },
+    {
+      "id": "V02",
+      "file": "raw-clips/V02-02-read.mp4",
+      "description": "点击读取，提取文件信息",
+      "duration_seconds": 2.833,
+      "captured_duration_seconds": 1.547,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.773,
+          "action": "读取文件",
+          "x": 512.03,
+          "y": 420.38
+        }
+      ],
+      "caution": "",
+      "sha256": "07bdd9ac89556f640588b61792b4cd8995060f1c2978d07432ac556b1899cc6d"
+    },
+    {
+      "id": "V03",
+      "file": "raw-clips/V03-03-confirm-v2.mp4",
+      "description": "确认头皮 EEG 模态",
+      "duration_seconds": 3.267,
+      "captured_duration_seconds": 2.024,
+      "width": 1920,
+      "height": 854,
+      "actions": [],
+      "caution": "",
+      "sha256": "7fae0545a5b64618b6ed3f0b2e93088cc7bb99cf41a1aeaee90a87da7991feaa"
+    },
+    {
+      "id": "V04",
+      "file": "raw-clips/V04-04-confirm-next.mp4",
+      "description": "核对并确认，进入模块页面",
+      "duration_seconds": 3.633,
+      "captured_duration_seconds": 2.336,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.764,
+          "action": "核对通道角色",
+          "x": 824.06,
+          "y": 550.94
+        },
+        {
+          "at_seconds": 1.658,
+          "action": "确认，进入模块选择",
+          "x": 839.57,
+          "y": 581.84
+        }
+      ],
+      "caution": "",
+      "sha256": "147266fb9793be13f1fe5d9253dcb63ecb8e7ce24553aaaf5902ffd5c90d4d80"
+    },
+    {
+      "id": "V05",
+      "file": "raw-clips/V05-05-recommend.mp4",
+      "description": "载入推荐检查方案",
+      "duration_seconds": 4.233,
+      "captured_duration_seconds": 2.928,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 2.155,
+          "action": "应用推荐方案",
+          "x": 1564.49,
+          "y": 172.76
+        }
+      ],
+      "caution": "",
+      "sha256": "68f442d5c1f0429749ad2b4f46baac96a59c01095fea4999a0a220232e34888b"
+    },
+    {
+      "id": "V06",
+      "file": "raw-clips/V06-06-expand.mp4",
+      "description": "展开 M03 子方法",
+      "duration_seconds": 3.467,
+      "captured_duration_seconds": 2.206,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.769,
+          "action": "展开 M03，查看子方法",
+          "x": 941.38,
+          "y": 503.91
+        }
+      ],
+      "caution": "",
+      "sha256": "a9d19b6d0e053d86c1aed2077c95b9d24be4bed74aefd0d928b503a32a72da1b"
+    },
+    {
+      "id": "V07",
+      "file": "raw-clips/V07-07-toggle.mp4",
+      "description": "增减 MNE 检查并查看计分组成",
+      "duration_seconds": 4.0,
+      "captured_duration_seconds": 2.722,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.766,
+          "action": "取消一个可选检查",
+          "x": 837.56,
+          "y": 496.3
+        },
+        {
+          "at_seconds": 1.718,
+          "action": "重新加入该检查",
+          "x": 837.56,
+          "y": 407.65
+        },
+        {
+          "at_seconds": 2.578,
+          "action": "查看当前计分组成",
+          "x": 855.56,
+          "y": 712.14
+        }
+      ],
+      "caution": "",
+      "sha256": "c4220ae320eeaf6cd1720998f2c745e9cc8fc0fbeb38569f305a8ff7a2d1708b"
+    },
+    {
+      "id": "V08",
+      "file": "raw-clips/V08-09-candidate.mp4",
+      "description": "选择问题候选并打开对照通道",
+      "duration_seconds": 4.533,
+      "captured_duration_seconds": 3.259,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.795,
+          "action": "定位记录末尾的恒值片段",
+          "x": 137.5,
+          "y": 522.8
+        },
+        {
+          "at_seconds": 1.973,
+          "action": "加入对照通道",
+          "x": 1808.87,
+          "y": 209.84
+        }
+      ],
+      "caution": "",
+      "sha256": "c0caaf2a84b8a18d4c2f4117b810c4a525a3dec52df26b82d18a568cb5b2bdee"
+    },
+    {
+      "id": "V09",
+      "file": "raw-clips/V09-10-compare.mp4",
+      "description": "勾选四个对照通道，末尾仍在载入",
+      "duration_seconds": 4.867,
+      "captured_duration_seconds": 3.55,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.781,
+          "action": "对照 Fc3",
+          "x": 1649,
+          "y": 348.09
+        },
+        {
+          "at_seconds": 1.482,
+          "action": "对照 Fc1",
+          "x": 1649,
+          "y": 377.88
+        },
+        {
+          "at_seconds": 2.167,
+          "action": "对照 Fcz",
+          "x": 1649,
+          "y": 407.68
+        },
+        {
+          "at_seconds": 2.559,
+          "action": "同时查看四个通道",
+          "x": 1808.87,
+          "y": 209.84
+        },
+        {
+          "at_seconds": 2.935,
+          "action": "放大时间细节",
+          "x": 417,
+          "y": 209.84
+        },
+        {
+          "at_seconds": 3.31,
+          "action": "回到候选时段",
+          "x": 502,
+          "y": 209.84
+        }
+      ],
+      "caution": "末尾仍显示加载状态，不能作为成功完成画面；接 V10 首帧。",
+      "sha256": "60e73633e3e302ec7eb7092d82db9c0a8a616cfa0992e5fa4841cd02a9b3c747"
+    },
+    {
+      "id": "V10",
+      "file": "raw-clips/V10-11-pan.mp4",
+      "description": "四个通道已加载，拖动时间窗",
+      "duration_seconds": 6.333,
+      "captured_duration_seconds": 5.043,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 4.93,
+          "action": "回到异常时段",
+          "x": 502,
+          "y": 209.84
+        }
+      ],
+      "caution": "",
+      "sha256": "7d2914ff7969c66c0bc425b025cd20f41c0cc9df08d27368b58de6437cc0b6c7"
+    },
+    {
+      "id": "V11",
+      "file": "raw-clips/V11-12-zoom.mp4",
+      "description": "缩短时间窗至 2.5 秒，查看末尾恒值",
+      "duration_seconds": 3.233,
+      "captured_duration_seconds": 1.921,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.749,
+          "action": "放大到 2.5 秒",
+          "x": 417,
+          "y": 209.84
+        },
+        {
+          "at_seconds": 1.708,
+          "action": "定位末尾 0.5 秒恒值",
+          "x": 502,
+          "y": 209.84
+        }
+      ],
+      "caution": "",
+      "sha256": "4deefec5a1c1053b6390d5cd6568921a63bc5fe3294d0b267c6a1946bf8e2430"
+    },
+    {
+      "id": "V12",
+      "file": "raw-clips/V12-13-example.mp4",
+      "description": "打开公开 sEEG 数据集示例",
+      "duration_seconds": 2.367,
+      "captured_duration_seconds": 1.067,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 0.768,
+          "action": "打开 sEEG 示例报告",
+          "x": 512.03,
+          "y": 648.52
+        }
+      ],
+      "caution": "",
+      "sha256": "1b10881ff657fb0389d8eb817424740132a2d00e73dab14c7f2425ed31ec692d"
+    },
+    {
+      "id": "V13",
+      "file": "raw-clips/V13-14-example-report.mp4",
+      "description": "从数据集总览打开一份 sEEG 报告",
+      "duration_seconds": 4.733,
+      "captured_duration_seconds": 3.45,
+      "width": 1920,
+      "height": 854,
+      "actions": [
+        {
+          "at_seconds": 1.412,
+          "action": "查看第一份记录的报告",
+          "x": 1469.5,
+          "y": 458.74
+        }
+      ],
+      "caution": "",
+      "sha256": "70d3e8a97c28b000840b49fb510d008e28f857d14eb075a67ad38a58241b626f"
+    },
+    {
+      "id": "F01",
+      "file": "screenshots/F01.jpg",
+      "description": "上传入口",
+      "sha256": "6b9f7465a1e42ad07ab0952428b28a214284147745b6d810b9de93077049d112"
+    },
+    {
+      "id": "F02",
+      "file": "screenshots/F02.jpg",
+      "description": "已选择公开 EDF 文件",
+      "sha256": "f35c77b9660ded1c16a21330518b1b090adc649ec5168d4a3e8c48973fb9206a"
+    },
+    {
+      "id": "F03",
+      "file": "screenshots/F03.jpg",
+      "description": "读取出的格式与基本信息",
+      "sha256": "0af7501da8fb755d20ab5b475c544df0c39dde9b059734bc406576c80a628248"
+    },
+    {
+      "id": "F04",
+      "file": "screenshots/F04.jpg",
+      "description": "确认模态与通道",
+      "sha256": "1492b9bc7e47a24c9be695e657b477f71b3778706cbed50f09bf778bf633b884"
+    },
+    {
+      "id": "F05",
+      "file": "screenshots/F05.jpg",
+      "description": "推荐方案和顶层模块",
+      "sha256": "511741dc6d9439a611bedf826a30aed3b6b5d89d384d088552804e86ae7d64ef"
+    },
+    {
+      "id": "F06",
+      "file": "screenshots/F06.jpg",
+      "description": "M03 展开后的子方法",
+      "sha256": "ecb3eafe49e15ab1c712862430990fabffeeeea0b15e159f1f1457a8e5d31ff0"
+    },
+    {
+      "id": "F07",
+      "file": "screenshots/F07.jpg",
+      "description": "计分组成与权重",
+      "sha256": "7d41f6ab1b5595123cdbfb49216a454455628f3937141eb846333f0f8802080c"
+    },
+    {
+      "id": "F08",
+      "file": "screenshots/F08.jpg",
+      "description": "EEG 报告：99.85 与分项",
+      "sha256": "a41068e88f2ab36865df92de1fc6598c21d855d013c5e2a0e139426f8fb1a111"
+    },
+    {
+      "id": "F09",
+      "file": "screenshots/F09.jpg",
+      "description": "问题定位入口",
+      "sha256": "60321bc85acdbce041650b8b140fe1d5c84e5e806d9235c138e415cda261f7aa"
+    },
+    {
+      "id": "F10",
+      "file": "screenshots/F10.jpg",
+      "description": "四个通道完成加载后的对照",
+      "sha256": "4ad2856702224af1402bd53f2d3a0ce0ea8a27193c08847b5dd49db360d2e20c"
+    },
+    {
+      "id": "F11",
+      "file": "screenshots/F11.jpg",
+      "description": "末尾 0.5 秒恒值段",
+      "sha256": "34031cb2e33bf7bc8410e2a7e3a94855a9b4be7b279d91397dd59a4512734185"
+    },
+    {
+      "id": "F12",
+      "file": "screenshots/F12.jpg",
+      "description": "公开示例列表",
+      "sha256": "0051382f574f888b36428dbdcd84413f68af2f5c91e1ea52949eb78cd9eb6e07"
+    },
+    {
+      "id": "F13",
+      "file": "screenshots/F13.jpg",
+      "description": "sEEG 数据集总览",
+      "sha256": "2cb7597b2f1c68515a3d167e2ba88422bc51635f70204042d15bd37b44a9255b"
+    },
+    {
+      "id": "F14",
+      "file": "screenshots/F14.jpg",
+      "description": "sEEG 单份报告和权重",
+      "sha256": "54b6bda6d16526812ac640b91e48fd8b997b4b7b8d157b84ef10215ee03f8dad"
+    },
+    {
+      "id": "F15",
+      "file": "screenshots/F15.png",
+      "description": "灵犀云方案的缓存报告",
+      "sha256": "0e61f0e3cc3dabd177007830e6b70b89d1469114747440a8c5f3209928da1f17"
+    },
+    {
+      "id": "F16",
+      "file": "screenshots/F16.png",
+      "description": "质控台首页",
+      "sha256": "be57606c78dce2fad9f4cdeb4eb718f255d2604f51a7d352f0e2c48d5c858c15"
+    }
+  ]
+}
