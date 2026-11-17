@@ -35,6 +35,7 @@ from standards_page import render_standards, NAVIGATION_SCRIPT, DOCUMENT_PAGES
 from package_jobs import PackageJobs
 from deployment import deployment, check_request, UploadGuard, DemoCapacityError
 from temporary_uploads import enabled as private_uploads, public_record, public_source, TemporaryUploads
+from upload_policy import describe as upload_policy, receipt as consent_receipt
 
 SERVICE = 'ephys-qc-modular-workbench'
 TERMINAL = {'completed', 'failed', 'cancelled', 'interrupted'}
@@ -680,6 +681,13 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.check_local()
             path = unquote(urlsplit(self.path).path)
+            if self.command == 'POST' and path == '/api/v1/intakes':
+                # Reject before reading bytes or creating a temporary session.
+                try:
+                    self.upload_consent = consent_receipt(self.headers)
+                except PermissionError as exc:
+                    self.close_connection = True
+                    return self.json({'error': str(exc), 'code': 'privacy_consent_required'}, 403)
             from collaboration_route import dispatch as flow_dispatch
             if flow_dispatch(self, path):
                 return
@@ -709,6 +717,8 @@ class Handler(BaseHTTPRequestHandler):
     do_POST = dispatch
 
     def get(self, path):
+        if path == '/api/v1/upload-policy':
+            return self.json(upload_policy())
         if path == '/api/v1/temporary-session':
             return self.json(self.temporary.status(self) if self.temporary else {'active': False})
         from package_review_api import dispatch as package_review_dispatch
@@ -844,6 +854,7 @@ class Handler(BaseHTTPRequestHandler):
                                                           'intake_limit_version': self.store.intakes.limits.version,
                                                           'local_only': deployment(self.store.settings)['mode'] == 'local'},
                                                'data_policy': self.server.store.settings.get('data_policy'),
+                                               'upload_consent': upload_policy(),
                                                'admission_policy': self.store.admission_policy.describe() if self.store.admission_policy else None,
                                                'recommendation': 'explicit_rules_with_reasons'}})
         if path == '/api/v1/intakes':
@@ -967,7 +978,7 @@ class Handler(BaseHTTPRequestHandler):
             from example_cache import asset
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
-        static = {'/': 'index.html', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
+        static = {'/': 'index.html', '/privacy': 'privacy.html', '/privacy.css': 'privacy.css', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
                   '/temporary-session.js': 'temporary-session.js', '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
@@ -1014,7 +1025,7 @@ class Handler(BaseHTTPRequestHandler):
             self.connection.settimeout(60)
             guard = getattr(self.store, 'upload_guard', None)
             with guard.accept(filename, length) if guard else nullcontext():
-                intake = self.store.intakes.receive(filename, length, self.rfile)
+                intake = self.store.intakes.receive(filename, length, self.rfile, consent=self.upload_consent)
                 if self.temporary: self.temporary.uploaded(self, intake)
             return self.json(intake, 201)
         match = re.fullmatch(r'/api/v1/intakes/([a-f0-9]{32})/confirm', path)

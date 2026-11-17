@@ -740,3 +740,8 @@ html[lang="en"] .comparison-en { display:flex; }
 .qc-app .public-source-panel>div+div{margin-top:10px}
 .qc-app .public-source-panel strong{display:block;font-size:12px;font-weight:500;color:#334155}
 .qc-app .public-source-panel span{display:block;margin-top:3px;font-size:11px;color:#71829a}
+.upload-consent{display:flex;align-items:flex-start;gap:8px;margin:0;font-size:13px;line-height:1.7;color:var(--text-muted,#61748b)}
+.upload-consent input{width:16px;height:16px;min-width:16px;margin:3px 0 0;accent-color:#2563eb}
+.upload-consent label{cursor:pointer}
+.upload-consent a{color:#245cc4;text-decoration:none}
+.upload-consent a:hover{text-decoration:underline}

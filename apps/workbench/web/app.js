@@ -618,7 +618,9 @@
     $("input-select").disabled = state.submitting || state.intakeBusy || !visibleInputs().length;
     for (const id of ["start-seconds","duration-seconds","extension-parameters"]) $(id).disabled = state.submitting || !state.input;
     for (const field of Object.keys(CONTEXT_FIELDS)) $(`context-${field}`).disabled = state.submitting || !state.input;
-    $("intake-upload-button").disabled = !$("intake-file").files?.length || state.intakeBusy || !state.catalog || state.submitting;
+    if(state.acceptedPrivacyVersion!==state.catalog?.capabilities?.upload_consent?.version)$("upload-consent").checked=false;
+    $("upload-consent").disabled=state.intakeBusy||state.submitting;
+    $("intake-upload-button").disabled = !$("intake-file").files?.length || state.intakeBusy || !state.catalog || state.submitting || !privacyAccepted();
     $("intake-file").disabled = state.submitting;
     const pickedFile = $("intake-file").files?.[0];
     $("file-picker-title").textContent = pickedFile ? "已选择文件" : "选择本机文件";
@@ -1005,9 +1007,15 @@
     return changes;
   }
 
+  function privacyAccepted(){
+    const version=state.catalog?.capabilities?.upload_consent?.version;
+    return Boolean(version&&$("upload-consent").checked&&state.acceptedPrivacyVersion===version);
+  }
+
   async function uploadIntake() {
     const file = $("intake-file").files?.[0];
     if (!file || state.intakeBusy || state.submitting) return;
+    if(!privacyAccepted()){setError("intake-error","请先阅读并同意隐私协议。");return;}
     chooseLocalFile(); const request = state.intakeRequest;
     const limit = state.catalog?.capabilities?.intake?.max_upload_bytes;
     if (!Number.isSafeInteger(limit) || limit <= 0) { setError("intake-error","尚未取得上传限额，请刷新后重试。"); return; }
@@ -1024,10 +1032,13 @@
   }
 
   function receiveFile(file,request) {
-    if (typeof XMLHttpRequest !== "function") return api("/intakes",{method:"POST",body:file,binary:true,timeoutMs:UPLOAD_TIMEOUT_MS,headers:{"X-Filename":encodeURIComponent(file.name)}});
+    if(!privacyAccepted())return Promise.reject(new Error("请先阅读并同意隐私协议。"));
+    const consentHeaders={"X-QC-Privacy-Consent":"agree","X-QC-Privacy-Version":state.acceptedPrivacyVersion};
+    if (typeof XMLHttpRequest !== "function") return api("/intakes",{method:"POST",body:file,binary:true,timeoutMs:UPLOAD_TIMEOUT_MS,headers:{"X-Filename":encodeURIComponent(file.name),...consentHeaders}});
     return new Promise((resolve,reject)=>{
       const xhr=new XMLHttpRequest(); xhr.open("POST",`${API}/intakes`); xhr.timeout=UPLOAD_TIMEOUT_MS;
       xhr.setRequestHeader("Content-Type","application/octet-stream"); xhr.setRequestHeader("Accept","application/json"); xhr.setRequestHeader("X-Filename",encodeURIComponent(file.name));
+      for(const [key,value] of Object.entries(consentHeaders))xhr.setRequestHeader(key,value);
       state.uploadAbort=()=>xhr.abort(); $("cancel-read-button").hidden=false;
       xhr.upload.onprogress=event=>{if(request===state.intakeRequest)$("intake-status").textContent=event.lengthComputable?`正在传输 ${Math.round(event.loaded/event.total*100)}%` : "正在传输文件…";};
       xhr.upload.onload=()=>{if(request===state.intakeRequest)$("intake-status").textContent="传输完成，正在解包和读取结构…";};
@@ -2256,6 +2267,7 @@
   $("toolkit-implementation").addEventListener("change",renderToolkit);
   $("apply-parameters-button").addEventListener("click",applyParameters);
   $("intake-file").addEventListener("change",chooseLocalFile);
+  $("upload-consent").addEventListener("change",()=>{state.acceptedPrivacyVersion=$("upload-consent").checked?state.catalog?.capabilities?.upload_consent?.version:null;setError("intake-error",null);updateActions();});
   $("intake-upload-button").addEventListener("click",uploadIntake);
   $("intake-restore-button").addEventListener("click",restoreIntake);
   $("pending-intakes-button").addEventListener("click",listPendingIntakes);

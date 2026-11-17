@@ -53,6 +53,8 @@ def main():
         headers = {'Content-Type': 'application/octet-stream' if source else 'application/json'}
         if source:
             headers['X-Filename'] = quote(source.name)
+            policy = call('/api/v1/upload-policy')
+            headers.update({'X-QC-Privacy-Consent': 'agree', 'X-QC-Privacy-Version': policy['version']})
         request = urllib.request.Request(base + path,
             data=source.read_bytes() if source else json.dumps(body).encode() if body is not None else None,
             headers=headers)

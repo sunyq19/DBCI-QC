@@ -16,6 +16,7 @@ sys.path.insert(0, str(REPO / 'src'))
 sys.path.insert(0, str(REPO / 'apps/workbench'))
 from intake import IntakeStore, MAX_UPLOAD_BYTES, suggestions
 from server import Store, Handler
+from upload_policy import VERSION as PRIVACY_VERSION
 
 
 def recording(names=('Cz', 'Pz', 'EOG', 'Temperature'), rates=(100, 100, 100, 1), units=('uV', 'uV', 'uV', 'C')):
@@ -178,7 +179,10 @@ class IntakeHTTPTests(unittest.TestCase):
         cls.temp.cleanup()
 
     def post(self, path, data, headers=None):
-        request = urllib.request.Request(self.url + path, data=data, headers=headers or {'Content-Type': 'application/json'})
+        headers = dict(headers or {'Content-Type': 'application/json'})
+        if path == '/api/v1/intakes':
+            headers.update({'X-QC-Privacy-Consent':'agree', 'X-QC-Privacy-Version':PRIVACY_VERSION})
+        request = urllib.request.Request(self.url + path, data=data, headers=headers)
         try:
             response = self.opener.open(request, timeout=5)
         except urllib.error.HTTPError as error:

@@ -41,6 +41,7 @@
           <span id="file-picker-name" data-i18n-skip hidden></span>
           <input id="intake-file" type="file" accept=".edf,.bdf,.vhdr,.set,.fif,.meta,.nwb,.zip" aria-labelledby="file-picker-title" aria-describedby="file-picker-hint file-picker-name upload-capabilities">
         </label>
+        <div class="upload-consent"><input type="checkbox" id="upload-consent" aria-labelledby="upload-consent-label"><span id="upload-consent-label"><label for="upload-consent">我已阅读并同意</label> <a href="/privacy" target="_blank" rel="noopener">《隐私与数据处理协议》</a></span></div>
         <button id="intake-upload-button" class="button primary" disabled>读取文件</button>
       </div>
       <div id="upload-run-name-field" class="run-name-field"><label class="field-label" for="upload-run-name">质检名称 <span class="muted">（可选）</span></label><input id="upload-run-name" type="text" maxlength="120" autocomplete="off" data-i18n-skip></div>

@@ -63,6 +63,9 @@ def main():
         headers = {'Host': origin.split('://')[1], 'Origin': origin, 'Content-Type': 'application/json'}
         if upload:
             headers.update({'Content-Type': 'application/octet-stream', 'X-Filename': quote(upload.name)})
+            # Acceptance fixtures explicitly consent; production clients must ask the user.
+            policy = call('/api/v1/upload-policy', client=client, direct=direct)
+            headers.update({'X-QC-Privacy-Consent': 'agree', 'X-QC-Privacy-Version': policy['version']})
         headers.update(extra or {})
         data = upload.read_bytes() if upload else json.dumps(body).encode() if body is not None else None
         address = f'http://127.0.0.1:{port}' if direct and not args.url else base
@@ -127,6 +130,15 @@ def main():
             except HTTPError as error:
                 assert error.code == 403
         checks['origin_boundary'] = True
+        for consent in ('', 'false'):
+            try:
+                call('/api/v1/intakes', upload=source, extra={'X-QC-Privacy-Consent': consent})
+                raise AssertionError('Upload accepted without consent')
+            except HTTPError as error:
+                assert error.code == 403
+                assert json.load(error)['code'] == 'privacy_consent_required'
+        assert call('/api/v1/data')['items'] == []
+        checks['upload_consent_required'] = True
         intake = call('/api/v1/intakes', upload=source)
         selected = intake['suggestions']['eeg_indices']
         confirm = {'confirmed': True, 'modality': 'scalp_eeg', 'reference_scheme': 'unknown',

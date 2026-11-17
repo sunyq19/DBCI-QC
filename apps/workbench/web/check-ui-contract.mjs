@@ -17,7 +17,7 @@ function fixtureCatalog() {
   modules.find(m=>m.id==="M06").methods=[rawMethod("hf_burst","conditional"),rawMethod("mne_muscle","optional",{optional_extension:true}),rawMethod("future_check","optional",{implementation:"planned",optional_extension:true})];
   modules.find(m=>m.id==="M04").methods=[rawMethod("thomson_line","conditional"),rawMethod("welch_psd","basic")];
   const inputs = ["rest","attention"].map((task,index) => ({id:`input-${index}`,label:`输入 ${index}`,profile_id:"profile",metadata:{duration_seconds:300,channels:[{index:0,name:"EEG",sampling_rate_hz:160,unit:"uV"}],size_bytes:100},description:"fixture",data_tags:[{key:"sampling_rate_hz",label:"采样率",value:160,display:"160 Hz",kind:"technical",source:"技术头",status:"known"},{key:"coordinates",label:"坐标",value:null,display:"位置未核实",kind:"technical",source:"来源未提供",status:"unknown"},{key:"task",label:"任务",value:task,display:task,kind:"context",source:"来源任务",status:"known"}],default_config:{selection:{eeg_indices:[0],reference_indices:{},start_seconds:0,duration_seconds:30},context_tags:{disease:"unknown",age_group:"unknown",task},method_config:{comparison_groups:["ref"],preserved_option:{a:1}}}}));
-  return {modules,inputs,capabilities:{intake:{max_upload_bytes:2147483648}},profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
+  return {modules,inputs,capabilities:{intake:{max_upload_bytes:2147483648},upload_consent:{version:"fixture-privacy/1",url:"/privacy",required:true}},profiles:[{id:"profile",name:"配置"}],context_tag_options:{disease:[{value:"unknown",label:"未知"},{value:"other",label:"其他"}],age_group:[{value:"unknown",label:"未知"},{value:"adult",label:"成人"}],task:[{value:"unknown",label:"未知"},{value:"rest",label:"静息"},{value:"attention",label:"注意任务"}]}};
 }
 function harness(fetchImpl = async()=>{throw new Error("Unexpected API request in pure JS test")}, {selected = true, hash = "", search = "", serverInputs = false} = {}) {
   const elements = new Map();
@@ -37,7 +37,7 @@ function harness(fetchImpl = async()=>{throw new Error("Unexpected API request i
   const waveformGeometry={module:{exports:{}}};vm.runInNewContext(fs.readFileSync(path.join(directory,"waveform-explorer.js"),"utf8"),waveformGeometry);context.window.QCWaveformGeometry=waveformGeometry.module.exports;
   vm.runInNewContext(instrumented,context);
   const test = context.window.contract;
-  test.state.catalog=fixtureCatalog();if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
+  test.state.catalog=fixtureCatalog();test.state.acceptedPrivacyVersion="fixture-privacy/1";get("upload-consent").checked=true;if(selected)test.selectInput("input-0",{autoPrepare:false});else test.updateActions();
   return {...test,selectInput:(id,options={autoPrepare:false})=>test.selectInput(id,options),get,location,history,storage,setHash(value){location.hash=value;for(const handler of windowEvents.get("hashchange")||[])handler({type:"hashchange"})}};
 }
 function modalityCatalog(modality = "scalp_eeg") {
@@ -79,6 +79,20 @@ check("dataset record context returns to its scoped subject and survives histori
   t.state.job={id:'old',status:'completed'};t.updateActions();assert.equal(t.get('dataset-record-context').hidden,true);
 });
 
+check("upload requires current explicit consent and never restores it from a draft",async()=>{
+  let calls=0;const t=harness(async()=>{calls++;throw new Error('Unexpected upload')},{selected:false});
+  assert(!/<input[^>]*id="upload-consent"[^>]*\bchecked/.test(html));
+  t.get('intake-file').files=[{name:'public.edf',size:123}];
+  t.get('upload-consent').checked=false;t.get('upload-consent').dispatch('change');
+  assert(t.get('intake-upload-button').disabled);await t.uploadIntake();assert.equal(calls,0);
+  t.get('upload-consent').checked=true;t.get('upload-consent').dispatch('change');
+  assert.equal(t.get('intake-upload-button').disabled,false);
+  assert.equal(t.state.acceptedPrivacyVersion,'fixture-privacy/1');
+  t.saveDraft();assert(!JSON.stringify(t.savedDraft()).includes('Privacy'));
+  t.state.catalog.capabilities.upload_consent.version='fixture-privacy/2';t.updateActions();
+  assert.equal(t.get('upload-consent').checked,false);assert(t.get('intake-upload-button').disabled);
+  await t.uploadIntake();assert.equal(calls,0);
+});
 check("upload admission uses server limit and fails closed without capabilities",async()=>{
   let calls=0;const t=harness(async()=>{calls++;throw new Error("Unexpected upload")},{selected:false});
   t.state.catalog.capabilities.intake.max_upload_bytes=10;
@@ -86,7 +100,7 @@ check("upload admission uses server limit and fails closed without capabilities"
   await t.uploadIntake();assert.equal(calls,0);assert(t.get("intake-error").textContent.includes("最大"));
   delete t.state.catalog.capabilities;
   t.get("intake-file").files=[{name:"sample.edf",size:1}];
-  await t.uploadIntake();assert.equal(calls,0);assert(t.get("intake-error").textContent.includes("尚未取得"));
+  await t.uploadIntake();assert.equal(calls,0);assert(t.get("intake-error").textContent.includes("隐私协议"));
 });
 check("complete config copied; background defaults and extensions explicit",()=>{
   const t=harness(), config=t.currentConfig();

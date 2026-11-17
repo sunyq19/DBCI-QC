@@ -123,11 +123,14 @@ def main():
         return content if raw else json.loads(content)
 
     def upload(path):
+        policy = call('/api/v1/upload-policy')
         conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=180)
         try:
             conn.putrequest('POST', '/api/v1/intakes')
             conn.putheader('Content-Type', 'application/octet-stream')
             conn.putheader('X-Filename', quote(path.name))
+            conn.putheader('X-QC-Privacy-Consent', 'agree')
+            conn.putheader('X-QC-Privacy-Version', policy['version'])
             conn.putheader('Content-Length', str(path.stat().st_size))
             conn.endheaders()
             with path.open('rb') as f:

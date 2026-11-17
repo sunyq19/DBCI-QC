@@ -15,6 +15,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT/'src'), str(ROOT/'apps/workbench'), str(ROOT/'tests')]
 from server import Store, Handler
+from upload_policy import VERSION as PRIVACY_VERSION
 from temporary_uploads import TemporaryUploads, POLICY, IDLE_SECONDS, RESULT_SECONDS, MAX_SECONDS
 from test_intake import recording, confirmation
 
@@ -29,7 +30,7 @@ def service(tmp_path):
     thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
     clients = [build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar())) for _ in range(2)]
     def call(path, data=None, client=0, upload=False):
-        headers = {'Content-Type': 'application/octet-stream', 'X-Filename': 'private.edf'} if upload else {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/octet-stream', 'X-Filename': 'private.edf', 'X-QC-Privacy-Consent':'agree', 'X-QC-Privacy-Version':PRIVACY_VERSION} if upload else {'Content-Type': 'application/json'}
         body = data if upload else json.dumps(data).encode() if data is not None else None
         response = clients[client].open(Request(f'http://127.0.0.1:{server.server_port}'+path, data=body, headers=headers))
         with response:

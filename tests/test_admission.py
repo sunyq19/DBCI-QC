@@ -250,6 +250,8 @@ class AdmissionHTTPTests(unittest.TestCase):
         connection.putrequest('POST', '/api/v1/intakes')
         connection.putheader('Content-Type', 'application/octet-stream')
         connection.putheader('X-Filename', 'large.edf')
+        connection.putheader('X-QC-Privacy-Consent', 'agree')
+        connection.putheader('X-QC-Privacy-Version', __import__('upload_policy').VERSION)
         connection.putheader('Content-Length', str(POLICY.max_file_bytes + 1))
         connection.endheaders()
         response = connection.getresponse()

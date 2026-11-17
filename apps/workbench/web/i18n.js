@@ -8,7 +8,11 @@
   "use strict";
   const STORAGE_KEY = "ephys-qc.language";
   const EVENT = "qc:languagechange";
-  const pairs = `计算原理	How it works
+  const pairs = `我已阅读并同意	I have read and agree to
+《隐私与数据处理协议》	Privacy and Data Processing Agreement (Chinese)
+请先阅读并同意隐私协议。	Please read and agree to the privacy agreement before uploading.
+请阅读并勾选当前隐私协议后上传；协议更新时请刷新页面重新确认。	Please agree to the current privacy agreement before uploading. Refresh to review an updated agreement.
+计算原理	How it works
 结果说明	Interpreting results
 不适用情况	When not to use it
 验证情况	Validation

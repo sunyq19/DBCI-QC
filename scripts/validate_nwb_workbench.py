@@ -41,6 +41,8 @@ def main():
         data = json.dumps(body).encode() if body is not None else None
         if upload:
             headers = {'Content-Type': 'application/octet-stream', 'X-Filename': quote(upload.name)}
+            policy = call('/api/v1/upload-policy')
+            headers.update({'X-QC-Privacy-Consent': 'agree', 'X-QC-Privacy-Version': policy['version']})
             data = upload.read_bytes()
         try:
             response = opener.open(urllib.request.Request(args.base + path, data=data, headers=headers), timeout=120)

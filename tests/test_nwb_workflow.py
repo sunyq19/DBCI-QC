@@ -356,7 +356,7 @@ class NWBWorkflowTests(unittest.TestCase):
         base = f'http://127.0.0.1:{server.server_port}'
         def post(route, body, binary=False):
             data = body if binary else json.dumps(body).encode()
-            headers = {'Content-Type': 'application/octet-stream', 'X-Filename': 'fixture.nwb'} if binary else {'Content-Type': 'application/json'}
+            headers = {'Content-Type': 'application/octet-stream', 'X-Filename': 'fixture.nwb', 'X-QC-Privacy-Consent':'agree', 'X-QC-Privacy-Version':__import__('upload_policy').VERSION} if binary else {'Content-Type': 'application/json'}
             try:
                 response = opener.open(urllib.request.Request(base + route, data=data, headers=headers), timeout=15)
             except urllib.error.HTTPError as error:

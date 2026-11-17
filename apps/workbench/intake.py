@@ -295,7 +295,7 @@ class IntakeStore:
                 raise ValueError('本地配套文件的指纹发生变化，请重新打开记录。')
         return source
 
-    def receive(self, filename, length, stream):
+    def receive(self, filename, length, stream, *, consent=None):
         if type(length) is not int or length <= 0:
             raise ValueError('请选择非空数据文件。')
         self.limits.check('file_bytes', length, '上传文件大小')
@@ -341,6 +341,8 @@ class IntakeStore:
                                       'intake_limit_version': self.limits.version}}
             from upload_retention import receipt
             value['library_origin'] = 'user_upload'
+            if consent is not None:
+                value['upload_consent'] = copy.deepcopy(consent)
             value['retention'] = receipt(directory, source, value['received_at'])
             _save(directory / 'intake.json', value)
             return value
