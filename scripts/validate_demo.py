@@ -130,9 +130,12 @@ def main():
             except HTTPError as error:
                 assert error.code == 403
         checks['origin_boundary'] = True
-        for consent in ('', 'false'):
+        consent_probe = root / 'consent-probe.edf'
+        consent_probe.write_bytes(b'0' * (3 * 1024 * 1024))
+        for consent in ({'X-QC-Privacy-Consent': ''}, {'X-QC-Privacy-Consent': 'false'},
+                        {'X-QC-Privacy-Version': 'expired'}):
             try:
-                call('/api/v1/intakes', upload=source, extra={'X-QC-Privacy-Consent': consent})
+                call('/api/v1/intakes', upload=consent_probe if args.url or args.caddy else source, extra=consent)
                 raise AssertionError('Upload accepted without consent')
             except HTTPError as error:
                 assert error.code == 403

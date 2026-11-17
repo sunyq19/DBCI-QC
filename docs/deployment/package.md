@@ -130,6 +130,8 @@ GitHub 的部署测试会从镜像构建开始，实际验证公开 EDF 上传�
 
 上传界面与服务端须成套更新。升级后刷新浏览器，上传前查看 `/privacy` 并勾选同意；默认不选中，公开示例无需勾选。当前协议展示生效日期 2026-11-17、运营主体临港国家实验室；页面不展示未填写的联系及托管占位项，正文反馈途径为联系平台管理员。协议更新时须同步正文和服务端版本并重启服务。
 
+Caddy 配置也需同步：上传前通过 `GET /api/v1/upload-policy/check` 预检同意及版本，避免大文件被后台提前拒绝时网关返回 502。该接口只检查请求头，不读取上传正文、不创建临时会话；真正接收上传时仍再次校验。Docker 包和源码部署模板都包含此设置，机制见 [Caddy forward_auth 文档](https://caddyserver.com/docs/caddyfile/directives/forward_auth)。
+
 API 客户端先读取 `GET /api/v1/upload-policy`，向用户展示协议并取得本次确认，再在上传请求中发送 `X-QC-Privacy-Consent: agree` 和 `X-QC-Privacy-Version: <返回的 version>`。没有确认或版本过期返回 403 `privacy_consent_required`，服务端不保存该请求的上传内容。测试脚本中的同意仅用于明确的公开/合成验收文件，不能照搬为产品自动勾选。
 
 修改 `apps/workbench/web/privacy.html` 后重启服务；协议版本由内容校验值生成。收件元数据中的版本和同意时间与临时文件一起清理。

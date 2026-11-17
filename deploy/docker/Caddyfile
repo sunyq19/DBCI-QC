@@ -5,6 +5,13 @@
     request_body {
         max_size 2147483648
     }
+    @upload {
+        method POST
+        path /api/v1/intakes
+    }
+    forward_auth @upload qc:18769 {
+        uri /api/v1/upload-policy/check
+    }
     @collaboration path /flow /flow/* /api/flow /api/access /api/attachments
     reverse_proxy @collaboration flow:18770 {
         header_up X-Real-IP {remote_host}

@@ -55,5 +55,25 @@ class UploadConsentTests(unittest.TestCase):
             self.assertIn('隐私与数据处理协议',text)
             self.assertIn('仅在上传它的浏览器',text)
 
+    def test_gateway_preflight_rejects_stale_consent_and_creates_no_session(self):
+        from server import Store
+        self.server.temporary=TemporaryUploads(self.server.store,Store)
+        before=set(self.server.store.intakes.root.iterdir())
+        try:
+            for version,expected in [('expired',403),(VERSION,200)]:
+                conn=http.client.HTTPConnection('127.0.0.1',self.server.server_port,timeout=5)
+                self.addCleanup(conn.close)
+                conn.request('GET','/api/v1/upload-policy/check',headers={
+                    'X-QC-Privacy-Consent':'agree','X-QC-Privacy-Version':version})
+                reply=conn.getresponse();result=json.loads(reply.read())
+                self.assertEqual(reply.status,expected)
+                if expected==200:self.assertEqual(result,{'allowed':True,'version':VERSION})
+                else:self.assertEqual(result['code'],'privacy_consent_required')
+            self.assertFalse(self.server.temporary.sessions)
+            self.assertEqual(before,set(self.server.store.intakes.root.iterdir()))
+            self.assertEqual(self.request({})[0],403)
+        finally:
+            self.server.temporary.shutdown();self.server.temporary=None
+
 
 if __name__=='__main__':unittest.main()

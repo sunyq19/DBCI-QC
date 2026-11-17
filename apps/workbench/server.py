@@ -681,13 +681,17 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.check_local()
             path = unquote(urlsplit(self.path).path)
-            if self.command == 'POST' and path == '/api/v1/intakes':
+            consent_check = self.command == 'GET' and path == '/api/v1/upload-policy/check'
+            if consent_check or (self.command == 'POST' and path == '/api/v1/intakes'):
                 # Reject before reading bytes or creating a temporary session.
                 try:
                     self.upload_consent = consent_receipt(self.headers)
                 except PermissionError as exc:
                     self.close_connection = True
                     return self.json({'error': str(exc), 'code': 'privacy_consent_required'}, 403)
+                if consent_check:
+                    # Body-free gateway preflight; it creates no session or stored receipt.
+                    return self.json({'allowed': True, 'version': self.upload_consent['version']})
             from collaboration_route import dispatch as flow_dispatch
             if flow_dispatch(self, path):
                 return

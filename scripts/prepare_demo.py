@@ -113,6 +113,13 @@ WantedBy=multi-user.target
     request_body {{
         max_size 2147483648
     }}
+    @upload {{
+        method POST
+        path /api/v1/intakes
+    }}
+    forward_auth @upload 127.0.0.1:{port} {{
+        uri /api/v1/upload-policy/check
+    }}
 {flow_proxy}    reverse_proxy 127.0.0.1:{port} {{
         transport http {{
             response_header_timeout 1h
