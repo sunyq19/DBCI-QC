@@ -1,4 +1,4 @@
-# 1.1.6 打包部署
+# 1.1.7 打包部署
 
 一个仓库，两种安装形式：本页通过 Docker 自动安装并启动；[源码部署](demo.md)使用已有 Python/Node 环境。算法、报告和协作功能共用代码。
 
@@ -20,12 +20,12 @@
 - Linux x86_64 服务器，Docker Engine 与 Compose v2.20 或更新版本。
 - 建议至少 4 核、16 GiB 内存、100 GiB 可用磁盘。实际计算量取决于记录大小与方法；默认每次运行一项质检任务。
 - 首次构建需要联网下载 Python、Node、Caddy 和算法依赖；无需在宿主机安装 Python、Node 或 Git。
-- 下载 [v1.1.6 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.6)中的 `DBCI-QC-1.1.6-deploy.tar.gz` 与 `SHA256SUMS`。
+- 下载 [v1.1.7 发布文件](https://github.com/sunyq19/DBCI-QC/releases/tag/v1.1.7)中的 `DBCI-QC-1.1.7-deploy.tar.gz` 与 `SHA256SUMS`。
 
 ```bash
 sha256sum -c SHA256SUMS
-tar -xzf DBCI-QC-1.1.6-deploy.tar.gz
-cd DBCI-QC-1.1.6
+tar -xzf DBCI-QC-1.1.7-deploy.tar.gz
+cd DBCI-QC-1.1.7
 sh deploy.sh
 ```
 
@@ -95,7 +95,7 @@ sh deploy.sh          # 启动或重新构建
 
 升级前确认临时上传已处理完，再停止服务。备份需要保留的公共目录配置、协作数据和 `.env`，不要备份用户临时上传。解压新包后复制原 `.env`，如配置过公开源文件挂载，还须复制原 `compose.override.yaml`，然后运行 `sh deploy.sh` 重建并启动。Compose 项目名固定为 `dbci-qc`，更换代码目录不会自动建立另一套数据。不要删除持久卷；恢复协作数据时须连同数据库和附件一起恢复。
 
-1.1.6 启动时会将协作数据库从 WAL 切换到 DELETE 日志模式。请保留原协作持久卷，让 SQLite 在启动时处理旧日志文件。升级后打开首页和一份报告，核对首页响应的 `X-Frame-Options: SAMEORIGIN`、报告内嵌图表的加载和协作历史的读取。
+从 1.1.5 或更早版本升级时，协作服务会在启动时将 SQLite 从 WAL 切换到 DELETE 日志模式。请保留原协作持久卷，让 SQLite 在启动时处理旧日志文件。升级后打开首页和一份报告，核对首页响应的 `X-Frame-Options: SAMEORIGIN`、报告内嵌图表的加载和协作历史的读取。
 
 发布包中的 `RELEASE.json` 记录精确版本和 Git 提交。下载后先核对 `SHA256SUMS`，不要把旧包的页面文件覆盖进新包。已有 `/data/public-catalog.json`、公开源文件及其挂载路径应保留；它们不随代码包自动下载。
 
@@ -153,7 +153,7 @@ API 客户端先读取 `GET /api/v1/upload-policy`，向用户展示协议并取
 开发者从固定提交生成同一版本的文件集合：
 
 ```bash
-python3 scripts/build_deploy_bundle.py --ref v1.1.6 --output /path/to/releases
+python3 scripts/build_deploy_bundle.py --ref v1.1.7 --output /path/to/releases
 ```
 
 包内 `RELEASE.json` 记录版本和 Git 提交，外部 `SHA256SUMS` 校验下载文件。源码目录中的个人配置、运行库和未提交文件不会混入包内。

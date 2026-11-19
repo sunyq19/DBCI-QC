@@ -83,6 +83,38 @@ body.qc-app, body.qc-document {
 .qc-app .site-footer { max-width: var(--page-width); padding: 24px var(--page-inset); margin: auto; }
 .qc-app .connection { display: flex; font-size: var(--text-note); border: 0; padding: 0; gap: 7px; }
 .qc-app .connection.online .status-dot { width: 6px; height: 6px; background: var(--success); box-shadow: none; }
+.qc-app .workbench-service {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 16px 0;
+  color: var(--muted);
+  font-size: var(--text-note);
+}
+.qc-app .qc-legal-footer {
+  display: grid;
+  justify-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 24px var(--page-inset);
+  background: #46505d;
+  color: #dce4ed;
+  font-size: clamp(12px, 3.4vw, 14px);
+  text-align: center;
+}
+.qc-legal-owner {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 clamp(6px, 1.6vw, 12px);
+  margin: 0;
+}
+.qc-legal-owner strong { color: #fff; }
+.qc-legal-footer a { color: inherit; }
+.qc-app .qc-legal-footer a:focus-visible { text-decoration: underline; outline-color: #e1ecff; }
 
 /* Single entry. Supporting tools are quiet rows; the pipeline retains its rail. */
 .qc-app .studio-layout { width:100%; grid-template-columns: minmax(0, .8fr) minmax(0, 1.35fr); grid-template-rows:min-content 1fr; gap:16px 24px; }

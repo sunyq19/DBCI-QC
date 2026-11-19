@@ -83,7 +83,7 @@ class DeploymentTests(unittest.TestCase):
         shared = homepage(original, SETTINGS)
         self.assertIn('data-deployment="shared_demo"', shared)
         self.assertIn('共享演示区', shared)
-        self.assertNotIn('质控台 · 本地处理', shared)
+        self.assertIn('连接服务…', shared)
 
     def test_service_config_created_once_and_without_root(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -141,8 +141,8 @@ check('inputs, selected values, checkbox state, contenteditable and raw JSON are
   api.setLanguage('zh-CN');assert.equal(input.value,'读取文件');assert.equal(option.textContent,'未知');assert.equal(checkbox.checked,true);
 });
 check('explicit keys and accessibility attributes support dynamic content',()=>{
-  const h=harness({saved:'en'}),key=h.element('strong','旧标题',{'data-i18n':'workbench.title'}),button=h.element('button','×',{'aria-label':'关闭模块详情',title:'刷新运行记录'});h.body.append(key,button);const api=h.start();assert.equal(key.textContent,'QC Workbench');assert.equal(button.getAttribute('aria-label'),'Close module details');assert.equal(button.getAttribute('title'),'Refresh run history');
-  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(button.getAttribute('title'),'查看模块详情');
+  const h=harness({saved:'en'}),key=h.element('strong','旧标题',{'data-i18n':'workbench.title'}),button=h.element('button','×',{'aria-label':'关闭模块详情',title:'刷新运行记录'});h.body.append(key,button);const api=h.start();assert.equal(key.textContent,'Brain Data QC');assert.equal(button.getAttribute('aria-label'),'Close module details');assert.equal(button.getAttribute('title'),'Refresh run history');
+  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(key.textContent,'脑电数据质控台');assert.equal(button.getAttribute('title'),'查看模块详情');
 });
 check('dynamic count, range, progress, error and candidate messages are English',()=>{
   const api=harness().start();
@@ -212,6 +212,8 @@ check('translator never mutates source objects or runs network/recommendation/jo
 });
 check('current static HTML system labels have English translations',()=>{
   const api=harness().start();let cleaned=htmlSource.replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi,'').replace(/<!--[\s\S]*?-->/g,'');
+  // Registration and copyright text are published in Chinese in both locales.
+  cleaned=cleaned.replace(/<footer\b[^>]*\btranslate="no"[^>]*>[\s\S]*?<\/footer>/gi,'');
   const labels=[...cleaned.matchAll(/>([^<>]+)</g)].map(m=>m[1].trim()).filter(text=>/[\u3400-\u9fff]/.test(text));
   const exempt=new Set(['中文','简体中文','English','EN','中']);
   const missing=[...new Set(labels.filter(text=>!exempt.has(text)&&/[\u3400-\u9fff]/.test(api.translate(text,'en'))))];

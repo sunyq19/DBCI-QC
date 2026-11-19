@@ -460,6 +460,7 @@ sEEG 触点	sEEG contacts
 背景（可选）	Context (optional)
 当前仅接入 SpikeGLX 原始 AP/LF；其他细胞外记录需另行核验。	Only raw SpikeGLX AP/LF is supported here; other extracellular recordings require separate validation.
 质控台	QC Workbench
+脑电数据质控台	Brain Data QC
 当前不支持此 EDF/BDF TAL 时钟布局：需要从记录时间0开始、覆盖文件头时长的单一连续段；这不表示文件必然损坏。	Unsupported EDF/BDF TAL clock layout: a single continuous segment must start at recording time 0 and cover the header duration. This does not necessarily mean the file is damaged.
 本地处理	Local processing
 质控模态	QC modalities
@@ -2165,7 +2166,7 @@ EDF技术头与选道	EDF technical header and channel selection
   const routePairs = explicitPairs.filter(([label])=>label.includes("ECoG")).flatMap(([label,english])=>[["sEEG","sEEG"],["Neuropixels AP/LF","Neuropixels AP/LF"],["Neuropixels 电压","Neuropixels voltage"]].map(([route,translation])=>[label.replaceAll("ECoG",route),english.replaceAll("ECoG",translation)]));
   const dictionary = Object.freeze(Object.fromEntries([...routePairs,...explicitPairs]));
   const keys = {
-    "workbench.title": ["质控台", "QC Workbench"],
+    "workbench.title": ["脑电数据质控台", dictionary["脑电数据质控台"]],
     "language.label": ["界面语言", "Interface language"],
     "source.chinese": ["中文来源", "Chinese source"],
     "source.original": ["来源原文", "Original source text"],
