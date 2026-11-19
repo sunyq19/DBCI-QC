@@ -26,9 +26,14 @@ def main():
     parser.add_argument('--edf', type=Path)
     parser.add_argument('--url', help='Test a fresh, already running demo at this exact origin; do not restart it')
     parser.add_argument('--caddy', type=Path, help='Also exercise the generated reverse proxy using this local Caddy binary')
+    parser.add_argument('--verify-frame-protection', action='store_true',
+                        help='Require anti-framing headers when testing a deployed gateway with --url')
     args = parser.parse_args()
     if args.url and args.caddy:
         parser.error('--url cannot be combined with --caddy')
+    if args.verify_frame_protection and not (args.url or args.caddy):
+        parser.error('--verify-frame-protection requires --url or --caddy')
+    verify_frame_protection = bool(args.caddy or args.verify_frame_protection)
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
     source = args.edf.resolve() if args.edf else root / 'synthetic.edf'
@@ -59,7 +64,7 @@ def main():
     proxy = None
     log = (root / 'server.log').open('a')
 
-    def call(path, body=None, upload=None, raw=False, client=0, extra=None, direct=False):
+    def call(path, body=None, upload=None, raw=False, client=0, extra=None, direct=False, page=False):
         headers = {'Host': origin.split('://')[1], 'Origin': origin, 'Content-Type': 'application/json'}
         if upload:
             headers.update({'Content-Type': 'application/octet-stream', 'X-Filename': quote(upload.name)})
@@ -70,6 +75,12 @@ def main():
         data = upload.read_bytes() if upload else json.dumps(body).encode() if body is not None else None
         address = f'http://127.0.0.1:{port}' if direct and not args.url else base
         with clients[client].open(Request(address + path, data=data, headers=headers), timeout=180) as response:
+            if page and verify_frame_protection:
+                assert response.headers.get_all('X-Frame-Options') == ['SAMEORIGIN'], path
+                policies = response.headers.get_all('Content-Security-Policy', [])
+                directives = {part.strip() for policy in policies
+                              for part in policy.replace(',', ';').split(';')}
+                assert "frame-ancestors 'self'" in directives, path
             data = response.read()
         return data if raw else json.loads(data)
 
@@ -112,7 +123,7 @@ def main():
             checks['real_reverse_proxy'] = True
         health = start()
         assert call('/api/v1/data')['items'] == []
-        home = call('/', raw=True).decode()
+        home = call('/', raw=True, page=True).decode()
         assert 'data-deployment="shared_demo"' in home and 'data-upload-policy="temporary"' in home
         manifest = json.loads((REPO / 'apps/workbench/example-cache/manifest.json').read_text())
         assert len(manifest['examples']) == 8
@@ -181,13 +192,15 @@ def main():
                            'components': {k: parts[k]['value'] for k in ('integrity', 'line_noise', 'hf_burst')}}
         (root / 'result-summary.json').write_text(json.dumps(result, ensure_ascii=False, indent=2))
         prefix = '/api/v1/jobs/' + identifier
-        report = call(prefix + '/report', raw=True)
+        report = call(prefix + '/report', raw=True, page=True)
         pdf = call(prefix + '/report.pdf', raw=True)
         assert b'EEG' in report and pdf.startswith(b'%PDF-')
         (root / 'report.html').write_bytes(report)
         (root / 'report.pdf').write_bytes(pdf)
-        charts = call(prefix + '/visualizations?embedded=1', raw=True)
+        charts = call(prefix + '/visualizations?embedded=1', raw=True, page=True)
         assert b'<html' in charts.lower()
+        if verify_frame_protection:
+            checks['frame_protection'] = True
         wave = call(prefix + '/waveform-window?start_seconds=0&duration_seconds=2&channel_indices=0,1&max_points=400')
         assert len(wave['channels']) == 2
         library = call('/api/v1/data', client=1)

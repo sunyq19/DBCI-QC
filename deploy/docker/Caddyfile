@@ -2,6 +2,12 @@
     admin off
 }
 {$CADDY_SITE} {
+    # Report charts use a same-origin iframe.
+    header {
+        X-Frame-Options SAMEORIGIN
+        +Content-Security-Policy "frame-ancestors 'self'"
+        defer
+    }
     request_body {
         max_size 2147483648
     }

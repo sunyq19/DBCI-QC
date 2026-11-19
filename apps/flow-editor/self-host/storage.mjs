@@ -7,7 +7,13 @@ import path from 'node:path';
 export function openDatabase(file,migrations){
  mkdirSync(path.dirname(file),{recursive:true,mode:0o700});
  const sql=new DatabaseSync(file);
- sql.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS self_host_migrations (name TEXT PRIMARY KEY)');
+ sql.exec(`
+  PRAGMA busy_timeout=5000;
+  PRAGMA journal_mode=DELETE;
+  PRAGMA synchronous=FULL;
+  PRAGMA foreign_keys=ON;
+  CREATE TABLE IF NOT EXISTS self_host_migrations (name TEXT PRIMARY KEY);
+ `);
  for(const name of readdirSync(migrations).filter(n=>n.endsWith('.sql')).sort()){
   if(sql.prepare('SELECT name FROM self_host_migrations WHERE name=?').get(name))continue;
   sql.exec('BEGIN IMMEDIATE');

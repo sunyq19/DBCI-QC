@@ -7,6 +7,27 @@ import {spawn} from 'node:child_process';
 import {pbkdf2Sync,randomBytes} from 'node:crypto';
 import {request as httpRequest} from 'node:http';
 import {openDatabase,diskBucket} from '../self-host/storage.mjs';
+test('rollback journal and full sync preserve an existing WAL database',async()=>{
+ const root=mkdtempSync(path.join(os.tmpdir(),'flow-journal-')),file=path.join(root,'flow.sqlite');
+ let db=openDatabase(file,'drizzle');
+ try{
+  assert.equal(db.sql.prepare('PRAGMA journal_mode').get().journal_mode,'delete');
+  assert.equal(db.sql.prepare('PRAGMA synchronous').get().synchronous,2);
+  const migrations=db.sql.prepare('SELECT name FROM self_host_migrations ORDER BY name').all();
+  // Reproduce a database written by the previous WAL-based release.
+  db.sql.exec('PRAGMA journal_mode=WAL');
+  assert.equal(db.sql.prepare('PRAGMA journal_mode').get().journal_mode,'wal');
+  await db.prepare('INSERT INTO flow_unlock_attempts VALUES (?,?,?)').bind('legacy',1,2).run();
+  db.close();db=null;db=openDatabase(file,'drizzle');
+  assert.equal(db.sql.prepare('PRAGMA journal_mode').get().journal_mode,'delete');
+  assert.equal(db.sql.prepare('PRAGMA synchronous').get().synchronous,2);
+  assert.equal(db.sql.prepare('PRAGMA foreign_keys').get().foreign_keys,1);
+  assert.equal(db.sql.prepare('PRAGMA busy_timeout').get().timeout,5000);
+  assert.deepEqual(db.sql.prepare('SELECT name FROM self_host_migrations ORDER BY name').all(),migrations);
+  assert.equal((await db.prepare('SELECT * FROM flow_unlock_attempts WHERE client_hash=?').bind('legacy').first()).attempts,2);
+  assert.equal(db.sql.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
+ }finally{db?.close();rmSync(root,{recursive:true,force:true});}
+});
 test('persistent database, atomic batch rollback and attachments',async()=>{
  const root=mkdtempSync(path.join(os.tmpdir(),'flow-storage-'));let db=openDatabase(path.join(root,'flow.sqlite'),'drizzle');
  try{

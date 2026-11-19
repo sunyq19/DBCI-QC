@@ -30,6 +30,8 @@ node scripts/build-self-host.mjs
 持久化目录：`/mnt/sdb/DBCI-QC/flow/data/`；密码校验文件在同级 `config/`。
 服务示例见 `dbci-flow.service`。更新发布目录时不要覆盖 `data`、`config`。
 
+SQLite 使用 `journal_mode=DELETE`、`synchronous=FULL`，保留外键检查和 5 秒锁等待。升级旧 WAL 配置时，先停止模块协作服务并备份数据，再替换构建产物、启动服务；启动时由 SQLite 切换日志模式，保留已有草稿和版本。不要手动删除旧数据库旁的 `-wal`、`-shm` 文件。此设置不改变质控上传文件的清理规则。
+
 仅从旧 Sites 服务导入时运行 `scripts/import-site-snapshot.mjs`；导入逐条校验文档散列并拒绝覆盖已有数据库。备份运行中的数据库应使用 SQLite backup API，同时复制附件目录，避免仅复制正在写入的数据库主文件。
 
 012 现有入口用于内网演示；云端由反向代理提供 HTTPS，密码编辑与匿名查看规则不变。原始质控数据不存入协作数据库。
