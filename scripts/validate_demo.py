@@ -64,7 +64,8 @@ def main():
     proxy = None
     log = (root / 'server.log').open('a')
 
-    def call(path, body=None, upload=None, raw=False, client=0, extra=None, direct=False, page=False):
+    def call(path, body=None, upload=None, raw=False, client=0, extra=None, direct=False, page=False,
+             declared_upload_size=None):
         headers = {'Host': origin.split('://')[1], 'Origin': origin, 'Content-Type': 'application/json'}
         if upload:
             headers.update({'Content-Type': 'application/octet-stream', 'X-Filename': quote(upload.name)})
@@ -72,9 +73,16 @@ def main():
             policy = call('/api/v1/upload-policy', client=client, direct=direct)
             headers.update({'X-QC-Privacy-Consent': 'agree', 'X-QC-Privacy-Version': policy['version']})
         headers.update(extra or {})
-        data = upload.read_bytes() if upload else json.dumps(body).encode() if body is not None else None
+        if declared_upload_size is not None:
+            # A denied upload must get a final response before sending bytes.
+            # Sending the body first races the gateway's early connection close.
+            headers.update({'Content-Length': str(declared_upload_size), 'Expect': '100-continue'})
+            data = b''
+        else:
+            data = upload.read_bytes() if upload else json.dumps(body).encode() if body is not None else None
         address = f'http://127.0.0.1:{port}' if direct and not args.url else base
-        with clients[client].open(Request(address + path, data=data, headers=headers), timeout=180) as response:
+        timeout = 10 if declared_upload_size is not None else 180
+        with clients[client].open(Request(address + path, data=data, headers=headers), timeout=timeout) as response:
             if page and verify_frame_protection:
                 assert response.headers.get_all('X-Frame-Options') == ['SAMEORIGIN'], path
                 policies = response.headers.get_all('Content-Security-Policy', [])
@@ -141,12 +149,11 @@ def main():
             except HTTPError as error:
                 assert error.code == 403
         checks['origin_boundary'] = True
-        consent_probe = root / 'consent-probe.edf'
-        consent_probe.write_bytes(b'0' * (3 * 1024 * 1024))
         for consent in ({'X-QC-Privacy-Consent': ''}, {'X-QC-Privacy-Consent': 'false'},
                         {'X-QC-Privacy-Version': 'expired'}):
             try:
-                call('/api/v1/intakes', upload=consent_probe if args.url or args.caddy else source, extra=consent)
+                call('/api/v1/intakes', upload=source, extra=consent,
+                     declared_upload_size=3 * 1024 * 1024)
                 raise AssertionError('Upload accepted without consent')
             except HTTPError as error:
                 assert error.code == 403
