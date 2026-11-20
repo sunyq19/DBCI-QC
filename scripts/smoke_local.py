@@ -48,7 +48,7 @@ def main():
                 manifest = json.loads((ROOT / 'apps/workbench/example-cache/manifest.json').read_text())
                 example_count = len(manifest['examples'])
                 assert example_count == 8, 'Eight cached dataset examples are required'
-                paths = ['/', '/standards'] + [row['url'] for row in manifest['examples']]
+                paths = ['/', '/platform-header.css', '/standards'] + [row['url'] for row in manifest['examples']]
                 pdfs = [name for name in manifest['files'] if name.endswith('.pdf')]
                 assert pdfs, 'Cached PDF report is missing'
                 paths.append('/examples/' + manifest['release'] + '/' + pdfs[0])

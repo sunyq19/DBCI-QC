@@ -9,7 +9,9 @@
   <link rel="icon" type="image/png" href="/linjian-mark.png">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./datasets.css">
-  <link rel="stylesheet" href="/ui-tokens.css"><link rel="stylesheet" href="/workbench-ui.css">
+  <link rel="stylesheet" href="/ui-tokens.css">
+  <link rel="stylesheet" href="/workbench-ui.css">
+  <link rel="stylesheet" href="/platform-header.css">
   <script src="./i18n.js" defer></script>
   <script src="/run-names.js" defer></script>
   <script src="/waveform-explorer.js" defer></script>
@@ -18,10 +20,10 @@
 </head>
 <body class="qc-app">
   <a class="skip-link" href="#main">跳到工作台</a>
-  <header class="site-header">
-    <a class="brand" href="/"><img class="brand-logo" src="/linjian-logo.png" width="5620" height="795" alt="临鉴 linjian"><strong data-i18n="workbench.title">质控台</strong></a>
-    <div class="header-actions">
-      <nav aria-label="工作台导航"><a href="/flow/" target="_blank" rel="noopener noreferrer">模块协作</a><a id="standards-link" href="/standards/overview">质控标准</a></nav>
+  <header class="site-header platform-header">
+    <a class="brand platform-brand" href="/"><img class="brand-logo" src="/linjian-logo.png" width="5620" height="795" alt="临鉴 linjian"><strong data-i18n="workbench.title">质控台</strong></a>
+    <div class="header-actions platform-header-actions">
+      <nav aria-label="工作台导航"><a class="platform-nav-link" href="/flow/" target="_blank" rel="noopener noreferrer">模块协作</a><a class="platform-nav-link" id="standards-link" href="/standards/overview">质控标准</a></nav>
       <div class="language-switch" role="group" aria-label="界面语言"><button type="button" data-language="zh-CN" aria-pressed="true">中文</button><button type="button" data-language="en" aria-pressed="false">EN</button></div>
     </div>
   </header>
