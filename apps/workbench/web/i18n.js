@@ -460,7 +460,6 @@ sEEG 触点	sEEG contacts
 背景（可选）	Context (optional)
 当前仅接入 SpikeGLX 原始 AP/LF；其他细胞外记录需另行核验。	Only raw SpikeGLX AP/LF is supported here; other extracellular recordings require separate validation.
 质控台	QC Workbench
-脑电数据质控台	Brain Data QC
 当前不支持此 EDF/BDF TAL 时钟布局：需要从记录时间0开始、覆盖文件头时长的单一连续段；这不表示文件必然损坏。	Unsupported EDF/BDF TAL clock layout: a single continuous segment must start at recording time 0 and cover the header duration. This does not necessarily mean the file is damaged.
 本地处理	Local processing
 质控模态	QC modalities
@@ -2160,13 +2159,15 @@ EDF技术头与选道	EDF technical header and channel selection
     ["信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。","Integrity uses the finite, nonconstant sample fraction; line noise uses the unflagged channel-window fraction; high-frequency bursts use the noncandidate channel-time fraction. The total is their mean."],
     ["三项齐备才计算总分。分数不是可用数据百分比，尚未经过专家校准。","All three checks are required for a total. This is not a percentage of usable data and has not been expert-calibrated."]
   ];
-  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs, ...reportPairs];
+  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs, ...reportPairs,
+    ["临鉴 linjian | 质控台", "Linjian | QC Workbench"]];
   // The descriptive catalogs adapt known ECoG text with these exact route labels.
   // Derive whole-phrase translations only; never replace arbitrary source text.
   const routePairs = explicitPairs.filter(([label])=>label.includes("ECoG")).flatMap(([label,english])=>[["sEEG","sEEG"],["Neuropixels AP/LF","Neuropixels AP/LF"],["Neuropixels 电压","Neuropixels voltage"]].map(([route,translation])=>[label.replaceAll("ECoG",route),english.replaceAll("ECoG",translation)]));
   const dictionary = Object.freeze(Object.fromEntries([...routePairs,...explicitPairs]));
   const keys = {
-    "workbench.title": ["脑电数据质控台", dictionary["脑电数据质控台"]],
+    "workbench.title": ["质控台", "QC Workbench"],
+    "workbench.pageTitle": ["临鉴 linjian | 质控台", dictionary["临鉴 linjian | 质控台"]],
     "language.label": ["界面语言", "Interface language"],
     "source.chinese": ["中文来源", "Chinese source"],
     "source.original": ["来源原文", "Original source text"],

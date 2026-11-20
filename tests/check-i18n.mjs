@@ -141,8 +141,17 @@ check('inputs, selected values, checkbox state, contenteditable and raw JSON are
   api.setLanguage('zh-CN');assert.equal(input.value,'读取文件');assert.equal(option.textContent,'未知');assert.equal(checkbox.checked,true);
 });
 check('explicit keys and accessibility attributes support dynamic content',()=>{
-  const h=harness({saved:'en'}),key=h.element('strong','旧标题',{'data-i18n':'workbench.title'}),button=h.element('button','×',{'aria-label':'关闭模块详情',title:'刷新运行记录'});h.body.append(key,button);const api=h.start();assert.equal(key.textContent,'Brain Data QC');assert.equal(button.getAttribute('aria-label'),'Close module details');assert.equal(button.getAttribute('title'),'Refresh run history');
-  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(key.textContent,'脑电数据质控台');assert.equal(button.getAttribute('title'),'查看模块详情');
+  const h=harness({saved:'en'});
+  const key=h.element('strong','质控台',{'data-i18n':'workbench.title'});
+  const pageTitle=h.element('title','临鉴 linjian | 质控台',{'data-i18n':'workbench.pageTitle'});
+  const button=h.element('button','×',{'aria-label':'关闭模块详情',title:'刷新运行记录'});
+  h.body.append(key,pageTitle,button);
+  const api=h.start();
+  assert.equal(key.textContent,'QC Workbench');
+  assert.equal(pageTitle.textContent,'Linjian | QC Workbench');
+  assert.equal(button.getAttribute('aria-label'),'Close module details');
+  assert.equal(button.getAttribute('title'),'Refresh run history');
+  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(key.textContent,'质控台');assert.equal(pageTitle.textContent,'临鉴 linjian | 质控台');assert.equal(button.getAttribute('title'),'查看模块详情');
 });
 check('dynamic count, range, progress, error and candidate messages are English',()=>{
   const api=harness().start();
