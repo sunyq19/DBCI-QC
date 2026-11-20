@@ -100,9 +100,13 @@ export default function FlowPage({published}:{published?:Snapshot}={}){
  async function copyLink(){const url=new URL(flowBase(),location.origin);if(snapshot?.version)url.searchParams.set('version',snapshot.version.id);else if(snapshot?.view==='history')url.searchParams.set('revision',String(snapshot.revision));try{await navigator.clipboard.writeText(url.href);toast('链接已复制');}catch{prompt('复制链接',url.href);}}
  useEffect(()=>{const fn=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();void save();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA','SELECT'].includes((e.target as HTMLElement).tagName)){e.preventDefault();e.shiftKey?redo():undo();}if(e.key==='Escape')setLinkFrom('');};window.addEventListener('keydown',fn);return()=>window.removeEventListener('keydown',fn);});
  const brandBase=flowBase();
- if(!doc||!snapshot)return <div className="flow-startup"><main className="startup"><img src={brandBase + "linjian-mark.png"} width={32} height={27} alt="临鉴"/><h1>模块协作</h1><p>{error||'正在打开…'}</p>{error&&<><button onClick={()=>{const q=new URLSearchParams(location.search);void load(q.has('version')?{version:q.get('version')!}:q.has('revision')?{revision:q.get('revision')!}:{},false);}}>重试</button>{published&&<button onClick={()=>{setSnapshot(published);setDoc(published.doc);setError('');window.history.replaceState(null,'',flowBase());}}>先查看模块发布版</button>}</>}</main><SiteFooter/></div>;
+ if(!doc||!snapshot)return <>
+  <div className="flow-startup"><main className="startup"><img src={brandBase + "linjian-mark.png"} width={32} height={27} alt="临鉴"/><h1>模块协作</h1><p>{error||'正在打开…'}</p>{error&&<><button onClick={()=>{const q=new URLSearchParams(location.search);void load(q.has('version')?{version:q.get('version')!}:q.has('revision')?{revision:q.get('revision')!}:{},false);}}>重试</button>{published&&<button onClick={()=>{setSnapshot(published);setDoc(published.doc);setError('');window.history.replaceState(null,'',flowBase());}}>先查看模块发布版</button>}</>}</main></div>
+  <SiteFooter/>
+ </>;
  const display=filterFlow(doc,filter),parent=active?findParent(doc.nodes,active.id):undefined,hidden=nodes.filter(n=>n.sketch?.hidden);
- return <div className="app-shell sketch-workspace" onPointerDownCapture={clearFromBackground}>
+ return <>
+ <div className="app-shell sketch-workspace" onPointerDownCapture={clearFromBackground}>
   <BuildUpdate dirty={dirty}/>
   <header className="workspace-header platform-header">
    <div className="branding platform-brand">
@@ -132,7 +136,6 @@ export default function FlowPage({published}:{published?:Snapshot}={}){
    <div className="inspector-bar"><strong>{activeEdge?'连接详情':'模块详情'}</strong><button ref={inspectorClose} onClick={closeInspector} aria-label="收起详情" title="收起详情"><PanelRightClose size={17}/><span>收起</span></button></div>
    {activeEdge?<div className="edge-editor"><h2>连接</h2><p>{nodeTitle(nodes.find(n=>n.id===activeEdge.source)!)} → {nodeTitle(nodes.find(n=>n.id===activeEdge.target)!)}</p><label>连线文字<input aria-label="连线文字" disabled={!writable} maxLength={80} value={activeEdge.label} placeholder="例如：满足条件时" onChange={e=>change({...doc,drawing:{edges:edges.map(v=>v.id===activeEdge.id?{...v,label:e.target.value}:v)}})}/></label>{writable&&<button className="remove-module" onClick={()=>{change({...doc,drawing:{edges:edges.filter(v=>v.id!==activeEdge.id)}});setSelectedEdge('');}}><Trash2 size={15}/>删除连线</button>}</div>:active&&!active.sketch?.hidden?<>{parent&&<button className="parent-link" onClick={()=>select(parent.id)}>← {nodeTitle(parent)}</button>}<DraftPanel key={active.id} node={active} writable={writable} busy={busy} patch={fields=>patch(active.id,fields)} select={select} remove={()=>hide(active.id)} discuss={discuss} connect={()=>{setLinkFrom(active.id);if(compact)closeInspector();}} beginEditing={beginEditing}/>{writable&&<button className="add-child" onClick={()=>add(active.id)}><Plus size={14}/>添加子模块</button>}</>:<div className="empty-inspector"><h2>选中一个模块</h2><p>写文字、加附件，连接下一步。</p>{writable&&<button onClick={()=>add()}><Plus size={15}/>添加模块</button>}</div>}
   </aside></div>
-  <SiteFooter/>
   <input ref={filePicker} type="file" hidden accept=".json" onChange={e=>void importJson(e.target.files?.[0])}/>
   {message&&<div className="toast" role="status"><Check size={16}/>{message}</div>}{loading&&<div className="loading-line"/>}
   {modal&&<Modal title={modal==='access'?(session.canEdit?'编辑权限':'输入编辑密码'):modal==='freeze'?'保存一个版本':modal==='delete-version'?'删除版本':'版本与修改记录'} close={()=>{if(!busy){pendingBranch.current=false;setModal('');}}}>
@@ -142,5 +145,7 @@ export default function FlowPage({published}:{published?:Snapshot}={}){
    {modal==='freeze'&&<form onSubmit={e=>{e.preventDefault();void freeze();}}><label>版本名称<input aria-label="版本名称" autoFocus maxLength={40} required value={label} onChange={e=>setLabel(e.target.value)} placeholder="例如：11月例会讨论版"/></label><p>文字、附件和连接一起保存，之后可从此版继续改。</p><div className="modal-actions"><button className="primary" disabled={busy||!label.trim()}>{busy?'保存中…':'保存版本'}</button></div></form>}
    {modal==='history'&&<div className="history-content"><h3>固定版本</h3>{snapshot.versions.map(v=><div className="version-history-row" key={v.id}><button className="history-row" onClick={()=>void load({version:v.id})}><LockKeyhole size={16}/><span><strong>{v.label}</strong><small>{v.note}</small></span><time>{date(v.created_at)}</time></button>{session.canEdit&&v.canDelete&&<button className="icon danger-icon" disabled={dirty||busy} aria-label={"删除版本："+v.label} title="删除版本" onClick={()=>askDeleteVersion(v)}><Trash2 size={16}/></button>}</div>)}<h3>保存记录</h3>{history.map(r=><button className="history-row" key={r.revision} onClick={()=>void load({revision:String(r.revision)})}><span><strong>r{r.revision}</strong><small>{r.based_on_revision?'基于 r'+r.based_on_revision+' · ':''}{r.note}</small></span><time>{date(r.created_at)}</time></button>)}</div>}
   </Modal>}
- </div>;
+ </div>
+ <SiteFooter/>
+ </>;
 }

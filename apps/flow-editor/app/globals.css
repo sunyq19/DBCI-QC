@@ -79,7 +79,6 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 .flow-startup { display: flex; flex-direction: column; min-height: 100dvh; }
 .flow-startup .startup { flex: 1; min-height: 0; }
 .qc-legal-footer {
-  flex: none;
   display: grid;
   justify-items: center;
   gap: 3px;
