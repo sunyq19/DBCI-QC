@@ -20,6 +20,18 @@ const date=(s:string)=>new Date(s).toLocaleString('zh-CN',{month:'2-digit',day:'
 function Modal({title,children,close}:{title:string;children:ReactNode;close:()=>void}){const ref=useRef<HTMLDialogElement>(null);useEffect(()=>{ref.current?.showModal();},[]);return <dialog ref={ref} onCancel={e=>{e.preventDefault();close();}} onClick={e=>{if(e.target===e.currentTarget)close();}}><div className="modal-head"><h2>{title}</h2><button className="icon" onClick={close} aria-label="关闭"><X size={20}/></button></div>{children}</dialog>;}
 async function request<T=Record<string,unknown>>(path:string,options?:RequestInit):Promise<T>{const headers=new Headers(options?.headers);for(const [k,v] of Object.entries(editorHeaders()))headers.set(k,v);return fetchFlowJson<T>(apiUrl(path),{...options,headers});}
 function post<T>(body:unknown){return request<T>('/api/flow',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+function SiteFooter() {
+ return (
+  <footer className="qc-legal-footer" lang="zh-CN" translate="no" aria-label="网站与备案信息">
+   <p className="qc-legal-owner">
+    <strong>临鉴脑电数据质控平台</strong>
+    <span aria-hidden="true">|</span>
+    <span>版权所有 ©2026 临港实验室</span>
+   </p>
+   <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank" rel="noopener noreferrer">沪ICP备2023014933号-1</a>
+  </footer>
+ );
+}
 export default function FlowPage({published}:{published?:Snapshot}={}){
  const [initial]=useState(()=>initialSnapshot(published,typeof location==='undefined'?'':location.search));
  const [connection,setConnection]=useState<'connecting'|'online'|'unavailable'>(published?'connecting':'online');
@@ -88,7 +100,7 @@ export default function FlowPage({published}:{published?:Snapshot}={}){
  async function copyLink(){const url=new URL(flowBase(),location.origin);if(snapshot?.version)url.searchParams.set('version',snapshot.version.id);else if(snapshot?.view==='history')url.searchParams.set('revision',String(snapshot.revision));try{await navigator.clipboard.writeText(url.href);toast('链接已复制');}catch{prompt('复制链接',url.href);}}
  useEffect(()=>{const fn=(e:KeyboardEvent)=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();void save();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA','SELECT'].includes((e.target as HTMLElement).tagName)){e.preventDefault();e.shiftKey?redo():undo();}if(e.key==='Escape')setLinkFrom('');};window.addEventListener('keydown',fn);return()=>window.removeEventListener('keydown',fn);});
  const brandBase=flowBase();
- if(!doc||!snapshot)return <main className="startup"><img src={brandBase + "linjian-mark.png"} width={32} height={27} alt="临鉴"/><h1>模块协作</h1><p>{error||'正在打开…'}</p>{error&&<><button onClick={()=>{const q=new URLSearchParams(location.search);void load(q.has('version')?{version:q.get('version')!}:q.has('revision')?{revision:q.get('revision')!}:{},false);}}>重试</button>{published&&<button onClick={()=>{setSnapshot(published);setDoc(published.doc);setError('');window.history.replaceState(null,'',flowBase());}}>先查看模块发布版</button>}</>}</main>;
+ if(!doc||!snapshot)return <div className="flow-startup"><main className="startup"><img src={brandBase + "linjian-mark.png"} width={32} height={27} alt="临鉴"/><h1>模块协作</h1><p>{error||'正在打开…'}</p>{error&&<><button onClick={()=>{const q=new URLSearchParams(location.search);void load(q.has('version')?{version:q.get('version')!}:q.has('revision')?{revision:q.get('revision')!}:{},false);}}>重试</button>{published&&<button onClick={()=>{setSnapshot(published);setDoc(published.doc);setError('');window.history.replaceState(null,'',flowBase());}}>先查看模块发布版</button>}</>}</main><SiteFooter/></div>;
  const display=filterFlow(doc,filter),parent=active?findParent(doc.nodes,active.id):undefined,hidden=nodes.filter(n=>n.sketch?.hidden);
  return <div className="app-shell sketch-workspace" onPointerDownCapture={clearFromBackground}>
   <BuildUpdate dirty={dirty}/>
@@ -116,6 +128,7 @@ export default function FlowPage({published}:{published?:Snapshot}={}){
    <div className="inspector-bar"><strong>{activeEdge?'连接详情':'模块详情'}</strong><button ref={inspectorClose} onClick={closeInspector} aria-label="收起详情" title="收起详情"><PanelRightClose size={17}/><span>收起</span></button></div>
    {activeEdge?<div className="edge-editor"><h2>连接</h2><p>{nodeTitle(nodes.find(n=>n.id===activeEdge.source)!)} → {nodeTitle(nodes.find(n=>n.id===activeEdge.target)!)}</p><label>连线文字<input aria-label="连线文字" disabled={!writable} maxLength={80} value={activeEdge.label} placeholder="例如：满足条件时" onChange={e=>change({...doc,drawing:{edges:edges.map(v=>v.id===activeEdge.id?{...v,label:e.target.value}:v)}})}/></label>{writable&&<button className="remove-module" onClick={()=>{change({...doc,drawing:{edges:edges.filter(v=>v.id!==activeEdge.id)}});setSelectedEdge('');}}><Trash2 size={15}/>删除连线</button>}</div>:active&&!active.sketch?.hidden?<>{parent&&<button className="parent-link" onClick={()=>select(parent.id)}>← {nodeTitle(parent)}</button>}<DraftPanel key={active.id} node={active} writable={writable} busy={busy} patch={fields=>patch(active.id,fields)} select={select} remove={()=>hide(active.id)} discuss={discuss} connect={()=>{setLinkFrom(active.id);if(compact)closeInspector();}} beginEditing={beginEditing}/>{writable&&<button className="add-child" onClick={()=>add(active.id)}><Plus size={14}/>添加子模块</button>}</>:<div className="empty-inspector"><h2>选中一个模块</h2><p>写文字、加附件，连接下一步。</p>{writable&&<button onClick={()=>add()}><Plus size={15}/>添加模块</button>}</div>}
   </aside></div>
+  <SiteFooter/>
   <input ref={filePicker} type="file" hidden accept=".json" onChange={e=>void importJson(e.target.files?.[0])}/>
   {message&&<div className="toast" role="status"><Check size={16}/>{message}</div>}{loading&&<div className="loading-line"/>}
   {modal&&<Modal title={modal==='access'?(session.canEdit?'编辑权限':'输入编辑密码'):modal==='freeze'?'保存一个版本':modal==='delete-version'?'删除版本':'版本与修改记录'} close={()=>{if(!busy){pendingBranch.current=false;setModal('');}}}>

@@ -87,6 +87,33 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 @media(max-width:1000px){.sketch-workspace .work-area{grid-template-columns:minmax(0,1fr) 340px}.workspace-right select{width:140px}.workspace-toolbar{padding-inline:12px}.workspace-header{padding-inline:15px}.draft-panel{padding:15px}.draft-title{font-size:20px!important}.document-status{display:none}}
 @media(max-width:720px){.sketch-workspace{height:auto;min-height:100vh}.sketch-workspace .work-area{display:block}.sketch-workspace .graph-pane{height:65vh;min-height:400px}.sketch-workspace .inspector{height:auto;max-height:none;border-top:1px solid var(--line)}.workspace-right{width:100%;margin-top:5px;justify-content:flex-end}.workspace-header .head-actions{gap:6px}.workspace-header{padding:0 12px}.workspace-toolbar{gap:4px}.canvas-context>span{font-size:11px}.workspace-footer{padding-inline:12px}.image-lightbox{padding:16px}.draft-panel{padding:20px}.draft-body{min-height:180px}.sketch-workspace .hierarchy-scroll{overflow:auto}.visual-example{max-width:580px}}
 
+.flow-startup { display: flex; flex-direction: column; min-height: 100dvh; }
+.flow-startup .startup { flex: 1; min-height: 0; }
+.qc-legal-footer {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 10px 12px;
+  background: #46505d;
+  color: #dce4ed;
+  font-size: clamp(12px, 2.8vw, 13px);
+  line-height: 1.4;
+  text-align: center;
+}
+.qc-legal-owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0 clamp(6px, 1.6vw, 12px);
+  margin: 0;
+}
+.qc-legal-owner strong { color: #fff; }
+.qc-legal-footer a { color: inherit; }
+.qc-legal-footer a:is(:hover, :focus-visible) { text-decoration: underline; }
+.qc-legal-footer a:focus-visible { outline: 2px solid #e1ecff; outline-offset: 2px; }
+
 /* Shared scope controls and a collapsible inspector across both views. */
 .scope-filter{display:flex;align-items:center;gap:8px;font-weight:400;font-size:12px;color:#708198;min-width:0}
 .scope-filter select{width:142px;margin:0;font-size:12px;padding:6px 9px}
