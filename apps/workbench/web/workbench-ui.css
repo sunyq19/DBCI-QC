@@ -35,8 +35,11 @@ body.qc-app, body.qc-document {
   gap: 24px; background: var(--surface); flex-wrap: nowrap;
 }
 .qc-app .brand { gap: 9px; color: var(--ink); }
+html[lang="zh-CN"] .qc-app .brand-logo { width: clamp(104px, 32vw, 142px); }
 .qc-app .brand strong {
   display: block;
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 9px;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;

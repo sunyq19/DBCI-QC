@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "临策数据质控平台 | 模块协作",
+  title: "临鉴 linjian | 模块协作",
   description: "质控模块、启用条件与评分方案。共同维护，固定版本。",
   icons: {
-    icon: { url: "/platform-mark.png", type: "image/png" },
+    icon: { url: "/linjian-mark.png", type: "image/png" },
   },
 };
 
