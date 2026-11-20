@@ -142,16 +142,16 @@ check('inputs, selected values, checkbox state, contenteditable and raw JSON are
 });
 check('explicit keys and accessibility attributes support dynamic content',()=>{
   const h=harness({saved:'en'});
-  const key=h.element('strong','质控台',{'data-i18n':'workbench.title'});
-  const pageTitle=h.element('title','临鉴 linjian | 质控台',{'data-i18n':'workbench.pageTitle'});
+  const key=h.element('strong','旧标题',{'data-i18n':'upload.read'});
+  const pageTitle=h.element('title','临策数据质控平台',{translate:'no'});
   const button=h.element('button','×',{'aria-label':'关闭模块详情',title:'刷新运行记录'});
   h.body.append(key,pageTitle,button);
   const api=h.start();
-  assert.equal(key.textContent,'QC Workbench');
-  assert.equal(pageTitle.textContent,'Linjian | QC Workbench');
+  assert.equal(key.textContent,'Read file');
+  assert.equal(pageTitle.textContent,'临策数据质控平台');
   assert.equal(button.getAttribute('aria-label'),'Close module details');
   assert.equal(button.getAttribute('title'),'Refresh run history');
-  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(key.textContent,'质控台');assert.equal(pageTitle.textContent,'临鉴 linjian | 质控台');assert.equal(button.getAttribute('title'),'查看模块详情');
+  button.setAttribute('title','查看模块详情');h.flush();assert.equal(button.getAttribute('title'),'View module details');api.setLanguage('zh-CN');assert.equal(key.textContent,'读取文件');assert.equal(pageTitle.textContent,'临策数据质控平台');assert.equal(button.getAttribute('title'),'查看模块详情');
 });
 check('dynamic count, range, progress, error and candidate messages are English',()=>{
   const api=harness().start();
@@ -221,7 +221,8 @@ check('translator never mutates source objects or runs network/recommendation/jo
 });
 check('current static HTML system labels have English translations',()=>{
   const api=harness().start();let cleaned=htmlSource.replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi,'').replace(/<!--[\s\S]*?-->/g,'');
-  // Registration and copyright text are published in Chinese in both locales.
+  // The platform name, registration and copyright are published in Chinese.
+  cleaned=cleaned.replace(/<(title|strong)\b[^>]*\btranslate="no"[^>]*>[^<]*<\/\1>/gi,'');
   cleaned=cleaned.replace(/<footer\b[^>]*\btranslate="no"[^>]*>[\s\S]*?<\/footer>/gi,'');
   const labels=[...cleaned.matchAll(/>([^<>]+)</g)].map(m=>m[1].trim()).filter(text=>/[\u3400-\u9fff]/.test(text));
   const exempt=new Set(['中文','简体中文','English','EN','中']);

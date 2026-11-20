@@ -37,8 +37,6 @@ body.qc-app, body.qc-document {
 .qc-app .brand { gap: 9px; color: var(--ink); }
 .qc-app .brand strong {
   display: block;
-  border-inline-start: 1px solid var(--line);
-  padding-inline-start: 9px;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.3;

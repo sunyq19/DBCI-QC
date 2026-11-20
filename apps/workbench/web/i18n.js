@@ -2159,15 +2159,12 @@ EDF技术头与选道	EDF technical header and channel selection
     ["信号完整性按有限且非恒值样本占比计分；工频干扰按未命中通道窗占比计分；高频突发按非候选通道时长占比计分。总分为三项平均值。","Integrity uses the finite, nonconstant sample fraction; line noise uses the unflagged channel-window fraction; high-frequency bursts use the noncandidate channel-time fraction. The total is their mean."],
     ["三项齐备才计算总分。分数不是可用数据百分比，尚未经过专家校准。","All three checks are required for a total. This is not a percentage of usable data and has not been expert-calibrated."]
   ];
-  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs, ...reportPairs,
-    ["临鉴 linjian | 质控台", "Linjian | QC Workbench"]];
+  const explicitPairs = [...pairs.split("\n").map(line => line.split("\t")), ...researchPairs, ...reportPairs];
   // The descriptive catalogs adapt known ECoG text with these exact route labels.
   // Derive whole-phrase translations only; never replace arbitrary source text.
   const routePairs = explicitPairs.filter(([label])=>label.includes("ECoG")).flatMap(([label,english])=>[["sEEG","sEEG"],["Neuropixels AP/LF","Neuropixels AP/LF"],["Neuropixels 电压","Neuropixels voltage"]].map(([route,translation])=>[label.replaceAll("ECoG",route),english.replaceAll("ECoG",translation)]));
   const dictionary = Object.freeze(Object.fromEntries([...routePairs,...explicitPairs]));
   const keys = {
-    "workbench.title": ["质控台", "QC Workbench"],
-    "workbench.pageTitle": ["临鉴 linjian | 质控台", dictionary["临鉴 linjian | 质控台"]],
     "language.label": ["界面语言", "Interface language"],
     "source.chinese": ["中文来源", "Chinese source"],
     "source.original": ["来源原文", "Original source text"],

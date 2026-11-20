@@ -57,20 +57,34 @@ html,.hierarchy-scroll,.inspector,.canvas-scroll{scrollbar-gutter:stable}
 /* A document canvas: direct text and files, with implementation details folded away. */
 .sketch-workspace{height:100vh;display:flex;flex-direction:column;background:#f7f8fb;font-size:14px}
 .workspace-header{display:flex;align-items:center;gap:18px;height:64px;flex:0 0 64px;padding:0 22px;background:#fff;border-bottom:1px solid var(--line)}
-.workspace-header .branding { flex: none; gap: 11px; }
-.collaboration-logo { display: block; flex: none; }
-.collaboration-logo img { display: block; width: auto; height: 20px; }
+.workspace-header .branding { flex: none; gap: 9px; }
+.collaboration-logo { display: block; flex: none; width: 30px; height: auto; }
 .workspace-header .branding strong {
-  border-inline-start: 1px solid var(--line);
-  padding-inline-start: 11px;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.25;
   white-space: nowrap;
 }
-@media (max-width: 480px) {
-  .workspace-header .branding { gap: 8px; }
-  .collaboration-logo img { width: 26px; height: auto; }
-  .workspace-header .branding strong { padding-inline-start: 8px; font-size: 15px; }
+.workspace-header .brand-section {
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: 10px;
+}
+@media (max-width: 520px) {
+  .sketch-workspace .workspace-header { gap: 8px; }
+  .workspace-header .branding {
+    display: grid;
+    grid-template-columns: auto max-content;
+    gap: 2px 7px;
+  }
+  .collaboration-logo { grid-row: 1 / span 2; width: 24px; }
+  .workspace-header .branding .brand-name { font-size: 13px; }
+  .workspace-header .branding .brand-section {
+    grid-column: 2;
+    border: 0;
+    padding: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+  }
 }
 .document-status{font-size:12px;color:#7e8a9b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.workspace-header .head-actions{margin-left:auto;gap:12px}
 .workspace-toolbar{display:flex;align-items:center;gap:8px;padding:10px 20px;background:white;border-bottom:1px solid var(--line);flex-wrap:wrap;min-height:58px}.workspace-toolbar button{font-size:13px;padding:7px 10px}.workspace-toolbar .view-switch{margin-right:8px}.workspace-toolbar .active{color:var(--blue);background:#eaf1ff}
