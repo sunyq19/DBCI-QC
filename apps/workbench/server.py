@@ -982,7 +982,7 @@ class Handler(BaseHTTPRequestHandler):
             from example_cache import asset
             target = asset(self.store, path)
             return self.send_bytes(target.read_bytes(), mimetypes.guess_type(target.name)[0] or 'application/octet-stream', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
-        static = {'/': 'index.html', '/privacy': 'privacy.html', '/privacy.css': 'privacy.css', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/favicon.svg': 'favicon.svg',
+        static = {'/': 'index.html', '/privacy': 'privacy.html', '/privacy.css': 'privacy.css', '/app.js': 'app.js', '/run-names.js': 'run-names.js', '/i18n.js': 'i18n.js', '/styles.css': 'styles.css', '/ui-tokens.css': 'ui-tokens.css', '/workbench-ui.css': 'workbench-ui.css', '/linjian-mark.png': 'linjian-mark.png', '/favicon.ico': 'linjian-mark.png', '/favicon.svg': 'linjian-mark.png',
                   '/temporary-session.js': 'temporary-session.js', '/data-library.js': 'data-library.js', '/dataset-report.css': 'dataset-report.css', '/dataset-report.js': 'dataset-report.js', '/visualizations.js': 'visualizations.js', '/report-interactions.js': 'report-interactions.js', '/waveform-explorer.js': 'waveform-explorer.js', '/waveform-explorer.css': 'waveform-explorer.css', '/datasets': 'datasets.html', '/datasets.js': 'datasets.js', '/datasets.css': 'datasets.css',
                   '/dataset-review.js': 'dataset-review.js', '/dataset-review.css': 'dataset-review.css'}
         if path in static:
@@ -991,7 +991,8 @@ class Handler(BaseHTTPRequestHandler):
                 from example_cache import homepage
                 from deployment import homepage as deployment_homepage
                 return self.send_bytes(deployment_homepage(homepage(self.store, target.read_text()), self.store.settings).encode('utf-8'), 'text/html; charset=utf-8')
-            return self.send_bytes(target.read_bytes(), (mimetypes.guess_type(target.name)[0] or 'text/plain') + '; charset=utf-8')
+            mime = mimetypes.guess_type(target.name)[0] or 'text/plain'
+            return self.send_bytes(target.read_bytes(), mime if mime.startswith('image/') else mime + '; charset=utf-8')
         raise KeyError(path)
 
     def post(self, path):

@@ -35,8 +35,6 @@ body.qc-app, body.qc-document {
   gap: 24px; background: var(--surface); flex-wrap: nowrap;
 }
 .qc-app .brand { gap: 9px; color: var(--ink); }
-.qc-app .brand-mark { width: 28px; height: 28px; border-radius: var(--radius-control); background: var(--primary); color: #fff; box-shadow: none; }
-.qc-app .brand-mark svg { width: 22px; }
 .qc-app .brand strong { font-size: 15px; font-weight: 600; letter-spacing: 0; }
 .qc-app .header-actions { display: flex; align-items: center; gap: 24px; margin-left: auto; }
 .qc-app .site-header nav { display: flex; gap: 20px; }

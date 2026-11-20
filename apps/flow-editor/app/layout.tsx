@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DBCI-QC · 模块流程",
+  title: "模块协作",
   description: "质控模块、启用条件与评分方案。共同维护，固定版本。",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: { url: "/linjian-mark.png", type: "image/png" },
   },
 };
 
